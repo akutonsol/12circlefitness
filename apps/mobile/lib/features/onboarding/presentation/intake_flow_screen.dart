@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../scoring/data/score_engine.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/intake_data.dart';
@@ -218,6 +219,7 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
               .eq('id', uid);
         } catch (_) {}
       }
+      ScoreEngine().assessmentComplete(); // +25 (once)
     }
     if (mounted) context.go('/home');
   }

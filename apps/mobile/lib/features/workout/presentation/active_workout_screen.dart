@@ -129,6 +129,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           'started_at': DateTime.now().toIso8601String(),
         }).select().single();
         _sessionId = row['id'] as String;
+        ScoreEngine().workoutStarted(workout.id); // +5
       }
     } catch (_) {}
   }
