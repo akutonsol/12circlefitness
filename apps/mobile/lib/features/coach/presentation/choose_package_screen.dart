@@ -37,6 +37,7 @@ class ChoosePackageScreen extends ConsumerStatefulWidget {
 
 class _ChoosePackageScreenState extends ConsumerState<ChoosePackageScreen> {
   Map<String, dynamic>? _selected;
+  String? _currentPackageId;   // the package the client is currently on
   final Set<int> _days = {};
   TimeOfDay _time = const TimeOfDay(hour: 7, minute: 0); // default for new days
   final Map<int, TimeOfDay> _dayTimes = {};             // per-day override
@@ -55,6 +56,7 @@ class _ChoosePackageScreenState extends ConsumerState<ChoosePackageScreen> {
     final svc = ref.read(packageServiceProvider);
     // Prefer an existing schedule; else seed from onboarding days/week.
     final existing = await svc.getMySchedule();
+    _currentPackageId = existing?['package_id'] as String?;
     if (existing != null && (existing['days'] as List?)?.isNotEmpty == true) {
       _days.addAll((existing['days'] as List)
           .map((d) => _dayKeys.indexOf('$d'))
@@ -149,6 +151,15 @@ class _ChoosePackageScreenState extends ConsumerState<ChoosePackageScreen> {
                 child: Text('This coach hasn’t published any packages yet.',
                     textAlign: TextAlign.center, style: TextStyle(color: _muted))));
             }
+            // Pre-select the plan the client is currently on.
+            if (_selected == null && _currentPackageId != null) {
+              final cur = pkgs.where((p) => p['id'] == _currentPackageId);
+              if (cur.isNotEmpty) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted && _selected == null) setState(() => _selected = cur.first);
+                });
+              }
+            }
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
               children: [
@@ -234,7 +245,18 @@ class _ChoosePackageScreenState extends ConsumerState<ChoosePackageScreen> {
           Icon(selected ? Icons.check_circle_rounded : Icons.circle_outlined, color: color),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_typeLabel(type), style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+            Row(children: [
+              Text(_typeLabel(type), style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+              if (p['id'] == _currentPackageId) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(color: color.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withValues(alpha: 0.5))),
+                  child: Text('CURRENT PLAN', style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w800)),
+                ),
+              ],
+            ]),
             Text(p['name'] as String? ?? '', style: const TextStyle(color: _white, fontSize: 16, fontWeight: FontWeight.w700)),
             if (type == 'bulk') Text('$sessions sessions', style: const TextStyle(color: _muted, fontSize: 12)),
             if ((p['description'] as String?)?.isNotEmpty ?? false)
