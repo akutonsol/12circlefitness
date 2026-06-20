@@ -181,11 +181,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/exercise-library',   builder: (_, __) => const ExerciseLibraryScreen()),
           GoRoute(path: '/exercise-database',  builder: (_, __) => const ExerciseDatabaseScreen()),
           GoRoute(path: '/exercise-detail',    builder: (_, __) => const ExerciseDetailScreen()),
-          GoRoute(path: '/nutrition',          builder: (_, __) => const NutritionSplashScreen()),
-          GoRoute(path: '/meals-dashboard',    builder: (_, __) => const MealsDashboardScreen()),
-          GoRoute(path: '/nutrition-overview', builder: (_, __) => const NutritionScreen()),
-          GoRoute(path: '/food-search',        builder: (_, __) => const FoodSearchScreen()),
-          GoRoute(path: '/log-meal',           builder: (_, __) => const LogMealScreen()),
+          GoRoute(path: '/nutrition',          builder: (_, __) => const PaywallGate(
+            required: ClientPlan.selfGuided, featureName: 'Nutrition Tracking', child: NutritionSplashScreen())),
+          GoRoute(path: '/meals-dashboard',    builder: (_, __) => const PaywallGate(
+            required: ClientPlan.selfGuided, featureName: 'Nutrition Tracking', child: MealsDashboardScreen())),
+          GoRoute(path: '/nutrition-overview', builder: (_, __) => const PaywallGate(
+            required: ClientPlan.selfGuided, featureName: 'Nutrition Tracking', child: NutritionScreen())),
+          GoRoute(path: '/food-search',        builder: (_, __) => const PaywallGate(
+            required: ClientPlan.selfGuided, featureName: 'Nutrition Tracking', child: FoodSearchScreen())),
+          GoRoute(path: '/log-meal',           builder: (_, __) => const PaywallGate(
+            required: ClientPlan.selfGuided, featureName: 'Nutrition Tracking', child: LogMealScreen())),
           GoRoute(path: '/ai-nutrition',       builder: (_, __) => const PaywallGate(
             required: ClientPlan.aiGuided, featureName: 'AI Nutrition', child: AiNutritionScreen())),
           GoRoute(path: '/meal-plan',          builder: (_, __) => const MealPlanScreen()),
@@ -194,15 +199,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/progress',           builder: (_, __) => const ProgressScreen()),
           GoRoute(path: '/checkins',           builder: (_, __) => const CheckinScreen()),
           GoRoute(path: '/daily-checkin',      builder: (_, __) => const DailyCheckinScreen()),
-          GoRoute(path: '/insights',           builder: (_, __) => const InsightsScreen()),
-          GoRoute(path: '/appointments',       builder: (_, __) => const BookingScreen()),
+          GoRoute(path: '/insights',           builder: (_, __) => const PaywallGate(
+            required: ClientPlan.selfGuided, featureName: 'Advanced Analytics', child: InsightsScreen())),
+          GoRoute(path: '/appointments',       builder: (_, __) => const PaywallGate(
+            required: ClientPlan.coachGuided, featureName: 'Coach Bookings', child: BookingScreen())),
           GoRoute(path: '/checkin-form',       builder: (_, __) => const CheckinFormScreen()),
           GoRoute(path: '/checkin-detail',     builder: (_, __) => const CheckinDetailScreen()),
-          GoRoute(path: '/messages',           builder: (_, __) => const MessagingScreen()),
-          GoRoute(path: '/chat',               builder: (_, __) => const ChatScreen()),
+          GoRoute(path: '/messages',           builder: (_, __) => const PaywallGate(
+            required: ClientPlan.coachGuided, featureName: 'Coach Messaging', child: MessagingScreen())),
+          GoRoute(path: '/chat',               builder: (_, __) => const PaywallGate(
+            required: ClientPlan.coachGuided, featureName: 'Coach Messaging', child: ChatScreen())),
           GoRoute(path: '/community',          builder: (_, __) => const CommunityScreen()),
           GoRoute(path: '/challenges',         builder: (_, __) => const ChallengesScreen()),
-          GoRoute(path: '/action-items',       builder: (_, __) => const ActionCenterScreen()),
+          GoRoute(path: '/action-items',       builder: (_, __) => const PaywallGate(
+            required: ClientPlan.coachGuided, featureName: 'Action Items', child: ActionCenterScreen())),
           GoRoute(path: '/goals',              builder: (_, __) => const GoalsScreen()),
           GoRoute(path: '/compliance',         builder: (_, __) => const ComplianceDashboardScreen()),
           GoRoute(path: '/program-builder',    builder: (_, __) => const ProgramLibraryScreen()),
@@ -212,7 +222,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/challenge-detail',   builder: (_, __) => const ChallengeDetailScreen()),
           GoRoute(path: '/ai-coach',           builder: (_, __) => const PaywallGate(
             required: ClientPlan.aiGuided, featureName: 'AI Coach', child: AICoachScreen())),
-          GoRoute(path: '/book-call',          builder: (_, __) => const BookingScreen()),
+          GoRoute(path: '/book-call',          builder: (_, __) => const PaywallGate(
+            required: ClientPlan.coachGuided, featureName: 'Coach Bookings', child: BookingScreen())),
           GoRoute(path: '/booking-handoff',    builder: (_, __) => const BookingHandoffScreen()),
           GoRoute(path: '/womens-health',      builder: (_, __) => const WomensHealthScreen()),
           GoRoute(path: '/score',              builder: (_, __) => const ScoreScreen()),

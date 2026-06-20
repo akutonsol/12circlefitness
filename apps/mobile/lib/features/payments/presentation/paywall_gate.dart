@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../domain/entitlements.dart';
+import '../../auth/domain/auth_provider.dart';
 
 const _bg    = Color(0xFF030303);
 const _brand = Color(0xFFA855F7);
@@ -24,6 +25,10 @@ class PaywallGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Coaches always have access to coaching tools (their plan is a coach plan,
+    // not a client plan) — never paywall them.
+    final isCoach = ref.watch(currentUserProfileProvider).valueOrNull?['role'] == 'coach';
+    if (isCoach) return child;
     final planAsync = ref.watch(clientPlanProvider);
     return planAsync.when(
       loading: () => const Scaffold(
