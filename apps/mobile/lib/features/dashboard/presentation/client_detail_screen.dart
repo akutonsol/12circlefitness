@@ -298,7 +298,7 @@ class _OverviewTab extends ConsumerWidget {
         const SizedBox(height: 12),
 
         // ── Coach Action Center ──
-        _CoachActionCenter(actions: actions, clientId: clientId),
+        _CoachActionCenter(actions: actions, clientId: clientId, paidPlan: paidPlan),
         const SizedBox(height: 12),
 
         // ── Assigned Program ──
@@ -1371,7 +1371,8 @@ class _ClientScoreCard extends ConsumerWidget {
 class _CoachActionCenter extends ConsumerStatefulWidget {
   final List<Map<String, String>> actions;
   final String clientId;
-  const _CoachActionCenter({required this.actions, required this.clientId});
+  final bool paidPlan;
+  const _CoachActionCenter({required this.actions, required this.clientId, required this.paidPlan});
 
   @override
   ConsumerState<_CoachActionCenter> createState() => _CoachActionCenterState();
@@ -1392,8 +1393,17 @@ class _CoachActionCenterState extends ConsumerState<_CoachActionCenter> {
   }
 
   void _approve(Map<String, String> a) {
+    final icon = a['icon'] ?? '';
+    final opensService = icon == 'fitness' || icon == 'nutrition' || icon == 'habit' || icon == 'checkin';
+    // Services stay locked until the client is on a paid plan with this coach.
+    if (opensService && !widget.paidPlan) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Locked — the client must subscribe to one of your plans first.'),
+        behavior: SnackBarBehavior.floating));
+      return;
+    }
     // Route to the real action so "Approve" actually does the thing.
-    switch (a['icon'] ?? '') {
+    switch (icon) {
       case 'fitness':
         _openSheet(_AssignProgramSheet(clientId: widget.clientId, ref: ref));
         break;
@@ -1460,13 +1470,14 @@ class _CoachActionCenterState extends ConsumerState<_CoachActionCenter> {
         const Text('Coach Action Center',
           style: TextStyle(color: _mut, fontSize: 12, fontWeight: FontWeight.w600)),
         const Spacer(),
-        // Keep the generated items; let the coach add their own as well.
-        TextButton.icon(
-          onPressed: () => showAssignActionItemSheet(context, ref, widget.clientId),
-          icon: const Icon(Icons.add_rounded, color: _brand, size: 16),
-          label: const Text('Add', style: TextStyle(color: _brand, fontSize: 12, fontWeight: FontWeight.w700)),
-          style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6),
-            minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap)),
+        // Keep the generated items; let the coach add their own (once paid).
+        if (widget.paidPlan)
+          TextButton.icon(
+            onPressed: () => showAssignActionItemSheet(context, ref, widget.clientId),
+            icon: const Icon(Icons.add_rounded, color: _brand, size: 16),
+            label: const Text('Add', style: TextStyle(color: _brand, fontSize: 12, fontWeight: FontWeight.w700)),
+            style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6),
+              minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap)),
       ]),
       const SizedBox(height: 10),
       if (visible.isEmpty)

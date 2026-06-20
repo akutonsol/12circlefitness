@@ -8,6 +8,8 @@ import '../../../core/utils/web_logout.dart';
 import '../../auth/domain/auth_provider.dart';
 import '../../coach/domain/coach_provider.dart';
 import '../../coaching_mode/domain/coaching_mode_provider.dart';
+import '../../payments/domain/payment_provider.dart';
+import '../../payments/domain/entitlements.dart';
 
 class _C {
   static const bg                  = Color(0xFF0B1326);
@@ -47,7 +49,8 @@ class ProfileScreen extends ConsumerWidget {
         ?? 'client';
     final isCoach     = role == 'coach';
     final avatarUrl   = profile?['avatar_url']      as String?;
-    final memberTier  = profile?['membership_tier'] as String? ?? 'basic';
+    // Real effective plan (Coach-Guided / AI / Self / Free) — not the raw column.
+    final memberTier  = (ref.watch(clientPlanProvider).valueOrNull ?? ClientPlan.free).label;
     final unitPref    = profile?['unit_preference'] as String? ?? 'imperial';
     final coachingMode= ref.watch(coachingModeProvider);
 
