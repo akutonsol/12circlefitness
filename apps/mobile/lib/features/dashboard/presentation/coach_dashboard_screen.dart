@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../auth/domain/auth_provider.dart';
+import '../../../core/realtime/realtime.dart';
 import '../../checkins/domain/checkin_provider.dart';
 import '../../messaging/data/messaging_service.dart';
 import '../../messaging/domain/messaging_provider.dart';
@@ -46,6 +47,8 @@ final unreadNotificationCountProvider = Provider<int>((ref) {
 });
 
 final coachClientsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  // Live: re-fetch when a relationship changes (new client, status flip).
+  ref.watch(tableTickerProvider('coach_client_relationships'));
   try {
     final coachId = _supabase.auth.currentUser?.id;
     if (coachId == null) return [];

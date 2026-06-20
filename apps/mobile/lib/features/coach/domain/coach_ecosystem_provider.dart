@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../auth/domain/auth_provider.dart';
+import '../../../core/realtime/realtime.dart';
 import '../data/coach_program_service.dart';
 import '../data/coach_relationship_service.dart';
 import '../data/score_service.dart';
@@ -12,10 +13,12 @@ final _scoreSvc = ScoreService();
 // ── Relationship ──────────────────────────────────────────────
 final myRelationshipProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
   ref.watch(currentUserProvider); // rerun on auth change
+  ref.watch(tableTickerProvider('coach_client_relationships')); // live
   return _relSvc.getMyRelationship();
 });
 
 final pendingRequestsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  ref.watch(tableTickerProvider('coach_client_relationships')); // live: new requests
   final coachId = Supabase.instance.client.auth.currentUser?.id;
   if (coachId == null) return [];
   return _relSvc.getPendingRequests(coachId);
