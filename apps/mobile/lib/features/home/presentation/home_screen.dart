@@ -15,6 +15,7 @@ import '../../coaching_mode/domain/coaching_mode_provider.dart';
 import '../../messaging/domain/messaging_provider.dart' show selectedConversationProvider;
 import '../../womens_health/domain/cycle_provider.dart';
 import '../../womens_health/domain/cycle_phase.dart';
+import '../../scoring/domain/score_provider.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 class _C {
@@ -310,11 +311,16 @@ class _PullIndicatorState extends ConsumerState<_PullIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final total = ref.watch(todayScoreProvider)
-        .valueOrNull?['total_score'] as int? ?? 0;
+    // The home number is now the 12 Circle Score (this month); the ring shows
+    // progress toward the next level. Tap → full score screen.
+    final s = ref.watch(myScoreProvider).valueOrNull;
+    final total = (s?['current_cycle_score'] as num?)?.toInt() ?? 0;
+    final lifetime = (s?['lifetime_score'] as num?)?.toInt() ?? 0;
+    final levelPct = (lifetime % 500) / 500.0;
 
     return GestureDetector(
-      onTap: widget.onOpen,
+      onTap: () => context.push('/score'),
+      onLongPress: widget.onOpen,
       onVerticalDragEnd: (d) {
         if ((d.primaryVelocity ?? 0) > 80) widget.onOpen();
       },
@@ -334,12 +340,12 @@ class _PullIndicatorState extends ConsumerState<_PullIndicator>
           SizedBox(
             width: 18, height: 18,
             child: CircularProgressIndicator(
-              value: total / 100.0,
+              value: levelPct.clamp(0.0, 1.0),
               strokeWidth: 2.0,
               backgroundColor: Colors.white.withValues(alpha: 0.08),
               valueColor: const AlwaysStoppedAnimation(_C.primary))),
           const SizedBox(width: 10),
-          Text('WELLNESS PULSE',
+          Text('12 CIRCLE SCORE',
             style: TextStyle(
               color: _C.onSurfVar.withValues(alpha: 0.45),
               fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 2)),
@@ -379,6 +385,10 @@ class _WellnessPulsePanel extends ConsumerWidget {
     final checkins  = score['checkin_points']   as int? ?? 0;
     final community = score['community_points'] as int? ?? 0;
     final streak    = ref.watch(currentStreakProvider).valueOrNull ?? 0;
+    final cScore    = ref.watch(myScoreProvider).valueOrNull;
+    final cCycle    = (cScore?['current_cycle_score'] as num?)?.toInt() ?? 0;
+    final cLevel    = (cScore?['level'] as num?)?.toInt() ?? 1;
+    final cRank     = cScore?['rank'] as String? ?? 'Bronze';
     final topPad    = MediaQuery.of(context).padding.top;
     final now       = DateTime.now();
     const months    = ['JAN','FEB','MAR','APR','MAY','JUN',
@@ -424,9 +434,37 @@ class _WellnessPulsePanel extends ConsumerWidget {
                         fontWeight: FontWeight.w700, letterSpacing: 1)),
                 ]),
               ]),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // Score ring
+              // 12 Circle Score — tap for full dashboard, badges & leaderboard.
+              GestureDetector(
+                onTap: () => context.push('/score'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      const Color(0xFFFFD479).withValues(alpha: 0.18), const Color(0xFF131B2E)]),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFFFD479).withValues(alpha: 0.35))),
+                  child: Row(children: [
+                    const Icon(Icons.military_tech_rounded, color: Color(0xFFFFD479), size: 26),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('12 CIRCLE SCORE', style: TextStyle(color: Color(0xFFFFD479),
+                        fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+                      Text('$cCycle pts · $cRank · Level $cLevel',
+                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                    ])),
+                    const Icon(Icons.chevron_right_rounded, color: Color(0xFFFFD479), size: 22),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              Text('TODAY’S ACTIVITY', style: TextStyle(color: _C.primary.withValues(alpha: 0.6),
+                fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 2)),
+              const SizedBox(height: 10),
+              // Daily wellness ring (today's points by category)
               _PanelScoreSection(total: total,
                 workout: workout, nutrition: nutrition, habits: habits),
               const SizedBox(height: 14),
