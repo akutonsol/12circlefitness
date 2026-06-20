@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/notification_service.dart';
 import '../data/notification_model.dart';
@@ -15,8 +16,20 @@ final unreadCountProvider = FutureProvider<int>((ref) async {
 });
 
 class NotificationsNotifier extends StateNotifier<AsyncValue<List<AppNotification>>> {
+  StreamSubscription? _sub;
+
   NotificationsNotifier() : super(const AsyncValue.loading()) {
     _load();
+    // Live feed — new/updated notifications flow in without a manual refresh.
+    _sub = _svc.streamNotifications().listen(
+      (list) => state = AsyncValue.data(list),
+      onError: (_) {/* keep last good state */});
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {

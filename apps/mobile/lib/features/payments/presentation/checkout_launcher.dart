@@ -23,23 +23,32 @@ Future<bool> launchCheckout(
       embeddedCheckoutSupported &&
       stripePublishableKey.isNotEmpty;
 
-  if (canEmbed) {
-    final clientSecret = await svc.createEmbeddedCheckout(
+  try {
+    if (canEmbed) {
+      final clientSecret = await svc.createEmbeddedCheckout(
+        kind: kind, coachId: coachId, eventId: eventId, tier: tier,
+      );
+      if (clientSecret != null && context.mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EmbeddedCheckoutScreen(clientSecret: clientSecret),
+          ),
+        );
+        return true;
+      }
+      // Fall through to redirect if embedded couldn't start.
+    }
+
+    return await svc.startCheckout(
       kind: kind, coachId: coachId, eventId: eventId, tier: tier,
     );
-    if (clientSecret != null && context.mounted) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => EmbeddedCheckoutScreen(clientSecret: clientSecret),
-        ),
-      );
-      return true;
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Checkout could not start. Please try again.\n$e'),
+          backgroundColor: const Color(0xFFFFB4AB)));
     }
-    // Fall through to redirect if embedded couldn't start.
+    return false;
   }
-
-  return svc.startCheckout(
-    kind: kind, coachId: coachId, eventId: eventId, tier: tier,
-  );
 }

@@ -307,4 +307,36 @@ class CoachProgramService {
       'is_active': true,
     });
   }
+
+  /// Coach: has this client PAID for a plan with me? True if there's an active
+  /// coach/package subscription or a paid one-time package payment between us.
+  /// Coaches can only assign work once this is true.
+  Future<bool> clientHasPaidPlan(String clientId) async {
+    final coachId = _db.auth.currentUser?.id;
+    if (coachId == null) return false;
+    try {
+      final sub = await _db
+          .from('subscriptions')
+          .select('id')
+          .eq('user_id', clientId)
+          .eq('coach_id', coachId)
+          .inFilter('kind', ['coach', 'package_monthly'])
+          .inFilter('status', ['active', 'trialing'])
+          .limit(1)
+          .maybeSingle();
+      if (sub != null) return true;
+      final pay = await _db
+          .from('payments')
+          .select('id')
+          .eq('user_id', clientId)
+          .eq('coach_id', coachId)
+          .eq('kind', 'package')
+          .eq('status', 'paid')
+          .limit(1)
+          .maybeSingle();
+      return pay != null;
+    } catch (_) {
+      return false;
+    }
+  }
 }

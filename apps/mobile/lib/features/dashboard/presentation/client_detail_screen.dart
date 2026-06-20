@@ -206,6 +206,8 @@ class _OverviewTab extends ConsumerWidget {
     final riskLevel  = detail['risk_level'] as String? ?? 'low';
     final summary    = _generateAiSummary(detail);
     final actions    = _generateActions(detail);
+    // Coaches can only assign work once the client is on a paid plan with them.
+    final paidPlan   = ref.watch(clientHasPaidPlanProvider(clientId)).valueOrNull ?? false;
 
     final goalLabel = {
       'lose_fat': 'Lose Fat', 'build_muscle': 'Build Muscle',
@@ -315,18 +317,45 @@ class _OverviewTab extends ConsumerWidget {
           const SizedBox(height: 16),
           _ClientScheduleCard(clientId: clientId),
           const SizedBox(height: 10),
-          _ActionButton(icon: Icons.fitness_center, label: 'Assign / Change Program',
-            onTap: () => _showSheet(context, _AssignProgramSheet(clientId: clientId, ref: ref))),
+          // ── Coaching services — gated behind a paid plan ──
+          if (!paidPlan)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _tert.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _tert.withValues(alpha: 0.25))),
+              child: Row(children: [
+                const Icon(Icons.lock_outline, color: _tert, size: 18),
+                const SizedBox(width: 10),
+                const Expanded(child: Text(
+                  'Coaching services unlock once this client subscribes to one of your plans.',
+                  style: TextStyle(color: _mut, fontSize: 12, height: 1.4))),
+              ]),
+            )
+          else ...[
+            _ActionButton(icon: Icons.fitness_center, label: 'Assign / Change Program',
+              onTap: () => _showSheet(context, _AssignProgramSheet(clientId: clientId, ref: ref))),
+            const SizedBox(height: 8),
+            _ActionButton(icon: Icons.restaurant_menu, label: 'Set Nutrition Targets',
+              onTap: () => _showSheet(context, _AssignNutritionSheet(clientId: clientId, ref: ref))),
+            const SizedBox(height: 8),
+            _ActionButton(icon: Icons.task_alt, label: 'Assign Habits',
+              onTap: () => _showSheet(context, _AssignHabitsSheet(clientId: clientId, ref: ref))),
+            const SizedBox(height: 8),
+            _ActionButton(icon: Icons.checklist_rounded, label: 'Assign Action Item',
+              onTap: () => showAssignActionItemSheet(context, ref, clientId)),
+            const SizedBox(height: 8),
+            _ActionButton(icon: Icons.videocam_rounded, label: 'Send Video Response',
+              onTap: () {
+                final name = '$firstName $lastName'.trim();
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => CoachVideoResponseScreen(
+                    clientId: clientId, clientName: name.isEmpty ? 'Client' : name)));
+              }),
+          ],
           const SizedBox(height: 8),
-          _ActionButton(icon: Icons.restaurant_menu, label: 'Set Nutrition Targets',
-            onTap: () => _showSheet(context, _AssignNutritionSheet(clientId: clientId, ref: ref))),
-          const SizedBox(height: 8),
-          _ActionButton(icon: Icons.task_alt, label: 'Assign Habits',
-            onTap: () => _showSheet(context, _AssignHabitsSheet(clientId: clientId, ref: ref))),
-          const SizedBox(height: 8),
-          _ActionButton(icon: Icons.checklist_rounded, label: 'Assign Action Item',
-            onTap: () => showAssignActionItemSheet(context, ref, clientId)),
-          const SizedBox(height: 8),
+          // Internal coach tools — always available.
           _ActionButton(icon: Icons.lock_outline, label: 'Private Notes',
             onTap: () {
               final name = '$firstName $lastName'.trim();
@@ -335,14 +364,6 @@ class _OverviewTab extends ConsumerWidget {
           const SizedBox(height: 8),
           _ActionButton(icon: Icons.attach_money_rounded, label: 'Set Custom Price',
             onTap: () => _showCustomPriceDialog(context, clientId)),
-          const SizedBox(height: 8),
-          _ActionButton(icon: Icons.videocam_rounded, label: 'Send Video Response',
-            onTap: () {
-              final name = '$firstName $lastName'.trim();
-              Navigator.push(context, MaterialPageRoute(
-                builder: (_) => CoachVideoResponseScreen(
-                  clientId: clientId, clientName: name.isEmpty ? 'Client' : name)));
-            }),
         ])),
         const SizedBox(height: 12),
 

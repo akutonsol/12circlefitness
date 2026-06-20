@@ -221,3 +221,10 @@ final clientDetailProvider = FutureProvider.family<Map<String, dynamic>, String>
 final coachProgramServiceProvider = Provider((_) => _programSvc);
 final coachRelServiceProvider = Provider((_) => _relSvc);
 final scoreServiceProvider = Provider((_) => _scoreSvc);
+
+/// Whether the given client has paid for a plan with the current coach.
+/// Coaches can only assign work (programs/nutrition/habits/etc.) once true.
+final clientHasPaidPlanProvider =
+    FutureProvider.family<bool, String>((ref, clientId) async {
+  return _programSvc.clientHasPaidPlan(clientId);
+});
