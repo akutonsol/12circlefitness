@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { background: #030303; color: #fff; font-family: -apple-system, sans-serif;
+           display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+  </style>
+</head>
+<body>
+  <div>Finishing up…</div>
+  <script>
+    // Stripe redirects the embedded iframe here when checkout completes. Break
+    // out of the iframe and send the parent Flutter app to its success route.
+    (function () {
+      // Force a full reload of the parent app at the success route so the
+      // embedded-checkout screen (pushed on top) is torn down — otherwise the
+      // user stays stuck on this "finishing up" frame.
+      try {
+        var top = window.top || window;
+        top.location.href = top.location.origin + '/#/payment-success';
+        top.location.reload();
+      } catch (e) {
+        window.location.href = '/#/payment-success';
+        window.location.reload();
+      }
+    })();
+  </script>
+</body>
+</html>

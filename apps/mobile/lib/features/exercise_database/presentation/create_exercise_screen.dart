@@ -1,0 +1,586 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import '../domain/custom_exercise_provider.dart';
+import '../../workout/data/models/video_variant_model.dart';
+
+// ── Palette ───────────────────────────────────────────────────────────────────
+class _C {
+  static const bg       = Color(0xFF030303);
+  static const card     = Color(0xFF0E0B16);
+  static const brd      = Color(0xFF1A1020);
+  static const brand    = Color(0xFFA855F7);
+  static const primary  = Color(0xFFDDB7FF);
+  static const tertiary = Color(0xFF6FFBBE);
+  static const amber    = Color(0xFFFFD580);
+  static const error    = Color(0xFFFFB4AB);
+  static const wht      = Colors.white;
+  static const mut      = Color(0xFFCFC2D6);
+}
+
+const _categories  = ['Strength', 'Cardio', 'Flexibility', 'Core', 'Olympic', 'Powerlifting', 'Functional', 'Rehab'];
+const _muscles     = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Hamstrings', 'Core', 'Full Body', 'Cardio'];
+const _equipment   = ['Barbell', 'Dumbbell', 'Kettlebell', 'Machine', 'Cable', 'Bodyweight', 'Resistance Band', 'Smith Machine', 'Trap Bar', 'None'];
+const _difficulties = ['Beginner', 'Intermediate', 'Advanced', 'Elite'];
+const _videoLabels  = ['Tutorial', 'Beginner', 'Intermediate', 'Advanced', 'Form Correction', 'Warm-up'];
+const _visibilities = ['private', 'team', 'global'];
+
+class CreateExerciseScreen extends ConsumerStatefulWidget {
+  const CreateExerciseScreen({super.key});
+  @override
+  ConsumerState<CreateExerciseScreen> createState() => _CreateExerciseScreenState();
+}
+
+class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs;
+  final _formKey = GlobalKey<FormState>();
+  bool _saving = false;
+  String? _savedId;
+
+  // Basic info
+  final _nameCtrl    = TextEditingController();
+  final _descCtrl    = TextEditingController();
+  String _category   = 'Strength';
+  String _muscle     = 'Chest';
+  String _equipment  = 'Barbell';
+  String _difficulty = 'Intermediate';
+  String _visibility = 'private';
+  final List<String> _secondaryMuscles = [];
+
+  // Instructions / cues / mistakes / alternatives
+  final List<TextEditingController> _instructionCtrls  = [TextEditingController()];
+  final List<TextEditingController> _cueCtrls          = [TextEditingController()];
+  final List<TextEditingController> _mistakeCtrls      = [TextEditingController()];
+  final List<TextEditingController> _alternativeCtrls  = [TextEditingController()];
+  final _beginnerCtrl   = TextEditingController();
+  final _advancedCtrl   = TextEditingController();
+  final _tagsCtrl       = TextEditingController();
+
+  // Media
+  File? _imageFile;
+  final List<_VideoEntry> _videoEntries = [];
+  final _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = TabController(length: 4, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    _nameCtrl.dispose(); _descCtrl.dispose();
+    _beginnerCtrl.dispose(); _advancedCtrl.dispose(); _tagsCtrl.dispose();
+    for (final c in [..._instructionCtrls, ..._cueCtrls, ..._mistakeCtrls, ..._alternativeCtrls]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  List<String> _listFrom(List<TextEditingController> ctrls) =>
+      ctrls.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
+
+  Future<void> _pickImage() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (picked != null) setState(() => _imageFile = File(picked.path));
+  }
+
+  Future<void> _pickVideo(int index) async {
+    final picked = await _picker.pickVideo(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() => _videoEntries[index].file = File(picked.path));
+    }
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) {
+      _tabs.animateTo(0);
+      return;
+    }
+    setState(() => _saving = true);
+
+    final svc = ref.read(customExerciseSvcProvider);
+    // We need an ID to upload media, so create first with text data
+    final variants = <VideoVariant>[];
+    for (final entry in _videoEntries) {
+      if (entry.urlCtrl.text.trim().isNotEmpty) {
+        final url = entry.urlCtrl.text.trim();
+        variants.add(VideoVariant(url: url, label: entry.label, type: VideoVariant.detectType(url)));
+      }
+    }
+
+    final id = await ref.read(myExercisesNotifierProvider.notifier).create(fields: {
+      'name': _nameCtrl.text.trim(),
+      'category': _category,
+      'muscle_group': _muscle,
+      'secondary_muscles': _secondaryMuscles,
+      'equipment': _equipment,
+      'difficulty': _difficulty,
+      'description': _descCtrl.text.trim(),
+      'instructions': _listFrom(_instructionCtrls),
+      'coaching_cues': _listFrom(_cueCtrls),
+      'common_mistakes': _listFrom(_mistakeCtrls),
+      'alternatives': _listFrom(_alternativeCtrls),
+      'beginner_modification': _beginnerCtrl.text.trim().isEmpty ? null : _beginnerCtrl.text.trim(),
+      'advanced_progression': _advancedCtrl.text.trim().isEmpty ? null : _advancedCtrl.text.trim(),
+      'tags': _tagsCtrl.text.trim().isEmpty ? <String>[] : _tagsCtrl.text.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList(),
+      'video_variants': variants,
+      'image_url': null,
+      'visibility': _visibility,
+    });
+
+    if (id != null) {
+      // Upload files if picked
+      if (_imageFile != null) {
+        final url = await svc.uploadImage(_imageFile!, id);
+        if (url != null) {
+          await svc.updateExercise(id, {'image_url': url});
+        }
+      }
+      // Upload video files
+      final uploadedVariants = List<VideoVariant>.from(variants);
+      for (int i = 0; i < _videoEntries.length; i++) {
+        final entry = _videoEntries[i];
+        if (entry.file != null) {
+          final url = await svc.uploadVideo(entry.file!, id, entry.label);
+          if (url != null) {
+            uploadedVariants.add(VideoVariant(url: url, label: entry.label, type: 'upload'));
+          }
+        }
+      }
+      if (uploadedVariants.length != variants.length) {
+        await svc.updateExercise(id, {
+          'video_variants': uploadedVariants.map((v) => v.toJson()).toList(),
+        });
+      }
+      _savedId = id;
+    }
+
+    setState(() => _saving = false);
+    if (!mounted) return;
+    if (id != null) {
+      _showSuccess();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to save exercise. Try again.')));
+    }
+  }
+
+  void _showSuccess() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: _C.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Exercise Saved!', style: TextStyle(color: _C.wht, fontWeight: FontWeight.w700)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.check_circle_rounded, color: _C.tertiary, size: 48),
+          const SizedBox(height: 12),
+          Text('Your exercise has been saved as $_visibility.',
+            style: const TextStyle(color: _C.mut, fontSize: 13), textAlign: TextAlign.center),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () { Navigator.pop(context); context.pop(); },
+            child: const Text('Back to Library', style: TextStyle(color: _C.primary))),
+          if (_savedId != null)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ref.read(myExercisesNotifierProvider.notifier).submitForGlobal(_savedId!).then((_) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Submitted for Global Library review!')));
+                  context.pop();
+                });
+              },
+              child: const Text('Submit to Global Library', style: TextStyle(color: _C.amber))),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    return Scaffold(
+      backgroundColor: _C.bg,
+      body: Column(children: [
+        // App bar
+        Container(
+          padding: EdgeInsets.only(top: topPad + 12, left: 16, right: 16, bottom: 0),
+          color: _C.card,
+          child: Column(children: [
+            Row(children: [
+              GestureDetector(
+                onTap: () => context.pop(),
+                child: const Icon(Icons.arrow_back_ios_new_rounded, color: _C.primary, size: 20)),
+              const SizedBox(width: 14),
+              const Expanded(child: Text('Create Exercise',
+                style: TextStyle(color: _C.wht, fontSize: 20, fontWeight: FontWeight.w700))),
+              GestureDetector(
+                onTap: _saving ? null : _save,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _C.brand,
+                    borderRadius: BorderRadius.circular(20)),
+                  child: _saving
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: _C.wht, strokeWidth: 2))
+                      : const Text('Save', style: TextStyle(color: _C.wht, fontSize: 13, fontWeight: FontWeight.w700))),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            TabBar(
+              controller: _tabs,
+              labelColor: _C.primary,
+              unselectedLabelColor: _C.mut,
+              indicatorColor: _C.brand,
+              indicatorWeight: 2,
+              labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+              tabs: const [Tab(text: 'BASICS'), Tab(text: 'COACHING'), Tab(text: 'MEDIA'), Tab(text: 'SETTINGS')],
+            ),
+          ]),
+        ),
+
+        // Content
+        Expanded(
+          child: Form(
+            key: _formKey,
+            child: TabBarView(controller: _tabs, children: [
+              _BasicsTab(this),
+              _CoachingTab(this),
+              _MediaTab(this),
+              _SettingsTab(this),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ── Tab 1: Basics ─────────────────────────────────────────────────────────────
+class _BasicsTab extends StatefulWidget {
+  final _CreateExerciseScreenState s;
+  const _BasicsTab(this.s);
+  @override State<_BasicsTab> createState() => _BasicsTabState();
+}
+class _BasicsTabState extends State<_BasicsTab> {
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s;
+    return ListView(padding: const EdgeInsets.all(20), children: [
+      _field('Exercise Name *', s._nameCtrl, required: true),
+      const SizedBox(height: 16),
+      _field('Description', s._descCtrl, maxLines: 3),
+      const SizedBox(height: 20),
+      _row('Category', _categories, s._category, (v) => setState(() => s._category = v!)),
+      const SizedBox(height: 14),
+      _row('Primary Muscle', _muscles, s._muscle, (v) => setState(() => s._muscle = v!)),
+      const SizedBox(height: 14),
+      _row('Equipment', _equipment, s._equipment, (v) => setState(() => s._equipment = v!)),
+      const SizedBox(height: 14),
+      _row('Difficulty', _difficulties, s._difficulty, (v) => setState(() => s._difficulty = v!)),
+      const SizedBox(height: 20),
+      // Secondary muscles
+      const Text('Secondary Muscles', style: TextStyle(color: _C.mut, fontSize: 12, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, runSpacing: 6, children: _muscles.map((m) {
+        final active = s._secondaryMuscles.contains(m);
+        return GestureDetector(
+          onTap: () => setState(() {
+            active ? s._secondaryMuscles.remove(m) : s._secondaryMuscles.add(m);
+          }),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: active ? _C.brand.withValues(alpha: 0.15) : _C.card,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: active ? _C.brand.withValues(alpha: 0.5) : _C.brd)),
+            child: Text(m, style: TextStyle(color: active ? _C.primary : _C.mut, fontSize: 12))));
+      }).toList()),
+    ]);
+  }
+}
+
+// ── Tab 2: Coaching ───────────────────────────────────────────────────────────
+class _CoachingTab extends StatefulWidget {
+  final _CreateExerciseScreenState s;
+  const _CoachingTab(this.s);
+  @override State<_CoachingTab> createState() => _CoachingTabState();
+}
+class _CoachingTabState extends State<_CoachingTab> {
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s;
+    return ListView(padding: const EdgeInsets.all(20), children: [
+      _section('Step-by-Step Instructions', s._instructionCtrls, () => setState(() => s._instructionCtrls.add(TextEditingController()))),
+      const SizedBox(height: 20),
+      _section('Coaching Cues', s._cueCtrls, () => setState(() => s._cueCtrls.add(TextEditingController()))),
+      const SizedBox(height: 20),
+      _section('Common Mistakes', s._mistakeCtrls, () => setState(() => s._mistakeCtrls.add(TextEditingController()))),
+      const SizedBox(height: 20),
+      _section('Alternatives / Substitutes', s._alternativeCtrls, () => setState(() => s._alternativeCtrls.add(TextEditingController()))),
+      const SizedBox(height: 20),
+      const Text('MODIFICATIONS', style: TextStyle(color: _C.mut, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+      const SizedBox(height: 10),
+      _field('Beginner Modification', s._beginnerCtrl, maxLines: 2),
+      const SizedBox(height: 12),
+      _field('Advanced Progression', s._advancedCtrl, maxLines: 2),
+    ]);
+  }
+
+  Widget _section(String title, List<TextEditingController> ctrls, VoidCallback onAdd) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Text(title.toUpperCase(), style: const TextStyle(color: _C.mut, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+        const Spacer(),
+        GestureDetector(onTap: onAdd, child: const Icon(Icons.add_circle_outline, color: _C.brand, size: 20)),
+      ]),
+      const SizedBox(height: 8),
+      ...ctrls.asMap().entries.map((e) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(children: [
+          Container(
+            width: 24, height: 24,
+            decoration: BoxDecoration(color: _C.brand.withValues(alpha: 0.1), shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: Text('${e.key + 1}', style: const TextStyle(color: _C.brand, fontSize: 11, fontWeight: FontWeight.w700))),
+          const SizedBox(width: 8),
+          Expanded(child: _field(null, e.value)),
+          if (ctrls.length > 1)
+            GestureDetector(
+              onTap: () => setState(() { e.value.dispose(); ctrls.removeAt(e.key); }),
+              child: const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.remove_circle_outline, color: _C.error, size: 18))),
+        ]))),
+    ]);
+  }
+}
+
+// ── Tab 3: Media ──────────────────────────────────────────────────────────────
+class _MediaTab extends StatefulWidget {
+  final _CreateExerciseScreenState s;
+  const _MediaTab(this.s);
+  @override State<_MediaTab> createState() => _MediaTabState();
+}
+class _MediaTabState extends State<_MediaTab> {
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s;
+    return ListView(padding: const EdgeInsets.all(20), children: [
+      // Image
+      const Text('EXERCISE IMAGE', style: TextStyle(color: _C.mut, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+      const SizedBox(height: 10),
+      GestureDetector(
+        onTap: () async { await s._pickImage(); setState(() {}); },
+        child: Container(
+          height: 160,
+          decoration: BoxDecoration(
+            color: _C.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _C.brd),
+            image: s._imageFile != null
+                ? DecorationImage(image: FileImage(s._imageFile!), fit: BoxFit.cover)
+                : null),
+          child: s._imageFile == null
+              ? const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(Icons.add_photo_alternate_outlined, color: _C.brand, size: 36),
+                  SizedBox(height: 8),
+                  Text('Tap to add image', style: TextStyle(color: _C.mut, fontSize: 12)),
+                ])
+              : null)),
+      const SizedBox(height: 24),
+
+      // Video variants
+      Row(children: [
+        const Text('VIDEO VARIANTS', style: TextStyle(color: _C.mut, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+        const Spacer(),
+        GestureDetector(
+          onTap: () => setState(() => s._videoEntries.add(_VideoEntry())),
+          child: const Icon(Icons.add_circle_outline, color: _C.brand, size: 20)),
+      ]),
+      const SizedBox(height: 4),
+      const Text('Add YouTube links, Vimeo links, or upload videos from your device.',
+        style: TextStyle(color: _C.mut, fontSize: 11)),
+      const SizedBox(height: 12),
+      if (s._videoEntries.isEmpty)
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: _C.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: _C.brd)),
+          child: const Column(children: [
+            Icon(Icons.videocam_outlined, color: _C.mut, size: 28),
+            SizedBox(height: 8),
+            Text('No videos yet. Tap + to add.', style: TextStyle(color: _C.mut, fontSize: 12)),
+          ]))
+      else
+        ...s._videoEntries.asMap().entries.map((e) {
+          final i = e.key;
+          final entry = e.value;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: _C.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: _C.brd)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: _C.brand.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: entry.label,
+                      dropdownColor: _C.card,
+                      style: const TextStyle(color: _C.primary, fontSize: 11, fontWeight: FontWeight.w700),
+                      items: _videoLabels.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
+                      onChanged: (v) => setState(() => entry.label = v!),
+                    ))),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => setState(() => s._videoEntries.removeAt(i)),
+                  child: const Icon(Icons.remove_circle_outline, color: _C.error, size: 18)),
+              ]),
+              const SizedBox(height: 10),
+              // URL input
+              _field('YouTube or Vimeo URL', entry.urlCtrl),
+              const SizedBox(height: 8),
+              const Row(children: [
+                Expanded(child: Divider(color: Color(0xFF1A1020))),
+                Padding(padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('OR', style: TextStyle(color: _C.mut, fontSize: 10))),
+                Expanded(child: Divider(color: Color(0xFF1A1020))),
+              ]),
+              const SizedBox(height: 8),
+              // File upload
+              GestureDetector(
+                onTap: () async { await s._pickVideo(i); setState(() {}); },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: entry.file != null ? _C.tertiary.withValues(alpha: 0.08) : _C.bg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: entry.file != null ? _C.tertiary.withValues(alpha: 0.4) : _C.brd)),
+                  child: Row(children: [
+                    Icon(entry.file != null ? Icons.check_circle_rounded : Icons.upload_file_rounded,
+                      color: entry.file != null ? _C.tertiary : _C.mut, size: 18),
+                    const SizedBox(width: 8),
+                    Text(entry.file != null ? 'Video selected' : 'Upload from device',
+                      style: TextStyle(color: entry.file != null ? _C.tertiary : _C.mut, fontSize: 12)),
+                  ]))),
+            ]));
+        }),
+    ]);
+  }
+}
+
+// ── Tab 4: Settings ───────────────────────────────────────────────────────────
+class _SettingsTab extends StatefulWidget {
+  final _CreateExerciseScreenState s;
+  const _SettingsTab(this.s);
+  @override State<_SettingsTab> createState() => _SettingsTabState();
+}
+class _SettingsTabState extends State<_SettingsTab> {
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s;
+    return ListView(padding: const EdgeInsets.all(20), children: [
+      const Text('VISIBILITY', style: TextStyle(color: _C.mut, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+      const SizedBox(height: 12),
+      ..._visibilities.map((v) {
+        final active = s._visibility == v;
+        final (icon, label, desc) = switch(v) {
+          'private' => (Icons.lock_outline_rounded,  'Private',      'Only you can see this exercise.'),
+          'team'    => (Icons.group_outlined,         'Team',         'Shared with your active clients.'),
+          _         => (Icons.language_rounded,       'Submit Global','Submitted for platform-wide approval.'),
+        };
+        return GestureDetector(
+          onTap: () => setState(() => s._visibility = v),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: active ? _C.brand.withValues(alpha: 0.08) : _C.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: active ? _C.brand.withValues(alpha: 0.5) : _C.brd)),
+            child: Row(children: [
+              Icon(icon, color: active ? _C.primary : _C.mut, size: 22),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(label, style: TextStyle(color: active ? _C.wht : _C.mut, fontSize: 14, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(desc, style: TextStyle(color: _C.mut.withValues(alpha: 0.6), fontSize: 11)),
+              ])),
+              if (active) const Icon(Icons.check_circle_rounded, color: _C.brand, size: 20),
+            ])));
+      }),
+      const SizedBox(height: 24),
+      const Text('TAGS', style: TextStyle(color: _C.mut, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+      const SizedBox(height: 8),
+      _field('e.g. compound, push, mobility', s._tagsCtrl),
+      const SizedBox(height: 4),
+      const Text('Separate tags with commas', style: TextStyle(color: _C.mut, fontSize: 10)),
+      const SizedBox(height: 32),
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _C.amber.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _C.amber.withValues(alpha: 0.25))),
+        child: const Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(Icons.info_outline_rounded, color: _C.amber, size: 18),
+          SizedBox(width: 10),
+          Expanded(child: Text(
+            'Submitting to the Global Library allows all coaches on the platform to use your exercise after admin review. You retain credit.',
+            style: TextStyle(color: _C.amber, fontSize: 12, height: 1.4))),
+        ])),
+    ]);
+  }
+}
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
+class _VideoEntry {
+  String label = 'Tutorial';
+  final urlCtrl = TextEditingController();
+  File? file;
+}
+
+Widget _field(String? hint, TextEditingController ctrl, {int maxLines = 1, bool required = false}) {
+  return TextFormField(
+    controller: ctrl,
+    maxLines: maxLines,
+    style: const TextStyle(color: _C.wht, fontSize: 14),
+    validator: required ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null : null,
+    decoration: InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: _C.mut, fontSize: 13),
+      filled: true,
+      fillColor: _C.card,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _C.brd)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _C.brd)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _C.brand)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _C.error)),
+    ));
+}
+
+Widget _row(String label, List<String> options, String value, ValueChanged<String?> onChanged) {
+  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(label.toUpperCase(), style: const TextStyle(color: _C.mut, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1.2)),
+    const SizedBox(height: 6),
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(color: _C.card, borderRadius: BorderRadius.circular(12), border: Border.all(color: _C.brd)),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          dropdownColor: _C.card,
+          style: const TextStyle(color: _C.wht, fontSize: 14),
+          items: options.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+          onChanged: onChanged,
+        ))),
+  ]);
+}

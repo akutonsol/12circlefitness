@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #030303; }
+    #checkout { padding: 8px; }
+    #err { color: #FFB4AB; font-family: -apple-system, sans-serif; padding: 24px; }
+  </style>
+</head>
+<body>
+  <div id="checkout"></div>
+  <div id="err"></div>
+  <script>
+    // Embedded Checkout host page. The Flutter app loads this in an iframe and
+    // passes the publishable key (pk) + Checkout Session client secret (cs) as
+    // query params. On completion Stripe redirects this frame to the return_url.
+    (async function () {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const pk = params.get('pk');
+        const cs = params.get('cs');
+        if (!pk || !cs) throw new Error('Missing pk or client secret');
+        const stripe = Stripe(pk);
+        const checkout = await stripe.initEmbeddedCheckout({ clientSecret: cs });
+        checkout.mount('#checkout');
+      } catch (e) {
+        document.getElementById('err').textContent = 'Could not start checkout: ' + e.message;
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+/// Module 16 — Payments (Stripe).
+/// The app never touches the secret key; it asks the `create-checkout` Edge
+/// Function for a hosted Checkout URL and opens it, then reads subscription /
+/// payment state that the `stripe-webhook` function writes back.
+class PaymentService {
+  final _db = Supabase.instance.client;
+  String? get _uid => _db.auth.currentUser?.id;
+
+  /// Launches Stripe Checkout for the given flow. Returns false if we couldn't
+  /// get / open a URL. The webhook reconciles the result asynchronously.
+  /// On web, build return URLs from the app's own origin so Stripe sends the
+  /// user back into the running app (hash routing) instead of a dead domain.
+  ({String? success, String? cancel}) _returnUrls() {
+    if (!kIsWeb) return (success: null, cancel: null);
+    final base = Uri.base.origin; // e.g. http://localhost:62130
+    return (success: '$base/#/payment-success', cancel: '$base/#/payment-cancel');
+  }
+
+  Future<bool> startCheckout({
+    required String kind, // coach | coach_plan | self_guided | ai_guided | event_ticket | package
+    String? coachId,
+    String? eventId,
+    String? packageId,
+    String? tier, // for coach_plan: starter | growth | elite
+  }) async {
+    try {
+      final urls = _returnUrls();
+      final res = await _db.functions.invoke('create-checkout', body: {
+        'kind': kind,
+        if (coachId != null) 'coachId': coachId,
+        if (eventId != null) 'eventId': eventId,
+        if (packageId != null) 'packageId': packageId,
+        if (tier != null) 'tier': tier,
+        if (urls.success != null) 'successUrl': urls.success,
+        if (urls.cancel != null) 'cancelUrl': urls.cancel,
+      });
+      final url = (res.data is Map) ? res.data['url'] as String? : null;
+      if (url == null) return false;
+      final uri = Uri.parse(url);
+      return launchUrl(
+        uri,
+        mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+        webOnlyWindowName: kIsWeb ? '_self' : null,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Switches the active membership to another tier in place (Self <-> AI).
+  /// Returns 'changed' on success, 'needs_checkout' if there's no membership to
+  /// change (caller should start a checkout), or 'error'.
+  Future<String> changeMembership(String newKind) async {
+    try {
+      final res = await _db.functions
+          .invoke('update-subscription', body: {'newKind': newKind});
+      final data = res.data;
+      if (data is Map && data['needsCheckout'] == true) return 'needs_checkout';
+      if (data is Map && (data['ok'] == true)) return 'changed';
+      return 'error';
+    } catch (_) {
+      return 'error';
+    }
+  }
+
+  /// Cancels a subscription immediately (in-app, no portal). Returns true on
+  /// success. The DB row is flipped to canceled server-side right away.
+  Future<bool> cancelSubscription(String subscriptionRowId) async {
+    try {
+      final res = await _db.functions.invoke('cancel-subscription',
+          body: {'subscriptionId': subscriptionRowId});
+      return (res.data is Map) && res.data['ok'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Opens the Stripe Customer Portal (manage / update card).
+  Future<bool> openBillingPortal() async {
+    try {
+      final base = kIsWeb ? Uri.base.origin : null;
+      final res = await _db.functions.invoke('create-portal-session', body: {
+        if (base != null) 'returnUrl': '$base/#/subscription',
+      });
+      final url = (res.data is Map) ? res.data['url'] as String? : null;
+      if (url == null) return false;
+      return launchUrl(
+        Uri.parse(url),
+        mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+        webOnlyWindowName: kIsWeb ? '_self' : null,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Creates an Embedded Checkout session and returns its client secret (web,
+  /// in-app). Returns null on failure.
+  Future<String?> createEmbeddedCheckout({
+    required String kind,
+    String? coachId,
+    String? eventId,
+    String? tier,
+  }) async {
+    try {
+      final base = kIsWeb ? Uri.base.origin : '';
+      final res = await _db.functions.invoke('create-checkout', body: {
+        'kind': kind,
+        if (coachId != null) 'coachId': coachId,
+        if (eventId != null) 'eventId': eventId,
+        if (tier != null) 'tier': tier,
+        'embedded': true,
+        'returnUrl': '$base/checkout_complete.html',
+      });
+      return (res.data is Map) ? res.data['clientSecret'] as String? : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// All of the current user's subscriptions (coach + pro).
+  Future<List<Map<String, dynamic>>> getMySubscriptions() async {
+    final uid = _uid;
+    if (uid == null) return [];
+    try {
+      final data = await _db
+          .from('subscriptions')
+          .select()
+          .eq('user_id', uid)
+          .order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(data);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// The user's active platform membership tier ('ai_guided' | 'self_guided'),
+  /// or null if neither. Server-evaluated via active_membership().
+  Future<String?> activeMembership() async {
+    try {
+      final res = await _db.rpc('active_membership');
+      return res is String ? res : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The client's effective plan: 'coach_guided'|'ai_guided'|'self_guided'|'free'.
+  Future<String?> clientPlan() async {
+    try {
+      final res = await _db.rpc('client_plan');
+      return res is String ? res : 'free';
+    } catch (_) {
+      return 'free';
+    }
+  }
+
+  /// The coach's active platform plan tier ('starter'|'growth'|'elite'), or null.
+  Future<String?> coachPlanTier() async {
+    try {
+      final res = await _db.rpc('coach_plan_tier');
+      return res is String ? res : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Active subscription to a specific coach, if any.
+  Future<Map<String, dynamic>?> activeCoachSubscription(String coachId) async {
+    final uid = _uid;
+    if (uid == null) return null;
+    try {
+      return await _db
+          .from('subscriptions')
+          .select()
+          .eq('user_id', uid)
+          .eq('coach_id', coachId)
+          .inFilter('status', ['active', 'trialing'])
+          .maybeSingle();
+    } catch (_) {
+      return null;
+    }
+  }
+}

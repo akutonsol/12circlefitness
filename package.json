@@ -1,0 +1,19 @@
+{
+  "name": "12circle-fitness",
+  "version": "1.0.0",
+  "description": "12 Circle Fitness - Complete Fitness & Wellness Platform",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "packages/*"
+  ],
+  "scripts": {
+    "api": "cd apps/api && npm run start:dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "expo-linear-gradient": "^56.0.4"
+  }
+}

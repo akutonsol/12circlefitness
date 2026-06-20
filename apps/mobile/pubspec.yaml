@@ -1,0 +1,62 @@
+name: circle_fitness
+description: 12 Circle Fitness - Complete Fitness & Wellness Platform
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  image_picker: ^1.2.2
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  
+  # Navigation
+  go_router: ^13.2.0
+  
+  # HTTP & API
+  dio: ^5.9.2
+  
+  # Local Storage
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.3
+  
+  # Supabase Auth
+  supabase_flutter: ^2.5.3
+  
+  # UI
+  google_fonts: ^8.1.0
+  cached_network_image: ^3.3.1
+  
+  # Icons
+  cupertino_icons: ^1.0.8
+  animations: ^2.2.0
+  flutter_animate: ^4.5.2
+  confetti: ^0.8.0
+  mobile_scanner: ^6.0.2
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.4
+  crypto: ^3.0.3
+  url_launcher: ^6.3.0
+  speech_to_text: ^7.4.0
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.9
+  riverpod_generator: ^2.4.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
