@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../vendor/presentation/event_agenda_screen.dart';
 import '../../payments/data/payment_service.dart';
-import '../../payments/presentation/embedded_checkout.dart';
-import '../../payments/presentation/embedded_checkout_screen.dart';
-import '../../../core/config/stripe_config.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _bg    = Color(0xFF030303);
@@ -85,20 +81,7 @@ class _EventTicketScreenState extends State<EventTicketScreen> {
     final svc = PaymentService();
     setState(() => _loading = true);
 
-    final canEmbed =
-        kIsWeb && embeddedCheckoutSupported && stripePublishableKey.isNotEmpty;
-    if (canEmbed) {
-      final cs = await svc.createEmbeddedCheckout(kind: 'event_ticket', eventId: eventId);
-      if (!mounted) return;
-      setState(() => _loading = false);
-      if (cs != null) {
-        await Navigator.push(context,
-            MaterialPageRoute(builder: (_) => EmbeddedCheckoutScreen(clientSecret: cs)));
-        _checkRegistration();
-        return;
-      }
-    }
-
+    // Hosted redirect only — Stripe Checkout can't run in an iframe.
     final ok = await svc.startCheckout(kind: 'event_ticket', eventId: eventId);
     if (!mounted) return;
     setState(() => _loading = false);
