@@ -28,7 +28,6 @@ class _AssignSheetState extends State<_AssignSheet> {
   final _title = TextEditingController();
   final _desc = TextEditingController();
   String _category = 'daily';
-  int _points = 10;
   DateTime? _due;
   bool _saving = false;
 
@@ -65,8 +64,8 @@ class _AssignSheetState extends State<_AssignSheet> {
           title: _title.text.trim(),
           description: _desc.text.trim(),
           category: _category,
-          points: _points,
-          dueDate: _due,
+          dueDate: _due, // points are awarded automatically by the scoring engine
+
         );
     if (!mounted) return;
     if (ok) {
@@ -183,9 +182,6 @@ class _AssignSheetState extends State<_AssignSheet> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          _PointsStepper(
-              value: _points, onChanged: (v) => setState(() => _points = v)),
         ]),
         const SizedBox(height: 20),
         SizedBox(
@@ -233,32 +229,4 @@ class _AssignSheetState extends State<_AssignSheet> {
     );
     if (picked != null) setState(() => _due = picked);
   }
-}
-
-class _PointsStepper extends StatelessWidget {
-  final int value;
-  final ValueChanged<int> onChanged;
-  const _PointsStepper({required this.value, required this.onChanged});
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-            color: AppColors.surfaceDark,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.surfaceDarkElevated)),
-        child: Row(children: [
-          _btn(Icons.remove, () => onChanged((value - 5).clamp(5, 50))),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Text('$value pts',
-                style: const TextStyle(
-                    color: AppColors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600)),
-          ),
-          _btn(Icons.add, () => onChanged((value + 5).clamp(5, 50))),
-        ]),
-      );
-  Widget _btn(IconData i, VoidCallback onTap) => GestureDetector(
-      onTap: onTap, child: Icon(i, color: AppColors.purple, size: 18));
 }

@@ -90,6 +90,11 @@ class ScoreEngine {
       category: 'community', action: 'community_post', points: 5,
       dedupKey: 'post:$_today');
 
+  // ── Coach-assigned action items ───────────────────────────
+  Future<void> actionItemComplete(String itemId) => _award(
+      category: 'coaching', action: 'action_item_complete', points: 10,
+      refType: 'action_item', refId: itemId, dedupKey: 'action_item:$itemId');
+
   // ── Coaching engagement ───────────────────────────────────
   Future<void> messageCoach() => _award(
       category: 'coaching', action: 'message_coach', points: 5,

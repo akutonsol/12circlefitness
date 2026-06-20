@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/action_item.dart';
+import '../../scoring/data/score_engine.dart';
 
 /// Client Action Items — the coach-driven task system.
 /// Notifications (assigned → client, completed → coach) are handled by DB
@@ -89,6 +90,7 @@ class ActionItemService {
         if (proofUrl != null) 'proof_url': proofUrl,
         if (notes != null) 'client_notes': notes,
       }).eq('id', id).eq('client_id', uid);
+      ScoreEngine().actionItemComplete(id); // +10 (automatic, once per item)
       return true;
     } catch (_) {
       return false;

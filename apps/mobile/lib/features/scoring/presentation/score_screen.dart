@@ -155,6 +155,7 @@ String _actionLabel(String a) => switch (a) {
   'challenge_join' => 'Joined challenge',
   'challenge_complete' => 'Completed challenge',
   'community_post' => 'Community post',
+  'action_item_complete' => 'Action item done',
   'message_coach' => 'Messaged coach',
   'review_feedback' => 'Reviewed feedback',
   'book_session' => 'Booked session',

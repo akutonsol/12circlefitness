@@ -1435,11 +1435,21 @@ class _CoachActionCenterState extends ConsumerState<_CoachActionCenter> {
   Widget build(BuildContext context) {
     final visible = widget.actions.where((a) => !_cleared.contains(_key(a))).toList();
     return _cardBox(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Coach Action Center',
-        style: TextStyle(color: _mut, fontSize: 12, fontWeight: FontWeight.w600)),
+      Row(children: [
+        const Text('Coach Action Center',
+          style: TextStyle(color: _mut, fontSize: 12, fontWeight: FontWeight.w600)),
+        const Spacer(),
+        // Keep the generated items; let the coach add their own as well.
+        TextButton.icon(
+          onPressed: () => showAssignActionItemSheet(context, ref, widget.clientId),
+          icon: const Icon(Icons.add_rounded, color: _brand, size: 16),
+          label: const Text('Add', style: TextStyle(color: _brand, fontSize: 12, fontWeight: FontWeight.w700)),
+          style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6),
+            minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap)),
+      ]),
       const SizedBox(height: 10),
       if (visible.isEmpty)
-        const Text('All caught up — no pending actions.',
+        const Text('All caught up — tap “Add” to assign a custom action item.',
           style: TextStyle(color: _mut, fontSize: 13))
       else ...visible.map((a) => Padding(
         padding: const EdgeInsets.only(bottom: 8),

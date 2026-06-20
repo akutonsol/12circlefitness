@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _bg    = Color(0xFF030303);
@@ -27,7 +26,7 @@ class CoachVideoResponseScreen extends StatefulWidget {
 class _CoachVideoResponseScreenState extends State<CoachVideoResponseScreen> {
   final _db = Supabase.instance.client;
   final _noteCtrl = TextEditingController();
-  File? _videoFile;
+  XFile? _videoFile;
   bool _uploading = false;
   bool _done = false;
   double _progress = 0;
@@ -36,18 +35,27 @@ class _CoachVideoResponseScreenState extends State<CoachVideoResponseScreen> {
   void dispose() { _noteCtrl.dispose(); super.dispose(); }
 
   Future<void> _recordVideo() async {
-    final picker = ImagePicker();
-    final video = await picker.pickVideo(
-      source: ImageSource.camera,
-      maxDuration: const Duration(minutes: 5),
-    );
-    if (video != null) setState(() => _videoFile = File(video.path));
+    try {
+      final video = await ImagePicker().pickVideo(
+        source: ImageSource.camera, maxDuration: const Duration(minutes: 5));
+      if (video != null) setState(() => _videoFile = video);
+    } catch (e) {
+      _err('Recording not available here — try “From Gallery”.');
+    }
   }
 
   Future<void> _pickVideo() async {
-    final picker = ImagePicker();
-    final video = await picker.pickVideo(source: ImageSource.gallery);
-    if (video != null) setState(() => _videoFile = File(video.path));
+    try {
+      final video = await ImagePicker().pickVideo(source: ImageSource.gallery);
+      if (video != null) setState(() => _videoFile = video);
+    } catch (e) {
+      _err('Could not open the video: $e');
+    }
+  }
+
+  void _err(String m) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(m), backgroundColor: Colors.red));
   }
 
   Future<void> _send() async {
@@ -59,9 +67,14 @@ class _CoachVideoResponseScreenState extends State<CoachVideoResponseScreen> {
       String? videoUrl;
 
       if (_videoFile != null) {
-        final path = 'coach-videos/$uid/${widget.clientId}/${DateTime.now().millisecondsSinceEpoch}.mp4';
+        // Read bytes + uploadBinary so it works on web AND mobile (no dart:io).
+        final ext = _videoFile!.name.contains('.') ? _videoFile!.name.split('.').last.toLowerCase() : 'mp4';
+        final mime = ext == 'mov' ? 'video/quicktime' : ext == 'webm' ? 'video/webm' : 'video/mp4';
+        final bytes = await _videoFile!.readAsBytes();
+        final path = 'coach-videos/$uid/${widget.clientId}/${DateTime.now().millisecondsSinceEpoch}.$ext';
         setState(() => _progress = 0.3);
-        await _db.storage.from('coach-media').upload(path, _videoFile!);
+        await _db.storage.from('coach-media').uploadBinary(path, bytes,
+          fileOptions: FileOptions(contentType: mime, upsert: true));
         videoUrl = _db.storage.from('coach-media').getPublicUrl(path);
         setState(() => _progress = 0.7);
       }
@@ -121,7 +134,7 @@ class _CoachVideoResponseScreenState extends State<CoachVideoResponseScreen> {
                         ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                             const Icon(Icons.videocam_rounded, color: _tert, size: 48),
                             const SizedBox(height: 8),
-                            Text(_videoFile!.path.split('/').last,
+                            Text(_videoFile!.name,
                               style: const TextStyle(color: _tert, fontSize: 12),
                               maxLines: 1, overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 8),
