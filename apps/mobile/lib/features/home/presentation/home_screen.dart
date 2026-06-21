@@ -393,9 +393,13 @@ class _WellnessPulsePanel extends ConsumerWidget {
                     style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.5),
                       fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1)),
                   if (streak > 0)
-                    Text('STREAK: $streak DAYS',
-                      style: const TextStyle(color: _C.primary, fontSize: 10,
-                        fontWeight: FontWeight.w700, letterSpacing: 1)),
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      const _StreakFlame(),
+                      const SizedBox(width: 3),
+                      Text('STREAK: $streak DAYS',
+                        style: const TextStyle(color: _C.primary, fontSize: 10,
+                          fontWeight: FontWeight.w700, letterSpacing: 1)),
+                    ]),
                 ]),
               ]),
               const SizedBox(height: 16),
@@ -472,6 +476,45 @@ class _WellnessPulsePanel extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Animated streak flame (flickers/pulses next to the streak count) ──────────
+class _StreakFlame extends StatefulWidget {
+  const _StreakFlame();
+  @override
+  State<_StreakFlame> createState() => _StreakFlameState();
+}
+
+class _StreakFlameState extends State<_StreakFlame>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 850))
+      ..repeat(reverse: true);
+  }
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        final t = Curves.easeInOut.transform(_c.value);
+        return Transform.scale(
+          scale: 0.9 + t * 0.22, // gentle swell
+          child: Opacity(
+            opacity: 0.7 + t * 0.3,
+            child: Icon(Icons.local_fire_department_rounded,
+              color: Color.lerp(const Color(0xFFFF8A3D), const Color(0xFFFFC24B), t),
+              size: 13),
+          ),
+        );
+      },
     );
   }
 }

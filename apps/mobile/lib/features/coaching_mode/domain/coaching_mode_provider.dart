@@ -61,17 +61,25 @@ class CoachingModeNotifier extends StateNotifier<AsyncValue<CoachingMode>> {
     }
   }
 
+  /// Persists the coaching mode. Throws on failure (including a 0-row write,
+  /// which means RLS/id mismatch silently dropped the update) so the caller can
+  /// surface it instead of the change quietly reverting on next load.
   Future<void> setMode(CoachingMode mode) async {
     if (_userId.isEmpty) return;
     final prev = state;
     state = AsyncValue.data(mode); // optimistic update
     try {
-      await Supabase.instance.client
+      final rows = await Supabase.instance.client
           .from('user_profiles')
           .update({'coaching_mode': mode.dbValue})
-          .eq('id', _userId);
-    } catch (_) {
-      state = prev; // rollback on failure
+          .eq('id', _userId)
+          .select('id'); // returns the rows actually updated
+      if ((rows as List).isEmpty) {
+        throw StateError('coaching_mode update matched no row');
+      }
+    } catch (e) {
+      state = prev; // rollback so UI reflects reality
+      rethrow;
     }
   }
 }

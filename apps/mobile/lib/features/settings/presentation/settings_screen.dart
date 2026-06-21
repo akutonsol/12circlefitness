@@ -514,9 +514,18 @@ class _CoachingModeSheetState extends State<_CoachingModeSheet> {
 
   Future<void> _apply() async {
     setState(() => _saving = true);
-    await widget.ref
-        .read(coachingModeNotifierProvider.notifier)
-        .setMode(_selected);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await widget.ref
+          .read(coachingModeNotifierProvider.notifier)
+          .setMode(_selected);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      messenger.showSnackBar(SnackBar(
+        content: Text('Could not save coaching mode: $e')));
+      return; // keep the sheet open so the change isn't silently lost
+    }
     if (!mounted) return;
     Navigator.pop(context);
     if (_selected == CoachingMode.coachGuided) {

@@ -36,11 +36,35 @@ class AppTopNavRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(currentUserProfileProvider).valueOrNull;
-    final first = (profile?['first_name'] as String?) ?? '';
-    final last  = (profile?['last_name'] as String?) ?? '';
-    final email = (profile?['email'] as String?) ?? '';
+    // The profile row can be momentarily null (e.g. right after a hot reload),
+    // which used to drop the header to "there"/"U". Fall back to the auth user's
+    // metadata + email — the same chain the Profile screen uses — so a signed-in
+    // user always sees their real name/avatar. Also covers OAuth metadata keys.
+    final authUser = ref.watch(currentUserProvider);
+    final meta = authUser?.userMetadata ?? const <String, dynamic>{};
+    String pick(String? a, List<String?> fallbacks) {
+      if (a != null && a.trim().isNotEmpty) return a.trim();
+      for (final f in fallbacks) {
+        if (f != null && f.trim().isNotEmpty) return f.trim();
+      }
+      return '';
+    }
+    final fullName = meta['full_name'] as String? ?? meta['name'] as String?;
+    final first = pick(profile?['first_name'] as String?, [
+      meta['first_name'] as String?,
+      meta['given_name'] as String?,
+      fullName?.split(' ').first,
+    ]);
+    final last = pick(profile?['last_name'] as String?, [
+      meta['last_name'] as String?,
+      meta['family_name'] as String?,
+    ]);
+    final email = pick(profile?['email'] as String?, [authUser?.email]);
     final name  = first.isNotEmpty ? first : (email.isNotEmpty ? email.split('@').first : 'there');
-    final avatarUrl = (profile?['avatar_url'] as String?)?.trim();
+    final avatarUrl = pick(profile?['avatar_url'] as String?, [
+      meta['avatar_url'] as String?,
+      meta['picture'] as String?,
+    ]);
     final unread = ref.watch(unreadCountProvider).valueOrNull ?? 0;
 
     return Row(children: [
@@ -60,7 +84,7 @@ class AppTopNavRow extends ConsumerWidget {
             ),
           ),
           child: ClipOval(
-            child: (avatarUrl != null && avatarUrl.isNotEmpty)
+            child: avatarUrl.isNotEmpty
                 ? Image.network(avatarUrl, fit: BoxFit.cover, width: 40, height: 40,
                     errorBuilder: (_, __, ___) => _initialsAvatar(first, last))
                 : _initialsAvatar(first, last),

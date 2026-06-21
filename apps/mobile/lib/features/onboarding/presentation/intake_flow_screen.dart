@@ -4016,6 +4016,20 @@ class _Step9PageState extends ConsumerState<_Step9Page> {
               'initiated_by':  'client',
               'activated_at':  DateTime.now().toIso8601String(),
             }, onConflict: 'coach_id,client_id');
+        // Intake yields a single coach: cancel any other active relationship
+        // (e.g. a coach picked earlier then changed) so re-selecting replaces
+        // rather than accumulates. Multi-coach is added later via marketplace.
+        await Supabase.instance.client
+            .from('coach_client_relationships')
+            .update({
+              'status':       'cancelled',
+              'cancelled_by': 'client',
+              'cancel_reason': 'switched_during_intake',
+              'cancelled_at': DateTime.now().toIso8601String(),
+            })
+            .eq('client_id', uid)
+            .eq('status', 'active')
+            .neq('coach_id', coach['id'] as String);
         // Notify coach
         await Supabase.instance.client.from('notifications').insert({
           'recipient_id': coach['id'],

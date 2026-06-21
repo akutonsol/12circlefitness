@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../domain/entitlements.dart';
 import '../domain/payment_provider.dart';
+import '../../coach/domain/coach_provider.dart';
+import '../../coach/presentation/coach_packages_view_sheet.dart';
 import 'checkout_launcher.dart';
 
 const _bg     = Color(0xFF030303);
@@ -289,6 +291,37 @@ class _PlanCardState extends ConsumerState<_PlanCard> {
                   ],
                 ),
               )),
+          // Coach-Guided current plan: let the client see their coach's
+          // packages right here instead of navigating to the marketplace.
+          if (isCurrent && p.plan == ClientPlan.coachGuided) ...[
+            const SizedBox(height: 14),
+            Builder(builder: (context) {
+              final coach = ref.watch(assignedCoachProvider).valueOrNull;
+              if (coach == null) return const SizedBox.shrink();
+              final coachName =
+                  '${coach['first_name'] ?? ''} ${coach['last_name'] ?? ''}'.trim();
+              final label = coachName.isEmpty
+                  ? "View coach's packages"
+                  : "View $coachName's packages";
+              return SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: p.accent,
+                    side: BorderSide(color: p.accent.withValues(alpha: 0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: const Icon(Icons.inventory_2_outlined, size: 16),
+                  label: Text(label,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  onPressed: () => showCoachPackagesSheet(
+                      context, coach['id'] as String, coachName),
+                ),
+              );
+            }),
+          ],
           // Every non-current plan is actionable: upgrade, switch, or downgrade.
           if (!isCurrent) ...[
             const SizedBox(height: 16),
