@@ -165,8 +165,9 @@ Deno.serve(async (req: Request) => {
       }];
       metadata = { kind: 'event_ticket', user_id: user.id, event_id: eventId, payment_id: pendingPaymentId ?? '' };
     } else if (kind === 'package') {
-      // A client buys one of a coach's packages. per_session / bulk → one-time
-      // payment; monthly → recurring subscription. Price comes from the package.
+      // A client buys one of a coach's services. single session / package /
+      // consultation → one-time payment; monthly & hybrid memberships →
+      // recurring subscription. Price comes from the service row.
       if (!packageId) return json({ error: 'packageId required' }, 400);
       const { data: pkg } = await db
         .from('coach_packages')
@@ -179,9 +180,15 @@ Deno.serve(async (req: Request) => {
       coachingAmountCents = cents;
       const pkgCoachId = pkg.coach_id as string;
       const sessions = Number(pkg.sessions ?? 0);
-      const label = `${pkg.name ?? 'Coaching package'}${pkg.type === 'bulk' ? ` (${sessions} sessions)` : ''}`;
+      const recurring = pkg.type === 'monthly' || pkg.type === 'hybrid';
+      const sessionSuffix = pkg.type === 'bulk'
+        ? ` (${sessions} sessions)`
+        : pkg.type === 'hybrid' && sessions > 0
+          ? ` (${sessions} sessions/mo)`
+          : '';
+      const label = `${pkg.name ?? 'Coaching package'}${sessionSuffix}`;
 
-      if (pkg.type === 'monthly') {
+      if (recurring) {
         mode = 'subscription';
         lineItems = [{
           quantity: 1,
@@ -196,7 +203,8 @@ Deno.serve(async (req: Request) => {
           kind: 'package_monthly', user_id: user.id, coach_id: pkgCoachId, package_id: packageId,
         };
       } else {
-        // per_session or bulk → one-time. Record a pending payment to reconcile.
+        // single session / package / consultation → one-time. Record a pending
+        // payment to reconcile.
         const { data: pay } = await db.from('payments').insert({
           user_id: user.id,
           kind: 'package',

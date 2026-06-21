@@ -37,5 +37,5 @@ UPDATE coach_client_relationships r
    SET client_source = 'coach_invited'
   FROM coach_invites i
  WHERE i.coach_id = r.coach_id
-   AND lower(i.email) = (SELECT lower(email) FROM user_profiles p WHERE p.id = r.client_id)
+   AND lower(i.invitee_email) = (SELECT lower(email) FROM user_profiles p WHERE p.id = r.client_id)
    AND r.client_source = 'marketplace';

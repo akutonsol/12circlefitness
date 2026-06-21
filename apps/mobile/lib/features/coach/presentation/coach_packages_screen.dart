@@ -13,18 +13,29 @@ const _white  = Colors.white;
 const _muted  = Color(0xFFCFC2D6);
 const _mint   = Color(0xFF6FFBBE);
 const _amber  = Color(0xFFFFD479);
+const _sky    = Color(0xFF7FD1FF);
+const _rose   = Color(0xFFFF9FB0);
+
+// The 5 service types a coach can offer.
+const _serviceTypes = ['per_session', 'bulk', 'monthly', 'hybrid', 'consultation'];
 
 String _typeLabel(String t) => switch (t) {
-      'per_session' => 'Per Session',
+      'per_session' => 'Single Session',
       'bulk' => 'Session Package',
-      'monthly' => 'Monthly Plan',
+      'monthly' => 'Monthly Membership',
+      'hybrid' => 'Hybrid Membership',
+      'consultation' => 'Consultation',
       _ => t,
     };
 Color _typeColor(String t) => switch (t) {
       'per_session' => _mint,
       'bulk' => _amber,
+      'monthly' => _brand,
+      'hybrid' => _sky,
+      'consultation' => _rose,
       _ => _brand,
     };
+bool _isRecurring(String t) => t == 'monthly' || t == 'hybrid';
 
 /// Coach defines the packages they offer clients: pay-per-session, bulk session
 /// packages (any number, each with its own session count + price), and monthly.
@@ -106,7 +117,7 @@ class _PackageCard extends StatelessWidget {
     final color = _typeColor(type);
     final price = (pkg['price'] as num?)?.toDouble() ?? 0;
     final sessions = (pkg['sessions'] as num?)?.toInt() ?? 0;
-    final per = type == 'monthly' ? '/mo' : type == 'per_session' ? '/session' : '';
+    final per = _isRecurring(type) ? '/mo' : type == 'per_session' ? '/session' : '';
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -130,6 +141,8 @@ class _PackageCard extends StatelessWidget {
           Text(pkg['name'] as String? ?? '',
               style: const TextStyle(color: _white, fontSize: 16, fontWeight: FontWeight.w700)),
           if (type == 'bulk') Text('$sessions sessions',
+              style: const TextStyle(color: _muted, fontSize: 12)),
+          if (type == 'hybrid' && sessions > 0) Text('$sessions sessions/mo included',
               style: const TextStyle(color: _muted, fontSize: 12)),
           if ((pkg['description'] as String?)?.isNotEmpty ?? false) ...[
             const SizedBox(height: 2),
@@ -163,7 +176,7 @@ class _PackageEditor extends ConsumerStatefulWidget {
 
 class _PackageEditorState extends ConsumerState<_PackageEditor> {
   late String _type;
-  late TextEditingController _name, _price, _desc;
+  late TextEditingController _name, _price, _desc, _sessions;
   // Session-package tiers (4/8/12/16) — each independently named/priced.
   final Map<int, TextEditingController> _tierName = {
     for (final t in PackageService.sessionTiers) t: TextEditingController(),
@@ -185,6 +198,8 @@ class _PackageEditorState extends ConsumerState<_PackageEditor> {
     _name = TextEditingController(text: e?['name'] as String? ?? '');
     _price = TextEditingController(text: ((e?['price'] as num?)?.toDouble() ?? 0).toStringAsFixed(0));
     _desc = TextEditingController(text: e?['description'] as String? ?? '');
+    _sessions = TextEditingController(
+        text: ((e?['sessions'] as num?)?.toInt() ?? 0) > 0 ? '${(e?['sessions'] as num).toInt()}' : '');
     if (_type == 'bulk') _loadTiers();
   }
 
@@ -205,7 +220,7 @@ class _PackageEditorState extends ConsumerState<_PackageEditor> {
 
   @override
   void dispose() {
-    _name.dispose(); _price.dispose(); _desc.dispose();
+    _name.dispose(); _price.dispose(); _desc.dispose(); _sessions.dispose();
     for (final c in _tierName.values) c.dispose();
     for (final c in _tierPrice.values) c.dispose();
     for (final c in _tierDesc.values) c.dispose();
@@ -231,7 +246,11 @@ class _PackageEditorState extends ConsumerState<_PackageEditor> {
         id: widget.existing?['id'] as String?,
         type: _type,
         name: _name.text.trim(),
-        sessions: _type == 'per_session' ? 1 : 0,
+        sessions: _type == 'per_session'
+            ? 1
+            : _type == 'hybrid'
+                ? (int.tryParse(_sessions.text.trim()) ?? 0)
+                : 0,
         price: double.tryParse(_price.text.trim()) ?? 0,
         description: _desc.text.trim(),
       );
@@ -276,6 +295,32 @@ class _PackageEditorState extends ConsumerState<_PackageEditor> {
           _tierTemplate('VIP Coaching', 499,
               'Full programming · Nutrition coaching · Weekly reviews · Priority support · Video form reviews · Goal strategy'),
         ]),
+      ]);
+    } else if (_type == 'hybrid') {
+      children.addAll([
+        const Text('Hybrid memberships bundle a recurring program with a set number '
+            'of live sessions each month — your highest-value offer. Set the monthly '
+            'price and how many sessions are included:',
+            style: TextStyle(color: _muted, fontSize: 13, height: 1.4)),
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          _hybridTemplate('Hybrid Essentials', 399, 2,
+              'Custom program · Nutrition guidance · 2 live sessions/mo · Unlimited messaging'),
+          _hybridTemplate('Hybrid Premium', 699, 4,
+              'Full programming · Nutrition coaching · 4 live sessions/mo · Weekly reviews · Priority support'),
+        ]),
+      ]);
+    } else if (_type == 'consultation') {
+      children.addAll([
+        const Text('A one-time consultation is a low-friction entry point — a goal & '
+            'strategy call that converts clients into ongoing coaching. Keep it '
+            'accessible:',
+            style: TextStyle(color: _muted, fontSize: 13, height: 1.4)),
+        const SizedBox(height: 6),
+        const Text('Intro \$0–49  ·  Strategy session \$49–99  ·  Deep-dive \$99–149',
+            style: TextStyle(color: _muted, fontSize: 12)),
+        const SizedBox(height: 10),
+        _fillChip('Use \$49', () => setState(() => _price.text = '49')),
       ]);
     } else {
       children.addAll([
@@ -340,6 +385,27 @@ class _PackageEditorState extends ConsumerState<_PackageEditor> {
         ),
       );
 
+  Widget _hybridTemplate(String name, int price, int sessions, String includes) => GestureDetector(
+        onTap: () => setState(() {
+          _name.text = name;
+          _price.text = '$price';
+          _sessions.text = '$sessions';
+          _desc.text = includes;
+        }),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: _sky.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _sky.withValues(alpha: 0.35)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Text(name, style: const TextStyle(color: _white, fontSize: 12, fontWeight: FontWeight.w700)),
+            Text('\$$price/mo · $sessions sessions', style: const TextStyle(color: _sky, fontSize: 11, fontWeight: FontWeight.w600)),
+          ]),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final isBulk = _type == 'bulk';
@@ -360,7 +426,7 @@ class _PackageEditorState extends ConsumerState<_PackageEditor> {
             const SizedBox(height: 16),
             const Text('Type', style: TextStyle(color: _muted, fontSize: 12)),
             const SizedBox(height: 6),
-            Wrap(spacing: 8, children: ['per_session', 'bulk', 'monthly'].map((t) =>
+            Wrap(spacing: 8, runSpacing: 8, children: _serviceTypes.map((t) =>
               ChoiceChip(
                 label: Text(_typeLabel(t)),
                 selected: _type == t,
@@ -423,9 +489,17 @@ class _PackageEditorState extends ConsumerState<_PackageEditor> {
                 ]),
               )),
             ] else ...[
-              _field('Name', _name, hint: 'e.g. Single Session'),
-              _field(_type == 'monthly' ? 'Price (\$/month)' : 'Price (\$/session)',
+              _field('Name', _name, hint: 'e.g. ${_typeLabel(_type)}'),
+              _field(
+                  _isRecurring(_type)
+                      ? 'Price (\$/month)'
+                      : _type == 'consultation'
+                          ? 'Price (\$/consultation)'
+                          : 'Price (\$/session)',
                   _price, keyboard: TextInputType.number),
+              if (_type == 'hybrid')
+                _field('Sessions included per month', _sessions,
+                    hint: 'e.g. 4', keyboard: TextInputType.number),
               _field('Description (optional)', _desc, hint: 'What is included', maxLines: 2),
             ],
 

@@ -60,6 +60,19 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    if (action === 'balance') {
+      const acct = profile?.stripe_account_id as string | null;
+      if (!acct) return json({ pending: 0, available: 0 });
+      // deno-lint-ignore no-explicit-any
+      const sum = (arr: any[] | undefined) => (arr ?? []).reduce((s, b) => s + (b.amount ?? 0), 0);
+      try {
+        const bal = await stripe.balance.retrieve({}, { stripeAccount: acct });
+        return json({ pending: sum(bal.pending), available: sum(bal.available) });
+      } catch (_) {
+        return json({ pending: 0, available: 0 });
+      }
+    }
+
     if (action === 'onboard') {
       let acct = profile?.stripe_account_id as string | null;
       if (!acct) {

@@ -1,6 +1,8 @@
--- 12 Circle — pending migrations (028 → 039). Idempotent. 2026-06-20
+-- 12 Circle — pending migrations (028 → 041). Idempotent. 2026-06-20
 
--- ── 028_package_payments.sql ──
+-- ══════════════════════════════════════════════════════════════════
+-- 028_package_payments.sql
+-- ══════════════════════════════════════════════════════════════════
 -- Package payments: a client buys a coach's package (per_session / bulk one-time,
 -- or monthly subscription). Extends the existing payments + subscriptions plumbing.
 
@@ -49,8 +51,9 @@ CREATE POLICY "coach updates client credits"
   USING (coach_id = auth.uid())
   WITH CHECK (coach_id = auth.uid());
 
-
--- ── 029_progress_photos_storage_rls.sql ──
+-- ══════════════════════════════════════════════════════════════════
+-- 029_progress_photos_storage_rls.sql
+-- ══════════════════════════════════════════════════════════════════
 -- Storage RLS for the private `progress-photos` bucket.
 -- A user fully manages files in their own `<uid>/...` folder (select/insert/
 -- update/delete) so they can ADD and REPLACE baseline + gallery photos, and a
@@ -97,8 +100,9 @@ CREATE POLICY "coach reads client progress photos"
     )
   );
 
-
--- ── 030_schedule_day_times.sql ──
+-- ══════════════════════════════════════════════════════════════════
+-- 030_schedule_day_times.sql
+-- ══════════════════════════════════════════════════════════════════
 -- Per-day training times: a client can set a different session time for each
 -- training day. `day_times` is a JSON map of dayKey -> "HH:mm"
 -- (e.g. {"monday":"07:00","thursday":"18:30"}). The single `session_time`
@@ -106,8 +110,9 @@ CREATE POLICY "coach reads client progress photos"
 ALTER TABLE client_schedules
   ADD COLUMN IF NOT EXISTS day_times jsonb NOT NULL DEFAULT '{}'::jsonb;
 
-
--- ── 031_classes_seed_and_price.sql ──
+-- ══════════════════════════════════════════════════════════════════
+-- 031_classes_seed_and_price.sql
+-- ══════════════════════════════════════════════════════════════════
 -- Classes = group sessions (online group calls OR in-person group classes).
 -- Additive only: a nullable `price` (the app's FitnessClass model already has it).
 ALTER TABLE classes ADD COLUMN IF NOT EXISTS price numeric;
@@ -148,8 +153,9 @@ WHERE (CASE s.coach_key WHEN 'truck' THEN c.truck ELSE c.julia END) IS NOT NULL
       AND x.coach_id = CASE s.coach_key WHEN 'truck' THEN c.truck ELSE c.julia END
   );
 
-
--- ── 032_reassign_sarah_demo_to_julia.sql ──
+-- ══════════════════════════════════════════════════════════════════
+-- 032_reassign_sarah_demo_to_julia.sql
+-- ══════════════════════════════════════════════════════════════════
 -- Remove the seeded demo coach "Sarah Johnson" (sarah@marketplace.test) from
 -- view by re-homing her demo content onto Julia. Safe + idempotent: if either
 -- account is missing it does nothing. Does not delete profiles (avoids FK
@@ -181,8 +187,9 @@ BEGIN
   UPDATE classes SET coach_id = v_julia WHERE coach_id = v_sarah;
 END $$;
 
-
--- ── 033_womens_health.sql ──
+-- ══════════════════════════════════════════════════════════════════
+-- 033_womens_health.sql
+-- ══════════════════════════════════════════════════════════════════
 -- Module 18 — Women's Health: menstrual cycle tracking, symptoms, and
 -- cycle-aware settings. Used to derive the current phase and phase-based
 -- training / recovery / nutrition guidance (computed client-side).
@@ -238,13 +245,15 @@ DROP POLICY IF EXISTS "own cycle settings" ON cycle_settings;
 CREATE POLICY "own cycle settings" ON cycle_settings FOR ALL TO authenticated
   USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
 
-
--- ── 034_nutrition_water_target.sql ──
+-- ══════════════════════════════════════════════════════════════════
+-- 034_nutrition_water_target.sql
+-- ══════════════════════════════════════════════════════════════════
 -- Coach can set a daily water target (oz) as part of a client's nutrition plan.
 ALTER TABLE client_nutrition_plans ADD COLUMN IF NOT EXISTS water_target_oz int;
 
-
--- ── 035_scoring_engine.sql ──
+-- ══════════════════════════════════════════════════════════════════
+-- 035_scoring_engine.sql
+-- ══════════════════════════════════════════════════════════════════
 -- ════════════════════════════════════════════════════════════════════════
 -- 12 Circle Automated Scoring Engine
 -- Event-sourced points: every eligible action calls award_points(), which
@@ -440,8 +449,9 @@ GRANT EXECUTE ON FUNCTION award_points(text,text,int,text,text,text) TO authenti
 GRANT EXECUTE ON FUNCTION leaderboard_global(int) TO authenticated;
 GRANT EXECUTE ON FUNCTION leaderboard_coach(uuid,int) TO authenticated;
 
-
--- ── 036_client_plan_and_coach_media.sql ──
+-- ══════════════════════════════════════════════════════════════════
+-- 036_client_plan_and_coach_media.sql
+-- ══════════════════════════════════════════════════════════════════
 -- ── Fix 1: a client on ANY coaching arrangement reads as 'coach_guided' ──────
 -- Previously only a kind='coach' subscription counted. Coach packages create a
 -- 'package_monthly' sub (or none, for one-time packs), and an accepted coach
@@ -489,8 +499,9 @@ DROP POLICY IF EXISTS "coach media manage own" ON storage.objects;
 CREATE POLICY "coach media manage own" ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'coach-media' AND owner = auth.uid());
 
-
--- ── 037_realtime_tables.sql ──
+-- ══════════════════════════════════════════════════════════════════
+-- 037_realtime_tables.sql
+-- ══════════════════════════════════════════════════════════════════
 -- Enable Supabase Realtime on the tables behind the live surfaces:
 -- 12 Circle Score, messages list/coach dashboard, and the coaching relationship.
 -- Safe to re-run (each ADD is guarded).
@@ -501,8 +512,9 @@ DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE coach_client_relations
 DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE daily_scores;                EXCEPTION WHEN others THEN NULL; END $$;
 DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE weekly_checkins;             EXCEPTION WHEN others THEN NULL; END $$;
 
-
--- ── 038_stripe_connect_billing.sql ──
+-- ══════════════════════════════════════════════════════════════════
+-- 038_stripe_connect_billing.sql
+-- ══════════════════════════════════════════════════════════════════
 -- ════════════════════════════════════════════════════════════════════════
 -- Billing architecture refactor — Stripe Connect.
 -- Platform subscriptions (Self/AI, Coach Starter/Growth/Elite) → 12 Circle's
@@ -542,11 +554,12 @@ UPDATE coach_client_relationships r
    SET client_source = 'coach_invited'
   FROM coach_invites i
  WHERE i.coach_id = r.coach_id
-   AND lower(i.email) = (SELECT lower(email) FROM user_profiles p WHERE p.id = r.client_id)
+   AND lower(i.invitee_email) = (SELECT lower(email) FROM user_profiles p WHERE p.id = r.client_id)
    AND r.client_source = 'marketplace';
 
-
--- ── 039_platform_settings.sql ──
+-- ══════════════════════════════════════════════════════════════════
+-- 039_platform_settings.sql
+-- ══════════════════════════════════════════════════════════════════
 -- Admin-configurable platform settings (key/value). Seeds the marketplace
 -- commission rate (0–1). create-checkout reads this for marketplace clients.
 CREATE TABLE IF NOT EXISTS platform_settings (
@@ -572,4 +585,118 @@ CREATE POLICY "admin writes platform settings" ON platform_settings
   FOR ALL TO authenticated
   USING      (EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND role = 'admin'))
   WITH CHECK (EXISTS (SELECT 1 FROM user_profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- ══════════════════════════════════════════════════════════════════
+-- 040_invite_client_source.sql
+-- ══════════════════════════════════════════════════════════════════
+-- ════════════════════════════════════════════════════════════════════════
+-- Invite Client Flow → client_source = 'coach_invited' (0% marketplace commission).
+-- Any relationship whose client was invited by that same coach (an existing
+-- coach_invite matching the client's email) is automatically tagged
+-- 'coach_invited'. This drives a 0% commission everywhere downstream
+-- (create-checkout reads the relationship's client_source). Covers every path
+-- that creates a relationship: client request approval, coach-added client, or
+-- invite acceptance.
+-- Idempotent.
+-- ════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION set_relationship_client_source()
+RETURNS trigger AS $$
+BEGIN
+  -- Only auto-decide when the caller didn't explicitly tag the source.
+  IF NEW.client_source IS NULL OR NEW.client_source = 'marketplace' THEN
+    IF EXISTS (
+      SELECT 1
+        FROM coach_invites i
+        JOIN user_profiles p ON p.id = NEW.client_id
+       WHERE i.coach_id = NEW.coach_id
+         AND lower(i.invitee_email) = lower(p.email)
+    ) THEN
+      NEW.client_source := 'coach_invited';
+    ELSE
+      NEW.client_source := COALESCE(NEW.client_source, 'marketplace');
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_relationship_client_source ON coach_client_relationships;
+CREATE TRIGGER trg_relationship_client_source
+  BEFORE INSERT ON coach_client_relationships
+  FOR EACH ROW EXECUTE FUNCTION set_relationship_client_source();
+
+-- Re-run the backfill (idempotent) in case 040 lands before any new signups.
+UPDATE coach_client_relationships r
+   SET client_source = 'coach_invited'
+  FROM coach_invites i
+ WHERE i.coach_id = r.coach_id
+   AND lower(i.invitee_email) = (SELECT lower(email) FROM user_profiles p WHERE p.id = r.client_id)
+   AND r.client_source = 'marketplace';
+
+-- ══════════════════════════════════════════════════════════════════
+-- 041_marketplace_ranking.sql
+-- ══════════════════════════════════════════════════════════════════
+-- ════════════════════════════════════════════════════════════════════════
+-- Marketplace ranking with an Elite-coach boost.
+-- Clients can't read other users' subscriptions (RLS), so ranking by plan tier
+-- has to run server-side. This SECURITY DEFINER function returns every coach
+-- with their active platform plan tier and a blended rank_score:
+--   score = rating (0–5) + review-volume bump (≤1) + tier boost
+--   tier boost: elite +1.5, growth +0.75, starter +0.25, none 0
+-- Elite coaches surface at the top without burying a genuinely 5-star coach
+-- under an unrated one. is_featured flags elite/growth for a marketplace badge.
+-- Idempotent.
+-- ════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION public.marketplace_coaches()
+RETURNS TABLE (
+  id              uuid,
+  first_name      text,
+  last_name       text,
+  avatar_url      text,
+  coach_title     text,
+  tagline         text,
+  bio             text,
+  specialties     text[],
+  certifications  text[],
+  pricing_monthly numeric,
+  years_experience int,
+  rating_avg      numeric,
+  review_count    int,
+  plan_tier       text,
+  is_featured     boolean,
+  rank_score      numeric
+)
+LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  WITH coach_tier AS (
+    SELECT s.user_id,
+           (ARRAY_AGG(s.plan_tier ORDER BY CASE s.plan_tier
+              WHEN 'elite' THEN 0 WHEN 'growth' THEN 1 ELSE 2 END))[1] AS tier
+      FROM subscriptions s
+     WHERE s.kind = 'coach_plan'
+       AND s.status IN ('active', 'trialing')
+       AND (s.current_period_end IS NULL OR s.current_period_end > now())
+     GROUP BY s.user_id
+  )
+  SELECT p.id, p.first_name, p.last_name, p.avatar_url, p.coach_title,
+         p.tagline, p.bio, p.specialties, p.certifications, p.pricing_monthly,
+         p.years_experience, p.rating_avg, p.review_count,
+         ct.tier AS plan_tier,
+         (ct.tier IN ('elite', 'growth')) AS is_featured,
+         ( COALESCE(p.rating_avg, 0)
+           + LEAST(COALESCE(p.review_count, 0), 50) / 50.0
+           + CASE ct.tier
+               WHEN 'elite'  THEN 1.5
+               WHEN 'growth' THEN 0.75
+               WHEN 'starter' THEN 0.25
+               ELSE 0 END
+         ) AS rank_score
+    FROM user_profiles p
+    LEFT JOIN coach_tier ct ON ct.user_id = p.id
+   WHERE p.role = 'coach'
+   ORDER BY rank_score DESC, p.rating_avg DESC NULLS LAST, p.review_count DESC NULLS LAST;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.marketplace_coaches() TO authenticated;
 

@@ -98,6 +98,15 @@ class PaymentService {
     }
   }
 
+  /// Coach: connected-account balance {pending, available} in cents.
+  Future<Map<String, dynamic>> connectBalance() async {
+    try {
+      final res = await _db.functions.invoke('stripe-connect', body: {'action': 'balance'});
+      if (res.data is Map) return Map<String, dynamic>.from(res.data as Map);
+    } catch (_) {}
+    return {'pending': 0, 'available': 0};
+  }
+
   /// Coach: current Connect status {connected, charges_enabled, payouts_enabled}.
   Future<Map<String, dynamic>> connectStripeStatus() async {
     try {

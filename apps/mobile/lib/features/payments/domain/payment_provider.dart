@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/payment_service.dart';
+import '../data/coach_revenue_service.dart';
 
 final paymentServiceProvider = Provider<PaymentService>((ref) => PaymentService());
 
@@ -12,6 +13,17 @@ final mySubscriptionsProvider =
 final coachConnectStatusProvider =
     FutureProvider<Map<String, dynamic>>((ref) async {
   return ref.watch(paymentServiceProvider).connectStripeStatus();
+});
+
+/// Coach revenue metrics (monthly/lifetime/mrr/subscribers/marketplace/direct $).
+final coachRevenueServiceProvider = Provider((ref) => CoachRevenueService());
+final coachRevenueProvider = FutureProvider<Map<String, double>>((ref) async {
+  return ref.watch(coachRevenueServiceProvider).getMetrics();
+});
+
+/// Coach: connected-account balance {pending, available} (cents).
+final coachBalanceProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  return ref.watch(paymentServiceProvider).connectBalance();
 });
 
 /// Server-evaluated membership tier ('ai_guided' | 'self_guided' | null).

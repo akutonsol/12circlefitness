@@ -37,10 +37,16 @@ class CoachPaymentsScreen extends ConsumerWidget {
             final payoutsOn = s['payouts_enabled'] == true;
             final ready = connected && chargesOn;
             return RefreshIndicator(
-              onRefresh: () async => ref.invalidate(coachConnectStatusProvider),
+              onRefresh: () async {
+                ref.invalidate(coachConnectStatusProvider);
+                ref.invalidate(coachRevenueProvider);
+                ref.invalidate(coachBalanceProvider);
+              },
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
                 children: [
+                  _RevenueSection(),
+                  const SizedBox(height: 16),
                   // Status banner
                   Container(
                     padding: const EdgeInsets.all(18),
@@ -133,5 +139,52 @@ class _Bullet extends StatelessWidget {
       const Text('•  ', style: TextStyle(color: _brand, fontSize: 13)),
       Expanded(child: Text(text, style: const TextStyle(color: _muted, fontSize: 13, height: 1.4))),
     ]),
+  );
+}
+
+// Coach revenue analytics: monthly, lifetime, subscribers, pending payouts,
+// and the marketplace vs direct split.
+class _RevenueSection extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final m = ref.watch(coachRevenueProvider).valueOrNull ?? const <String, double>{};
+    final bal = ref.watch(coachBalanceProvider).valueOrNull ?? const <String, dynamic>{};
+    String d(num? v) => '\$${(v ?? 0).toStringAsFixed(0)}';
+    final pending = ((bal['pending'] as num?)?.toDouble() ?? 0) / 100.0;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('REVENUE', style: TextStyle(color: _muted, fontSize: 11,
+          fontWeight: FontWeight.w700, letterSpacing: 1)),
+      const SizedBox(height: 10),
+      Row(children: [
+        _metric('This month', d(m['monthly']), _mint),
+        const SizedBox(width: 10),
+        _metric('Lifetime', d(m['lifetime']), _brand),
+      ]),
+      const SizedBox(height: 10),
+      Row(children: [
+        _metric('Active subscribers', '${(m['active_subscribers'] ?? 0).toInt()}', _amber),
+        const SizedBox(width: 10),
+        _metric('Pending payout', d(pending), _mint),
+      ]),
+      const SizedBox(height: 10),
+      Row(children: [
+        _metric('Marketplace', d(m['marketplace']), _brand),
+        const SizedBox(width: 10),
+        _metric('Direct', d(m['direct']), _mint),
+      ]),
+    ]);
+  }
+
+  Widget _metric(String label, String value, Color color) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _brd)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(value, style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(color: _muted, fontSize: 11)),
+      ]),
+    ),
   );
 }

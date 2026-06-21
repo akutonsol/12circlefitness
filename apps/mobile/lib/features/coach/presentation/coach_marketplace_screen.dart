@@ -22,12 +22,21 @@ const _err   = Color(0xFFFFB4AB);
 final _relSvc = CoachRelationshipService();
 
 final coachMarketplaceProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final data = await Supabase.instance.client
-      .from('user_profiles')
-      .select('id, first_name, last_name, avatar_url, coach_title, tagline, bio, specialties, certifications, pricing_monthly, years_experience, rating_avg, review_count')
-      .eq('role', 'coach')
-      .order('rating_avg', ascending: false);
-  return List<Map<String, dynamic>>.from(data);
+  final db = Supabase.instance.client;
+  // Ranked server-side: Elite/Growth coaches get a boost, blended with rating &
+  // review volume (see marketplace_coaches()).
+  try {
+    final data = await db.rpc('marketplace_coaches');
+    return List<Map<String, dynamic>>.from(data as List);
+  } catch (_) {
+    // Fallback if the ranking function isn't deployed yet.
+    final data = await db
+        .from('user_profiles')
+        .select('id, first_name, last_name, avatar_url, coach_title, tagline, bio, specialties, certifications, pricing_monthly, years_experience, rating_avg, review_count')
+        .eq('role', 'coach')
+        .order('rating_avg', ascending: false);
+    return List<Map<String, dynamic>>.from(data);
+  }
 });
 
 // Set of "status:coachId" for the client's active/pending relationships, so a
@@ -194,6 +203,20 @@ class _CoachMarketplaceScreenState extends ConsumerState<CoachMarketplaceScreen>
   }
 }
 
+// Small tier badge (Elite / Featured) shown beside a boosted coach's name.
+Widget _tierBadge(String label, Color color) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.45))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.workspace_premium_rounded, color: color, size: 11),
+        const SizedBox(width: 3),
+        Text(label, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+      ]),
+    );
+
 // ── Coach Card ────────────────────────────────────────────────────────────────
 class _CoachCard extends StatelessWidget {
   final Map<String, dynamic> coach;
@@ -240,8 +263,16 @@ class _CoachCard extends StatelessWidget {
               style: const TextStyle(color: _brand, fontSize: 22, fontWeight: FontWeight.w800))),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(name.isEmpty ? 'Coach' : name,
-              style: const TextStyle(color: _wht, fontSize: 16, fontWeight: FontWeight.w700)),
+            Row(children: [
+              Flexible(child: Text(name.isEmpty ? 'Coach' : name,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: _wht, fontSize: 16, fontWeight: FontWeight.w700))),
+              if (coach['plan_tier'] == 'elite') ...[
+                const SizedBox(width: 6), _tierBadge('ELITE', _brand),
+              ] else if (coach['is_featured'] == true) ...[
+                const SizedBox(width: 6), _tierBadge('FEATURED', _tert),
+              ],
+            ]),
             Text(title, style: const TextStyle(color: _pri, fontSize: 12)),
             if (rating > 0) Row(children: [
               Icon(Icons.star_rounded, color: _brand, size: 14),
