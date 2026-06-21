@@ -8,6 +8,12 @@ final mySubscriptionsProvider =
   return ref.watch(paymentServiceProvider).getMySubscriptions();
 });
 
+/// Coach: Stripe Connect status (connected / charges_enabled / payouts_enabled).
+final coachConnectStatusProvider =
+    FutureProvider<Map<String, dynamic>>((ref) async {
+  return ref.watch(paymentServiceProvider).connectStripeStatus();
+});
+
 /// Server-evaluated membership tier ('ai_guided' | 'self_guided' | null).
 /// Gate platform features on this.
 final membershipTierProvider = FutureProvider<String?>((ref) async {

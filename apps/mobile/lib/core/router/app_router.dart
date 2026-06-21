@@ -53,6 +53,7 @@ import '../../features/admin/presentation/admin_dashboard_screen.dart';
 import '../../features/vendor/presentation/vendor_portal_screen.dart';
 import '../../features/payments/presentation/upgrade_screen.dart';
 import '../../features/payments/presentation/coach_plan_screen.dart';
+import '../../features/payments/presentation/coach_payments_screen.dart';
 import '../../features/payments/presentation/paywall_gate.dart';
 import '../../features/payments/presentation/payment_result_screen.dart';
 import '../../features/payments/domain/entitlements.dart';
@@ -229,6 +230,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/score',              builder: (_, __) => const ScoreScreen()),
           GoRoute(path: '/classes',            builder: (_, __) => const ClassesScreen()),
           GoRoute(path: '/coach-classes',      builder: (_, __) => const CoachClassesScreen()),
+          GoRoute(path: '/coach-payments',     builder: (_, __) => const CoachPaymentsScreen()),
           GoRoute(path: '/class-detail',       builder: (_, __) => const ClassDetailScreen()),
           GoRoute(path: '/coach',              builder: (_, __) => const TrainHubScreen()),
           GoRoute(path: '/events',             builder: (_, __) => const EventsScreen()),

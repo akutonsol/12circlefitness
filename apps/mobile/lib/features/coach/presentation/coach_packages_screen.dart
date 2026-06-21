@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../shared/theme/app_background.dart';
+import '../../payments/domain/payment_provider.dart';
 import '../data/package_service.dart';
 import '../domain/package_provider.dart';
 
@@ -58,7 +60,9 @@ class CoachPackagesScreen extends ConsumerWidget {
               const Text('Offer clients flexible ways to train with you. They’ll '
                   'see these when choosing you as their coach.',
                   style: TextStyle(color: _muted, fontSize: 13, height: 1.4)),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              _ConnectBanner(),
+              const SizedBox(height: 4),
               if (pkgs.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 32),
@@ -479,3 +483,33 @@ Widget _field(String label, TextEditingController c, {String? hint, int maxLines
         ),
       ]),
     );
+
+// Prompts the coach to connect Stripe before they can actually get paid.
+class _ConnectBanner extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(coachConnectStatusProvider).valueOrNull;
+    final ready = s != null && s['connected'] == true && s['charges_enabled'] == true;
+    if (ready) return const SizedBox.shrink();
+    return GestureDetector(
+      onTap: () => context.push('/coach-payments'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFD479).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFFD479).withValues(alpha: 0.4)),
+        ),
+        child: Row(children: const [
+          Icon(Icons.account_balance_wallet_outlined, color: Color(0xFFFFD479), size: 20),
+          SizedBox(width: 10),
+          Expanded(child: Text(
+            'Connect your Stripe account to receive payments for these packages.',
+            style: TextStyle(color: Color(0xFFCFC2D6), fontSize: 12, height: 1.4))),
+          Icon(Icons.chevron_right_rounded, color: Color(0xFFFFD479), size: 20),
+        ]),
+      ),
+    );
+  }
+}

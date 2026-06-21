@@ -66,6 +66,15 @@ Deno.serve(async (req: Request) => {
             coach_id: coachScoped ? meta.coach_id : null,
             plan_tier: kind === 'coach_plan' ? meta.plan_tier : null,
             stripe_subscription_id: subId,
+            // Connect split (coaching subs only).
+            ...(coachScoped ? {
+              service_id: meta.service_id || null,
+              client_source: meta.client_source ?? null,
+              commission_rate: meta.commission_rate ? Number(meta.commission_rate) : null,
+              platform_fee: meta.platform_fee ? Number(meta.platform_fee) : null,
+              coach_payout: meta.coach_payout ? Number(meta.coach_payout) : null,
+              stripe_account_id: meta.stripe_account_id ?? null,
+            } : {}),
             ...subStatusFields(sub),
           }, { onConflict: 'stripe_subscription_id' });
 

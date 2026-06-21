@@ -89,6 +89,7 @@ Deno.serve(async (req: Request) => {
     let lineItems: any[];
     let metadata: Record<string, string>;
     let pendingPaymentId: string | null = null;
+    let coachingAmountCents = 0; // > 0 → route via the coach's Connect account
 
     if (kind === 'coach') {
       if (!coachId) return json({ error: 'coachId required' }, 400);
@@ -106,6 +107,7 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
       const monthly = Number(rel?.monthly_price ?? coach?.pricing_monthly ?? 0);
       if (!monthly || monthly <= 0) return json({ error: 'Coach has no price set' }, 400);
+      coachingAmountCents = Math.round(monthly * 100);
       mode = 'subscription';
       lineItems = [{
         quantity: 1,
@@ -174,6 +176,7 @@ Deno.serve(async (req: Request) => {
       if (!pkg) return json({ error: 'Package not found' }, 404);
       const cents = Math.round(Number(pkg.price ?? 0) * 100);
       if (cents <= 0) return json({ error: 'Package has no price' }, 400);
+      coachingAmountCents = cents;
       const pkgCoachId = pkg.coach_id as string;
       const sessions = Number(pkg.sessions ?? 0);
       const label = `${pkg.name ?? 'Coaching package'}${pkg.type === 'bulk' ? ` (${sessions} sessions)` : ''}`;
@@ -219,9 +222,65 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'Unknown kind' }, 400);
     }
 
+    // ── Stripe Connect: coaching revenue is charged to the COACH's connected
+    // account; 12 Circle takes only a commission (application fee). Platform
+    // memberships (self/ai/coach_plan) and event tickets stay on the platform
+    // account. coach_invited clients = 0% commission; marketplace = coach rate.
+    // deno-lint-ignore no-explicit-any
+    const connect: any = {};
+    if (coachingAmountCents > 0 && metadata.coach_id) {
+      const cId = metadata.coach_id;
+      const { data: cAcct } = await db
+        .from('user_profiles')
+        .select('stripe_account_id, stripe_charges_enabled, marketplace_commission_rate')
+        .eq('id', cId)
+        .maybeSingle();
+      const acct = cAcct?.stripe_account_id as string | null;
+      if (!acct || !cAcct?.stripe_charges_enabled) {
+        return json({ error: 'This coach has not finished setting up payments yet.' }, 409);
+      }
+      const { data: rel } = await db
+        .from('coach_client_relationships')
+        .select('client_source')
+        .eq('client_id', user.id)
+        .eq('coach_id', cId)
+        .maybeSingle();
+      const source = (rel?.client_source as string) ?? 'marketplace';
+      const rate = source === 'coach_invited' ? 0 : Number(cAcct?.marketplace_commission_rate ?? 0.10);
+      const feeCents = Math.round(coachingAmountCents * rate);
+      metadata = {
+        ...metadata,
+        client_source: source,
+        commission_rate: String(rate),
+        platform_fee: String(feeCents),
+        coach_payout: String(coachingAmountCents - feeCents),
+        stripe_account_id: acct,
+        service_id: metadata.package_id ?? '',
+      };
+      if (mode === 'payment') {
+        connect.payment_intent_data = {
+          transfer_data: { destination: acct },
+          ...(feeCents > 0 ? { application_fee_amount: feeCents } : {}),
+        };
+      } else {
+        connect.subscription_data = {
+          transfer_data: { destination: acct },
+          ...(rate > 0 ? { application_fee_percent: Math.round(rate * 100) } : {}),
+        };
+      }
+      // Record the split on the pending payment row (one-time packages).
+      if (pendingPaymentId) {
+        await db.from('payments').update({
+          client_source: source, commission_rate: rate,
+          platform_fee: feeCents, coach_payout: coachingAmountCents - feeCents,
+          stripe_account_id: acct, service_id: metadata.package_id || null,
+        }).eq('id', pendingPaymentId);
+      }
+    }
+
     // ── Create the session in embedded or redirect mode ──
     // deno-lint-ignore no-explicit-any
-    const base: any = { mode, customer: customerId, line_items: lineItems, metadata };
+    const base: any = { mode, customer: customerId, line_items: lineItems, metadata, ...connect };
     if (embedded) {
       base.ui_mode = 'embedded';
       // Embedded checkout redirects here on completion (with the session id).

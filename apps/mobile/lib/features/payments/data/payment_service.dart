@@ -79,6 +79,34 @@ class PaymentService {
     }
   }
 
+  /// Coach: starts (or resumes) Stripe Connect onboarding. Opens the Stripe
+  /// Account Link so the coach can receive client payments directly.
+  Future<bool> connectStripeOnboard() async {
+    try {
+      final base = kIsWeb ? Uri.base.origin : null;
+      final res = await _db.functions.invoke('stripe-connect', body: {
+        'action': 'onboard',
+        if (base != null) 'returnUrl': '$base/#/coach-payments',
+      });
+      final url = (res.data is Map) ? res.data['url'] as String? : null;
+      if (url == null) return false;
+      return launchUrl(Uri.parse(url),
+          mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
+          webOnlyWindowName: kIsWeb ? '_self' : null);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Coach: current Connect status {connected, charges_enabled, payouts_enabled}.
+  Future<Map<String, dynamic>> connectStripeStatus() async {
+    try {
+      final res = await _db.functions.invoke('stripe-connect', body: {'action': 'status'});
+      if (res.data is Map) return Map<String, dynamic>.from(res.data as Map);
+    } catch (_) {}
+    return {'connected': false, 'charges_enabled': false, 'payouts_enabled': false};
+  }
+
   /// Opens the Stripe Customer Portal (manage / update card).
   Future<bool> openBillingPortal() async {
     try {
