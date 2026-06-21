@@ -176,7 +176,7 @@ class _PackageEditor extends ConsumerStatefulWidget {
 
 class _PackageEditorState extends ConsumerState<_PackageEditor> {
   late String _type;
-  late TextEditingController _name, _price, _desc, _sessions;
+  late TextEditingController _name, _price, _desc, _sessions, _cancel;
   // Session-package tiers (4/8/12/16) — each independently named/priced.
   final Map<int, TextEditingController> _tierName = {
     for (final t in PackageService.sessionTiers) t: TextEditingController(),
@@ -200,6 +200,7 @@ class _PackageEditorState extends ConsumerState<_PackageEditor> {
     _desc = TextEditingController(text: e?['description'] as String? ?? '');
     _sessions = TextEditingController(
         text: ((e?['sessions'] as num?)?.toInt() ?? 0) > 0 ? '${(e?['sessions'] as num).toInt()}' : '');
+    _cancel = TextEditingController(text: e?['cancellation_policy'] as String? ?? '');
     if (_type == 'bulk') _loadTiers();
   }
 
@@ -220,7 +221,7 @@ class _PackageEditorState extends ConsumerState<_PackageEditor> {
 
   @override
   void dispose() {
-    _name.dispose(); _price.dispose(); _desc.dispose(); _sessions.dispose();
+    _name.dispose(); _price.dispose(); _desc.dispose(); _sessions.dispose(); _cancel.dispose();
     for (final c in _tierName.values) c.dispose();
     for (final c in _tierPrice.values) c.dispose();
     for (final c in _tierDesc.values) c.dispose();
@@ -253,6 +254,7 @@ class _PackageEditorState extends ConsumerState<_PackageEditor> {
                 : 0,
         price: double.tryParse(_price.text.trim()) ?? 0,
         description: _desc.text.trim(),
+        cancellationPolicy: _cancel.text.trim().isEmpty ? null : _cancel.text.trim(),
       );
     }
     if (mounted) { setState(() => _saving = false); Navigator.pop(context, true); }
@@ -500,7 +502,13 @@ class _PackageEditorState extends ConsumerState<_PackageEditor> {
               if (_type == 'hybrid')
                 _field('Sessions included per month', _sessions,
                     hint: 'e.g. 4', keyboard: TextInputType.number),
-              _field('Description (optional)', _desc, hint: 'What is included', maxLines: 2),
+              _field('Included features', _desc,
+                  hint: 'What the client gets', maxLines: 2),
+              _field('Cancellation policy (optional)', _cancel,
+                  hint: _isRecurring(_type)
+                      ? 'e.g. Cancel anytime, effective next billing cycle'
+                      : 'e.g. 24-hour notice for a full refund',
+                  maxLines: 2),
             ],
 
             const SizedBox(height: 16),

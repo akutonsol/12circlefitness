@@ -19,6 +19,14 @@ class CoachRevenueService {
           .select('coach_payout, client_source, status')
           .eq('coach_id', coachId)
           .inFilter('status', ['active', 'trialing']));
+      // Active packages: session credits the coach is still drawing down.
+      final credits = List<Map<String, dynamic>>.from(await _db
+          .from('client_session_credits')
+          .select('sessions_total, sessions_used')
+          .eq('coach_id', coachId));
+      final activePackages = credits.where((c) =>
+          ((c['sessions_used'] as num?)?.toInt() ?? 0) <
+          ((c['sessions_total'] as num?)?.toInt() ?? 0)).length;
 
       double d(dynamic c) => ((c as num?)?.toDouble() ?? 0) / 100.0; // cents → $
       final now = DateTime.now();
@@ -53,6 +61,7 @@ class CoachRevenueService {
         'lifetime': lifetime,
         'mrr': mrr,
         'active_subscribers': subs.length.toDouble(),
+        'active_packages': activePackages.toDouble(),
         'marketplace': market,
         'direct': direct,
       };
@@ -63,6 +72,6 @@ class CoachRevenueService {
 
   static const Map<String, double> _empty = {
     'monthly': 0, 'lifetime': 0, 'mrr': 0,
-    'active_subscribers': 0, 'marketplace': 0, 'direct': 0,
+    'active_subscribers': 0, 'active_packages': 0, 'marketplace': 0, 'direct': 0,
   };
 }

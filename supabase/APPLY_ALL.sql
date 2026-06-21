@@ -1,4 +1,4 @@
--- 12 Circle — pending migrations (028 → 041). Idempotent. 2026-06-20
+-- 12 Circle — pending migrations (028 → 042). Idempotent. 2026-06-20
 
 -- ══════════════════════════════════════════════════════════════════
 -- 028_package_payments.sql
@@ -699,4 +699,24 @@ LANGUAGE sql STABLE SECURITY DEFINER AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION public.marketplace_coaches() TO authenticated;
+
+-- ══════════════════════════════════════════════════════════════════
+-- 042_billing_polish.sql
+-- ══════════════════════════════════════════════════════════════════
+-- ════════════════════════════════════════════════════════════════════════
+-- Billing polish — close the remaining gaps in the Stripe Connect spec:
+--   • persist whether the coach finished Stripe onboarding (details_submitted)
+--   • richer coach services: a cancellation policy + structured features list
+-- (Note: user_profiles.onboarding_complete already means *client* onboarding,
+--  so Connect onboarding gets its own column.)
+-- Idempotent.
+-- ════════════════════════════════════════════════════════════════════════
+
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS stripe_details_submitted boolean NOT NULL DEFAULT false;
+
+ALTER TABLE coach_packages
+  ADD COLUMN IF NOT EXISTS cancellation_policy text;
+ALTER TABLE coach_packages
+  ADD COLUMN IF NOT EXISTS features text[] NOT NULL DEFAULT '{}';
 

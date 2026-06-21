@@ -151,6 +151,7 @@ class _RevenueSection extends ConsumerWidget {
     final bal = ref.watch(coachBalanceProvider).valueOrNull ?? const <String, dynamic>{};
     String d(num? v) => '\$${(v ?? 0).toStringAsFixed(0)}';
     final pending = ((bal['pending'] as num?)?.toDouble() ?? 0) / 100.0;
+    final completed = ((bal['paid'] as num?)?.toDouble() ?? 0) / 100.0;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('REVENUE', style: TextStyle(color: _muted, fontSize: 11,
           fontWeight: FontWeight.w700, letterSpacing: 1)),
@@ -162,15 +163,21 @@ class _RevenueSection extends ConsumerWidget {
       ]),
       const SizedBox(height: 10),
       Row(children: [
-        _metric('Active subscribers', '${(m['active_subscribers'] ?? 0).toInt()}', _amber),
+        _metric('Pending payouts', d(pending), _amber),
         const SizedBox(width: 10),
-        _metric('Pending payout', d(pending), _mint),
+        _metric('Completed payouts', d(completed), _mint),
       ]),
       const SizedBox(height: 10),
       Row(children: [
         _metric('Marketplace', d(m['marketplace']), _brand),
         const SizedBox(width: 10),
         _metric('Direct', d(m['direct']), _mint),
+      ]),
+      const SizedBox(height: 10),
+      Row(children: [
+        _metric('Active subscribers', '${(m['active_subscribers'] ?? 0).toInt()}', _amber),
+        const SizedBox(width: 10),
+        _metric('Active packages', '${(m['active_packages'] ?? 0).toInt()}', _brand),
       ]),
     ]);
   }

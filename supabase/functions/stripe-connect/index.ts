@@ -51,6 +51,7 @@ Deno.serve(async (req: Request) => {
       await db.from('user_profiles').update({
         stripe_charges_enabled: account.charges_enabled ?? false,
         stripe_payouts_enabled: account.payouts_enabled ?? false,
+        stripe_details_submitted: account.details_submitted ?? false,
       }).eq('id', user.id);
       return json({
         connected: true,
@@ -62,14 +63,21 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'balance') {
       const acct = profile?.stripe_account_id as string | null;
-      if (!acct) return json({ pending: 0, available: 0 });
+      if (!acct) return json({ pending: 0, available: 0, paid: 0 });
       // deno-lint-ignore no-explicit-any
       const sum = (arr: any[] | undefined) => (arr ?? []).reduce((s, b) => s + (b.amount ?? 0), 0);
       try {
         const bal = await stripe.balance.retrieve({}, { stripeAccount: acct });
-        return json({ pending: sum(bal.pending), available: sum(bal.available) });
+        // Completed payouts: total already paid out to the coach's bank.
+        let paid = 0;
+        try {
+          const payouts = await stripe.payouts.list(
+            { status: 'paid', limit: 100 }, { stripeAccount: acct });
+          paid = sum(payouts.data);
+        } catch (_) { /* none yet */ }
+        return json({ pending: sum(bal.pending), available: sum(bal.available), paid });
       } catch (_) {
-        return json({ pending: 0, available: 0 });
+        return json({ pending: 0, available: 0, paid: 0 });
       }
     }
 

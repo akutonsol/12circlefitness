@@ -60,6 +60,7 @@ class PackageService {
     required int sessions,
     required double price,
     String? description,
+    String? cancellationPolicy,
   }) async {
     final uid = _uid;
     if (uid == null) return;
@@ -70,6 +71,7 @@ class PackageService {
       'sessions': sessions,
       'price': price,
       'description': description,
+      'cancellation_policy': cancellationPolicy,
     };
     if (id == null) {
       await _db.from('coach_packages').insert(payload);
