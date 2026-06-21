@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/admin_provider.dart';
+import '../data/platform_settings_service.dart';
 
 const _bg       = Color(0xFF030303);
 const _card     = Color(0xFF0E0B16);
@@ -82,6 +83,8 @@ class AdminDashboardScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _header(context),
+                        const SizedBox(height: 20),
+                        _CommissionCard(),
                         const SizedBox(height: 24),
                         if (wide)
                           // Desktop: stats on the left, members panel on the right.
@@ -333,6 +336,68 @@ class _UserRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// Admin: view + change the marketplace commission rate (stored in platform_settings).
+class _CommissionCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rate = ref.watch(marketplaceCommissionProvider).valueOrNull ?? 0.10;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _card, borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1A1020)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.percent_rounded, color: _brand, size: 26),
+        const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('MARKETPLACE COMMISSION',
+              style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1)),
+          const SizedBox(height: 2),
+          Text('${(rate * 100).toStringAsFixed(1)}% on marketplace-acquired coaching sales',
+              style: const TextStyle(color: _white, fontSize: 14, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 2),
+          const Text('Coach-invited clients are always 0%.',
+              style: TextStyle(color: _muted, fontSize: 11)),
+        ])),
+        TextButton(
+          onPressed: () => _editCommission(context, ref, rate),
+          child: const Text('Edit', style: TextStyle(color: _brand, fontWeight: FontWeight.w700)),
+        ),
+      ]),
+    );
+  }
+
+  void _editCommission(BuildContext context, WidgetRef ref, double current) {
+    double pct = (current * 100).clamp(0, 50);
+    showDialog(
+      context: context,
+      builder: (dctx) => StatefulBuilder(builder: (dctx, setSt) => AlertDialog(
+        backgroundColor: _card,
+        title: const Text('Marketplace Commission', style: TextStyle(color: _white, fontSize: 16)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('${pct.toStringAsFixed(1)}%',
+              style: const TextStyle(color: _brand, fontSize: 32, fontWeight: FontWeight.w900)),
+          Slider(value: pct, min: 0, max: 50, divisions: 100, activeColor: _brand,
+              label: '${pct.toStringAsFixed(1)}%', onChanged: (v) => setSt(() => pct = v)),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx),
+              child: const Text('Cancel', style: TextStyle(color: _muted))),
+          TextButton(
+            onPressed: () async {
+              final ok = await ref.read(platformSettingsServiceProvider)
+                  .setMarketplaceCommission(pct / 100.0);
+              if (dctx.mounted) Navigator.pop(dctx);
+              if (ok) ref.invalidate(marketplaceCommissionProvider);
+            },
+            child: const Text('Save', style: TextStyle(color: _brand, fontWeight: FontWeight.w700))),
+        ],
+      )),
     );
   }
 }

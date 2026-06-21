@@ -246,7 +246,13 @@ Deno.serve(async (req: Request) => {
         .eq('coach_id', cId)
         .maybeSingle();
       const source = (rel?.client_source as string) ?? 'marketplace';
-      const rate = source === 'coach_invited' ? 0 : Number(cAcct?.marketplace_commission_rate ?? 0.10);
+      // Admin-configurable global marketplace commission (platform_settings),
+      // falling back to the coach's column then 10%.
+      let marketRate = Number(cAcct?.marketplace_commission_rate ?? 0.10);
+      const { data: setting } = await db.from('platform_settings')
+        .select('value').eq('key', 'marketplace_commission_rate').maybeSingle();
+      if (setting && Number.isFinite(Number(setting.value))) marketRate = Number(setting.value);
+      const rate = source === 'coach_invited' ? 0 : marketRate;
       const feeCents = Math.round(coachingAmountCents * rate);
       metadata = {
         ...metadata,
