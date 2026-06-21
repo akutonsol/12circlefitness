@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../shared/theme/app_background.dart';
+import '../../../core/widgets/blood_drop.dart';
 import '../domain/cycle_phase.dart';
 import '../domain/cycle_provider.dart';
 
@@ -95,7 +95,10 @@ class WomensHealthScreen extends ConsumerWidget {
         const SizedBox(width: 16),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Icon(g.icon, color: g.color, size: 18),
+            if (s.phase == CyclePhase.menstrual)
+              BloodDrop(size: 18, color: g.color)
+            else
+              Icon(g.icon, color: g.color, size: 18),
             const SizedBox(width: 6),
             Text(g.label, style: TextStyle(color: g.color, fontSize: 16, fontWeight: FontWeight.w800)),
           ]),

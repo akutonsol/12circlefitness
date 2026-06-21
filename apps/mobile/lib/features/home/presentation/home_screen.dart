@@ -10,12 +10,13 @@ import '../../workout/domain/workout_provider.dart';
 import '../../coach/domain/coach_provider.dart';
 import '../../coach/domain/coach_ecosystem_provider.dart';
 import '../../workout/presentation/resume_workout_banner.dart';
-import '../../notifications/domain/notification_provider.dart';
 import '../../coaching_mode/domain/coaching_mode_provider.dart';
 import '../../messaging/domain/messaging_provider.dart' show selectedConversationProvider;
 import '../../womens_health/domain/cycle_provider.dart';
 import '../../womens_health/domain/cycle_phase.dart';
 import '../../scoring/domain/score_provider.dart';
+import '../../../core/widgets/app_top_nav.dart';
+import '../../../core/widgets/blood_drop.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 class _C {
@@ -26,34 +27,8 @@ class _C {
   static const brand        = Color(0xFFA855F7);
   static const onSurface    = Color(0xFFDAE2FD);
   static const onSurfVar    = Color(0xFFCFC2D6);
-  static const error        = Color(0xFFFFB4AB);
   static const tertiary     = Color(0xFF6FFBBE);
 }
-
-// ── User Profile ──────────────────────────────────────────────────────────────
-class _UserProfile {
-  final String id, firstName, lastName, email;
-  const _UserProfile({required this.id, required this.firstName,
-    required this.lastName, required this.email});
-  String get displayName =>
-      firstName.isNotEmpty ? firstName : email.split('@').first;
-  factory _UserProfile.fromJson(Map<String, dynamic> j) => _UserProfile(
-    id: j['id'] as String,
-    firstName: j['first_name'] as String? ?? '',
-    lastName: j['last_name'] as String? ?? '',
-    email: j['email'] as String? ?? '',
-  );
-}
-
-final userProfileProvider = FutureProvider<_UserProfile?>((ref) async {
-  final user = ref.watch(currentUserProvider);
-  if (user == null) return null;
-  try {
-    final data = await Supabase.instance.client
-        .from('user_profiles').select().eq('id', user.id).single();
-    return _UserProfile.fromJson(data);
-  } catch (_) { return null; }
-});
 
 // 7-day activity bars: each value 0.0–1.0 representing relative activity that day.
 // Pulls from nutrition_logs (meal count) + coaching_calls (scheduled calls).
@@ -157,12 +132,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent));
     final topPad  = MediaQuery.of(context).padding.top;
     final screenH = MediaQuery.of(context).size.height;
-    final profile    = ref.watch(userProfileProvider);
-    final currentUser= ref.watch(currentUserProvider);
-    final metaFirst  = currentUser?.userMetadata?['first_name'] as String? ?? '';
-    final fallback   = metaFirst.isNotEmpty
-        ? metaFirst : currentUser?.email?.split('@').first ?? '';
-    final userName   = profile.valueOrNull?.displayName ?? fallback;
 
     const indicatorH = 36.0;
     final headerH    = topPad + 64.0;
@@ -185,19 +154,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 const ResumeWorkoutBanner(),
                 _SundayCheckinBanner(),
                 _WomensHealthBanner(),
-                // AI Coach chat — visible for all modes
-                _AICoachQuickCard(),
-                const SizedBox(height: 8),
-                // Mode-specific top card
+                // Quick actions — 2-column grid (AI Coach + mode-specific action).
                 if (mode == CoachingMode.coachGuided) ...[
-                  _BookCallQuickCard(),
+                  Row(children: [
+                    Expanded(child: _QuickActionTile(
+                      title: 'AI Coach', subtitle: 'Ask anything',
+                      icon: Icons.auto_awesome,
+                      gradient: const [Color(0xFF5BE0C8), Color(0xFFA06BFF)],
+                      borderColor: _C.brand.withValues(alpha: 0.18),
+                      onTap: () => context.push('/ai-coach'))),
+                    const SizedBox(width: 10),
+                    Expanded(child: _QuickActionTile(
+                      title: 'Book a Call', subtitle: 'With your coach',
+                      icon: Icons.videocam_rounded,
+                      iconColor: const Color(0xFF2DD49A),
+                      iconBg: const Color(0xFF2DD49A).withValues(alpha: 0.16),
+                      borderColor: const Color(0xFF2DD49A).withValues(alpha: 0.16),
+                      onTap: () => context.push('/book-call'))),
+                  ]),
                   const SizedBox(height: 8),
-                ] else if (mode == CoachingMode.selfGuided) ...[
-                  _MyPlanCard(),
+                ] else ...[
+                  _AICoachQuickCard(),
                   const SizedBox(height: 8),
-                ] else if (mode == CoachingMode.aiGuided) ...[
-                  _AIQuickActionsCard(),
-                  const SizedBox(height: 8),
+                  if (mode == CoachingMode.selfGuided) ...[
+                    _MyPlanCard(),
+                    const SizedBox(height: 8),
+                  ] else if (mode == CoachingMode.aiGuided) ...[
+                    _AIQuickActionsCard(),
+                    const SizedBox(height: 8),
+                  ],
                 ],
                 Expanded(child: _FitnessSessionCard(mode: mode, heroImage: _heroImage)),
                 const SizedBox(height: 8),
@@ -222,33 +207,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
                   height: headerH,
-                  padding: EdgeInsets.only(top: topPad, left: 20, right: 20),
+                  padding: EdgeInsets.only(top: topPad, left: 16, right: 16),
                   decoration: BoxDecoration(
                     color: _C.bg.withValues(alpha: 0.6),
                     border: Border(bottom: BorderSide(
                       color: Colors.white.withValues(alpha: 0.06)))),
-                  child: Row(children: [
-                    GestureDetector(
-                      onTap: () => context.go('/profile'),
-                      child: _UserAvatar()),
-                    const SizedBox(width: 12),
-                    Column(mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Good Morning',
-                        style: TextStyle(
-                          color: _C.onSurfVar.withValues(alpha: 0.6),
-                          fontSize: 10, fontWeight: FontWeight.w600,
-                          letterSpacing: 1.5)),
-                      Text(userName,
-                        style: const TextStyle(color: _C.onSurface,
-                          fontSize: 20, fontWeight: FontWeight.w700)),
-                    ]),
-                    const Spacer(),
-                    _IconBtn(icon: Icons.chat_bubble_outline_rounded,
-                      onTap: () => context.go('/messages')),
-                    const SizedBox(width: 8),
-                    _ShakingBell(),
-                  ]),
+                  child: const Center(child: AppTopNavRow()),
                 ),
               ),
             ),
@@ -759,116 +723,6 @@ class _PanelWeekProgress extends ConsumerWidget {
   }
 }
 
-// ── User Avatar ───────────────────────────────────────────────────────────────
-class _UserAvatar extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 40, height: 40,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      border: Border.all(color: _C.primary.withValues(alpha: 0.3), width: 2),
-      boxShadow: [BoxShadow(color: _C.brand.withValues(alpha: 0.25), blurRadius: 12)]),
-    child: ClipOval(child: Image.asset('assets/images/dumbell.png',
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => Container(
-        color: _C.surfContHigh,
-        child: const Icon(Icons.person_rounded, color: _C.primary, size: 20)))));
-}
-
-// ── Icon Button ───────────────────────────────────────────────────────────────
-class _IconBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  const _IconBtn({required this.icon, required this.onTap});
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      width: 40, height: 40,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: const Color(0x08FFFFFF),
-        border: Border.all(color: const Color(0x0DFFFFFF))),
-      child: Icon(icon, color: _C.onSurfVar, size: 20)));
-}
-
-// ── Shaking Bell ──────────────────────────────────────────────────────────────
-class _ShakingBell extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_ShakingBell> createState() => _ShakingBellState();
-}
-class _ShakingBellState extends ConsumerState<_ShakingBell>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _shake;
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this,
-      duration: const Duration(milliseconds: 500));
-    _shake = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: 0.2), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: 0.2, end: -0.2), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: -0.2, end: 0.15), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 0.15, end: -0.1), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: -0.1, end: 0.0), weight: 1),
-    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-    Future.delayed(const Duration(seconds: 1), _loop);
-  }
-  void _loop() {
-    if (!mounted) return;
-    _ctrl.forward(from: 0).then(
-      (_) => Future.delayed(const Duration(seconds: 3), _loop));
-  }
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-  @override
-  Widget build(BuildContext context) {
-    final unread = ref.watch(unreadCountProvider).valueOrNull ?? 0;
-    final hasUnread = unread > 0;
-    return GestureDetector(
-      onTap: () => context.push('/notifications'),
-      child: AnimatedBuilder(
-        animation: _shake,
-        builder: (_, child) => Transform.rotate(
-          angle: hasUnread ? _shake.value : 0, child: child),
-        child: Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: hasUnread
-                ? _C.error.withValues(alpha: 0.08)
-                : const Color(0x08FFFFFF),
-            border: Border.all(color: hasUnread
-                ? _C.error.withValues(alpha: 0.3)
-                : const Color(0x0DFFFFFF))),
-          child: Stack(alignment: Alignment.center, children: [
-            Icon(
-              hasUnread
-                  ? Icons.notifications_rounded
-                  : Icons.notifications_outlined,
-              color: hasUnread ? _C.error : _C.onSurfVar, size: 20),
-            if (hasUnread)
-              Positioned(top: 7, right: 7,
-                child: Container(
-                  width: unread > 9 ? 13 : 9,
-                  height: 9,
-                  decoration: BoxDecoration(
-                    color: _C.error,
-                    borderRadius: BorderRadius.circular(9),
-                    boxShadow: [BoxShadow(
-                      color: _C.error.withValues(alpha: 0.6),
-                      blurRadius: 4)]),
-                  alignment: Alignment.center,
-                  child: unread > 9
-                      ? const Text('9+',
-                          style: TextStyle(color: Colors.white,
-                            fontSize: 6, fontWeight: FontWeight.w800))
-                      : null)),
-          ]))));
-  }
-}
-
 // ── Women's Health Banner (female clients only) ───────────────────────────────
 class _WomensHealthBanner extends ConsumerWidget {
   @override
@@ -879,36 +733,48 @@ class _WomensHealthBanner extends ConsumerWidget {
 
     final status = ref.watch(cycleStatusProvider).valueOrNull;
     final guide = status != null ? phaseGuides[status.phase]! : null;
-    final color = guide?.color ?? const Color(0xFFFF6B8A);
-    final subtitle = (status != null && status.hasData)
-        ? '${guide!.label} · Day ${status.cycleDay}'
-        : 'Track your cycle, symptoms & recovery';
+    final color = guide?.color ?? const Color(0xFFFF5D7A);
+    final hasData = status != null && status.hasData;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
         onTap: () => context.push('/womens-health'),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [color.withValues(alpha: 0.18), const Color(0xFF0E0B16)]),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: color.withValues(alpha: 0.35)),
+              colors: [color.withValues(alpha: 0.16), const Color(0xFF281018)]),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.28)),
           ),
           child: Row(children: [
             Container(
-              width: 32, height: 32,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
-              child: Icon(guide?.icon ?? Icons.favorite_rounded, color: color, size: 17)),
-            const SizedBox(width: 10),
-            Expanded(child: Row(children: [
+              width: 40, height: 40,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(12)),
+              alignment: Alignment.center,
+              child: BloodDrop(size: 19, color: color)),
+            const SizedBox(width: 13),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text("Women's Health",
-                  style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
-              const SizedBox(width: 8),
-              Flexible(child: Text('· $subtitle',
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600))),
+                  style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              if (hasData)
+                Row(children: [
+                  Text(guide!.label,
+                      style: TextStyle(color: color, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                  Container(
+                    width: 3, height: 3,
+                    margin: const EdgeInsets.symmetric(horizontal: 7),
+                    decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                  Text('Day ${status.cycleDay}',
+                      style: TextStyle(color: color, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                ])
+              else
+                Text('Track your cycle, symptoms & recovery',
+                    style: TextStyle(color: color, fontSize: 12.5, fontWeight: FontWeight.w600)),
             ])),
             Icon(Icons.chevron_right_rounded, color: color, size: 20),
           ]),
@@ -1033,36 +899,49 @@ class _AICoachQuickCard extends StatelessWidget {
   );
 }
 
-// ── Book Call Quick Card ──────────────────────────────────────────────────────
-class _BookCallQuickCard extends StatelessWidget {
+// ── Quick Action Tile (2-col grid) ────────────────────────────────────────────
+class _QuickActionTile extends StatelessWidget {
+  final String title, subtitle;
+  final IconData icon;
+  final List<Color>? gradient;
+  final Color? iconColor, iconBg;
+  final Color borderColor;
+  final VoidCallback onTap;
+  const _QuickActionTile({
+    required this.title, required this.subtitle, required this.icon,
+    this.gradient, this.iconColor, this.iconBg,
+    required this.borderColor, required this.onTap});
+
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: () => context.push('/book-call'),
+    onTap: onTap,
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E0B16),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+          colors: [Color(0xFF1A2233), Color(0xFF10141F)]),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFF6FFBBE).withValues(alpha: 0.3))),
+        border: Border.all(color: borderColor)),
       child: Row(children: [
         Container(
           width: 40, height: 40,
           decoration: BoxDecoration(
-            color: const Color(0xFF6FFBBE).withValues(alpha: 0.15),
-            shape: BoxShape.circle),
-          child: const Icon(Icons.video_call_rounded,
-            color: Color(0xFF6FFBBE), size: 22)),
-        const SizedBox(width: 12),
-        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-          Text('Book a Coaching Call', style: TextStyle(color: Colors.white,
-            fontSize: 14, fontWeight: FontWeight.w700)),
-          Text('Schedule a call with your coach',
-            style: TextStyle(color: Color(0xFFCFC2D6), fontSize: 12)),
+            color: iconBg,
+            gradient: gradient != null
+                ? LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: gradient!)
+                : null,
+            borderRadius: BorderRadius.circular(12)),
+          child: Icon(icon, color: iconColor ?? Colors.white, size: 20)),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, children: [
+          Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 1),
+          Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.55), fontSize: 11)),
         ])),
-        const Icon(Icons.chevron_right_rounded,
-          color: Color(0xFF6FFBBE), size: 20),
       ]),
     ),
   );

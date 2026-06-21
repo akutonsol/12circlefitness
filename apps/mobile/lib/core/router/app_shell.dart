@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/coaching_mode/domain/coaching_mode_provider.dart';
 import '../../features/auth/domain/auth_provider.dart';
 import '../notifications/notification_watcher.dart';
+import '../widgets/app_top_nav.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _surfC   = Color(0xFF171F33);
@@ -32,8 +33,11 @@ class AppShell extends StatelessWidget {
   );
 }
 
-// ── Coach top bar (messages + notifications) ──────────────────────────────────
-// Shown on coach screens except the dashboard (which has its own header).
+// ── Dynamic top nav (shared design) ───────────────────────────────────────────
+// The unified top nav (avatar + greeting/name + chat + bell). Shown on coach
+// screens except the dashboard (which renders its own header). The client Home
+// screen renders the same AppTopNavRow design inside its own header (so it can
+// keep the pull-down Wellness Pulse panel).
 class _CoachTopBar extends ConsumerWidget {
   final String location;
   const _CoachTopBar({required this.location});
@@ -44,30 +48,7 @@ class _CoachTopBar extends ConsumerWidget {
     if (role != 'coach' || location.startsWith('/coach-dashboard')) {
       return const SizedBox.shrink();
     }
-    final top = MediaQuery.of(context).padding.top;
-    return Container(
-      padding: EdgeInsets.only(top: top + 8, left: 18, right: 12, bottom: 8),
-      decoration: const BoxDecoration(
-        color: _surfC,
-        border: Border(bottom: BorderSide(color: Color(0x14FFFFFF))),
-      ),
-      child: Row(children: [
-        ShaderMask(
-          shaderCallback: (b) => const LinearGradient(colors: [_primary, _brand]).createShader(b),
-          child: const Text('12 Circle  ·  Coach',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
-        ),
-        const Spacer(),
-        IconButton(
-          icon: const Icon(Icons.chat_bubble_outline_rounded, color: _onSurfV, size: 22),
-          onPressed: () => context.go('/messages'),
-        ),
-        IconButton(
-          icon: const Icon(Icons.notifications_none_rounded, color: _onSurfV, size: 24),
-          onPressed: () => context.go('/notifications'),
-        ),
-      ]),
-    );
+    return const AppTopNav();
   }
 }
 
