@@ -108,14 +108,19 @@ final availableCoachesProvider = FutureProvider<List<Map<String, dynamic>>>((ref
   try {
     final coaches = await _db
         .from('user_profiles')
-        .select('id, first_name, last_name, avatar_url, coach_title, coach_bio, max_clients, is_accepting_clients, specialties, certifications, pricing_monthly, years_experience, rating_avg, review_count, transformation_photo_urls')
+        .select('id, first_name, last_name, avatar_url, coach_title, bio, coach_bio, tagline, max_clients, is_accepting_clients, specialties, certifications, pricing_monthly, years_experience, rating_avg, review_count, transformation_photo_urls')
         .eq('role', 'coach')
         .eq('is_accepting_clients', true);
 
+    final coachIds = [for (final c in coaches) c['id'] as String];
+
     // Cheapest active monthly package per coach — used as a pricing fallback
     // when the coach hasn't set a monthly rate on their profile.
-    final coachIds = [for (final c in coaches) c['id'] as String];
     final lowestMonthly = <String, double>{};
+    // Active clients per coach, counted as DISTINCT client_ids (duplicate or
+    // orphaned relationship rows would otherwise inflate the number and diverge
+    // from the coach dashboard, which counts distinct clients).
+    final activeByCoach = <String, Set<String>>{};
     if (coachIds.isNotEmpty) {
       final pkgs = await _db
           .from('coach_packages')
@@ -130,26 +135,38 @@ final availableCoachesProvider = FutureProvider<List<Map<String, dynamic>>>((ref
         final cur = lowestMonthly[cid];
         if (cur == null || price < cur) lowestMonthly[cid] = price;
       }
+
+      final rels = await _db
+          .from('coach_client_relationships')
+          .select('coach_id, client_id')
+          .inFilter('coach_id', coachIds)
+          .eq('status', 'active');
+      for (final r in (rels as List)) {
+        final coachId = r['coach_id'] as String?;
+        final clientId = r['client_id'] as String?;
+        if (coachId == null || clientId == null) continue;
+        (activeByCoach[coachId] ??= <String>{}).add(clientId);
+      }
     }
 
     // Filter out coaches at capacity
     final result = <Map<String, dynamic>>[];
     for (final c in coaches) {
       final cid = c['id'] as String;
-      final rows = await _db
-          .from('coach_client_relationships')
-          .select('id')
-          .eq('coach_id', cid)
-          .eq('status', 'active');
-      final active = (rows as List).length;
+      final active = activeByCoach[cid]?.length ?? 0;
       final max = (c['max_clients'] as int?) ?? 20;
       // Profile rate wins; otherwise fall back to the cheapest monthly package.
       final profilePrice = (c['pricing_monthly'] as num?)?.toDouble() ?? 0;
       final effectivePrice =
           profilePrice > 0 ? profilePrice : (lowestMonthly[cid] ?? 0);
+      // Bio lives in `bio` (Coach Business screen + marketplace); `coach_bio` is
+      // the legacy column. Normalize to coach_bio so the UI reads one field.
+      final newBio = (c['bio'] as String?)?.trim() ?? '';
+      final legacyBio = (c['coach_bio'] as String?)?.trim() ?? '';
       result.add({
         ...c,
         'pricing_monthly': effectivePrice,
+        'coach_bio': newBio.isNotEmpty ? newBio : legacyBio,
         'active_clients': active,
         'is_full': active >= max,
       });
