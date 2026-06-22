@@ -40,6 +40,7 @@ class AppTopNavRow extends ConsumerWidget {
     final last  = (profile?['last_name'] as String?) ?? '';
     final email = (profile?['email'] as String?) ?? '';
     final name  = first.isNotEmpty ? first : (email.isNotEmpty ? email.split('@').first : 'there');
+    final avatarUrl = (profile?['avatar_url'] as String?)?.trim();
     final unread = ref.watch(unreadCountProvider).valueOrNull ?? 0;
 
     return Row(children: [
@@ -58,19 +59,11 @@ class AppTopNavRow extends ConsumerWidget {
               colors: [Color(0xFFB06BFF), Color(0xFFFF4D8D)],
             ),
           ),
-          child: Container(
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF2A1640), Color(0xFF120A1E)],
-              ),
-            ),
-            alignment: Alignment.center,
-            child: Text(initialsFrom(first, last),
-                style: const TextStyle(
-                    color: Color(0xFFD9B6FF), fontSize: 14, fontWeight: FontWeight.w700)),
+          child: ClipOval(
+            child: (avatarUrl != null && avatarUrl.isNotEmpty)
+                ? Image.network(avatarUrl, fit: BoxFit.cover, width: 40, height: 40,
+                    errorBuilder: (_, __, ___) => _initialsAvatar(first, last))
+                : _initialsAvatar(first, last),
           ),
         ),
       ),
@@ -107,6 +100,23 @@ class AppTopNavRow extends ConsumerWidget {
     ]);
   }
 }
+
+Widget _initialsAvatar(String first, String last) => Container(
+      width: 40,
+      height: 40,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2A1640), Color(0xFF120A1E)],
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(initialsFrom(first, last),
+          style: const TextStyle(
+              color: Color(0xFFD9B6FF), fontSize: 14, fontWeight: FontWeight.w700)),
+    );
 
 class _NavIconButton extends StatelessWidget {
   final IconData icon;

@@ -8,7 +8,6 @@ import '../../../core/utils/web_logout.dart';
 import '../../auth/domain/auth_provider.dart';
 import '../../coach/domain/coach_provider.dart';
 import '../../coaching_mode/domain/coaching_mode_provider.dart';
-import '../../payments/domain/payment_provider.dart';
 import '../../payments/domain/entitlements.dart';
 
 class _C {

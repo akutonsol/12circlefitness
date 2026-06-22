@@ -81,6 +81,17 @@ import '../../features/settings/presentation/privacy_policy_screen.dart';
 import '../../features/settings/presentation/terms_of_service_screen.dart';
 import '../../features/settings/presentation/help_center_screen.dart';
 import 'app_shell.dart';
+import '../../features/auth/presentation/reset_password_screen.dart';
+
+/// True while the user is in a password-recovery session (arrived via the email
+/// reset link). The router forces them to /reset-password until they set a new
+/// password. The reset screen clears it.
+final passwordRecoveryNotifier = ValueNotifier<bool>(false);
+
+/// Holds a user-facing message when an OAuth redirect returns an error
+/// (e.g. flow_state_already_used, access_denied). Set in main() from the launch
+/// URL; the login screen shows it once and clears it. Null = no pending error.
+final authErrorNotifier = ValueNotifier<String?>(null);
 
 class _RouterNotifier extends ChangeNotifier {
   final Ref _ref;
@@ -90,6 +101,14 @@ class _RouterNotifier extends ChangeNotifier {
     _sub = _ref.listen(authStateProvider, (prev, next) {
       final hadSession = prev?.valueOrNull?.session != null;
       final hasSession = next.valueOrNull?.session != null;
+      // Password-reset link tapped → drive the user to the reset screen.
+      if (next.valueOrNull?.event == AuthChangeEvent.passwordRecovery) {
+        passwordRecoveryNotifier.value = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_disposed) notifyListeners();
+        });
+        return;
+      }
       // Only trigger the router redirect on login — logout is handled
       // by reloadForLogout() (web) or context.go (mobile) in the UI layer,
       // avoiding the ShellRoute nested-navigator disposal assertion.
@@ -110,10 +129,16 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: '/onboarding',
-    refreshListenable: notifier,
+    refreshListenable: Listenable.merge([notifier, passwordRecoveryNotifier]),
     redirect: (context, state) async {
       final isAuthenticated = Supabase.instance.client.auth.currentSession != null;
       final path = state.matchedLocation;
+
+      // Password recovery takes priority: keep the user on /reset-password
+      // until they set a new password (or it's cleared).
+      if (passwordRecoveryNotifier.value) {
+        return path == '/reset-password' ? null : '/reset-password';
+      }
 
       final isAuthRoute = path == '/login' ||
           path == '/signup' ||
@@ -153,6 +178,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login',          builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/signup',         builder: (_, __) => const SignupScreen()),
       GoRoute(path: '/forgot-password',builder: (_, __) => const ForgotPasswordScreen()),
+      GoRoute(path: '/reset-password', builder: (_, __) => const ResetPasswordScreen()),
       GoRoute(path: '/intake',         builder: (_, __) => const IntakeFlowScreen()),
       GoRoute(path: '/admin-dashboard',builder: (_, __) => const AdminDashboardScreen()),
       GoRoute(path: '/vendor-portal',  builder: (_, __) => const VendorPortalScreen()),

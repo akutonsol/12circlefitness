@@ -112,17 +112,47 @@ final availableCoachesProvider = FutureProvider<List<Map<String, dynamic>>>((ref
         .eq('role', 'coach')
         .eq('is_accepting_clients', true);
 
+    // Cheapest active monthly package per coach — used as a pricing fallback
+    // when the coach hasn't set a monthly rate on their profile.
+    final coachIds = [for (final c in coaches) c['id'] as String];
+    final lowestMonthly = <String, double>{};
+    if (coachIds.isNotEmpty) {
+      final pkgs = await _db
+          .from('coach_packages')
+          .select('coach_id, price')
+          .inFilter('coach_id', coachIds)
+          .eq('type', 'monthly')
+          .eq('active', true);
+      for (final p in (pkgs as List)) {
+        final cid = p['coach_id'] as String;
+        final price = (p['price'] as num?)?.toDouble() ?? 0;
+        if (price <= 0) continue;
+        final cur = lowestMonthly[cid];
+        if (cur == null || price < cur) lowestMonthly[cid] = price;
+      }
+    }
+
     // Filter out coaches at capacity
     final result = <Map<String, dynamic>>[];
     for (final c in coaches) {
+      final cid = c['id'] as String;
       final rows = await _db
           .from('coach_client_relationships')
           .select('id')
-          .eq('coach_id', c['id'] as String)
+          .eq('coach_id', cid)
           .eq('status', 'active');
       final active = (rows as List).length;
       final max = (c['max_clients'] as int?) ?? 20;
-      result.add({...c, 'active_clients': active, 'is_full': active >= max});
+      // Profile rate wins; otherwise fall back to the cheapest monthly package.
+      final profilePrice = (c['pricing_monthly'] as num?)?.toDouble() ?? 0;
+      final effectivePrice =
+          profilePrice > 0 ? profilePrice : (lowestMonthly[cid] ?? 0);
+      result.add({
+        ...c,
+        'pricing_monthly': effectivePrice,
+        'active_clients': active,
+        'is_full': active >= max,
+      });
     }
     return result;
   } catch (_) { return []; }

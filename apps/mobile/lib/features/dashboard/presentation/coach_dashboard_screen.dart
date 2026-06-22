@@ -191,10 +191,14 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen>
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle, color: Color(0xFF2A1A4E)),
                     child: ClipOval(
-                      child: Image.asset("assets/images/appt-strength.jpg",
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.person, color: _primary, size: 22)))),
+                      child: () {
+                        final av = (ref.watch(currentUserProfileProvider).valueOrNull?['avatar_url'] as String?)?.trim();
+                        return (av != null && av.isNotEmpty)
+                          ? Image.network(av, fit: BoxFit.cover, width: 40, height: 40,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.person, color: _primary, size: 22))
+                          : const Icon(Icons.person, color: _primary, size: 22);
+                      }())),
                 ),
               ),
               const SizedBox(width: 12),

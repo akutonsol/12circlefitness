@@ -86,26 +86,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
   }
 
+  // OAuth uses Supabase's redirect flow: the page navigates to the provider and
+  // back, then the auth-state listener routes the signed-in user (new users →
+  // /intake via the router guard). We only surface a launch error here.
   Future<void> _signInWithGoogle() async {
     await ref.read(authNotifierProvider.notifier).signInWithGoogle();
-    if (!mounted) return;
-    final authState = ref.read(authNotifierProvider);
-    if (authState.hasError) {
-      _showError('Google sign in failed. Please try again.');
-      return;
+    if (mounted && ref.read(authNotifierProvider).hasError) {
+      _showError('Could not start Google sign-in. Please try again.');
     }
-    if (mounted) context.go('/intake');
   }
 
   Future<void> _signInWithApple() async {
     await ref.read(authNotifierProvider.notifier).signInWithApple();
-    if (!mounted) return;
-    final authState = ref.read(authNotifierProvider);
-    if (authState.hasError) {
-      _showError('Apple sign in failed. Please try again.');
-      return;
+    if (mounted && ref.read(authNotifierProvider).hasError) {
+      _showError('Could not start Apple sign-in. Please try again.');
     }
-    if (mounted) context.go('/intake');
   }
 
   void _showError(String message) {

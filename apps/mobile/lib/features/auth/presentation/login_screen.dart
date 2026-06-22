@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../domain/auth_provider.dart';
+import '../../../core/router/app_router.dart' show authErrorNotifier;
 
 class _C {
   static const bg           = Color(0xFF0E0E0F);
@@ -26,6 +27,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailCtrl    = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscurePass   = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // If an OAuth redirect came back with an error, main() stashed a message.
+    // Show it once now that the login screen is up, then clear it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final msg = authErrorNotifier.value;
+      if (msg != null && mounted) {
+        authErrorNotifier.value = null;
+        _showError(msg);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -66,30 +81,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  // OAuth uses Supabase's redirect flow: the page navigates to the provider and
+  // back, then the auth-state listener + router handle navigation. We only
+  // surface a launch error here.
   Future<void> _signInWithGoogle() async {
     await ref.read(authNotifierProvider.notifier).signInWithGoogle();
-    if (!mounted) return;
-    final authState = ref.read(authNotifierProvider);
-    if (authState.hasError) {
-      _showError('Google sign in failed. Please try again.');
-      return;
+    if (mounted && ref.read(authNotifierProvider).hasError) {
+      _showError('Could not start Google sign-in. Please try again.');
     }
-    await _handlePostAuthNavigation();
   }
 
   Future<void> _signInWithApple() async {
     await ref.read(authNotifierProvider.notifier).signInWithApple();
-    if (!mounted) return;
-    final authState = ref.read(authNotifierProvider);
-    if (authState.hasError) {
-      _showError('Apple sign in failed. Please try again.');
-      return;
+    if (mounted && ref.read(authNotifierProvider).hasError) {
+      _showError('Could not start Apple sign-in. Please try again.');
     }
-    await _handlePostAuthNavigation();
   }
 
   Future<void> _signIn() async {
-    print('_signIn called');
     if (_emailCtrl.text.trim().isEmpty || _passwordCtrl.text.isEmpty) {
       _showError('Please enter your email and password');
       return;

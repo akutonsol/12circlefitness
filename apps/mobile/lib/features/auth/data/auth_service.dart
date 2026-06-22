@@ -1,12 +1,14 @@
-import 'dart:convert';
-import 'dart:math';
-import 'package:crypto/crypto.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
   final _supabase = Supabase.instance.client;
+
+  // Where the OAuth provider sends the user back. On web → the running app
+  // origin (must be in Supabase Auth → Redirect URLs). On mobile → a custom
+  // deep-link scheme (must be registered in iOS/Android + Supabase).
+  static const _mobileRedirect = 'io.circle12.app://login-callback';
+  String get _oauthRedirect => kIsWeb ? '${Uri.base.origin}/' : _mobileRedirect;
 
   Future<AuthResponse> signUp({
     required String email,
@@ -41,52 +43,29 @@ class AuthService {
   }
 
   Future<void> resetPassword(String email) async {
-    await _supabase.auth.resetPasswordForEmail(email);
-  }
-
-  Future<AuthResponse> signInWithGoogle() async {
-    final googleSignIn = GoogleSignIn(
-      scopes: ['email', 'profile'],
-    );
-    final googleUser = await googleSignIn.signIn();
-    if (googleUser == null) throw Exception('Google sign in cancelled');
-    final googleAuth = await googleUser.authentication;
-    if (googleAuth.idToken == null) throw Exception('No Google ID token received');
-    return await _supabase.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: googleAuth.idToken!,
-      accessToken: googleAuth.accessToken,
+    await _supabase.auth.resetPasswordForEmail(
+      email,
+      // ?recovery=1 lets the app tell a recovery return apart from an OAuth
+      // return (both come back with ?code= under the PKCE flow).
+      redirectTo: kIsWeb ? '${Uri.base.origin}/?recovery=1' : null,
     );
   }
 
-  Future<AuthResponse> signInWithApple() async {
-    // Generate nonce for security
-    final rawNonce = _generateNonce();
-    final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
-
-    final credential = await SignInWithApple.getAppleIDCredential(
-      scopes: [
-        AppleIDAuthorizationScopes.email,
-        AppleIDAuthorizationScopes.fullName,
-      ],
-      nonce: hashedNonce,
-    );
-
-    if (credential.identityToken == null) {
-      throw Exception('No Apple identity token received');
-    }
-
-    return await _supabase.auth.signInWithIdToken(
-      provider: OAuthProvider.apple,
-      idToken: credential.identityToken!,
-      nonce: rawNonce,
+  /// Google / Apple via Supabase's OAuth redirect flow. On web this navigates
+  /// the page to the provider and back; the auth-state listener then routes the
+  /// signed-in user. Provider must be enabled in Supabase → Auth → Providers.
+  Future<void> signInWithGoogle() async {
+    await _supabase.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: _oauthRedirect,
     );
   }
 
-  String _generateNonce([int length = 32]) {
-    const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
-    final random = Random.secure();
-    return List.generate(length, (_) => charset[random.nextInt(charset.length)]).join();
+  Future<void> signInWithApple() async {
+    await _supabase.auth.signInWithOAuth(
+      OAuthProvider.apple,
+      redirectTo: _oauthRedirect,
+    );
   }
 
   User? get currentUser => _supabase.auth.currentUser;

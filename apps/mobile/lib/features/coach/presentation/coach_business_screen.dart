@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const _bg    = Color(0xFF030303);
@@ -108,8 +107,12 @@ class _CoachBusinessScreenState extends State<CoachBusinessScreen>
       }).eq('id', uid);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Profile updated!'), backgroundColor: Color(0xFF6FFBBE)));
-    } catch (_) {} finally {
-      setState(() => _saving = false);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not save profile: $e'),
+        backgroundColor: const Color(0xFFFFB4AB)));
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -119,17 +122,57 @@ class _CoachBusinessScreenState extends State<CoachBusinessScreen>
     final picker = ImagePicker();
     final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (img == null) return;
-    final path = 'coach-transformations/$uid/${DateTime.now().millisecondsSinceEpoch}.jpg';
-    await _db.storage.from('coach-media').upload(path, File(img.path));
-    final url = _db.storage.from('coach-media').getPublicUrl(path);
-    final current = List<String>.from(_profile?['transformation_photo_urls'] as List? ?? []);
-    current.add(url);
-    await _db.from('user_profiles').update({'transformation_photo_urls': current}).eq('id', uid);
-    _load();
+    try {
+      // Use bytes + uploadBinary so this works on web as well as native.
+      final bytes = await img.readAsBytes();
+      final ext = (img.name.contains('.') ? img.name.split('.').last : 'jpg').toLowerCase();
+      final path = 'coach-transformations/$uid/${DateTime.now().millisecondsSinceEpoch}.$ext';
+      await _db.storage.from('coach-media').uploadBinary(path, bytes,
+          fileOptions: FileOptions(contentType: 'image/$ext', upsert: true));
+      final url = _db.storage.from('coach-media').getPublicUrl(path);
+      final current = List<String>.from(_profile?['transformation_photo_urls'] as List? ?? []);
+      current.add(url);
+      await _db.from('user_profiles').update({'transformation_photo_urls': current}).eq('id', uid);
+      await _load();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Photo added'), backgroundColor: Color(0xFF6FFBBE)));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not upload photo: $e'),
+        backgroundColor: const Color(0xFFFFB4AB)));
+    }
   }
 
   void _toggleSpecialty(String s) => setState(() =>
     _specialties.contains(s) ? _specialties.remove(s) : _specialties.add(s));
+
+  // Certifications persist immediately (no dependence on the Save button, and
+  // safe against a reload re-reading the list from the DB).
+  Future<void> _persistCerts(List<String> next, {required String failMsg}) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return;
+    final prev = List<String>.from(_certifications);
+    setState(() => _certifications = next);
+    try {
+      await _db.from('user_profiles').update({'certifications': next}).eq('id', uid);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _certifications = prev);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('$failMsg: $e'), backgroundColor: const Color(0xFFFFB4AB)));
+      }
+    }
+  }
+
+  Future<void> _addCertification(String cert) {
+    final c = cert.trim();
+    if (c.isEmpty || _certifications.contains(c)) return Future.value();
+    return _persistCerts([..._certifications, c], failMsg: 'Could not add certification');
+  }
+
+  Future<void> _removeCertification(String cert) =>
+    _persistCerts(_certifications.where((c) => c != cert).toList(),
+        failMsg: 'Could not remove certification');
 
   @override
   Widget build(BuildContext context) {
@@ -163,6 +206,7 @@ class _CoachBusinessScreenState extends State<CoachBusinessScreen>
                 certifications: _certifications,
                 transformationUrls: List<String>.from(_profile?['transformation_photo_urls'] as List? ?? []),
                 onAddCert: () => _showAddCert(),
+                onRemoveCert: _removeCertification,
                 onAddPhoto: _uploadTransformationPhoto,
               ),
               _SpecialtiesTab(selected: _specialties, all: _specialtyOptions, onToggle: _toggleSpecialty),
@@ -172,22 +216,24 @@ class _CoachBusinessScreenState extends State<CoachBusinessScreen>
     );
   }
 
-  void _showAddCert() => showDialog(context: context, builder: (_) {
+  void _showAddCert() {
     final ctrl = TextEditingController();
-    return AlertDialog(
+    showDialog(context: context, builder: (dctx) => AlertDialog(
       backgroundColor: _card,
       title: const Text('Add Certification', style: TextStyle(color: _wht)),
-      content: TextField(controller: ctrl, style: const TextStyle(color: _wht),
+      content: TextField(controller: ctrl, autofocus: true, style: const TextStyle(color: _wht),
         decoration: const InputDecoration(hintText: 'e.g. NASM-CPT', hintStyle: TextStyle(color: _mut))),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: _mut))),
+        TextButton(onPressed: () => Navigator.pop(dctx),
+          child: const Text('Cancel', style: TextStyle(color: _mut))),
         TextButton(onPressed: () {
-          if (ctrl.text.isNotEmpty) setState(() => _certifications.add(ctrl.text.trim()));
-          Navigator.pop(context);
+          final text = ctrl.text.trim();
+          Navigator.pop(dctx);
+          if (text.isNotEmpty) _addCertification(text);
         }, child: const Text('Add', style: TextStyle(color: _brand))),
       ],
-    );
-  });
+    )).then((_) => ctrl.dispose());
+  }
 
   void _showInviteTeam() => showDialog(context: context, builder: (dctx) {
     final ctrl = TextEditingController();
@@ -225,10 +271,12 @@ class _ProfileTab extends StatelessWidget {
   final TextEditingController bioCtrl, priceCtrl, yearsCtrl, taglineCtrl;
   final List<String> certifications, transformationUrls;
   final VoidCallback onAddCert, onAddPhoto;
+  final void Function(String) onRemoveCert;
   const _ProfileTab({
     required this.bioCtrl, required this.priceCtrl, required this.yearsCtrl,
     required this.taglineCtrl, required this.certifications,
-    required this.transformationUrls, required this.onAddCert, required this.onAddPhoto,
+    required this.transformationUrls, required this.onAddCert,
+    required this.onRemoveCert, required this.onAddPhoto,
   });
 
   @override
@@ -242,10 +290,15 @@ class _ProfileTab extends StatelessWidget {
       const SizedBox(height: 20),
       _SectionHeader('Certifications', onAdd: onAddCert),
       const SizedBox(height: 8),
+      if (certifications.isEmpty)
+        const Text('No certifications yet — tap “+ Add”.',
+          style: TextStyle(color: _mut, fontSize: 12)),
       Wrap(spacing: 8, runSpacing: 8, children: certifications.map((c) =>
         Chip(label: Text(c, style: const TextStyle(color: _wht, fontSize: 12)),
           backgroundColor: _brand.withValues(alpha: 0.2),
-          side: const BorderSide(color: _brand))).toList()),
+          side: const BorderSide(color: _brand),
+          deleteIcon: const Icon(Icons.close, size: 14, color: _mut),
+          onDeleted: () => onRemoveCert(c))).toList()),
       const SizedBox(height: 24),
       _SectionHeader('Transformation Photos', onAdd: onAddPhoto),
       const SizedBox(height: 8),

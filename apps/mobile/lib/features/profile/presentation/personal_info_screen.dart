@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../auth/domain/auth_provider.dart';
+import '../../coach/presentation/coach_business_screen.dart';
 
 const _bg    = Color(0xFF0E0E0F);
 const _surf  = Color(0xFF201F20);
@@ -41,6 +42,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
   bool _loadingAvatar = false;
   bool _saving = false;
   bool _loaded = false;
+  bool _isCoach = false;
 
   static const _goalOptions = [
     ('lose_fat',           'Lose Fat'),
@@ -99,6 +101,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
     _nutritionGoal    = p['nutrition_goal']          as String?;
     _avatarUrl        = p['avatar_url']              as String?;
     _gender           = p['gender']                  as String?;
+    _isCoach          = (p['role'] as String?) == 'coach';
     final dobStr      = p['date_of_birth']            as String?;
     if (dobStr != null) _dob = DateTime.tryParse(dobStr);
     setState(() => _loaded = true);
@@ -114,31 +117,32 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
   Future<void> _pickAndUploadAvatar() async {
     final picker = ImagePicker();
     final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (file == null) return;
+    if (file == null || !mounted) return;
     setState(() => _loadingAvatar = true);
     try {
       final uid   = Supabase.instance.client.auth.currentUser?.id;
       if (uid == null) throw Exception('Not logged in');
       final bytes = await file.readAsBytes();
-      final ext   = file.name.split('.').last.toLowerCase();
+      final ext   = (file.name.contains('.') ? file.name.split('.').last : 'jpg').toLowerCase();
       final path  = '$uid/avatar.$ext';
       await Supabase.instance.client.storage
           .from('avatars')
           .uploadBinary(path, bytes,
               fileOptions: FileOptions(contentType: 'image/$ext', upsert: true));
-      final url = Supabase.instance.client.storage
-          .from('avatars')
-          .getPublicUrl(path);
+      // Same path is reused (upsert), so the public URL never changes — append
+      // a cache-buster so the new image actually shows instead of the cached one.
+      final base = Supabase.instance.client.storage.from('avatars').getPublicUrl(path);
+      final url = '$base?t=${DateTime.now().millisecondsSinceEpoch}';
       await Supabase.instance.client
           .from('user_profiles')
           .update({'avatar_url': url})
           .eq('id', uid);
       ref.invalidate(currentUserProfileProvider);
-      setState(() => _avatarUrl = url);
-    } catch (_) {
+      if (mounted) setState(() => _avatarUrl = url);
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Could not upload photo. Check storage bucket permissions.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not upload photo: $e'),
           backgroundColor: _err, behavior: SnackBarBehavior.floating));
       }
     } finally {
@@ -164,14 +168,17 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
       if (_gender != null) payload['gender'] = _gender;
       if (_dob != null) payload['date_of_birth'] = _dob!.toIso8601String().split('T')[0];
       if (_phoneCtrl.text.trim().isNotEmpty)  payload['phone']          = _phoneCtrl.text.trim();
-      if (_heightCtrl.text.trim().isNotEmpty) payload['height_cm']      = double.tryParse(_heightCtrl.text) ?? 0;
-      if (_weightCtrl.text.trim().isNotEmpty) payload['weight_kg']      = double.tryParse(_weightCtrl.text) ?? 0;
-      if (_goalCtrl.text.trim().isNotEmpty)   payload['weight_goal_kg'] = double.tryParse(_goalCtrl.text) ?? 0;
-      if (_fitnessGoal != null)      payload['fitness_goal']            = _fitnessGoal;
-      if (_activityLevel != null)    payload['activity_level']          = _activityLevel;
-      payload['training_days_per_week'] = _trainingDays;
-      if (_trainingLocation != null) payload['training_location']       = _trainingLocation;
-      if (_nutritionGoal != null)    payload['nutrition_goal']          = _nutritionGoal;
+      // Client-only fitness fields — not written for coaches.
+      if (!_isCoach) {
+        if (_heightCtrl.text.trim().isNotEmpty) payload['height_cm']      = double.tryParse(_heightCtrl.text) ?? 0;
+        if (_weightCtrl.text.trim().isNotEmpty) payload['weight_kg']      = double.tryParse(_weightCtrl.text) ?? 0;
+        if (_goalCtrl.text.trim().isNotEmpty)   payload['weight_goal_kg'] = double.tryParse(_goalCtrl.text) ?? 0;
+        if (_fitnessGoal != null)      payload['fitness_goal']            = _fitnessGoal;
+        if (_activityLevel != null)    payload['activity_level']          = _activityLevel;
+        payload['training_days_per_week'] = _trainingDays;
+        if (_trainingLocation != null) payload['training_location']       = _trainingLocation;
+        if (_nutritionGoal != null)    payload['nutrition_goal']          = _nutritionGoal;
+      }
 
       await Supabase.instance.client
           .from('user_profiles')
@@ -287,46 +294,75 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
             ])),
             const SizedBox(height: 24),
 
-            // ── Body Metrics ──
-            _sectionLabel('BODY METRICS'),
-            const SizedBox(height: 12),
-            _card(Column(children: [
-              _field('Height (cm)', _heightCtrl, keyboard: TextInputType.number,
-                hint: 'e.g. 175'),
-              _divider(),
-              _field('Current Weight (kg)', _weightCtrl, keyboard: TextInputType.number,
-                hint: 'e.g. 80.5'),
-              _divider(),
-              _field('Goal Weight (kg)', _goalCtrl, keyboard: TextInputType.number,
-                hint: 'e.g. 75.0'),
-            ])),
-            const SizedBox(height: 24),
+            // ── Coach: professional profile shortcut ──
+            if (_isCoach) ...[
+              _sectionLabel('COACHING PROFILE'),
+              const SizedBox(height: 12),
+              _card(GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CoachBusinessScreen())),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  child: Row(children: [
+                    const Icon(Icons.work_outline_rounded, color: _pri, size: 20),
+                    const SizedBox(width: 12),
+                    const Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Business Profile',
+                        style: TextStyle(color: _onS, fontSize: 14, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 2),
+                      Text('Title, bio, rates, specialties & certifications',
+                        style: TextStyle(color: _out, fontSize: 12)),
+                    ])),
+                    const Icon(Icons.chevron_right, color: _outV, size: 18),
+                  ]))),
+              ),
+              const SizedBox(height: 32),
+            ],
 
-            // ── Training Goals ──
-            _sectionLabel('TRAINING GOALS'),
-            const SizedBox(height: 12),
-            _card(Column(children: [
-              _dropRow('Fitness Goal', _goalOptions.map((o) => o.$1).toList(),
-                _goalOptions.map((o) => o.$2).toList(), _fitnessGoal,
-                (v) => setState(() => _fitnessGoal = v)),
-              _divider(),
-              _activityRow(),
-              _divider(),
-              _trainingDaysRow(),
-              _divider(),
-              _dropRow('Training Location', _locationOptions.map((o) => o.$1).toList(),
-                _locationOptions.map((o) => o.$2).toList(), _trainingLocation,
-                (v) => setState(() => _trainingLocation = v)),
-            ])),
-            const SizedBox(height: 24),
+            // ── Client-only: body metrics, training & nutrition ──
+            if (!_isCoach) ...[
+              // ── Body Metrics ──
+              _sectionLabel('BODY METRICS'),
+              const SizedBox(height: 12),
+              _card(Column(children: [
+                _field('Height (cm)', _heightCtrl, keyboard: TextInputType.number,
+                  hint: 'e.g. 175'),
+                _divider(),
+                _field('Current Weight (kg)', _weightCtrl, keyboard: TextInputType.number,
+                  hint: 'e.g. 80.5'),
+                _divider(),
+                _field('Goal Weight (kg)', _goalCtrl, keyboard: TextInputType.number,
+                  hint: 'e.g. 75.0'),
+              ])),
+              const SizedBox(height: 24),
 
-            // ── Nutrition ──
-            _sectionLabel('NUTRITION'),
-            const SizedBox(height: 12),
-            _card(_dropRow('Nutrition Goal', _nutritionOptions.map((o) => o.$1).toList(),
-              _nutritionOptions.map((o) => o.$2).toList(), _nutritionGoal,
-              (v) => setState(() => _nutritionGoal = v))),
-            const SizedBox(height: 32),
+              // ── Training Goals ──
+              _sectionLabel('TRAINING GOALS'),
+              const SizedBox(height: 12),
+              _card(Column(children: [
+                _dropRow('Fitness Goal', _goalOptions.map((o) => o.$1).toList(),
+                  _goalOptions.map((o) => o.$2).toList(), _fitnessGoal,
+                  (v) => setState(() => _fitnessGoal = v)),
+                _divider(),
+                _activityRow(),
+                _divider(),
+                _trainingDaysRow(),
+                _divider(),
+                _dropRow('Training Location', _locationOptions.map((o) => o.$1).toList(),
+                  _locationOptions.map((o) => o.$2).toList(), _trainingLocation,
+                  (v) => setState(() => _trainingLocation = v)),
+              ])),
+              const SizedBox(height: 24),
+
+              // ── Nutrition ──
+              _sectionLabel('NUTRITION'),
+              const SizedBox(height: 12),
+              _card(_dropRow('Nutrition Goal', _nutritionOptions.map((o) => o.$1).toList(),
+                _nutritionOptions.map((o) => o.$2).toList(), _nutritionGoal,
+                (v) => setState(() => _nutritionGoal = v))),
+              const SizedBox(height: 32),
+            ],
 
             // Save button
             GestureDetector(

@@ -104,6 +104,12 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
         _pageController.dispose();
         _pageController = PageController(initialPage: savedStep);
         setState(() {
+          // Identity — already captured at signup; prefill so the Profile step
+          // doesn't ask for name/gender/DOB again.
+          _data.firstName               = saved.firstName;
+          _data.lastName                = saved.lastName;
+          _data.gender                  = saved.gender;
+          _data.dateOfBirth             = saved.dateOfBirth;
           _data.primaryGoal             = saved.primaryGoal;
           _data.heightCm                = saved.heightCm;
           _data.weightKg                = saved.weightKg;
@@ -1781,7 +1787,10 @@ class _TargetWeightPageState extends State<_TargetWeightPage> {
     final rate = widget.primaryGoal == 'lose_fat' ? 0.5
         : widget.primaryGoal == 'build_muscle' ? 0.25 : 0.3;
     final minWeeks = widget.primaryGoal == 'build_muscle' ? 12 : 8;
-    return (_diff / rate).round().clamp(minWeeks, 52);
+    // Accurate timeframe: weight change ÷ safe weekly rate. Floored at a sane
+    // minimum program length; NOT capped at a year (a large goal legitimately
+    // takes longer than 52 weeks).
+    return math.max(minWeeks, (_diff / rate).round());
   }
 
   int get _calAdjust {
@@ -1976,6 +1985,17 @@ class _TargetWeightPageState extends State<_TargetWeightPage> {
   }
 }
 
+// Friendly duration label: weeks for short spans, months up to a year, then
+// years + months. Keeps the projection readable once it exceeds ~12 weeks.
+String _formatTimeframe(int weeks) {
+  if (weeks < 9) return '~$weeks weeks';
+  if (weeks < 52) return '~${(weeks / 4.345).round()} months';
+  final years = weeks ~/ 52;
+  final months = ((weeks % 52) / 4.345).round();
+  final y = '~$years year${years > 1 ? 's' : ''}';
+  return months == 0 ? y : '$y ${months}mo';
+}
+
 class _GoalTransformCard extends StatelessWidget {
   final bool isLosing;
   final bool isGaining;
@@ -2003,7 +2023,7 @@ class _GoalTransformCard extends StatelessWidget {
             : 'Maintain current weight';
 
     final sub = estWeeks > 0
-        ? 'Projected in ~$estWeeks weeks'
+        ? 'Projected in ${_formatTimeframe(estWeeks)}'
         : 'Ongoing — stay at your best';
 
     final rate = primaryGoal == 'lose_fat' ? '0.5 kg/wk'
@@ -2150,7 +2170,8 @@ class _WeightGoalPageState extends State<_WeightGoalPage>
     final rate = widget.primaryGoal == 'lose_fat' ? 0.5
         : widget.primaryGoal == 'build_muscle' ? 0.25 : 0.3;
     final minWeeks = widget.primaryGoal == 'build_muscle' ? 12 : 8;
-    final weeks = (diff / rate).round().clamp(minWeeks, 52);
+    // Accurate target date — no 52-week ceiling.
+    final weeks = math.max(minWeeks, (diff / rate).round());
     return DateTime.now().add(Duration(days: weeks * 7));
   }
 
@@ -4042,7 +4063,22 @@ class _Step9PageState extends ConsumerState<_Step9Page> {
               const SizedBox(height: 4),
               const Text('Your coach will guide your journey and review your progress.',
                 style: TextStyle(color: _onSurfV, fontSize: 14, height: 1.5)),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: _priCont.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _priCont.withValues(alpha: 0.2))),
+                child: const Row(children: [
+                  Icon(Icons.info_outline_rounded, color: _primary, size: 16),
+                  SizedBox(width: 8),
+                  Expanded(child: Text(
+                    "This isn't final — you can switch coaches or browse others in the "
+                    "marketplace anytime. Pick whoever feels right to start.",
+                    style: TextStyle(color: _onSurfV, fontSize: 12.5, height: 1.4))),
+                ])),
+              const SizedBox(height: 20),
               coachesAsync.when(
                 loading: () => const Center(
                   child: CircularProgressIndicator(color: _primary)),
@@ -4067,6 +4103,7 @@ class _Step9PageState extends ConsumerState<_Step9Page> {
                         final count   = coach['active_clients'] as int? ?? 0;
                         final rating  = (coach['rating_avg'] as num?)?.toDouble() ?? 0.0;
                         final reviews = coach['review_count'] as int? ?? 0;
+                        final pricing = (coach['pricing_monthly'] as num?)?.toDouble() ?? 0;
                         return Container(
                           margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
@@ -4114,18 +4151,42 @@ class _Step9PageState extends ConsumerState<_Step9Page> {
                                             fontWeight: FontWeight.w700))),
                                       ],
                                     ]),
-                                    if (rating > 0 || reviews > 0) ...[
-                                      const SizedBox(height: 5),
-                                      Row(children: [
-                                        Icon(Icons.star_rounded, color: _primary, size: 14),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          rating > 0
-                                            ? '${rating.toStringAsFixed(1)}  ($reviews ${reviews == 1 ? 'review' : 'reviews'})'
-                                            : '$reviews ${reviews == 1 ? 'review' : 'reviews'}',
-                                          style: const TextStyle(color: _onSurfV, fontSize: 12)),
-                                      ]),
-                                    ],
+                                    const SizedBox(height: 5),
+                                    Row(children: [
+                                      ...List.generate(5, (i) {
+                                        final filled = rating >= i + 1;
+                                        final half = !filled && rating >= i + 0.5;
+                                        return Icon(
+                                          half
+                                            ? Icons.star_half_rounded
+                                            : filled
+                                              ? Icons.star_rounded
+                                              : Icons.star_outline_rounded,
+                                          color: _primary, size: 14);
+                                      }),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        rating > 0
+                                          ? '${rating.toStringAsFixed(1)} ($reviews ${reviews == 1 ? 'review' : 'reviews'})'
+                                          : 'No reviews yet',
+                                        style: const TextStyle(color: _onSurfV, fontSize: 12)),
+                                    ]),
+                                    const SizedBox(height: 5),
+                                    Row(children: [
+                                      Icon(Icons.payments_outlined, color: _tertiary, size: 14),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        pricing > 0
+                                          ? 'From \$${pricing.toStringAsFixed(0)}/mo'
+                                          : 'Flexible pricing',
+                                        style: const TextStyle(color: _tertiary,
+                                          fontSize: 12.5, fontWeight: FontWeight.w700)),
+                                      if (pricing > 0) ...[
+                                        const SizedBox(width: 5),
+                                        const Text('· cancel anytime',
+                                          style: TextStyle(color: _onSurfV, fontSize: 11)),
+                                      ],
+                                    ]),
                                   ])),
                               ])),
                             if (bio.isNotEmpty)

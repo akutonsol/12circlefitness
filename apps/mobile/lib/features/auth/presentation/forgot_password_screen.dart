@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -77,7 +78,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             }
             setState(() => _loading = true);
             try {
-              await Supabase.instance.client.auth.resetPasswordForEmail(email);
+              await Supabase.instance.client.auth.resetPasswordForEmail(
+                email,
+                // On web, send the user back to the running app origin so
+                // supabase_flutter parses the recovery token and fires the
+                // passwordRecovery event (the router then opens /reset-password).
+                redirectTo: kIsWeb ? Uri.base.origin : null,
+              );
               if (mounted) setState(() { _loading = false; _sent = true; });
             } catch (e) {
               if (mounted) {
