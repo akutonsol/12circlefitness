@@ -50,6 +50,7 @@ import '../../features/compliance/presentation/compliance_dashboard_screen.dart'
 import '../../features/coach/presentation/program_builder_screen.dart';
 import '../../features/coach/presentation/coach_packages_screen.dart';
 import '../../features/admin/presentation/admin_dashboard_screen.dart';
+import '../../features/admin/presentation/exercise_review_screen.dart';
 import '../../features/vendor/presentation/vendor_portal_screen.dart';
 import '../../features/payments/presentation/upgrade_screen.dart';
 import '../../features/payments/presentation/coach_plan_screen.dart';
@@ -181,6 +182,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/reset-password', builder: (_, __) => const ResetPasswordScreen()),
       GoRoute(path: '/intake',         builder: (_, __) => const IntakeFlowScreen()),
       GoRoute(path: '/admin-dashboard',builder: (_, __) => const AdminDashboardScreen()),
+      GoRoute(path: '/admin-exercise-review', builder: (_, __) => const ExerciseReviewScreen()),
       GoRoute(path: '/vendor-portal',  builder: (_, __) => const VendorPortalScreen()),
       GoRoute(path: '/payment-success',builder: (_, __) => const PaymentResultScreen(success: true)),
       GoRoute(path: '/payment-cancel', builder: (_, __) => const PaymentResultScreen(success: false)),

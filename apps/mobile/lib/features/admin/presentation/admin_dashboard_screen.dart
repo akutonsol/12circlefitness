@@ -85,6 +85,13 @@ class AdminDashboardScreen extends ConsumerWidget {
                         _header(context),
                         const SizedBox(height: 20),
                         _CommissionCard(),
+                        const SizedBox(height: 16),
+                        _AdminActionTile(
+                          icon: Icons.rule_folder_rounded,
+                          title: 'Global Library Review',
+                          subtitle: 'Approve or reject coach exercise submissions',
+                          onTap: () => context.push('/admin-exercise-review'),
+                        ),
                         const SizedBox(height: 24),
                         if (wide)
                           // Desktop: stats on the left, members panel on the right.
@@ -231,6 +238,47 @@ class _Stat {
   final IconData icon;
   final Color color;
   _Stat(this.label, this.value, this.icon, this.color);
+}
+
+class _AdminActionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _AdminActionTile({
+    required this.icon, required this.title,
+    required this.subtitle, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _brand.withValues(alpha: 0.22)),
+        ),
+        child: Row(children: [
+          Container(
+            width: 42, height: 42,
+            decoration: BoxDecoration(
+              color: _brand.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: _brand, size: 22)),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: const TextStyle(color: _white, fontSize: 15, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 2),
+            Text(subtitle, style: const TextStyle(color: _muted, fontSize: 12)),
+          ])),
+          const Icon(Icons.chevron_right_rounded, color: _muted),
+        ]),
+      ),
+    );
+  }
 }
 
 class _StatCard extends StatelessWidget {

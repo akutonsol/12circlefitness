@@ -114,6 +114,44 @@ class CustomExerciseService {
     } catch (_) { return false; }
   }
 
+  // ── Admin: Global Library moderation (EL-005) ─────────────────────────────
+
+  /// Pending global-library submissions awaiting admin review.
+  Future<List<ExerciseDetail>> getPendingGlobalSubmissions() async {
+    try {
+      final rows = await _db
+          .from('custom_exercises')
+          .select()
+          .eq('submission_status', 'pending')
+          .order('submitted_at');
+      return (rows as List).map((r) => ExerciseDetail.fromJson(r)).toList();
+    } catch (_) { return []; }
+  }
+
+  /// Admin approves a submission → it becomes globally visible.
+  Future<bool> approveGlobalExercise(String exerciseId) async {
+    try {
+      await _db.from('custom_exercises').update({
+        'submission_status': 'approved',
+        'visibility': 'global',
+        'approved_by': _uid,
+        'approved_at': DateTime.now().toIso8601String(),
+      }).eq('id', exerciseId);
+      return true;
+    } catch (_) { return false; }
+  }
+
+  /// Admin rejects a submission → reverts to the coach's private library.
+  Future<bool> rejectGlobalExercise(String exerciseId) async {
+    try {
+      await _db.from('custom_exercises').update({
+        'submission_status': 'rejected',
+        'visibility': 'private',
+      }).eq('id', exerciseId);
+      return true;
+    } catch (_) { return false; }
+  }
+
   // ── Image / Video Upload ──────────────────────────────────────────────────
 
   Future<String?> uploadImage(File file, String exerciseId) async {
