@@ -346,12 +346,14 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 28),
 
-            // ── My Coach ──
-            _MyCoachSection(onCoachCancelled: () {
-              ref.invalidate(assignedCoachProvider);
-              ref.invalidate(clientRelationshipProvider);
-            }),
-            const SizedBox(height: 28),
+            // ── My Coach (only in Coach-Guided mode; self/AI have no coach) ──
+            if (coachingMode == CoachingMode.coachGuided) ...[
+              _MyCoachSection(onCoachCancelled: () {
+                ref.invalidate(assignedCoachProvider);
+                ref.invalidate(clientRelationshipProvider);
+              }),
+              const SizedBox(height: 28),
+            ],
             ],
 
             // ── Account Settings ──

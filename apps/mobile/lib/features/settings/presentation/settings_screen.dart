@@ -556,6 +556,11 @@ class _CoachingModeSheetState extends State<_CoachingModeSheet> {
       return; // keep the sheet open so the change isn't silently lost
     }
     if (!mounted) return;
+    // Refresh coach-dependent views so a mode change is reflected immediately
+    // (e.g. the profile's My Coach section), even if the prompt path didn't run.
+    widget.ref.invalidate(assignedCoachProvider);
+    widget.ref.invalidate(clientRelationshipProvider);
+    widget.ref.invalidate(myCoachesProvider);
     Navigator.pop(context);
     if (_selected == CoachingMode.coachGuided) {
       context.push('/coach-marketplace');
