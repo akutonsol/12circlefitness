@@ -15,6 +15,8 @@ import '../../messaging/domain/messaging_provider.dart' show selectedConversatio
 import '../../womens_health/domain/cycle_provider.dart';
 import '../../womens_health/domain/cycle_phase.dart';
 import '../../scoring/domain/score_provider.dart';
+import '../../ai_coach/domain/ai_insights.dart';
+import '../../ai_coach/presentation/ai_briefing_sheet.dart';
 import '../../../core/widgets/app_top_nav.dart';
 import '../../../core/widgets/blood_drop.dart';
 
@@ -1087,45 +1089,49 @@ class _MyPlanCard extends StatelessWidget {
 class _AIInsightCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final score = ref.watch(todayScoreProvider).valueOrNull ?? {};
-    final total = score['total_score'] as int? ?? 0;
-    final insightText = total >= 70
-        ? 'Great consistency today! Your adherence is in the top tier. Keep it up.'
-        : total >= 40
-          ? 'You\'re on track. Complete today\'s workout to push your score higher.'
-          : 'Start with a short workout or log a meal — every action counts.';
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF6FFBBE).withValues(alpha: 0.08),
-            _C.brand.withValues(alpha: 0.06),
-          ],
-          begin: Alignment.topLeft, end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF6FFBBE).withValues(alpha: 0.2))),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(
-          width: 36, height: 36,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color(0xFF6FFBBE).withValues(alpha: 0.15)),
-          child: const Icon(Icons.tips_and_updates_outlined,
-            color: Color(0xFF6FFBBE), size: 18)),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-          const Text('AI INSIGHT',
-            style: TextStyle(color: Color(0xFF6FFBBE), fontSize: 9,
-              fontWeight: FontWeight.w800, letterSpacing: 1.5)),
-          const SizedBox(height: 4),
-          Text(insightText,
-            style: TextStyle(
-              color: _C.onSurfVar.withValues(alpha: 0.9),
-              fontSize: 12, height: 1.45)),
-        ])),
-      ]),
+    // Data-driven progress insight + a count of today's generated suggestions.
+    // Tapping opens the full AI briefing (suggestions + weekly review).
+    final insightText  = ref.watch(aiProgressInsightProvider);
+    final suggestCount = ref.watch(aiDailySuggestionsProvider).length;
+    return GestureDetector(
+      onTap: () => showAiBriefingSheet(context),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFF6FFBBE).withValues(alpha: 0.08),
+              _C.brand.withValues(alpha: 0.06),
+            ],
+            begin: Alignment.topLeft, end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF6FFBBE).withValues(alpha: 0.2))),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF6FFBBE).withValues(alpha: 0.15)),
+            child: const Icon(Icons.auto_awesome,
+              color: Color(0xFF6FFBBE), size: 18)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+            const Text('AI BRIEFING',
+              style: TextStyle(color: Color(0xFF6FFBBE), fontSize: 9,
+                fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+            const SizedBox(height: 4),
+            Text(insightText,
+              style: TextStyle(
+                color: _C.onSurfVar.withValues(alpha: 0.9),
+                fontSize: 12, height: 1.45)),
+            const SizedBox(height: 4),
+            Text('$suggestCount suggestion${suggestCount == 1 ? '' : 's'} today · tap for weekly review ›',
+              style: const TextStyle(color: Color(0xFF6FFBBE), fontSize: 11,
+                fontWeight: FontWeight.w600)),
+          ])),
+        ]),
+      ),
     );
   }
 }
