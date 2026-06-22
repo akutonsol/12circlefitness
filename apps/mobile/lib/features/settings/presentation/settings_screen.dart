@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/utils/web_logout.dart';
 import '../../auth/domain/auth_provider.dart';
 import '../../coaching_mode/domain/coaching_mode_provider.dart';
+import '../../coach/domain/coach_provider.dart';
+import '../../coach/data/coach_relationship_service.dart';
 
 class _C {
   static const bg                  = Color(0xFF0B1326);
@@ -513,8 +515,35 @@ class _CoachingModeSheetState extends State<_CoachingModeSheet> {
   }
 
   Future<void> _apply() async {
-    setState(() => _saving = true);
     final messenger = ScaffoldMessenger.of(context);
+
+    // Self/AI-Guided means no coach. If the client is leaving an active-coach
+    // state for self/AI, they must end coaching first. (No prompt for a plain
+    // self<->AI switch, where there's no coach involved.)
+    if (_selected != CoachingMode.coachGuided) {
+      List<Map<String, dynamic>> coaches = const [];
+      try {
+        coaches = await widget.ref.read(myCoachesProvider.future);
+      } catch (_) {}
+      if (!mounted) return;
+      if (coaches.isNotEmpty) {
+        final confirmed = await _confirmEndCoaching(coaches);
+        if (confirmed != true) return; // kept their coach → abort the switch
+        setState(() => _saving = true);
+        final svc = CoachRelationshipService();
+        for (final c in coaches) {
+          final coachId = c['coach_id'] as String?;
+          if (coachId != null) {
+            await svc.cancelCoach(coachId, 'switched_to_self_serve', null);
+          }
+        }
+        widget.ref.invalidate(myCoachesProvider);
+        widget.ref.invalidate(assignedCoachProvider);
+        widget.ref.invalidate(clientRelationshipProvider);
+      }
+    }
+
+    setState(() => _saving = true);
     try {
       await widget.ref
           .read(coachingModeNotifierProvider.notifier)
@@ -531,6 +560,36 @@ class _CoachingModeSheetState extends State<_CoachingModeSheet> {
     if (_selected == CoachingMode.coachGuided) {
       context.push('/coach-marketplace');
     }
+  }
+
+  Future<bool?> _confirmEndCoaching(List<Map<String, dynamic>> coaches) {
+    final c = coaches.first['coach'] as Map<String, dynamic>? ?? {};
+    final coachName = 'Coach ${('${c['first_name'] ?? ''} ${c['last_name'] ?? ''}').trim()}'.trim();
+    final who = coaches.length > 1
+        ? 'your ${coaches.length} coaches'
+        : (coachName == 'Coach' ? 'your coach' : coachName);
+    final modeName = _selected == CoachingMode.aiGuided ? 'AI-Guided' : 'Self-Guided';
+    return showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1B1C),
+        title: Text('End coaching with $who?',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18)),
+        content: Text(
+          '$modeName doesn\'t include a personal coach. Switching will end your '
+          'current coaching and notify $who. You can choose a new coach any time.',
+          style: const TextStyle(color: Color(0xFFCFC2D6), height: 1.4)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, false),
+            child: const Text('Keep my coach', style: TextStyle(color: Color(0xFFCFC2D6)))),
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, true),
+            child: const Text('End & switch',
+              style: TextStyle(color: Color(0xFFFFB4AB), fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
   }
 
   @override
