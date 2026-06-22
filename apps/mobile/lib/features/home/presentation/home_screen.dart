@@ -1141,7 +1141,11 @@ class _FitnessSessionCard extends ConsumerWidget {
     final isAI    = mode == CoachingMode.aiGuided;
     final isCoach = mode == CoachingMode.coachGuided;
 
-    final workouts   = ref.watch(workoutsProvider);
+    // Prefer the user's generated/assigned program; fall back to the sample
+    // library only when no program exists yet (e.g. legacy accounts).
+    final assigned  = ref.watch(assignedWorkoutsProvider).valueOrNull ?? const [];
+    final sample    = ref.watch(workoutsProvider);
+    final workouts   = assigned.isNotEmpty ? assigned : sample;
     final firstTitle = workouts.isNotEmpty ? workouts.first.title : 'Full Body Strength';
 
     final title    = isAI    ? 'AI Workout Plan'
@@ -1167,9 +1171,10 @@ class _FitnessSessionCard extends ConsumerWidget {
         context.go('/workouts');
         return;
       }
-      final workouts = ref.read(workoutsProvider);
-      if (workouts.isNotEmpty) {
-        ref.read(selectedWorkoutProvider.notifier).state = workouts.first;
+      final assignedNow = ref.read(assignedWorkoutsProvider).valueOrNull ?? const [];
+      final startList = assignedNow.isNotEmpty ? assignedNow : ref.read(workoutsProvider);
+      if (startList.isNotEmpty) {
+        ref.read(selectedWorkoutProvider.notifier).state = startList.first;
       }
       context.go('/active-workout');
     }

@@ -226,6 +226,15 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
         } catch (_) {}
       }
       ScoreEngine().assessmentComplete(); // +25 (once)
+      // Self/AI-Guided clients have no coach, so the system generates their plan
+      // (workout program + nutrition targets + water goal + habits) from the
+      // onboarding answers just saved. Coach-Guided clients get a coach-assigned
+      // plan instead, so we skip generation for them.
+      if (_data.coachingMode == 'self_guided' || _data.coachingMode == 'ai_guided') {
+        try {
+          await Supabase.instance.client.rpc('generate_client_plan');
+        } catch (_) {/* generation must never block finishing onboarding */}
+      }
     }
     if (mounted) context.go('/home');
   }

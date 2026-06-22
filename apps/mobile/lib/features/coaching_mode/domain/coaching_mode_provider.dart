@@ -81,6 +81,15 @@ class CoachingModeNotifier extends StateNotifier<AsyncValue<CoachingMode>> {
       state = prev; // rollback so UI reflects reality
       rethrow;
     }
+    // Mode write succeeded — keep the generated plan in sync. This is secondary,
+    // so a failure here must NOT roll back the (already saved) mode change.
+    try {
+      if (mode == CoachingMode.coachGuided) {
+        await Supabase.instance.client.rpc('deactivate_self_generated_plan');
+      } else {
+        await Supabase.instance.client.rpc('generate_client_plan');
+      }
+    } catch (_) {/* plan sync is best-effort */}
   }
 }
 
