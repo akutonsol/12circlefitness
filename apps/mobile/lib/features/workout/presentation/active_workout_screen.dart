@@ -9,6 +9,7 @@ import '../data/workout_service.dart';
 import '../domain/workout_provider.dart';
 import 'widgets/set_tracker_row.dart';
 import 'widgets/rest_timer_widget.dart';
+import 'widgets/exercise_guide_sheet.dart';
 import '../../../core/utils/rest_alarm.dart';
 import '../../coach/data/score_service.dart';
 import '../../scoring/data/score_engine.dart';
@@ -727,8 +728,16 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
               style: const TextStyle(color: _brand, fontWeight: FontWeight.w800, fontSize: 13)))),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(we.exercise.name,
-            style: const TextStyle(color: _white, fontSize: 15, fontWeight: FontWeight.w700))),
+          child: GestureDetector(
+            onTap: () => showExerciseGuide(context, we.exercise.name),
+            child: Row(children: [
+              Flexible(
+                child: Text(we.exercise.name,
+                  style: const TextStyle(color: _white, fontSize: 15, fontWeight: FontWeight.w700))),
+              const SizedBox(width: 6),
+              Icon(Icons.menu_book_rounded, color: _primary.withValues(alpha: 0.7), size: 15),
+            ]),
+          )),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
