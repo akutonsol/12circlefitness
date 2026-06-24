@@ -9,6 +9,7 @@ import '../../auth/domain/auth_provider.dart';
 import '../../coaching_mode/domain/coaching_mode_provider.dart';
 import '../../coach/domain/coach_provider.dart';
 import '../../coach/data/coach_relationship_service.dart';
+import '../../payments/domain/entitlements.dart';
 
 class _C {
   static const bg                  = Color(0xFF0B1326);
@@ -70,7 +71,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final email       = profile?['email']      as String?
         ?? Supabase.instance.client.auth.currentUser?.email ?? '';
     final avatarUrl   = profile?['avatar_url'] as String?;
-    final memberTier  = profile?['membership_tier'] as String? ?? 'basic';
+    // Subscription = the client's effective plan (Free/Self-Guided/AI-Guided/
+    // Coach-Guided), not the legacy membership_tier column (which read "basic").
+    final planLabel   = (ref.watch(clientPlanProvider).valueOrNull ?? ClientPlan.free).label;
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light.copyWith(
       statusBarColor: Colors.transparent,
     ));
@@ -163,7 +166,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           color: _C.primaryContainer.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(color: _C.primaryContainer.withValues(alpha: 0.4))),
-                        child: Text(memberTier.toUpperCase(),
+                        child: Text(planLabel.toUpperCase(),
                           style: const TextStyle(color: _C.primaryContainer,
                             fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
                       ),
