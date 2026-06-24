@@ -194,6 +194,18 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       SnackBar(content: Text(msg), backgroundColor: _error));
   }
 
+  /// Caches entered values into the in-memory workout state so the row's fields
+  /// reflect them across rebuilds (and survive navigation within the session).
+  void _cacheSet(String exId, int setIndex, int reps, double weightKg,
+      double? rpe, String? notes) {
+    ref.read(activeWorkoutProvider.notifier).setSetData(exId, setIndex, {
+      'reps': reps,
+      'weight': weightKg,
+      'rpe': rpe,
+      'notes': notes,
+    });
+  }
+
   Future<void> _saveElapsed() async {
     if (_sessionId == null) return;
     try {
@@ -720,13 +732,14 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         savedNotes: setData['notes'] as String?,
         // Persist field edits (on blur / enter) even if the set isn't completed.
         onChanged: (reps, weight, rpe, notes) {
+          _cacheSet(we.exercise.id, setIndex, reps, weight, rpe, notes);
           _persistSet(we.exercise.name, we.exercise.id, set.setNumber, set.tempo,
               reps, weight, rpe, notes);
         },
         onCompleted: (reps, weight, rpe, notes) {
-          // Mark complete + rest timer SYNCHRONOUSLY first (no async gap before a
-          // tree mutation — that caused the framework assertion). On first
-          // completion only; re-tapping a completed set just re-saves below.
+          // Keep the in-memory state authoritative so the fields never blank on
+          // rebuild; then mark complete + rest timer (sync, no async gap).
+          _cacheSet(we.exercise.id, setIndex, reps, weight, rpe, notes);
           if (!isCompleted) {
             ref.read(activeWorkoutProvider.notifier)
                 .toggleSetComplete(we.exercise.id, setIndex);

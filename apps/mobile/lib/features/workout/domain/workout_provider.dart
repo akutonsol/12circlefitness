@@ -101,6 +101,21 @@ class ActiveWorkoutNotifier extends StateNotifier<Map<String, List<Map<String, d
     state = current;
   }
 
+  /// Merge entered values (reps/weight/rpe/notes) into a set's in-memory state
+  /// so the UI reflects them across rebuilds even if a row's State is recreated.
+  void setSetData(String exerciseId, int setIndex, Map<String, dynamic> data) {
+    final current = Map<String, List<Map<String, dynamic>>>.from(state);
+    if (!current.containsKey(exerciseId)) current[exerciseId] = [];
+    while (current[exerciseId]!.length <= setIndex) {
+      current[exerciseId]!.add({});
+    }
+    current[exerciseId]![setIndex] = {
+      ...current[exerciseId]![setIndex],
+      ...data,
+    };
+    state = current;
+  }
+
   void toggleSetComplete(String exerciseId, int setIndex) {
     final current = Map<String, List<Map<String, dynamic>>>.from(state);
     if (!current.containsKey(exerciseId)) current[exerciseId] = [];
