@@ -401,6 +401,8 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen>
                 () => context.push('/compliance')),
               _toolTile(sheetCtx, Icons.library_books_rounded, 'Programs', const Color(0xFFA855F7),
                 () => context.push('/program-builder')),
+              _toolTile(sheetCtx, Icons.fitness_center_rounded, 'Exercises', const Color(0xFFB76DFF),
+                () => context.push('/exercise-database')),
               _toolTile(sheetCtx, Icons.workspace_premium_rounded, 'My Plan', const Color(0xFFFFD479),
                 () => context.push('/coach-plan')),
               _toolTile(sheetCtx, Icons.payments_rounded, 'Packages', const Color(0xFF6FFBBE),

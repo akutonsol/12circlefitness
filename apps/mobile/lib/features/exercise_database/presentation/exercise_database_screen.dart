@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../shared/widgets/app_scaffold.dart';
+import '../../auth/domain/auth_provider.dart';
 import '../domain/exercise_database_provider.dart';
 import '../domain/custom_exercise_provider.dart';
 import '../data/exercise_database_service.dart';
@@ -230,6 +231,25 @@ class _ExerciseDatabaseScreenState extends ConsumerState<ExerciseDatabaseScreen>
                         context.push('/exercise-detail');
                       }))),
         ]),
+
+        // Coach: create a new exercise (with form video, instructions, etc.).
+        if ((ref.watch(currentUserProfileProvider).valueOrNull?['role']) == 'coach')
+          Positioned(
+            right: 20, bottom: 24,
+            child: GestureDetector(
+              onTap: () => context.push('/create-exercise'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [_C.primaryContainer, _C.primary]),
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: [BoxShadow(color: _C.primaryContainer.withValues(alpha: 0.4), blurRadius: 18, offset: const Offset(0, 6))]),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 6),
+                  Text('New Exercise', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
+                ]))),
+          ),
       ]),
     );
   }
