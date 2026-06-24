@@ -75,22 +75,40 @@ class WorkoutService {
   }) async {
     final uid = _uid;
     if (uid == null) return;
+    final cleanNotes = (notes != null && notes.isNotEmpty) ? notes : null;
+    // Update-or-insert (one row per set) without relying on a DB unique
+    // constraint, so editing a set's weight/reps/RPE/notes updates the same row
+    // and re-completing it doesn't duplicate. rpe/notes/tempo are always written
+    // (null when blank) so edits can clear them.
     try {
-      // Upsert on (session_id, exercise_name, set_number) so editing a set's
-      // weight/reps/RPE/notes updates the same row instead of inserting a dup.
-      // rpe/notes/tempo are always sent (null when blank) so edits can clear them.
-      await _supabase.from('workout_set_logs').upsert({
-        'session_id': sessionId,
-        'user_id': uid,
-        'exercise_name': exerciseName,
-        'exercise_id': exerciseId,
-        'set_number': setNumber,
-        'reps': reps,
-        'weight_kg': weightKg,
-        'rpe': rpe,
-        'notes': (notes != null && notes.isNotEmpty) ? notes : null,
-        'tempo': tempo,
-      }, onConflict: 'session_id,exercise_name,set_number');
+      final existing = await _supabase
+          .from('workout_set_logs')
+          .update({
+            'exercise_id': exerciseId,
+            'reps': reps,
+            'weight_kg': weightKg,
+            'rpe': rpe,
+            'notes': cleanNotes,
+            'tempo': tempo,
+          })
+          .eq('session_id', sessionId)
+          .eq('exercise_name', exerciseName)
+          .eq('set_number', setNumber)
+          .select('id');
+      if ((existing as List).isEmpty) {
+        await _supabase.from('workout_set_logs').insert({
+          'session_id': sessionId,
+          'user_id': uid,
+          'exercise_name': exerciseName,
+          'exercise_id': exerciseId,
+          'set_number': setNumber,
+          'reps': reps,
+          'weight_kg': weightKg,
+          'rpe': rpe,
+          'notes': cleanNotes,
+          'tempo': tempo,
+        });
+      }
     } catch (_) {}
   }
 
