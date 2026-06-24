@@ -197,6 +197,11 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
     super.dispose();
   }
 
+  /// Make a tab read-only (locked) for coach media-only edits.
+  Widget _lockable(Widget child, bool locked) => locked
+      ? AbsorbPointer(child: Opacity(opacity: 0.5, child: child))
+      : child;
+
   /// True when a coach is editing an exercise they don't own (media-only).
   bool _isCoachMediaOnly() {
     if (_editingId == null) return false;
@@ -705,6 +710,7 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
   @override
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
+    final locked = _isCoachMediaOnly();
     return Scaffold(
       backgroundColor: _C.bg,
       body: Column(children: [
@@ -720,7 +726,7 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
               const SizedBox(width: 14),
               Expanded(child: Text(_editingId != null ? 'Edit Exercise' : 'Create Exercise',
                 style: const TextStyle(color: _C.wht, fontSize: 20, fontWeight: FontWeight.w700))),
-              GestureDetector(
+              if (locked) const SizedBox() else GestureDetector(
                 onTap: _importJson,
                 child: Container(
                   margin: const EdgeInsets.only(right: 8),
@@ -776,10 +782,10 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
           child: Form(
             key: _formKey,
             child: TabBarView(controller: _tabs, children: [
-              _BasicsTab(this),
-              _CoachingTab(this),
-              _MediaTab(this),
-              _SettingsTab(this),
+              _lockable(_BasicsTab(this), locked),
+              _lockable(_CoachingTab(this), locked),
+              _MediaTab(this), // always editable — media is what coaches add
+              _lockable(_SettingsTab(this), locked),
             ]),
           ),
         ),
