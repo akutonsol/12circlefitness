@@ -111,30 +111,41 @@ class CustomExerciseService {
     final uid = _uid;
     if (uid == null) return null;
     lastError = null;
-    try {
-      final row = await _db.from('custom_exercises').insert({
-        'coach_id': uid,
-        'name': name,
-        'category': category,
-        'muscle_group': muscleGroup,
-        'secondary_muscles': secondaryMuscles,
-        'equipment': equipment,
-        'difficulty': difficulty,
-        'description': description,
-        'instructions': instructions,
-        'coaching_cues': coachingCues,
-        'common_mistakes': commonMistakes,
-        'alternatives': alternatives,
-        if (beginnerModification != null) 'beginner_modification': beginnerModification,
-        if (advancedProgression != null) 'advanced_progression': advancedProgression,
-        'tags': tags,
-        'video_variants': videoVariants.map((v) => v.toJson()).toList(),
-        if (imageUrl != null) 'image_url': imageUrl,
-        'visibility': visibility,
-        ...?extra,
-      }).select().single();
-      return row['id'] as String;
-    } catch (e) { lastError = e; return null; }
+    final data = <String, dynamic>{
+      'coach_id': uid,
+      'name': name,
+      'category': category,
+      'muscle_group': muscleGroup,
+      'secondary_muscles': secondaryMuscles,
+      'equipment': equipment,
+      'difficulty': difficulty,
+      'description': description,
+      'instructions': instructions,
+      'coaching_cues': coachingCues,
+      'common_mistakes': commonMistakes,
+      'alternatives': alternatives,
+      if (beginnerModification != null) 'beginner_modification': beginnerModification,
+      if (advancedProgression != null) 'advanced_progression': advancedProgression,
+      'tags': tags,
+      'video_variants': videoVariants.map((v) => v.toJson()).toList(),
+      if (imageUrl != null) 'image_url': imageUrl,
+      'visibility': visibility,
+      ...?extra,
+    };
+    final baseSlug = data['slug'] as String?;
+    // Retry with a suffixed slug if the (global) unique slug already exists.
+    for (var attempt = 0; attempt < 6; attempt++) {
+      try {
+        final row = await _db.from('custom_exercises').insert(data).select().single();
+        return row['id'] as String;
+      } catch (e) {
+        lastError = e;
+        final isSlugConflict = baseSlug != null && e.toString().contains('uq_custom_exercises_slug');
+        if (!isSlugConflict) return null;
+        data['slug'] = '$baseSlug-${DateTime.now().millisecondsSinceEpoch % 100000}';
+      }
+    }
+    return null;
   }
 
   /// Fan a master-schema exercise JSON out into the normalized child tables
