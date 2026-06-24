@@ -81,6 +81,9 @@ Deno.serve(async (req: Request) => {
 
     const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+    // Refresh behavioral patterns first so memory + ai_profile are current.
+    await db.rpc('ai_detect_patterns', { p_uid: uid }).then(() => {}, () => {});
+
     // ── Assemble context ──
     const [{ data: profile }, { data: aiProfile }] = await Promise.all([
       db.from('user_profiles').select('first_name, role, goal, gender, date_of_birth, height_cm, weight_kg, experience_level, membership_tier').eq('id', uid).maybeSingle(),
