@@ -130,6 +130,12 @@ class _SetTrackerRowState extends State<SetTrackerRow>
 
   @override
   void dispose() {
+    // Flush a pending debounced save (e.g. a note typed right before navigating
+    // away) BEFORE disposing the controllers, so it isn't lost.
+    if (_debounce?.isActive ?? false) {
+      _debounce!.cancel();
+      _emitChange();
+    }
     _repsController.dispose();
     _weightController.dispose();
     _rpeController.dispose();
