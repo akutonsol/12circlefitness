@@ -36,6 +36,9 @@ Respond with ONLY a JSON object — no prose, no markdown fences — in EXACTLY 
   "common_mistakes": [
     { "mistake": "what they do wrong", "problem": "why it matters", "fix": "the correction" }
   ],
+  "alternative_exercises": [
+    { "exercise": "Common Exercise Name", "reason": "why it's a good substitute" }
+  ],
   "breathing": {
     "setup": "breathing cue before the rep",
     "concentric": "breathing during the working phase",
@@ -48,7 +51,9 @@ Respond with ONLY a JSON object — no prose, no markdown fences — in EXACTLY 
     "endurance":   { "rep_range": "e.g. 15-20", "rest_period": "e.g. 30 seconds",    "recommendation": "one sentence" }
   }
 }
-Provide 4-7 instruction steps and 3-4 cues per level. Give 2-4 common mistakes.
+Provide 4-7 instruction steps and 3-4 cues per level. Give 2-4 common mistakes
+and 3-5 alternative_exercises (use widely-known exercise names so they can link
+to the library). Prefer alternatives that train the same movement pattern.
 For isometric/stretch/cardio/mobility exercises, adapt sensibly (e.g. hold/breath
 cues instead of concentric/eccentric, time/distance instead of rep ranges). Never
 invent equipment not implied by the metadata.`;
@@ -143,6 +148,7 @@ Deno.serve(async (req: Request) => {
       step_by_step_instructions: ai.step_by_step_instructions ?? [],
       coaching_cues: ai.coaching_cues ?? {},
       common_mistakes: ai.common_mistakes ?? [],
+      alternative_exercises: ai.alternative_exercises ?? [],
       breathing: ai.breathing ?? {},
       ai_exercise_tips: ai.ai_exercise_tips ?? {},
     };

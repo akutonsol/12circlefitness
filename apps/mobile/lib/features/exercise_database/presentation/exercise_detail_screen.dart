@@ -160,6 +160,10 @@ class _ExerciseDetailView extends StatelessWidget {
                   label: 'Tutorial',
                   type: VideoVariant.detectType(exercise.videoUrl!))),
                 const SizedBox(height: 24),
+              ] else ...[
+                // No uploaded video yet — offer a tutorial search.
+                _FindVideoCard(query: '${exercise.name} proper form technique'),
+                const SizedBox(height: 24),
               ],
 
               // Secondary muscles
@@ -366,6 +370,43 @@ void _openVideoLightbox(BuildContext context, String url, String label) {
       ]),
     ),
   );
+}
+
+// Shown when an exercise has no uploaded video — opens a YouTube tutorial search.
+class _FindVideoCard extends StatelessWidget {
+  final String query;
+  const _FindVideoCard({required this.query});
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: () {
+      final uri = Uri.parse(
+        'https://www.youtube.com/results?search_query=${Uri.encodeComponent(query)}');
+      canLaunchUrl(uri).then((ok) {
+        if (ok) launchUrl(uri, mode: LaunchMode.externalApplication);
+      });
+    },
+    child: Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _C.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _C.outlineVar.withValues(alpha: 0.25))),
+      child: Row(children: [
+        Container(
+          width: 46, height: 46,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFF0000).withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12)),
+          child: const Icon(Icons.smart_display_rounded, color: Color(0xFFFF0000), size: 26)),
+        const SizedBox(width: 14),
+        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('FIND A FORM VIDEO', style: TextStyle(color: _C.primary, fontSize: 10,
+            fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+          SizedBox(height: 3),
+          Text('Search tutorials on YouTube', style: TextStyle(color: _C.onSurfaceVar, fontSize: 12)),
+        ])),
+        const Icon(Icons.open_in_new, color: _C.onSurfaceVar, size: 15),
+      ])));
 }
 
 // Coach/admin-only FAB: generate coaching content with AI, then reload.
