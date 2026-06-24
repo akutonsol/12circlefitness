@@ -18,6 +18,7 @@ import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/onboarding/presentation/intake_flow_screen.dart';
 import '../../features/activity/presentation/activity_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
+import '../../features/home/presentation/splash_screen.dart';
 import '../../features/workout/presentation/workout_detail_screen.dart';
 import '../../features/workout/presentation/active_workout_screen.dart';
 import '../../features/workout/presentation/workout_history_screen.dart';
@@ -129,11 +130,14 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(notifier.dispose);
 
   return GoRouter(
-    initialLocation: '/onboarding',
+    initialLocation: '/splash',
     refreshListenable: Listenable.merge([notifier, passwordRecoveryNotifier]),
     redirect: (context, state) async {
       final isAuthenticated = Supabase.instance.client.auth.currentSession != null;
       final path = state.matchedLocation;
+
+      // Let the animated splash play; it hands off to /onboarding itself.
+      if (path == '/splash') return null;
 
       // Password recovery takes priority: keep the user on /reset-password
       // until they set a new password (or it's cleared).
@@ -175,6 +179,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       // ── Auth / onboarding (no shell) ──────────────────────────────────────
+      GoRoute(path: '/splash',         builder: (_, __) => const SplashScreen()),
       GoRoute(path: '/onboarding',     builder: (_, __) => const OnboardingScreen()),
       GoRoute(path: '/login',          builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/signup',         builder: (_, __) => const SignupScreen()),
