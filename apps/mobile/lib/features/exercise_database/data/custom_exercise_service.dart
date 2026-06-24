@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/exercise_detail_model.dart';
 import '../../workout/data/models/video_variant_model.dart';
@@ -7,6 +7,9 @@ class CustomExerciseService {
   final _db = Supabase.instance.client;
 
   String? get _uid => _db.auth.currentUser?.id;
+
+  /// Last error from a create/upload, surfaced to the UI for diagnostics.
+  Object? lastError;
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
 
@@ -107,6 +110,7 @@ class CustomExerciseService {
   }) async {
     final uid = _uid;
     if (uid == null) return null;
+    lastError = null;
     try {
       final row = await _db.from('custom_exercises').insert({
         'coach_id': uid,
@@ -130,7 +134,7 @@ class CustomExerciseService {
         ...?extra,
       }).select().single();
       return row['id'] as String;
-    } catch (_) { return null; }
+    } catch (e) { lastError = e; return null; }
   }
 
   /// Fan a master-schema exercise JSON out into the normalized child tables
@@ -218,30 +222,28 @@ class CustomExerciseService {
 
   // ── Image / Video Upload ──────────────────────────────────────────────────
 
-  Future<String?> uploadImage(File file, String exerciseId) async {
+  Future<String?> uploadImage(Uint8List bytes, String ext, String exerciseId) async {
     try {
-      final ext = file.path.split('.').last;
       final path = 'exercises/$exerciseId/image.$ext';
-      await _db.storage.from('exercise-media').upload(
+      await _db.storage.from('exercise-media').uploadBinary(
         path,
-        file,
-        fileOptions: const FileOptions(upsert: true),
+        bytes,
+        fileOptions: FileOptions(upsert: true, contentType: 'image/$ext'),
       );
       return _db.storage.from('exercise-media').getPublicUrl(path);
-    } catch (_) { return null; }
+    } catch (e) { lastError = e; return null; }
   }
 
-  Future<String?> uploadVideo(File file, String exerciseId, String label) async {
+  Future<String?> uploadVideo(Uint8List bytes, String ext, String exerciseId, String label) async {
     try {
-      final ext = file.path.split('.').last;
       final slug = label.toLowerCase().replaceAll(' ', '_');
       final path = 'exercises/$exerciseId/video_$slug.$ext';
-      await _db.storage.from('exercise-media').upload(
+      await _db.storage.from('exercise-media').uploadBinary(
         path,
-        file,
-        fileOptions: const FileOptions(upsert: true),
+        bytes,
+        fileOptions: FileOptions(upsert: true, contentType: 'video/$ext'),
       );
       return _db.storage.from('exercise-media').getPublicUrl(path);
-    } catch (_) { return null; }
+    } catch (e) { lastError = e; return null; }
   }
 }

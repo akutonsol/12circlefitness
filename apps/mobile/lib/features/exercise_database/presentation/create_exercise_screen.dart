@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -131,8 +131,9 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
   final _advancedCtrl   = TextEditingController();
   final _tagsCtrl       = TextEditingController();
 
-  // Media
-  File? _imageFile;
+  // Media (bytes-based so it works on web + native)
+  Uint8List? _imageBytes;
+  String _imageExt = 'jpg';
   final List<_VideoEntry> _videoEntries = [];
   final _picker = ImagePicker();
 
@@ -448,13 +449,28 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
 
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked != null) setState(() => _imageFile = File(picked.path));
+    if (picked != null) {
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        _imageBytes = bytes;
+        _imageExt = _extOf(picked.name, 'jpg');
+      });
+    }
+  }
+
+  String _extOf(String name, String fallback) {
+    final i = name.lastIndexOf('.');
+    return (i >= 0 && i < name.length - 1) ? name.substring(i + 1).toLowerCase() : fallback;
   }
 
   Future<void> _pickVideo(int index) async {
     final picked = await _picker.pickVideo(source: ImageSource.gallery);
     if (picked != null) {
-      setState(() => _videoEntries[index].file = File(picked.path));
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        _videoEntries[index].bytes = bytes;
+        _videoEntries[index].ext = _extOf(picked.name, 'mp4');
+      });
     }
   }
 
@@ -526,8 +542,8 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
 
     if (id != null) {
       // Upload files if picked
-      if (_imageFile != null) {
-        final url = await svc.uploadImage(_imageFile!, id);
+      if (_imageBytes != null) {
+        final url = await svc.uploadImage(_imageBytes!, _imageExt, id);
         if (url != null) {
           await svc.updateExercise(id, {'image_url': url});
         }
@@ -536,8 +552,8 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
       final uploadedVariants = List<VideoVariant>.from(variants);
       for (int i = 0; i < _videoEntries.length; i++) {
         final entry = _videoEntries[i];
-        if (entry.file != null) {
-          final url = await svc.uploadVideo(entry.file!, id, entry.label);
+        if (entry.bytes != null) {
+          final url = await svc.uploadVideo(entry.bytes!, entry.ext, id, entry.label);
           if (url != null) {
             uploadedVariants.add(VideoVariant(url: url, label: entry.label, type: 'upload'));
           }
@@ -559,9 +575,20 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
     if (id != null) {
       _showSuccess();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to save exercise. Try again.')));
+      final err = svc.lastError;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 8),
+        content: Text(err != null
+            ? 'Save failed: ${_friendlyError(err)}'
+            : 'Failed to save exercise. Try again.')));
     }
+  }
+
+  /// Pull a readable message out of a Postgrest/Storage exception.
+  String _friendlyError(Object err) {
+    final s = err.toString();
+    final msg = RegExp(r'message: ([^,)]+)').firstMatch(s)?.group(1);
+    return (msg ?? s).trim();
   }
 
   void _showSuccess() {
@@ -798,10 +825,10 @@ class _MediaTabState extends State<_MediaTab> {
             color: _C.card,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: _C.brd),
-            image: s._imageFile != null
-                ? DecorationImage(image: FileImage(s._imageFile!), fit: BoxFit.cover)
+            image: s._imageBytes != null
+                ? DecorationImage(image: MemoryImage(s._imageBytes!), fit: BoxFit.cover)
                 : null),
-          child: s._imageFile == null
+          child: s._imageBytes == null
               ? const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Icon(Icons.add_photo_alternate_outlined, color: _C.brand, size: 36),
                   SizedBox(height: 8),
@@ -874,15 +901,15 @@ class _MediaTabState extends State<_MediaTab> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: entry.file != null ? _C.tertiary.withValues(alpha: 0.08) : _C.bg,
+                    color: entry.bytes != null ? _C.tertiary.withValues(alpha: 0.08) : _C.bg,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: entry.file != null ? _C.tertiary.withValues(alpha: 0.4) : _C.brd)),
+                    border: Border.all(color: entry.bytes != null ? _C.tertiary.withValues(alpha: 0.4) : _C.brd)),
                   child: Row(children: [
-                    Icon(entry.file != null ? Icons.check_circle_rounded : Icons.upload_file_rounded,
-                      color: entry.file != null ? _C.tertiary : _C.mut, size: 18),
+                    Icon(entry.bytes != null ? Icons.check_circle_rounded : Icons.upload_file_rounded,
+                      color: entry.bytes != null ? _C.tertiary : _C.mut, size: 18),
                     const SizedBox(width: 8),
-                    Text(entry.file != null ? 'Video selected' : 'Upload from device',
-                      style: TextStyle(color: entry.file != null ? _C.tertiary : _C.mut, fontSize: 12)),
+                    Text(entry.bytes != null ? 'Video selected' : 'Upload from device',
+                      style: TextStyle(color: entry.bytes != null ? _C.tertiary : _C.mut, fontSize: 12)),
                   ]))),
             ]));
         }),
@@ -958,7 +985,8 @@ class _SettingsTabState extends State<_SettingsTab> {
 class _VideoEntry {
   String label = 'Tutorial';
   final urlCtrl = TextEditingController();
-  File? file;
+  Uint8List? bytes;
+  String ext = 'mp4';
 }
 
 Widget _field(String? hint, TextEditingController ctrl, {int maxLines = 1, bool required = false}) {
