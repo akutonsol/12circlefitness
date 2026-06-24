@@ -127,6 +127,37 @@ Client Profile:
       ai_response: reply,
     }).then(() => {}).catch(() => {});
 
+    // ── Conversation memory: extract durable facts the coach should remember ──
+    const looksDurable = /\b(travel|vacation|out of town|injur|hurt|sore|pain|hate|dislike|can'?t stand|love|enjoy|favou?rite|allerg|prefer|every (mon|tue|wed|thu|fri|sat|sun)|morning|evening|night shift|busy)\b/i
+      .test(message);
+    if (looksDurable && ANTHROPIC_API_KEY) {
+      try {
+        const exRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001', max_tokens: 250,
+            system: `Extract durable coaching facts from the user's message — likes, dislikes, injuries, or constraints (travel, schedule, time of day). Respond with ONLY a JSON array: [{"kind":"like|dislike|injury|constraint|preference","content":"short fact in third person"}]. Empty array [] if there's nothing durable.`,
+            messages: [{ role: 'user', content: message }],
+          }),
+        });
+        if (exRes.ok) {
+          const exData = await exRes.json() as { content?: Array<{ text: string }> };
+          let t = (exData.content?.[0]?.text ?? '[]').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+          const s = t.indexOf('['), e = t.lastIndexOf(']');
+          if (s >= 0 && e > s) t = t.slice(s, e + 1);
+          const facts = JSON.parse(t) as Array<{ kind?: string; content?: string }>;
+          for (const f of facts) {
+            if (f.content) {
+              await db.from('ai_memories').upsert(
+                { user_id: user.id, kind: f.kind ?? 'note', content: String(f.content).slice(0, 240), source: 'inferred' },
+                { onConflict: 'user_id,kind,content' });
+            }
+          }
+        }
+      } catch (_e) { /* extraction is best-effort */ }
+    }
+
     return json({ reply, mode });
 
   } catch (err) {
