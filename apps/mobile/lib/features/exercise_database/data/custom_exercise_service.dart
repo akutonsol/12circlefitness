@@ -132,20 +132,28 @@ class CustomExerciseService {
       'visibility': visibility,
       ...?extra,
     };
-    final baseSlug = data['slug'] as String?;
-    // Retry with a suffixed slug if the (global) unique slug already exists.
-    for (var attempt = 0; attempt < 6; attempt++) {
-      try {
-        final row = await _db.from('custom_exercises').insert(data).select().single();
-        return row['id'] as String;
-      } catch (e) {
-        lastError = e;
-        final isSlugConflict = baseSlug != null && e.toString().contains('uq_custom_exercises_slug');
-        if (!isSlugConflict) return null;
-        data['slug'] = '$baseSlug-${DateTime.now().millisecondsSinceEpoch % 100000}';
+    // Coach-published global exercises go live for clients immediately.
+    if (visibility == 'global') data['submission_status'] = 'approved';
+    final slug = data['slug'] as String?;
+    try {
+      // Upsert by (coach_id, slug): re-importing the same exercise updates the
+      // existing row instead of creating a duplicate.
+      if (slug != null) {
+        final existing = await _db
+            .from('custom_exercises')
+            .select('id')
+            .eq('coach_id', uid)
+            .eq('slug', slug)
+            .maybeSingle();
+        if (existing != null) {
+          final eid = existing['id'] as String;
+          await _db.from('custom_exercises').update(data).eq('id', eid);
+          return eid;
+        }
       }
-    }
-    return null;
+      final row = await _db.from('custom_exercises').insert(data).select().single();
+      return row['id'] as String;
+    } catch (e) { lastError = e; return null; }
   }
 
   /// Fan a master-schema exercise JSON out into the normalized child tables
