@@ -20,6 +20,9 @@ class SetTrackerRow extends StatefulWidget {
   final int? savedReps;
   final double? savedRpe;
   final String? savedNotes;
+  // Fired when the weight field gains focus — used to dismiss the rest/overtime
+  // alarm (the user is starting the next set).
+  final VoidCallback? onWeightFocus;
 
   const SetTrackerRow({
     super.key,
@@ -35,6 +38,7 @@ class SetTrackerRow extends StatefulWidget {
     this.savedReps,
     this.savedRpe,
     this.savedNotes,
+    this.onWeightFocus,
   });
 
   static const double _kgPerLb = 0.45359237;
@@ -83,6 +87,10 @@ class _SetTrackerRowState extends State<SetTrackerRow>
     for (final f in [_weightFocus, _repsFocus, _rpeFocus, _notesFocus]) {
       f.addListener(() { if (!f.hasFocus) _emitChange(); });
     }
+    // Focusing the weight field = starting the next set → dismiss the rest alarm.
+    _weightFocus.addListener(() {
+      if (_weightFocus.hasFocus) widget.onWeightFocus?.call();
+    });
     _notesPulse = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 1100))
       ..repeat(reverse: true);

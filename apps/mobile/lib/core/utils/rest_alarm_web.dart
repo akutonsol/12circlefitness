@@ -7,6 +7,28 @@ import 'dart:typed_data';
 // One persistent element, unlocked on a user gesture and reused for the beep —
 // browsers block a fresh element.play() fired from a Timer.
 html.AudioElement? _alarmEl;
+html.AudioElement? _sirenEl;
+
+/// Web: start a looping siren (overtime alarm). Reuses a persistent element so
+/// it stays unlocked.
+void startRestSiren() {
+  try {
+    final el = _sirenEl ??= html.AudioElement(_sirenDataUrl())..loop = true;
+    el
+      ..loop = true
+      ..volume = 1.0
+      ..currentTime = 0;
+    el.play();
+  } catch (_) {}
+}
+
+/// Web: stop the looping siren.
+void stopRestSiren() {
+  try {
+    _sirenEl?.pause();
+    _sirenEl?.currentTime = 0;
+  } catch (_) {}
+}
 
 /// Web: replay the (already-unlocked) beep element, and also speak a cue — the
 /// speech channel is reliably unlocked, guaranteeing audible end-of-rest feedback.
@@ -41,9 +63,48 @@ void primeRestAudio() {
         ..muted = false
         ..currentTime = 0;
     }).catchError((_) {});
+    // Unlock the siren element too.
+    final siren = _sirenEl ??= html.AudioElement(_sirenDataUrl())..loop = true;
+    siren.muted = true;
+    siren.play().then((_) {
+      siren
+        ..pause()
+        ..muted = false
+        ..currentTime = 0;
+    }).catchError((_) {});
     final synth = html.window.speechSynthesis;
     synth?.speak(html.SpeechSynthesisUtterance(' ')..volume = 0);
   } catch (_) {}
+}
+
+String? _sirenCache;
+
+/// A ~1s wailing siren (frequency sweeps up and down), looped by the element.
+String _sirenDataUrl() {
+  if (_sirenCache != null) return _sirenCache!;
+  const sampleRate = 8000;
+  const durationSec = 1.0;
+  final n = (sampleRate * durationSec).round();
+  final b = BytesBuilder();
+  void str(String s) => b.add(s.codeUnits);
+  void u32(int v) => b.add([v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >> 24) & 0xff]);
+  void u16(int v) => b.add([v & 0xff, (v >> 8) & 0xff]);
+  str('RIFF'); u32(36 + n); str('WAVE');
+  str('fmt '); u32(16); u16(1); u16(1);
+  u32(sampleRate); u32(sampleRate); u16(1); u16(8);
+  str('data'); u32(n);
+
+  var phase = 0.0;
+  for (var i = 0; i < n; i++) {
+    // Sweep 600 <-> 1200 Hz over the second for a wail.
+    final sweep = (i / n) * 2 * pi;
+    final freq = 900 + 300 * sin(sweep * 2);
+    phase += 2 * pi * freq / sampleRate;
+    final sample = (sin(phase) * 127 + 128).round().clamp(0, 255);
+    b.addByte(sample);
+  }
+  _sirenCache = 'data:audio/wav;base64,${base64Encode(b.toBytes())}';
+  return _sirenCache!;
 }
 
 /// Web: speak the countdown number via the Speech Synthesis API.

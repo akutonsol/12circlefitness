@@ -79,6 +79,7 @@ class ActiveWorkoutScreen extends ConsumerStatefulWidget {
 
 class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   int _elapsedSeconds = 0;
+  int _idleSeconds = 0; // accumulated rest-overrun (overtime) across the session
   Timer? _timer;
   bool _saving = false;
   final _workoutService = WorkoutService();
@@ -193,6 +194,17 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       SnackBar(content: Text(msg), backgroundColor: _error));
   }
 
+  /// Dismisses the rest/overtime alarm (the user is starting the next set).
+  /// Banks any overtime as idle time, then clears the timer (which stops the
+  /// siren via the widget's dispose).
+  void _dismissRest() {
+    final rt = ref.read(restTimerProvider);
+    if (rt == null) return;
+    final over = DateTime.now().difference(rt.end).inSeconds;
+    if (over > 0) _idleSeconds += over;
+    ref.read(restTimerProvider.notifier).state = null;
+  }
+
   /// Caches entered values into the in-memory workout state so the row's fields
   /// reflect them across rebuilds (and survive navigation within the session).
   void _cacheSet(String exId, int setIndex, int reps, double weightKg,
@@ -232,6 +244,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     final workout = ref.read(selectedWorkoutProvider);
     if (workout == null) return;
 
+    _dismissRest(); // bank any in-progress overtime + silence the siren
     setState(() => _saving = true);
     _timer?.cancel();
 
@@ -252,6 +265,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           'status': 'completed',
           'completed_at': DateTime.now().toIso8601String(),
           'duration_seconds': _elapsedSeconds,
+          'idle_seconds': _idleSeconds,
           'calories_burned': log.caloriesBurned ?? 0,
         }).eq('id', _sessionId!);
       } catch (_) {}
@@ -269,6 +283,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           title: workout.title,
           duration: _elapsedTime,
           calories: log.caloriesBurned ?? 0,
+          idleSeconds: _idleSeconds,
           sessionId: _sessionId,
           onDone: () {
             Navigator.pop(context);
@@ -381,7 +396,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
               key: ValueKey(rest.end),
               endTime: rest.end,
               totalSeconds: rest.total,
-              onComplete: () => ref.read(restTimerProvider.notifier).state = null),
+              onComplete: _dismissRest),
 
           // ── Exercise list ──
           Expanded(
@@ -706,6 +721,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         savedReps: (setData['reps'] as num?)?.toInt(),
         savedRpe: (setData['rpe'] as num?)?.toDouble(),
         savedNotes: setData['notes'] as String?,
+        onWeightFocus: _dismissRest,
         // Persist field edits (on blur / enter) even if the set isn't completed.
         onChanged: (reps, weight, rpe, notes) {
           _cacheSet(we.exercise.id, setIndex, reps, weight, rpe, notes);
@@ -780,11 +796,12 @@ class _StatChip extends StatelessWidget {
 class _WorkoutCompleteDialog extends StatefulWidget {
   final String title, duration;
   final int calories;
+  final int idleSeconds;
   final String? sessionId;
   final VoidCallback onDone;
   const _WorkoutCompleteDialog({
     required this.title, required this.duration,
-    required this.calories, this.sessionId, required this.onDone});
+    required this.calories, this.idleSeconds = 0, this.sessionId, required this.onDone});
   @override
   State<_WorkoutCompleteDialog> createState() => _WorkoutCompleteDialogState();
 }
@@ -858,7 +875,18 @@ class _WorkoutCompleteDialogState extends State<_WorkoutCompleteDialog> {
           Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
             _DialogStat(icon: Icons.timer_outlined, label: 'Duration', value: widget.duration, color: _primary),
             _DialogStat(icon: Icons.local_fire_department_outlined, label: 'Calories', value: '${widget.calories}kcal', color: _tertiary),
+            _DialogStat(
+              icon: Icons.hourglass_bottom_rounded,
+              label: 'Idle',
+              value: '${(widget.idleSeconds ~/ 60).toString().padLeft(2, '0')}:${(widget.idleSeconds % 60).toString().padLeft(2, '0')}',
+              color: widget.idleSeconds > 0 ? _error : _tertiary),
           ]),
+          if (widget.idleSeconds > 0) ...[
+            const SizedBox(height: 8),
+            Text('${widget.idleSeconds ~/ 60}m ${widget.idleSeconds % 60}s of rest overrun — tighten it up next time.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _error.withValues(alpha: 0.8), fontSize: 11)),
+          ],
           const SizedBox(height: 24),
           if (!_submitted) ...[
             const Divider(color: Color(0xFF1A1020)),

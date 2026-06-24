@@ -18,3 +18,12 @@ void speakRest(String text) {
 
 /// No audio-unlock needed off web.
 void primeRestAudio() {}
+
+/// Overtime siren — repeated heavy haptics off web (no looping audio).
+void startRestSiren() {
+  try {
+    HapticFeedback.heavyImpact();
+  } catch (_) {}
+}
+
+void stopRestSiren() {}
