@@ -4,9 +4,11 @@ import '../../../../core/theme/app_theme.dart';
 class SetTrackerRow extends StatefulWidget {
   final int setNumber;
   final int targetReps;
-  final double targetWeight;
+  final double targetWeight; // always stored in kg
   final bool completed;
   final String? tempo;
+  final String unit; // display unit: 'kg' or 'lb'
+  // weight is reported back in kg (converted from the display unit).
   final Function(int reps, double weight, double? rpe, String? notes) onCompleted;
 
   const SetTrackerRow({
@@ -16,8 +18,13 @@ class SetTrackerRow extends StatefulWidget {
     required this.targetWeight,
     required this.completed,
     required this.onCompleted,
+    this.unit = 'kg',
     this.tempo,
   });
+
+  static const double _kgPerLb = 0.45359237;
+  double _toDisplay(double kg) => unit == 'lb' ? kg / _kgPerLb : kg;
+  double _toKg(double display) => unit == 'lb' ? display * _kgPerLb : display;
 
   @override
   State<SetTrackerRow> createState() => _SetTrackerRowState();
@@ -34,7 +41,8 @@ class _SetTrackerRowState extends State<SetTrackerRow> {
   void initState() {
     super.initState();
     _repsController = TextEditingController(text: widget.targetReps.toString());
-    _weightController = TextEditingController(text: widget.targetWeight == 0 ? '' : widget.targetWeight.toString());
+    _weightController = TextEditingController(
+        text: widget.targetWeight == 0 ? '' : _fmt(widget._toDisplay(widget.targetWeight)));
     _rpeController = TextEditingController();
     _notesController = TextEditingController();
   }
@@ -82,7 +90,7 @@ class _SetTrackerRowState extends State<SetTrackerRow> {
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(child: _buildInput(_weightController, 'kg')),
+              Expanded(child: _buildInput(_weightController, widget.unit)),
               const SizedBox(width: 8),
               Expanded(child: _buildInput(_repsController, 'reps')),
               const SizedBox(width: 8),
@@ -110,12 +118,15 @@ class _SetTrackerRowState extends State<SetTrackerRow> {
               GestureDetector(
                 onTap: () {
                   final reps = int.tryParse(_repsController.text) ?? widget.targetReps;
-                  final weight = double.tryParse(_weightController.text) ?? widget.targetWeight;
+                  // Field is in the display unit; convert back to kg for storage.
+                  final displayWeight = double.tryParse(_weightController.text)
+                      ?? widget._toDisplay(widget.targetWeight);
+                  final weightKg = widget._toKg(displayWeight);
                   final rpe = double.tryParse(_rpeController.text);
                   final notes = _notesController.text.trim().isEmpty
                       ? null
                       : _notesController.text.trim();
-                  widget.onCompleted(reps, weight, rpe, notes);
+                  widget.onCompleted(reps, weightKg, rpe, notes);
                 },
                 child: Container(
                   width: 32,
@@ -169,6 +180,12 @@ class _SetTrackerRowState extends State<SetTrackerRow> {
           ),
       ],
     );
+  }
+
+  // Trims trailing zeros so 88.18 lb shows cleanly (and 60.0 → 60).
+  String _fmt(double v) {
+    final r = (v * 10).round() / 10;
+    return r == r.roundToDouble() ? r.toStringAsFixed(0) : r.toStringAsFixed(1);
   }
 
   Widget _buildInput(TextEditingController controller, String hint) {

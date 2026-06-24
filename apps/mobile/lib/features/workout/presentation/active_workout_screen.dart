@@ -11,6 +11,7 @@ import 'widgets/set_tracker_row.dart';
 import 'widgets/rest_timer_widget.dart';
 import '../../coach/data/score_service.dart';
 import '../../scoring/data/score_engine.dart';
+import '../../auth/domain/auth_provider.dart';
 
 const _bg       = Color(0xFF030303);
 const _card     = Color(0xFF0E0B16);
@@ -132,6 +133,34 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         ScoreEngine().workoutStarted(workout.id); // +5
       }
     } catch (_) {}
+  }
+
+  /// Display unit from the user's preference ('lb' for imperial, 'kg' for metric).
+  String get _unit {
+    final pref =
+        ref.read(currentUserProfileProvider).valueOrNull?['unit_preference'] as String?;
+    return pref == 'metric' ? 'kg' : 'lb';
+  }
+
+  /// Returns the active session id, creating the session row on demand so set
+  /// logs can't be silently dropped when the session insert was delayed/failed.
+  Future<String?> _ensureSession() async {
+    if (_sessionId != null) return _sessionId;
+    final workout = ref.read(selectedWorkoutProvider);
+    final uid = _db.auth.currentUser?.id;
+    if (workout == null || uid == null) return null;
+    try {
+      final row = await _db.from('workout_sessions').insert({
+        'user_id': uid,
+        'workout_title': workout.title,
+        'status': 'in_progress',
+        'started_at': DateTime.now().toIso8601String(),
+      }).select().single();
+      _sessionId = row['id'] as String;
+      return _sessionId;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _saveElapsed() async {
@@ -579,7 +608,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         SizedBox(width: 36,
           child: Text('SET', style: TextStyle(color: _muted.withValues(alpha: 0.5), fontSize: 10,
             fontWeight: FontWeight.w600, letterSpacing: 1))),
-        Expanded(child: Text('WEIGHT', textAlign: TextAlign.center,
+        Expanded(child: Text('WEIGHT (${_unit.toUpperCase()})', textAlign: TextAlign.center,
           style: TextStyle(color: _muted.withValues(alpha: 0.5), fontSize: 10,
             fontWeight: FontWeight.w600, letterSpacing: 1))),
         const SizedBox(width: 8),
@@ -610,28 +639,33 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         targetWeight: set.weight,
         completed: isCompleted,
         tempo: set.tempo,
-        onCompleted: (reps, weight, rpe, notes) {
+        unit: _unit,
+        onCompleted: (reps, weight, rpe, notes) async {
           ref.read(activeWorkoutProvider.notifier)
               .toggleSetComplete(we.exercise.id, setIndex);
-          // Save to Supabase when marking complete (not un-complete)
-          if (_sessionId != null && !isCompleted) {
-            _workoutService.saveSetLog(
-              sessionId: _sessionId!,
-              exerciseName: we.exercise.name,
-              exerciseId: we.exercise.id,
-              setNumber: set.setNumber,
-              reps: reps,
-              weightKg: weight,
-              rpe: rpe,
-              notes: notes,
-              tempo: set.tempo,
-            );
-          }
-          if (set.restSeconds != null && !isCompleted) {
-            setState(() {
-              _showRestTimer = true;
-              _restSeconds = set.restSeconds!;
-            });
+          // Persist when marking complete (not un-complete). Ensure a session
+          // exists first so the log can't silently fail on a null session id.
+          if (!isCompleted) {
+            final sid = await _ensureSession();
+            if (sid != null) {
+              await _workoutService.saveSetLog(
+                sessionId: sid,
+                exerciseName: we.exercise.name,
+                exerciseId: we.exercise.id,
+                setNumber: set.setNumber,
+                reps: reps,
+                weightKg: weight, // already converted to kg by SetTrackerRow
+                rpe: rpe,
+                notes: notes,
+                tempo: set.tempo,
+              );
+            }
+            if (set.restSeconds != null && mounted) {
+              setState(() {
+                _showRestTimer = true;
+                _restSeconds = set.restSeconds!;
+              });
+            }
           }
         });
     }).toList();
