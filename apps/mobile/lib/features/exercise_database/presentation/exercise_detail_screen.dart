@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../domain/exercise_database_provider.dart';
 import '../domain/custom_exercise_provider.dart';
+import '../data/custom_exercise_service.dart';
 import '../data/models/exercise_detail_model.dart';
 import '../../workout/data/models/video_variant_model.dart';
 import '../../workout/presentation/widgets/youtube_embed.dart';
@@ -380,15 +381,13 @@ class _EnrichFabState extends ConsumerState<_EnrichFab> {
 
   @override
   Widget build(BuildContext context) {
-    final slug = widget.exercise.slug;
-    if (slug == null) return const SizedBox.shrink();
     final role = ref.watch(currentUserProfileProvider).valueOrNull?['role'];
     if (role != 'coach' && role != 'admin') return const SizedBox.shrink();
 
     final hasContent = widget.exercise.instructions.isNotEmpty;
     return FloatingActionButton.extended(
       backgroundColor: _C.inversePrimary,
-      onPressed: _loading ? null : () => _enrich(slug),
+      onPressed: _loading ? null : _enrich,
       icon: _loading
           ? const SizedBox(width: 18, height: 18,
               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
@@ -399,9 +398,15 @@ class _EnrichFabState extends ConsumerState<_EnrichFab> {
     );
   }
 
-  Future<void> _enrich(String slug) async {
+  Future<void> _enrich() async {
     setState(() => _loading = true);
     final svc = ref.read(customExerciseSvcProvider);
+    // Slug-less (legacy manual) exercises: derive + assign one first.
+    var slug = widget.exercise.slug;
+    if (slug == null || slug.isEmpty) {
+      slug = CustomExerciseService.slugify(widget.exercise.name);
+      await svc.updateExercise(widget.exercise.id, {'slug': slug});
+    }
     final res = await svc.enrichWithAI(slug);
     if (!mounted) return;
     if (!res.ok) {

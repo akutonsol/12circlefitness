@@ -11,6 +11,12 @@ class CustomExerciseService {
   /// Last error from a create/upload, surfaced to the UI for diagnostics.
   Object? lastError;
 
+  /// "Barbell Squat" -> "barbell-squat".
+  static String slugify(String s) => s
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
+
   // ── Fetch ─────────────────────────────────────────────────────────────────
 
   Future<List<ExerciseDetail>> getMyExercises() async {
@@ -134,6 +140,9 @@ class CustomExerciseService {
     };
     // Coach-published global exercises go live for clients immediately.
     if (visibility == 'global') data['submission_status'] = 'approved';
+    // Always have a slug (derive from name) so every exercise is enrichable and
+    // re-saving the same name updates rather than duplicates.
+    data['slug'] ??= slugify(name);
     final slug = data['slug'] as String?;
     try {
       // Upsert by (coach_id, slug): re-importing the same exercise updates the
