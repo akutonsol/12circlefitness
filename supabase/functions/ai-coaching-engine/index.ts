@@ -117,6 +117,35 @@ Deno.serve(async (req: Request) => {
       today: new Date().toISOString().slice(0, 10),
     };
 
+    // ── Confidence: how much data backs a recommendation (0-99) ──
+    const conf = (() => {
+      let s = 15; const why: string[] = [];
+      const wk = workouts.length;
+      if (wk >= 8) { s += 28; why.push(`${wk} recent workouts`); }
+      else if (wk >= 3) { s += 16; why.push(`${wk} recent workouts`); }
+      else if (wk >= 1) { s += 7; }
+      if (dailyScores.length >= 5) { s += 14; why.push('consistent daily activity'); }
+      if (goals.length > 0 || aiProfile?.goals) { s += 10; why.push('goal set'); }
+      const mem = context.memory.likes.length + context.memory.dislikes.length + context.memory.injuries.length;
+      if (mem >= 3) { s += 16; why.push('rich coaching memory'); }
+      else if (mem >= 1) { s += 8; }
+      if (nutrition.length >= 7) { s += 9; why.push('nutrition logged'); }
+      if (profile?.weight_kg) { s += 5; }
+      return { score: Math.min(s, 99), reasons: why };
+    })();
+
+    // ── Coach personality (delivery style) ──
+    const persona = (aiProfile?.coach_persona ?? {}) as Record<string, string>;
+    const pName = persona.name || 'Nova';
+    const pStyle = persona.style || 'motivational';
+    const pTone = persona.tone || 'supportive';
+    const personaDirective =
+      `You are "${pName}". Deliver in a ${pStyle} style with a ${pTone} tone — the substance ` +
+      `of the advice never changes, only the delivery.`;
+    const confidenceDirective =
+      `Coaching confidence in this user's data: ${conf.score}% (${conf.reasons.join(', ') || 'limited data'}). ` +
+      `If confidence is below 50, be cautious — soften strong changes and suggest confirming details first.`;
+
     // ── Ask Claude ──
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -124,8 +153,8 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 900,
-        system: SYSTEM[type],
-        messages: [{ role: 'user', content: `Client context:\n${JSON.stringify(context, null, 1)}` }],
+        system: `${personaDirective}\n\n${SYSTEM[type]}`,
+        messages: [{ role: 'user', content: `${confidenceDirective}\n\nClient context:\n${JSON.stringify(context, null, 1)}` }],
       }),
     });
     if (!res.ok) { console.error('Anthropic', res.status, await res.text()); return json({ error: 'AI request failed' }, 502); }
@@ -143,7 +172,8 @@ Deno.serve(async (req: Request) => {
       await db.from('ai_insights').insert({
         user_id: uid, type: 'daily_insight', for_date: today,
         title: out.title ?? 'Today’s Coaching', body: out.body ?? '',
-        data: { focus: out.focus, intensity_delta: out.intensity_delta, nutrition_note: out.nutrition_note, recovery_note: out.recovery_note },
+        data: { focus: out.focus, intensity_delta: out.intensity_delta, nutrition_note: out.nutrition_note,
+                recovery_note: out.recovery_note, confidence: conf.score, confidence_reasons: conf.reasons },
       });
     } else if (type === 'weekly_review') {
       const end = new Date(); const start = new Date(Date.now() - 6 * 864e5);
@@ -161,7 +191,8 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    return json({ result: out, type });
+    return json({ result: out, type, confidence: conf.score, confidence_reasons: conf.reasons,
+                  persona: { name: pName, style: pStyle, tone: pTone } });
   } catch (e) {
     console.error('ai-coaching-engine error:', e);
     return json({ error: String(e) }, 500);

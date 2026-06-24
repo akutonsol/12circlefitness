@@ -76,8 +76,40 @@ class AICoachService {
       final res = await _db.functions.invoke('ai-coaching-engine', body: {'type': type});
       if (res.status != 200) return null;
       final data = res.data as Map<String, dynamic>;
-      return data['result'] as Map<String, dynamic>?;
+      final result = data['result'] as Map<String, dynamic>?;
+      // Fold confidence into the result so cards can show it.
+      if (result != null && data['confidence'] != null) {
+        result['confidence'] = data['confidence'];
+        result['confidence_reasons'] = data['confidence_reasons'];
+      }
+      return result;
     } catch (_) { return null; }
+  }
+
+  // ── Coach personality ─────────────────────────────────────────────────────
+
+  /// {name, style, tone}. Defaults to Nova / motivational / supportive.
+  Future<Map<String, dynamic>> getPersona() async {
+    final uid = _db.auth.currentUser?.id;
+    const fallback = {'name': 'Nova', 'style': 'motivational', 'tone': 'supportive'};
+    if (uid == null) return Map.of(fallback);
+    try {
+      final row = await _db.from('ai_profiles').select('coach_persona').eq('user_id', uid).maybeSingle();
+      final p = row?['coach_persona'];
+      return p is Map ? Map<String, dynamic>.from(p) : Map.of(fallback);
+    } catch (_) { return Map.of(fallback); }
+  }
+
+  Future<bool> setPersona({required String style, required String tone, String name = 'Nova'}) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return false;
+    try {
+      await _db.from('ai_profiles').upsert({
+        'user_id': uid,
+        'coach_persona': {'name': name, 'style': style, 'tone': tone},
+      });
+      return true;
+    } catch (_) { return false; }
   }
 
   /// Today's stored daily insight, if one exists.

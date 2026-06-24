@@ -180,6 +180,7 @@ class _AICoachScreenState extends ConsumerState<AICoachScreen> {
                   const _DailyInsightCard(),
                   const _WeeklyReviewCard(),
                   const _GoalPredictionCard(),
+                  const _CoachPersonaCard(),
                   const _CoachingMemoryCard(),
                   _SuggestedPrompts(mode: _mode, onTap: (p) { _ctrl.text = p; _send(); }),
                 ])
@@ -511,6 +512,9 @@ class _DailyInsightCardState extends State<_DailyInsightCard> {
               _chip(delta < 0 ? Icons.trending_down_rounded : Icons.trending_up_rounded,
                 'Intensity ${delta > 0 ? '+' : ''}$delta%',
                 color: delta < 0 ? const Color(0xFFF59E0B) : _C2.green),
+            if (data['confidence'] != null)
+              _chip(Icons.verified_rounded, 'Confidence ${data['confidence']}%',
+                color: ((data['confidence'] as num?) ?? 0) < 50 ? const Color(0xFFF59E0B) : _C2.green),
           ]),
           if (data['nutrition_note'] != null) _noteRow(Icons.restaurant_rounded, data['nutrition_note'].toString()),
           if (data['recovery_note'] != null) _noteRow(Icons.self_improvement_rounded, data['recovery_note'].toString()),
@@ -733,6 +737,68 @@ class _GoalPredictionCardState extends State<_GoalPredictionCard> {
   }
 }
 const _C2_green = Color(0xFF6FFBBE);
+
+// ── Coach personality card ────────────────────────────────────────────────────
+class _CoachPersonaCard extends StatefulWidget {
+  const _CoachPersonaCard();
+  @override State<_CoachPersonaCard> createState() => _CoachPersonaCardState();
+}
+class _CoachPersonaCardState extends State<_CoachPersonaCard> {
+  final _svc = AICoachService();
+  // (style, tone, label)
+  static const _styles = [
+    ('supportive', 'supportive', 'Supportive'),
+    ('motivational', 'energetic', 'Motivational'),
+    ('tough_love', 'direct', 'Tough Love'),
+    ('educational', 'informative', 'Educational'),
+    ('scientific', 'precise', 'Scientific'),
+    ('calm', 'calm', 'Calm'),
+    ('high_energy', 'high-energy', 'High Energy'),
+  ];
+  String _style = 'motivational';
+  bool _loading = true;
+
+  @override void initState() { super.initState(); _load(); }
+  Future<void> _load() async {
+    final p = await _svc.getPersona();
+    if (mounted) setState(() { _style = (p['style']?.toString() ?? 'motivational'); _loading = false; });
+  }
+  Future<void> _select(String style, String tone) async {
+    setState(() => _style = style);
+    await _svc.setPersona(style: style, tone: tone);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Coach style updated — your next brief will match.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _coachCard(
+      icon: Icons.tune_rounded, label: 'COACH STYLE',
+      child: _loading
+          ? const SizedBox(height: 20)
+          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Same advice, your preferred delivery.',
+                style: TextStyle(color: _mut, fontSize: 13)),
+              const SizedBox(height: 12),
+              Wrap(spacing: 8, runSpacing: 8, children: _styles.map((s) {
+                final sel = _style == s.$1;
+                return GestureDetector(
+                  onTap: () => _select(s.$1, s.$2),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: sel ? _brand.withValues(alpha: 0.18) : _brd,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: sel ? _brand : _brd)),
+                    child: Text(s.$3, style: TextStyle(
+                      color: sel ? _pri : _mut, fontSize: 12, fontWeight: FontWeight.w600))));
+              }).toList()),
+            ]),
+    );
+  }
+}
 
 // ── Coaching memory card ──────────────────────────────────────────────────────
 class _CoachingMemoryCard extends StatefulWidget {
