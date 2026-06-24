@@ -201,6 +201,106 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
     }).where((s) => s.isNotEmpty).toList();
   }
 
+  /// Array of {step, instruction} | {text} | strings -> instruction strings.
+  List<String> _instrList(dynamic v) {
+    if (v is! List) return [];
+    return v.map((e) => e is Map
+        ? (e['instruction'] ?? e['text'] ?? e['step'] ?? '').toString()
+        : e.toString()).where((s) => s.isNotEmpty).toList();
+  }
+
+  /// Array of {exercise|name: …} | strings -> names.
+  List<String> _nameList(dynamic v) {
+    if (v is! List) return [];
+    return v.map((e) => e is Map
+        ? (e['exercise'] ?? e['name'] ?? '').toString()
+        : e.toString()).where((s) => s.isNotEmpty).toList();
+  }
+
+  /// Accepts any of the import shapes (flat master, exercise_overview wrapper,
+  /// object-form instructions/cues/mistakes/alternatives, leveled cues, the
+  /// breathing + ai_exercise_tips coaching sections) and returns one canonical
+  /// map the form prefill, _buildMasterExtra, and the relations sync all read.
+  Map<String, dynamic> _normalizeImport(Map<String, dynamic> raw) {
+    // Flatten the exercise_overview wrapper, if present.
+    final m = <String, dynamic>{...raw};
+    if (raw['exercise_overview'] is Map) {
+      m.addAll(Map<String, dynamic>.from(raw['exercise_overview']));
+    }
+    final n = <String, dynamic>{};
+
+    // Scalars passed straight through.
+    for (final k in ['exercise_name', 'slug', 'description', 'difficulty',
+        'movement_pattern', 'exercise_type', 'status', 'visibility',
+        'default_rest_seconds', 'beginner_friendly', 'video_required',
+        'supports_pr_tracking', 'supports_rpe_tracking', 'supports_volume_tracking',
+        'estimated_calories_per_set', 'space_requirements',
+        'estimated_setup_time_seconds', 'estimated_execution_time_seconds']) {
+      if (m[k] != null) n[k] = m[k];
+    }
+    // body_region may be a string or array; category falls back to it.
+    final region = m['body_region'];
+    n['body_region'] = region is List ? region : (region != null ? [region] : []);
+    n['category'] = m['category'] ?? (region is List ? (region.isNotEmpty ? region.first : null) : region);
+
+    n['primary_muscles'] = _strList(m['primary_muscles']);
+    n['secondary_muscles'] = _strList(m['secondary_muscles']);
+    n['equipment_required'] = _strList(m['equipment_required']).isNotEmpty
+        ? _strList(m['equipment_required']) : _strList(m['equipment']);
+    n['equipment_optional'] = _strList(m['equipment_optional']);
+
+    // Instructions: objects {step, instruction} or strings.
+    n['step_by_step_instructions'] =
+        _instrList(m['step_by_step_instructions'] ?? m['instructions']);
+
+    // Coaching cues: leveled object or flat array.
+    final cues = m['coaching_cues'];
+    if (cues is Map) {
+      n['coaching_cues_by_level'] = cues;
+      n['coaching_cues'] = cues.values.whereType<List>()
+          .expand((l) => l).map((e) => e.toString()).toList();
+    } else {
+      n['coaching_cues'] = _strList(cues);
+    }
+
+    // Common mistakes: {mistake, problem, fix} | {mistake, correction} | strings.
+    final cm = m['common_mistakes'];
+    if (cm is List) {
+      n['common_mistakes'] = cm.map((e) => e is Map ? {
+        'mistake': e['mistake'],
+        'correction': e['fix'] ?? e['correction'],
+        if (e['problem'] != null) 'problem': e['problem'],
+      } : {'mistake': e.toString()}).toList();
+    }
+
+    // Alternatives / substitutions.
+    if (m['alternative_exercises'] is List) {
+      final names = _nameList(m['alternative_exercises']);
+      n['substitutions'] = {'same_movement': names};
+      n['alternatives'] = names;
+    } else if (m['substitutions'] != null) {
+      n['substitutions'] = m['substitutions'];
+      n['alternatives'] = _strList(m['alternatives']);
+    }
+    n['beginner_modifications'] = _nameList(m['beginner_modifications']);
+    n['progressions'] = _nameList(m['advanced_progressions'] ?? m['progressions']);
+    n['regressions'] = _nameList(m['regressions']);
+
+    // Rich structured coaching content (no form editor — preserved as-is).
+    for (final k in ['breathing', 'ai_exercise_tips', 'goal_tags', 'sports_tags',
+        'sports_relevance', 'subcategories', 'experience_levels', 'joint_actions',
+        'movement_tags', 'search_keywords', 'contraindications',
+        'warmup_recommendations', 'cooldown_recommendations', 'mobility_requirements',
+        'tempo_options', 'supports_tracking', 'recommended_rep_ranges',
+        'recommended_rpe', 'recommended_frequency', 'ai_metadata', 'video_assets',
+        'image_assets', 'form_correction_videos', 'voiceover_assets', 'youtube_links',
+        'vimeo_links', 'related_exercises', 'injury_modifications', 'equipment_category',
+        'exercise_scoring', 'achievement_triggers']) {
+      if (m[k] != null) n[k] = m[k];
+    }
+    return n;
+  }
+
   /// Rich master-schema fields (excludes the core form-editable ones, which come
   /// from the named insert fields so manual edits win).
   Map<String, dynamic> _buildMasterExtra(Map<String, dynamic> m) {
@@ -256,6 +356,13 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
     put('recommended_rep_ranges', m['recommended_rep_ranges']);
     put('recommended_rpe', m['recommended_rpe']);
     put('analytics', m['analytics']);
+    // Structured coaching content (migration 060).
+    put('breathing', m['breathing']);
+    put('ai_exercise_tips', m['ai_exercise_tips']);
+    put('coaching_cues_by_level', m['coaching_cues_by_level']);
+    put('exercise_scoring', m['exercise_scoring']);
+    if (m['achievement_triggers'] != null) extra['achievement_triggers'] = _strList(m['achievement_triggers']);
+    if (m['space_requirements'] != null) extra['space_requirements'] = m['space_requirements'];
     return extra;
   }
 
@@ -289,7 +396,7 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
     );
     if (ok != true) return;
     try {
-      final m = jsonDecode(ctrl.text) as Map<String, dynamic>;
+      final m = _normalizeImport(jsonDecode(ctrl.text) as Map<String, dynamic>);
       setState(() {
         _importedRaw = m;
         if (m['exercise_name'] != null) _nameCtrl.text = m['exercise_name'].toString();
