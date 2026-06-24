@@ -61,16 +61,25 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
     const authHeader = req.headers.get('Authorization') ?? '';
-    const userDb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: authHeader } } });
-    const { data: { user } } = await userDb.auth.getUser();
-    if (!user) return json({ error: 'Unauthorized' }, 401);
     if (!ANTHROPIC_API_KEY) return json({ error: 'AI not configured' }, 500);
 
-    const { type = 'daily_insight' } = await req.json() as { type?: string };
+    const { type = 'daily_insight', user_id: bodyUid } = await req.json() as { type?: string; user_id?: string };
     if (!SYSTEM[type]) return json({ error: 'Unknown type' }, 400);
 
+    // Service-role (cron/batch) mode: trust the user_id in the body. Otherwise
+    // resolve the user from their JWT.
+    const isService = authHeader === `Bearer ${SUPABASE_SERVICE_KEY}`;
+    let uid: string;
+    if (isService && bodyUid) {
+      uid = bodyUid;
+    } else {
+      const userDb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: authHeader } } });
+      const { data: { user } } = await userDb.auth.getUser();
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      uid = user.id;
+    }
+
     const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    const uid = user.id;
 
     // ── Assemble context ──
     const [{ data: profile }, { data: aiProfile }] = await Promise.all([
