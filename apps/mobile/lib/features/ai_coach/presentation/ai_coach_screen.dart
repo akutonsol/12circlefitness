@@ -173,6 +173,8 @@ class _AICoachScreenState extends ConsumerState<AICoachScreen> {
             ),
           ),
         ),
+        // ── Daily coaching insight ───────────────────────────────────────────
+        if (_messages.length <= 1) const _DailyInsightCard(),
         // ── Suggested prompts ────────────────────────────────────────────────
         if (_messages.length <= 1)
           _SuggestedPrompts(mode: _mode, onTap: (p) { _ctrl.text = p; _send(); }),
@@ -404,3 +406,140 @@ class _SuggestedPrompts extends StatelessWidget {
     );
   }
 }
+
+// ── Daily coaching insight card ───────────────────────────────────────────────
+class _DailyInsightCard extends StatefulWidget {
+  const _DailyInsightCard();
+  @override
+  State<_DailyInsightCard> createState() => _DailyInsightCardState();
+}
+
+class _DailyInsightCardState extends State<_DailyInsightCard> {
+  final _svc = AICoachService();
+  Map<String, dynamic>? _insight;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final today = await _svc.getTodayInsight();
+    if (!mounted) return;
+    setState(() { _insight = today; _loading = false; });
+  }
+
+  Future<void> _generate() async {
+    setState(() => _loading = true);
+    final res = await _svc.generate('daily_insight');
+    if (!mounted) return;
+    if (res != null) {
+      // Shape the engine result like a stored row for display.
+      setState(() {
+        _insight = {
+          'title': res['title'], 'body': res['body'],
+          'data': {
+            'focus': res['focus'], 'intensity_delta': res['intensity_delta'],
+            'nutrition_note': res['nutrition_note'], 'recovery_note': res['recovery_note'],
+          },
+        };
+        _loading = false;
+      });
+    } else {
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not generate your brief. Try again.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = (_insight?['data'] as Map?) ?? const {};
+    final delta = (data['intensity_delta'] as num?)?.round() ?? 0;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A0F2E), Color(0xFF0E0B16)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _brand.withValues(alpha: 0.3))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.auto_awesome_rounded, color: _pri, size: 18),
+          const SizedBox(width: 8),
+          const Text("TODAY'S COACHING BRIEF",
+            style: TextStyle(color: _pri, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+          const Spacer(),
+          if (_loading)
+            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _pri)),
+        ]),
+        const SizedBox(height: 12),
+        if (_insight == null && !_loading) ...[
+          const Text('Get a personalized brief from your data — recovery, adherence, and goals.',
+            style: TextStyle(color: _mut, fontSize: 13, height: 1.4)),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: _generate,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: _brand, borderRadius: BorderRadius.circular(12)),
+              child: const Text('Generate Today’s Brief',
+                style: TextStyle(color: _wht, fontSize: 13, fontWeight: FontWeight.w700))),
+          ),
+        ] else if (_insight != null) ...[
+          Text(_insight!['title']?.toString() ?? 'Today’s Coaching',
+            style: const TextStyle(color: _wht, fontSize: 16, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          Text(_insight!['body']?.toString() ?? '',
+            style: const TextStyle(color: _mut, fontSize: 13, height: 1.5)),
+          const SizedBox(height: 12),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            if (data['focus'] != null)
+              _chip(Icons.center_focus_strong_rounded, _humanize(data['focus'].toString())),
+            if (delta != 0)
+              _chip(delta < 0 ? Icons.trending_down_rounded : Icons.trending_up_rounded,
+                'Intensity ${delta > 0 ? '+' : ''}$delta%',
+                color: delta < 0 ? const Color(0xFFF59E0B) : _C2.green),
+          ]),
+          if (data['nutrition_note'] != null) _noteRow(Icons.restaurant_rounded, data['nutrition_note'].toString()),
+          if (data['recovery_note'] != null) _noteRow(Icons.self_improvement_rounded, data['recovery_note'].toString()),
+          const SizedBox(height: 4),
+          GestureDetector(
+            onTap: _generate,
+            child: const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text('↻ Refresh brief', style: TextStyle(color: _pri, fontSize: 12, fontWeight: FontWeight.w600))),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  Widget _chip(IconData icon, String label, {Color color = _pri}) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: color.withValues(alpha: 0.35))),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, color: color, size: 13), const SizedBox(width: 5),
+      Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+    ]));
+
+  Widget _noteRow(IconData icon, String text) => Padding(
+    padding: const EdgeInsets.only(top: 10),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, color: _mut, size: 15), const SizedBox(width: 8),
+      Expanded(child: Text(text, style: const TextStyle(color: _mut, fontSize: 12, height: 1.4))),
+    ]));
+
+  String _humanize(String s) => s.split(RegExp(r'[_\s]+'))
+      .where((w) => w.isNotEmpty)
+      .map((w) => '${w[0].toUpperCase()}${w.substring(1)}').join(' ');
+}
+
+class _C2 { static const green = Color(0xFF6FFBBE); }

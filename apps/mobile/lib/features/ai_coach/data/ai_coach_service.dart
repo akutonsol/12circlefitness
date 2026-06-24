@@ -67,6 +67,49 @@ class AICoachService {
     }
   }
 
+  // ── Coaching intelligence layer (ai-coaching-engine) ──────────────────────
+
+  /// Generate a coaching artifact: 'daily_insight' | 'weekly_review' |
+  /// 'goal_prediction'. Returns the structured result, or null on failure.
+  Future<Map<String, dynamic>?> generate(String type) async {
+    try {
+      final res = await _db.functions.invoke('ai-coaching-engine', body: {'type': type});
+      if (res.status != 200) return null;
+      final data = res.data as Map<String, dynamic>;
+      return data['result'] as Map<String, dynamic>?;
+    } catch (_) { return null; }
+  }
+
+  /// Today's stored daily insight, if one exists.
+  Future<Map<String, dynamic>?> getTodayInsight() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return null;
+    try {
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      return await _db.from('ai_insights').select()
+          .eq('user_id', uid).eq('type', 'daily_insight').eq('for_date', today)
+          .maybeSingle();
+    } catch (_) { return null; }
+  }
+
+  Future<Map<String, dynamic>?> getLatestReview() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return null;
+    try {
+      return await _db.from('ai_reviews').select()
+          .eq('user_id', uid).order('period_end', ascending: false).limit(1).maybeSingle();
+    } catch (_) { return null; }
+  }
+
+  Future<Map<String, dynamic>?> getLatestPrediction() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return null;
+    try {
+      return await _db.from('ai_goal_predictions').select()
+          .eq('user_id', uid).order('created_at', ascending: false).limit(1).maybeSingle();
+    } catch (_) { return null; }
+  }
+
   Future<List<Map<String, dynamic>>> getConversationHistory({int limit = 20}) async {
     final uid = _db.auth.currentUser?.id;
     if (uid == null) return [];
