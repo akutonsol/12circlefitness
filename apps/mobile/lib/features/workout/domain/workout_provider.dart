@@ -1,8 +1,48 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../coach/data/coach_program_service.dart';
+import '../../../core/realtime/realtime.dart';
 import '../data/workout_service.dart';
 import '../data/models/exercise_model.dart';
 import '../data/models/workout_model.dart';
+
+/// Per-workout session status keyed by workout_title: the most recent session's
+/// {status: in_progress|completed, started_at, completed_at, logged_sets}. Lets
+/// the program list show "In Progress · started [date] · N%" instead of "Start".
+final programSessionStatusProvider =
+    FutureProvider<Map<String, Map<String, dynamic>>>((ref) async {
+  ref.watch(tableTickerProvider('workout_sessions'));
+  ref.watch(tableTickerProvider('workout_set_logs'));
+  final db = Supabase.instance.client;
+  final uid = db.auth.currentUser?.id;
+  if (uid == null) return {};
+  try {
+    final sessions = await db
+        .from('workout_sessions')
+        .select('id, workout_title, status, started_at, completed_at')
+        .eq('user_id', uid)
+        .inFilter('status', ['in_progress', 'completed'])
+        .order('started_at', ascending: false);
+    final byTitle = <String, Map<String, dynamic>>{};
+    for (final s in (sessions as List)) {
+      final title = s['workout_title'] as String?;
+      if (title == null) continue;
+      byTitle.putIfAbsent(title, () => Map<String, dynamic>.from(s));
+    }
+    for (final e in byTitle.entries) {
+      if (e.value['status'] == 'in_progress') {
+        final logs = await db
+            .from('workout_set_logs')
+            .select('id')
+            .eq('session_id', e.value['id']);
+        e.value['logged_sets'] = (logs as List).length;
+      }
+    }
+    return byTitle;
+  } catch (_) {
+    return {};
+  }
+});
 
 final workoutServiceProvider = Provider<WorkoutService>((ref) => WorkoutService());
 

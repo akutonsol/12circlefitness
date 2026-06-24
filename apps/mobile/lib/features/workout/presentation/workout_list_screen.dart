@@ -333,58 +333,120 @@ class _AssignedProgramSection extends StatelessWidget {
   }
 }
 
-class _AssignedWorkoutCard extends StatelessWidget {
+class _AssignedWorkoutCard extends ConsumerWidget {
   final Workout workout;
   final VoidCallback onStart;
   const _AssignedWorkoutCard({required this.workout, required this.onStart});
 
+  static const _amber = Color(0xFFFFD479);
+  static const _mint  = Color(0xFF6FFBBE);
+
+  static String _date(String? iso) {
+    if (iso == null) return '';
+    final d = DateTime.tryParse(iso)?.toLocal();
+    if (d == null) return '';
+    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${m[d.month - 1]} ${d.day}';
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statusMap = ref.watch(programSessionStatusProvider).valueOrNull ?? const {};
+    final s = statusMap[workout.title];
+    final status = s?['status'] as String?;
+    final inProgress = status == 'in_progress';
+    final completed = status == 'completed';
+
+    final totalSets = workout.exercises.fold<int>(0, (sum, e) => sum + e.sets.length);
+    final loggedSets = (s?['logged_sets'] as int?) ?? 0;
+    final pct = (inProgress && totalSets > 0)
+        ? (loggedSets / totalSets).clamp(0.0, 1.0) : 0.0;
+
+    final accent = inProgress ? _amber : completed ? _mint : _C.inversePrimary;
+    final btnLabel = inProgress ? 'RESUME' : completed ? 'AGAIN' : 'START';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _C.glassCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _C.amber.withValues(alpha: 0.2))),
-      child: Row(children: [
-        Container(
-          width: 48, height: 48,
-          decoration: BoxDecoration(
-            color: _C.inversePrimary.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(12)),
-          child: const Icon(Icons.fitness_center, color: _C.primary, size: 24)),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(workout.title,
-              style: const TextStyle(color: _C.onSurface, fontSize: 15,
-                fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            Row(children: [
-              const Icon(Icons.list_alt_outlined, color: _C.onSurfaceVar, size: 13),
-              const SizedBox(width: 4),
-              Text('${workout.exercises.length} exercises',
-                style: const TextStyle(color: _C.onSurfaceVar, fontSize: 12)),
-              const SizedBox(width: 10),
-              const Icon(Icons.timer_outlined, color: _C.onSurfaceVar, size: 13),
-              const SizedBox(width: 4),
-              Text('${workout.estimatedDuration} min',
-                style: const TextStyle(color: _C.onSurfaceVar, fontSize: 12)),
-            ]),
-          ])),
-        GestureDetector(
-          onTap: onStart,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        border: Border.all(color: accent.withValues(alpha: 0.25))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 48, height: 48,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [_C.inversePrimary, _C.primaryContainer],
-                begin: Alignment.topLeft, end: Alignment.bottomRight),
-              borderRadius: BorderRadius.circular(10)),
-            child: const Text('START',
-              style: TextStyle(color: Colors.white, fontSize: 12,
-                fontWeight: FontWeight.w800, letterSpacing: 1)))),
+              color: accent.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12)),
+            child: Icon(
+              inProgress ? Icons.play_circle_outline
+                : completed ? Icons.check_circle_outline
+                : Icons.fitness_center,
+              color: accent, size: 24)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(workout.title,
+                style: const TextStyle(color: _C.onSurface, fontSize: 15,
+                  fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              if (inProgress)
+                Text('In progress · Started ${_date(s?['started_at'] as String?)}',
+                  style: const TextStyle(color: _amber, fontSize: 12, fontWeight: FontWeight.w600))
+              else if (completed)
+                Text('Completed · ${_date(s?['completed_at'] as String?)}',
+                  style: const TextStyle(color: _mint, fontSize: 12, fontWeight: FontWeight.w600))
+              else
+                Row(children: [
+                  const Icon(Icons.list_alt_outlined, color: _C.onSurfaceVar, size: 13),
+                  const SizedBox(width: 4),
+                  Text('${workout.exercises.length} exercises',
+                    style: const TextStyle(color: _C.onSurfaceVar, fontSize: 12)),
+                  const SizedBox(width: 10),
+                  const Icon(Icons.timer_outlined, color: _C.onSurfaceVar, size: 13),
+                  const SizedBox(width: 4),
+                  Text('${workout.estimatedDuration} min',
+                    style: const TextStyle(color: _C.onSurfaceVar, fontSize: 12)),
+                ]),
+            ])),
+          GestureDetector(
+            onTap: onStart,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: inProgress
+                      ? [_amber, const Color(0xFFFFB14B)]
+                      : completed
+                          ? [_mint, const Color(0xFF35C58E)]
+                          : const [_C.inversePrimary, _C.primaryContainer],
+                  begin: Alignment.topLeft, end: Alignment.bottomRight),
+                borderRadius: BorderRadius.circular(10)),
+              child: Text(btnLabel,
+                style: TextStyle(
+                  color: (inProgress || completed) ? Colors.black87 : Colors.white,
+                  fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1)))),
+        ]),
+        // Progress bar for an in-progress program.
+        if (inProgress) ...[
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: pct,
+                  minHeight: 6,
+                  backgroundColor: _C.outlineVar.withValues(alpha: 0.25),
+                  valueColor: const AlwaysStoppedAnimation<Color>(_amber)),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text('${(pct * 100).round()}%',
+              style: const TextStyle(color: _amber, fontSize: 12, fontWeight: FontWeight.w800)),
+          ]),
+        ],
       ]));
   }
 }
