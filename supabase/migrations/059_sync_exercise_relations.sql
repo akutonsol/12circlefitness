@@ -86,7 +86,7 @@ begin
   -- ── Substitutions ──
   if jsonb_typeof(p->'substitutions') = 'object' then
     insert into exercise_substitutions (exercise_id, substitute_name, substitution_type)
-    select p_exercise_id, e.val, e.key
+    select p_exercise_id, e.val, s.key
       from jsonb_each(p->'substitutions') s(key, arr),
            lateral jsonb_array_elements_text(s.arr) e(val)
     on conflict do nothing;

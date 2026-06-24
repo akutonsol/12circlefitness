@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../domain/exercise_database_provider.dart';
 import '../data/models/exercise_detail_model.dart';
 import '../../workout/data/models/video_variant_model.dart';
+import '../../workout/presentation/widgets/youtube_embed.dart';
 
 class _C {
   static const bg                   = Color(0xFF0E0E0F);
@@ -26,7 +27,12 @@ class ExerciseDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final exercise = ref.watch(selectedExerciseDetailProvider);
+    // Prefer an exercise passed via route `extra` (e.g. tapping an alternative)
+    // so the back stack keeps each detail's own exercise; fall back to the
+    // shared provider for the library's existing navigation.
+    final extra = GoRouterState.of(context).extra;
+    final exercise = extra is ExerciseDetail
+        ? extra : ref.watch(selectedExerciseDetailProvider);
     if (exercise == null) {
       return Scaffold(
         backgroundColor: _C.bg,
@@ -293,13 +299,7 @@ class _VideoVariantCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final (icon, color, platform) = _meta;
     return GestureDetector(
-      onTap: () async {
-        final url = _normalizeUrl(variant.url);
-        final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
-      },
+      onTap: () => _openVideoLightbox(context, _normalizeUrl(variant.url), variant.label),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -321,12 +321,47 @@ class _VideoVariantCard extends StatelessWidget {
               style: const TextStyle(color: _C.primary, fontSize: 10,
                 fontWeight: FontWeight.w800, letterSpacing: 1.5)),
             const SizedBox(height: 3),
-            Text('Watch on $platform',
+            Text('Tap to play · $platform',
               style: const TextStyle(color: _C.onSurfaceVar, fontSize: 12, height: 1.3)),
           ])),
-          const Icon(Icons.open_in_new, color: _C.onSurfaceVar, size: 15),
+          Icon(Icons.play_circle_fill_rounded, color: color, size: 24),
         ])));
   }
+}
+
+/// In-app lightbox player. Uses the web embed (YouTube/Vimeo iframe or native
+/// <video>); falls back to an external launch where the embed isn't available.
+void _openVideoLightbox(BuildContext context, String url, String label) {
+  final player = buildInAppVideo(url);
+  if (player == null) {
+    final uri = Uri.parse(url);
+    canLaunchUrl(uri).then((ok) {
+      if (ok) launchUrl(uri, mode: LaunchMode.externalApplication);
+    });
+    return;
+  }
+  showDialog(
+    context: context,
+    barrierColor: Colors.black.withValues(alpha: 0.88),
+    builder: (dctx) => Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Row(children: [
+          Expanded(child: Text(label.toUpperCase(),
+            style: const TextStyle(color: Colors.white, fontSize: 12,
+              fontWeight: FontWeight.w800, letterSpacing: 1.2))),
+          IconButton(
+            onPressed: () => Navigator.of(dctx).pop(),
+            icon: const Icon(Icons.close_rounded, color: Colors.white)),
+        ]),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: AspectRatio(aspectRatio: 16 / 9, child: player)),
+      ]),
+    ),
+  );
 }
 
 class _Tag extends StatelessWidget {
@@ -418,17 +453,51 @@ class _MuscleChip extends StatelessWidget {
     child: Text(label, style: const TextStyle(color: _C.onSurfaceVar, fontSize: 12)));
 }
 
-class _AltChip extends StatelessWidget {
+class _AltChip extends ConsumerWidget {
   final String label;
   const _AltChip({required this.label});
+
+  ExerciseDetail? _match(List<ExerciseDetail> all) {
+    final q = label.toLowerCase().trim();
+    for (final e in all) {
+      if (e.name.toLowerCase().trim() == q) return e;
+    }
+    for (final e in all) {
+      if (e.name.toLowerCase().contains(q)) return e;
+    }
+    return null;
+  }
+
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-    decoration: BoxDecoration(
-      color: _C.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: _C.outlineVar.withValues(alpha: 0.2))),
-    child: Text(label, style: const TextStyle(color: _C.onSurfaceVar, fontSize: 13)));
+  Widget build(BuildContext context, WidgetRef ref) {
+    final match = _match(ref.watch(allExercisesProvider));
+    final linked = match != null;
+    return GestureDetector(
+      onTap: linked
+          ? () {
+              ref.read(selectedExerciseDetailProvider.notifier).state = match;
+              context.push('/exercise-detail', extra: match);
+            }
+          : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: linked ? _C.inversePrimary.withValues(alpha: 0.12) : _C.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: linked
+              ? _C.primary.withValues(alpha: 0.4)
+              : _C.outlineVar.withValues(alpha: 0.2))),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(label, style: TextStyle(
+            color: linked ? _C.primary : _C.onSurfaceVar, fontSize: 13,
+            fontWeight: linked ? FontWeight.w600 : FontWeight.w400)),
+          if (linked) ...[
+            const SizedBox(width: 6),
+            const Icon(Icons.arrow_forward_rounded, color: _C.primary, size: 14),
+          ],
+        ])),
+    );
+  }
 }
 
 class _ModCard extends StatelessWidget {
