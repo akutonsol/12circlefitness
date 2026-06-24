@@ -23,6 +23,28 @@ class _C {
 
 const _tabs = ['ALL', 'CHEST', 'BACK', 'LEGS', 'CORE', 'SHOULDERS', 'ARMS', 'CARDIO'];
 
+// Muscle groups that belong under each tab (lowercased).
+const _tabMuscles = <String, List<String>>{
+  'CHEST': ['chest', 'upper chest', 'lower chest', 'serratus'],
+  'BACK': ['back', 'lats', 'mid back', 'upper back', 'lower back', 'traps', 'lower traps'],
+  'LEGS': ['legs', 'quadriceps', 'hamstrings', 'glutes', 'calves', 'adductors',
+    'abductors', 'hip flexors', 'tibialis', 'it band'],
+  'CORE': ['core', 'abs', 'obliques'],
+  'SHOULDERS': ['shoulders', 'front delts', 'side delts', 'rear delts', 'rotator cuff'],
+  'ARMS': ['arms', 'biceps', 'triceps', 'forearms', 'grip'],
+};
+
+bool _matchesTab(ExerciseDetail e, String tab) {
+  if (tab == 'CARDIO') {
+    final c = e.category.toLowerCase();
+    return c.contains('cardio') || c.contains('conditioning');
+  }
+  final muscles = _tabMuscles[tab] ?? const [];
+  final mg = e.muscleGroup.toLowerCase();
+  if (muscles.contains(mg)) return true;
+  return e.secondaryMuscles.any((s) => muscles.contains(s.toLowerCase()));
+}
+
 class ExerciseLibraryScreen extends ConsumerStatefulWidget {
   const ExerciseLibraryScreen({super.key});
   @override
@@ -53,15 +75,14 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
     for (final ex in [...globalCustom, ...builtIn]) {
       if (seen.add(ex.id)) allExercises.add(ex);
     }
-    final tabMuscle = _tabs[_activeTab] == 'ALL'
-        ? 'All'
-        : _tabs[_activeTab][0] + _tabs[_activeTab].substring(1).toLowerCase();
-
-    final filtered = _service.filterExercises(
-      exercises: allExercises,
-      muscleGroup: _tabs[_activeTab] == 'ALL' ? 'All' : tabMuscle,
-      search: _search,
-    );
+    // Search first, then filter by tab using a muscle-group→tab map so seeded
+    // exercises (muscleGroup "Quadriceps", "Lats", …) land under the right tab.
+    final searched = _service.filterExercises(
+      exercises: allExercises, muscleGroup: 'All', search: _search);
+    final tab = _tabs[_activeTab];
+    final filtered = tab == 'ALL'
+        ? searched
+        : searched.where((e) => _matchesTab(e, tab)).toList();
 
     return AppScaffold(
       navIndex: 2,
