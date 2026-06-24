@@ -21,7 +21,7 @@ class _C {
   static const secondary            = Color(0xFFADC6FF);
 }
 
-const _tabs = ['ALL', 'CHEST', 'BACK', 'LEGS', 'CORE', 'SHOULDERS', 'ARMS', 'CARDIO'];
+const _tabs = ['ALL', 'CHEST', 'BACK', 'LEGS', 'CORE', 'SHOULDERS', 'ARMS', 'CARDIO', 'MOBILITY'];
 
 // Muscle groups that belong under each tab (lowercased).
 const _tabMuscles = <String, List<String>>{
@@ -38,6 +38,10 @@ bool _matchesTab(ExerciseDetail e, String tab) {
   if (tab == 'CARDIO') {
     final c = e.category.toLowerCase();
     return c.contains('cardio') || c.contains('conditioning');
+  }
+  if (tab == 'MOBILITY') {
+    final c = e.category.toLowerCase();
+    return c.contains('mobility') || c.contains('recovery') || c.contains('stretch');
   }
   final muscles = _tabMuscles[tab] ?? const [];
   final mg = e.muscleGroup.toLowerCase();
