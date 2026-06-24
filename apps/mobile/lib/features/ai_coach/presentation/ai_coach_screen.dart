@@ -173,22 +173,25 @@ class _AICoachScreenState extends ConsumerState<AICoachScreen> {
             ),
           ),
         ),
-        // ── Daily coaching insight ───────────────────────────────────────────
-        if (_messages.length <= 1) const _DailyInsightCard(),
-        // ── Suggested prompts ────────────────────────────────────────────────
-        if (_messages.length <= 1)
-          _SuggestedPrompts(mode: _mode, onTap: (p) { _ctrl.text = p; _send(); }),
-        // ── Messages ─────────────────────────────────────────────────────────
+        // ── Coach home (intelligence cards) when chat is empty, else messages ──
         Expanded(
-          child: ListView.builder(
-            controller: _scroll,
-            padding: const EdgeInsets.all(16),
-            itemCount: _messages.length + (_loading ? 1 : 0),
-            itemBuilder: (_, i) {
-              if (i == _messages.length) return const _TypingIndicator();
-              return _Bubble(msg: _messages[i]);
-            },
-          ),
+          child: _messages.length <= 1
+              ? ListView(padding: const EdgeInsets.only(top: 4, bottom: 16), children: [
+                  const _DailyInsightCard(),
+                  const _WeeklyReviewCard(),
+                  const _GoalPredictionCard(),
+                  const _CoachingMemoryCard(),
+                  _SuggestedPrompts(mode: _mode, onTap: (p) { _ctrl.text = p; _send(); }),
+                ])
+              : ListView.builder(
+                  controller: _scroll,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _messages.length + (_loading ? 1 : 0),
+                  itemBuilder: (_, i) {
+                    if (i == _messages.length) return const _TypingIndicator();
+                    return _Bubble(msg: _messages[i]);
+                  },
+                ),
         ),
         // ── Input ────────────────────────────────────────────────────────────
         Container(
@@ -543,3 +546,291 @@ class _DailyInsightCardState extends State<_DailyInsightCard> {
 }
 
 class _C2 { static const green = Color(0xFF6FFBBE); }
+
+// Shared card shell for the coaching-intelligence cards.
+Widget _coachCard({required IconData icon, required String label, Widget? trailing, required Widget child}) =>
+  Container(
+    margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        colors: [Color(0xFF1A0F2E), Color(0xFF0E0B16)],
+        begin: Alignment.topLeft, end: Alignment.bottomRight),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: _brand.withValues(alpha: 0.3))),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Icon(icon, color: _pri, size: 18), const SizedBox(width: 8),
+        Text(label, style: const TextStyle(color: _pri, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+        const Spacer(), if (trailing != null) trailing,
+      ]),
+      const SizedBox(height: 12),
+      child,
+    ]),
+  );
+
+Widget _genButton(String label, VoidCallback onTap) => GestureDetector(
+  onTap: onTap,
+  child: Container(
+    padding: const EdgeInsets.symmetric(vertical: 10),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(color: _brand, borderRadius: BorderRadius.circular(12)),
+    child: Text(label, style: const TextStyle(color: _wht, fontSize: 13, fontWeight: FontWeight.w700))));
+
+// ── Weekly review card ────────────────────────────────────────────────────────
+class _WeeklyReviewCard extends StatefulWidget {
+  const _WeeklyReviewCard();
+  @override State<_WeeklyReviewCard> createState() => _WeeklyReviewCardState();
+}
+class _WeeklyReviewCardState extends State<_WeeklyReviewCard> {
+  final _svc = AICoachService();
+  Map<String, dynamic>? _review;
+  bool _loading = true;
+
+  @override void initState() { super.initState(); _load(); }
+  Future<void> _load() async {
+    final r = await _svc.getLatestReview();
+    if (mounted) setState(() { _review = r; _loading = false; });
+  }
+  Future<void> _generate() async {
+    setState(() => _loading = true);
+    final res = await _svc.generate('weekly_review');
+    if (!mounted) return;
+    setState(() {
+      if (res != null) _review = {'summary': res['summary'], 'metrics': res['metrics'] ?? {}};
+      _loading = false;
+    });
+    if (res == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not generate review.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = (_review?['metrics'] as Map?) ?? const {};
+    final done = m['workouts_completed'], planned = m['workouts_planned'];
+    final wt = (m['weight_change'] as num?);
+    return _coachCard(
+      icon: Icons.calendar_month_rounded, label: 'WEEKLY REVIEW',
+      trailing: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _pri)) : null,
+      child: _review == null && !_loading
+          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Recap your week — workouts, habits, and progress toward your goal.',
+                style: TextStyle(color: _mut, fontSize: 13, height: 1.4)),
+              const SizedBox(height: 12),
+              _genButton('Generate Weekly Review', _generate),
+            ])
+          : _review == null
+              ? const SizedBox.shrink()
+              : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(_review!['summary']?.toString() ?? '',
+                    style: const TextStyle(color: _wht, fontSize: 13, height: 1.5)),
+                  const SizedBox(height: 12),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    if (done != null && planned != null) _miniStat('Workouts', '$done/$planned'),
+                    if (m['habit_adherence'] != null) _miniStat('Habits', '${m['habit_adherence']}%'),
+                    if (wt != null) _miniStat('Weight', '${wt > 0 ? '+' : ''}${wt}'),
+                  ]),
+                  if (m['next_week_focus'] != null) Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Icon(Icons.flag_rounded, color: _pri, size: 15), const SizedBox(width: 8),
+                      Expanded(child: Text('Next week: ${m['next_week_focus']}',
+                        style: const TextStyle(color: _mut, fontSize: 12, height: 1.4))),
+                    ])),
+                  GestureDetector(onTap: _generate, child: const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text('↻ New review', style: TextStyle(color: _pri, fontSize: 12, fontWeight: FontWeight.w600)))),
+                ]),
+    );
+  }
+  Widget _miniStat(String label, String value) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(color: _brd, borderRadius: BorderRadius.circular(10)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label.toUpperCase(), style: const TextStyle(color: _mut, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
+      const SizedBox(height: 2),
+      Text(value, style: const TextStyle(color: _wht, fontSize: 15, fontWeight: FontWeight.w800)),
+    ]));
+}
+
+// ── Goal prediction card ──────────────────────────────────────────────────────
+class _GoalPredictionCard extends StatefulWidget {
+  const _GoalPredictionCard();
+  @override State<_GoalPredictionCard> createState() => _GoalPredictionCardState();
+}
+class _GoalPredictionCardState extends State<_GoalPredictionCard> {
+  final _svc = AICoachService();
+  Map<String, dynamic>? _pred;
+  bool _loading = true;
+
+  @override void initState() { super.initState(); _load(); }
+  Future<void> _load() async {
+    final p = await _svc.getLatestPrediction();
+    if (mounted) setState(() { _pred = p; _loading = false; });
+  }
+  Future<void> _generate() async {
+    setState(() => _loading = true);
+    final res = await _svc.generate('goal_prediction');
+    if (!mounted) return;
+    setState(() { if (res != null) _pred = res; _loading = false; });
+    if (res == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not generate prediction.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pace = (_pred?['current_pace'] as num?);
+    final date = _pred?['projected_date']?.toString();
+    final conf = (_pred?['confidence'] as num?)?.round();
+    return _coachCard(
+      icon: Icons.insights_rounded, label: 'GOAL PREDICTION',
+      trailing: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _pri)) : null,
+      child: _pred == null && !_loading
+          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Project your goal date from your current pace.',
+                style: TextStyle(color: _mut, fontSize: 13, height: 1.4)),
+              const SizedBox(height: 12),
+              _genButton('Predict My Goal Date', _generate),
+            ])
+          : _pred == null
+              ? const SizedBox.shrink()
+              : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('PROJECTED', style: TextStyle(color: _mut, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
+                      const SizedBox(height: 2),
+                      Text(date ?? '—', style: const TextStyle(color: _C2_green, fontSize: 18, fontWeight: FontWeight.w800)),
+                    ])),
+                    if (pace != null) Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      const Text('PACE', style: TextStyle(color: _mut, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
+                      const SizedBox(height: 2),
+                      Text('${pace.abs()}/wk', style: const TextStyle(color: _wht, fontSize: 16, fontWeight: FontWeight.w800)),
+                    ]),
+                  ]),
+                  const SizedBox(height: 10),
+                  Text(_pred!['summary']?.toString() ?? '',
+                    style: const TextStyle(color: _mut, fontSize: 13, height: 1.5)),
+                  if (conf != null) Padding(padding: const EdgeInsets.only(top: 8),
+                    child: Text('Confidence: $conf%', style: const TextStyle(color: _pri, fontSize: 11, fontWeight: FontWeight.w600))),
+                  GestureDetector(onTap: _generate, child: const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text('↻ Re-predict', style: TextStyle(color: _pri, fontSize: 12, fontWeight: FontWeight.w600)))),
+                ]),
+    );
+  }
+}
+const _C2_green = Color(0xFF6FFBBE);
+
+// ── Coaching memory card ──────────────────────────────────────────────────────
+class _CoachingMemoryCard extends StatefulWidget {
+  const _CoachingMemoryCard();
+  @override State<_CoachingMemoryCard> createState() => _CoachingMemoryCardState();
+}
+class _CoachingMemoryCardState extends State<_CoachingMemoryCard> {
+  final _svc = AICoachService();
+  List<Map<String, dynamic>> _memories = [];
+  bool _loading = true;
+
+  static const _kinds = [
+    ('like', 'I like', _C2_green),
+    ('dislike', 'I dislike', Color(0xFFFFB4AB)),
+    ('injury', 'Injury', Color(0xFFF59E0B)),
+  ];
+
+  @override void initState() { super.initState(); _load(); }
+  Future<void> _load() async {
+    final m = await _svc.getMemories();
+    if (mounted) setState(() { _memories = m; _loading = false; });
+  }
+
+  Future<void> _add() async {
+    final res = await showDialog<(String, String)>(
+      context: context, builder: (_) => const _AddMemoryDialog());
+    if (res == null) return;
+    await _svc.addMemory(res.$1, res.$2);
+    await _load();
+  }
+
+  Color _kindColor(String kind) {
+    for (final k in _kinds) { if (k.$1 == kind) return k.$3; }
+    return _pri;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _coachCard(
+      icon: Icons.psychology_rounded, label: 'COACHING MEMORY',
+      trailing: GestureDetector(
+        onTap: _add,
+        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.add_rounded, color: _pri, size: 16),
+          Text('Add', style: TextStyle(color: _pri, fontSize: 12, fontWeight: FontWeight.w700)),
+        ])),
+      child: _loading
+          ? const SizedBox(height: 20)
+          : _memories.isEmpty
+              ? const Text('Tell your coach what you like, dislike, and any injuries — it remembers and adapts your plan.',
+                  style: TextStyle(color: _mut, fontSize: 13, height: 1.4))
+              : Wrap(spacing: 8, runSpacing: 8, children: _memories.map((m) {
+                  final c = _kindColor(m['kind']?.toString() ?? '');
+                  return GestureDetector(
+                    onLongPress: () async { await _svc.deleteMemory(m['id'].toString()); await _load(); },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: c.withValues(alpha: 0.35))),
+                      child: Text(m['content']?.toString() ?? '',
+                        style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w600))),
+                  );
+                }).toList()),
+    );
+  }
+}
+
+class _AddMemoryDialog extends StatefulWidget {
+  const _AddMemoryDialog();
+  @override State<_AddMemoryDialog> createState() => _AddMemoryDialogState();
+}
+class _AddMemoryDialogState extends State<_AddMemoryDialog> {
+  String _kind = 'like';
+  final _ctrl = TextEditingController();
+  @override void dispose() { _ctrl.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    backgroundColor: _card,
+    title: const Text('Tell your coach', style: TextStyle(color: _wht, fontSize: 16, fontWeight: FontWeight.w700)),
+    content: Column(mainAxisSize: MainAxisSize.min, children: [
+      Wrap(spacing: 8, children: _CoachingMemoryCardState._kinds.map((k) {
+        final sel = _kind == k.$1;
+        return GestureDetector(
+          onTap: () => setState(() => _kind = k.$1),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: sel ? k.$3.withValues(alpha: 0.18) : _brd,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: sel ? k.$3 : _brd)),
+            child: Text(k.$2, style: TextStyle(color: sel ? k.$3 : _mut, fontSize: 12, fontWeight: FontWeight.w600))));
+      }).toList()),
+      const SizedBox(height: 14),
+      TextField(controller: _ctrl, autofocus: true,
+        style: const TextStyle(color: _wht),
+        decoration: const InputDecoration(
+          hintText: 'e.g. hip thrusts / burpees / left knee',
+          hintStyle: TextStyle(color: _mut),
+          filled: true, fillColor: _brd, border: OutlineInputBorder())),
+    ]),
+    actions: [
+      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: _mut))),
+      TextButton(
+        onPressed: () {
+          final t = _ctrl.text.trim();
+          if (t.isNotEmpty) Navigator.pop(context, (_kind, t));
+        },
+        child: const Text('Save', style: TextStyle(color: _pri, fontWeight: FontWeight.w700))),
+    ],
+  );
+}

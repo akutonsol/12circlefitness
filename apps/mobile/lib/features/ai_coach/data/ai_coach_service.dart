@@ -110,6 +110,34 @@ class AICoachService {
     } catch (_) { return null; }
   }
 
+  // ── Coaching memory (likes / dislikes / injuries the coach remembers) ──────
+
+  /// kind: like | dislike | injury | preference | constraint | note
+  Future<bool> addMemory(String kind, String content, {String source = 'user'}) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return false;
+    try {
+      await _db.from('ai_memories').upsert({
+        'user_id': uid, 'kind': kind, 'content': content.trim(), 'source': source,
+      }, onConflict: 'user_id,kind,content');
+      return true;
+    } catch (_) { return false; }
+  }
+
+  Future<List<Map<String, dynamic>>> getMemories() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return [];
+    try {
+      final data = await _db.from('ai_memories').select()
+          .eq('user_id', uid).order('created_at', ascending: false);
+      return List<Map<String, dynamic>>.from(data as List);
+    } catch (_) { return []; }
+  }
+
+  Future<void> deleteMemory(String id) async {
+    try { await _db.from('ai_memories').delete().eq('id', id); } catch (_) {}
+  }
+
   Future<List<Map<String, dynamic>>> getConversationHistory({int limit = 20}) async {
     final uid = _db.auth.currentUser?.id;
     if (uid == null) return [];
