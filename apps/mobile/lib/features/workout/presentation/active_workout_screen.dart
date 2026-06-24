@@ -81,6 +81,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   Timer? _timer;
   bool _showRestTimer = false;
   int _restSeconds = 90;
+  int? _restPreview; // mirrors the rest countdown for the floating in-view pill
   bool _saving = false;
   final _workoutService = WorkoutService();
   final _db = Supabase.instance.client;
@@ -274,7 +275,8 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     return Scaffold(
       backgroundColor: _bg,
       body: SafeArea(
-        child: Column(children: [
+        child: Stack(children: [
+        Column(children: [
           // ── Top bar ──
           Container(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -346,7 +348,11 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                 if (_showRestTimer) ...[
                   RestTimerWidget(
                     seconds: _restSeconds,
-                    onComplete: () => setState(() => _showRestTimer = false)),
+                    onTick: (r) { if (mounted) setState(() => _restPreview = r); },
+                    onComplete: () => setState(() {
+                      _showRestTimer = false;
+                      _restPreview = null;
+                    })),
                   const SizedBox(height: 16),
                 ],
 
@@ -391,6 +397,37 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                         completedSets == totalSets ? 'Complete Workout' : 'Finish Early ($completedSets/$totalSets sets)',
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
                     ]))))
+        ]),
+        // ── Floating in-view rest countdown (mirrors the top timer) ──
+        if (_showRestTimer && _restPreview != null && _restPreview! > 0)
+          Positioned(
+            left: 0, right: 0, bottom: 88,
+            child: Center(child: _miniRestPill(_restPreview!)),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _miniRestPill(int remaining) {
+    final m = remaining ~/ 60;
+    final s = remaining % 60;
+    return GestureDetector(
+      onTap: () => setState(() { _showRestTimer = false; _restPreview = null; }),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: _card,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: _brand.withValues(alpha: 0.5)),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 6))]),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.timer_outlined, color: _brand, size: 16),
+          const SizedBox(width: 8),
+          Text('Rest  ${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}',
+            style: const TextStyle(color: _white, fontSize: 14, fontWeight: FontWeight.w800)),
+          const SizedBox(width: 10),
+          Text('SKIP', style: TextStyle(color: _brand.withValues(alpha: 0.9), fontSize: 11, fontWeight: FontWeight.w700)),
         ]),
       ),
     );
@@ -658,25 +695,27 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           }
         },
         onCompleted: (reps, weight, rpe, notes) async {
-          ref.read(activeWorkoutProvider.notifier)
-              .toggleSetComplete(we.exercise.id, setIndex);
-          // Persist when marking complete (not un-complete). Ensure a session
-          // exists first so the log can't silently fail on a null session id.
+          // The check button is the reliable save: ALWAYS persist the current
+          // values, whether this is the first completion or a re-tap on an
+          // already-completed set to update its weight/RPE/notes.
+          final sid = await _ensureSession();
+          if (sid != null) {
+            await _workoutService.saveSetLog(
+              sessionId: sid,
+              exerciseName: we.exercise.name,
+              exerciseId: we.exercise.id,
+              setNumber: set.setNumber,
+              reps: reps,
+              weightKg: weight, // already converted to kg by SetTrackerRow
+              rpe: rpe,
+              notes: notes,
+              tempo: set.tempo,
+            );
+          }
+          // Mark complete (idempotent) + start rest timer only on first complete.
           if (!isCompleted) {
-            final sid = await _ensureSession();
-            if (sid != null) {
-              await _workoutService.saveSetLog(
-                sessionId: sid,
-                exerciseName: we.exercise.name,
-                exerciseId: we.exercise.id,
-                setNumber: set.setNumber,
-                reps: reps,
-                weightKg: weight, // already converted to kg by SetTrackerRow
-                rpe: rpe,
-                notes: notes,
-                tempo: set.tempo,
-              );
-            }
+            ref.read(activeWorkoutProvider.notifier)
+                .toggleSetComplete(we.exercise.id, setIndex);
             if (set.restSeconds != null && mounted) {
               setState(() {
                 _showRestTimer = true;

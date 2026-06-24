@@ -34,11 +34,13 @@ class SetTrackerRow extends StatefulWidget {
   State<SetTrackerRow> createState() => _SetTrackerRowState();
 }
 
-class _SetTrackerRowState extends State<SetTrackerRow> {
+class _SetTrackerRowState extends State<SetTrackerRow>
+    with SingleTickerProviderStateMixin {
   late TextEditingController _repsController;
   late TextEditingController _weightController;
   late TextEditingController _rpeController;
   late TextEditingController _notesController;
+  late final AnimationController _notesPulse;
   final _weightFocus = FocusNode();
   final _repsFocus = FocusNode();
   final _rpeFocus = FocusNode();
@@ -57,6 +59,9 @@ class _SetTrackerRowState extends State<SetTrackerRow> {
     for (final f in [_weightFocus, _repsFocus, _rpeFocus, _notesFocus]) {
       f.addListener(() { if (!f.hasFocus) _emitChange(); });
     }
+    _notesPulse = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1100))
+      ..repeat(reverse: true);
   }
 
   void _emitChange() {
@@ -81,6 +86,7 @@ class _SetTrackerRowState extends State<SetTrackerRow> {
     _repsFocus.dispose();
     _rpeFocus.dispose();
     _notesFocus.dispose();
+    _notesPulse.dispose();
     super.dispose();
   }
 
@@ -126,20 +132,36 @@ class _SetTrackerRowState extends State<SetTrackerRow> {
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => setState(() => _showNotes = !_showNotes),
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: _showNotes
-                        ? AppColors.purple.withValues(alpha: 0.2)
-                        : AppColors.surfaceDark,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.notes_outlined,
-                    color: _showNotes ? AppColors.purple : AppColors.textTertiary,
-                    size: 14,
-                  ),
+                child: AnimatedBuilder(
+                  animation: _notesPulse,
+                  builder: (context, child) {
+                    // Gentle swell + glow when collapsed, so it reads as tappable.
+                    final t = _showNotes ? 0.0
+                        : Curves.easeInOut.transform(_notesPulse.value);
+                    return Transform.scale(
+                      scale: 1.0 + t * 0.18,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: _showNotes
+                              ? AppColors.purple.withValues(alpha: 0.2)
+                              : AppColors.purple.withValues(alpha: 0.10 + t * 0.18),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.purple.withValues(alpha: 0.25 + t * 0.45),
+                            width: 1),
+                        ),
+                        child: Icon(
+                          Icons.notes_outlined,
+                          color: _showNotes
+                              ? AppColors.purple
+                              : Color.lerp(AppColors.textTertiary, AppColors.purple, t),
+                          size: 14,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 6),

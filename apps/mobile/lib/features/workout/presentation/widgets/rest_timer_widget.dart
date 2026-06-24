@@ -1,12 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/rest_alarm.dart';
 
 class RestTimerWidget extends StatefulWidget {
   final int seconds;
   final VoidCallback onComplete;
+  final ValueChanged<int>? onTick; // reports remaining seconds (for a mini view)
 
-  const RestTimerWidget({super.key, required this.seconds, required this.onComplete});
+  const RestTimerWidget({
+    super.key,
+    required this.seconds,
+    required this.onComplete,
+    this.onTick,
+  });
 
   @override
   State<RestTimerWidget> createState() => _RestTimerWidgetState();
@@ -20,16 +27,21 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
   void initState() {
     super.initState();
     _remaining = widget.seconds;
+    widget.onTick?.call(_remaining);
     _startTimer();
   }
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remaining <= 0) {
+      if (_remaining <= 1) {
         timer.cancel();
+        setState(() => _remaining = 0);
+        widget.onTick?.call(0);
+        playRestAlarm(); // sound + haptic so the user knows rest is over
         widget.onComplete();
       } else {
         setState(() => _remaining--);
+        widget.onTick?.call(_remaining);
       }
     });
   }
