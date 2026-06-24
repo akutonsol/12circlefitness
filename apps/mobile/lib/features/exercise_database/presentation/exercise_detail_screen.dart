@@ -450,8 +450,9 @@ class _EnrichFabState extends ConsumerState<_EnrichFab> {
 
   @override
   Widget build(BuildContext context) {
+    // AI generation is admin-only; coaches add media via Edit instead.
     final role = ref.watch(currentUserProfileProvider).valueOrNull?['role'];
-    if (role != 'coach' && role != 'admin') return const SizedBox.shrink();
+    if (role != 'admin') return const SizedBox.shrink();
 
     final hasContent = widget.exercise.instructions.isNotEmpty;
     return FloatingActionButton.extended(

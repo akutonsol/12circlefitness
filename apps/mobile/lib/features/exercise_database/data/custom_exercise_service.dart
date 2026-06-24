@@ -198,6 +198,20 @@ class CustomExerciseService {
     }
   }
 
+  /// Coach/admin: attach media (image + videos) to any exercise, without
+  /// touching the admin-managed text content. Privileged via the RPC.
+  Future<bool> updateExerciseMedia(String id,
+      {String? imageUrl, required List<Map<String, dynamic>> videoVariants}) async {
+    try {
+      await _db.rpc('update_exercise_media', params: {
+        'p_id': id,
+        'p_image_url': imageUrl,
+        'p_video_variants': videoVariants,
+      });
+      return true;
+    } catch (e) { lastError = e; return false; }
+  }
+
   /// Raw exercise row by id (for prefilling the edit form with all columns).
   Future<Map<String, dynamic>?> getRawById(String id) async {
     try {

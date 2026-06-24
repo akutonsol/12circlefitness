@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/custom_exercise_provider.dart';
+import '../../auth/domain/auth_provider.dart';
 import '../../workout/data/models/video_variant_model.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
@@ -99,6 +101,7 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
   String? _savedId;
   // Edit mode: id of the exercise being edited (null = creating new).
   String? _editingId;
+  String? _editingCoachId;
   String? _existingImageUrl;
 
   // Basic info
@@ -147,7 +150,10 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
     final editId = ref.read(editingExerciseProvider);
     if (editId != null) {
       _editingId = editId;
-      ref.read(editingExerciseProvider.notifier).state = null; // consume once
+      // Clearing the provider must happen outside the build lifecycle.
+      Future.microtask(() {
+        if (mounted) ref.read(editingExerciseProvider.notifier).state = null;
+      });
       _loadForEdit(editId);
     }
   }
@@ -159,6 +165,7 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
     // Reuse the import normalizer (map the row's `name` to `exercise_name`).
     _applyNormalized(_normalizeImport({...row, 'exercise_name': row['name']}));
     setState(() {
+      _editingCoachId = row['coach_id'] as String?;
       _visibility = (row['visibility'] as String?) ?? _visibility;
       _existingImageUrl = row['image_url'] as String?;
       _beginnerCtrl.text = (row['beginner_modification'] as String?) ?? '';
@@ -188,6 +195,15 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
       c.dispose();
     }
     super.dispose();
+  }
+
+  /// True when a coach is editing an exercise they don't own (media-only).
+  bool _isCoachMediaOnly() {
+    if (_editingId == null) return false;
+    final role = ref.read(currentUserProfileProvider).valueOrNull?['role'];
+    final myUid = Supabase.instance.client.auth.currentUser?.id;
+    return role != 'admin' &&
+        !(_editingCoachId != null && _editingCoachId == myUid);
   }
 
   List<String> _listFrom(List<TextEditingController> ctrls) =>
@@ -576,9 +592,19 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
       },
     };
 
+    // Coaches can edit their OWN exercises fully; on platform/other exercises
+    // they may only add media (the AI text content is admin-managed).
+    final role = ref.read(currentUserProfileProvider).valueOrNull?['role'];
+    final myUid = Supabase.instance.client.auth.currentUser?.id;
+    final mediaOnly = _editingId != null && role != 'admin' &&
+        !(_editingCoachId != null && _editingCoachId == myUid);
+
     String? id;
-    if (_editingId != null) {
-      // Update the existing row (image_url + video_variants handled below).
+    if (_editingId == null) {
+      id = await ref.read(myExercisesNotifierProvider.notifier).create(fields: fields);
+    } else if (mediaOnly) {
+      id = _editingId; // skip text update — media handled below
+    } else {
       final f = Map<String, dynamic>.from(fields);
       final extra = f.remove('extra') as Map<String, dynamic>;
       f..remove('image_url')..remove('video_variants');
@@ -586,19 +612,12 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
       if (_visibility == 'global') upd['submission_status'] = 'approved';
       final ok = await svc.updateExercise(_editingId!, upd);
       id = ok ? _editingId : null;
-    } else {
-      id = await ref.read(myExercisesNotifierProvider.notifier).create(fields: fields);
     }
 
     if (id != null) {
-      // Upload files if picked
-      if (_imageBytes != null) {
-        final url = await svc.uploadImage(_imageBytes!, _imageExt, id);
-        if (url != null) {
-          await svc.updateExercise(id, {'image_url': url});
-        }
-      }
-      // Upload video files
+      // Upload picked image + video files.
+      String? imageUrl;
+      if (_imageBytes != null) imageUrl = await svc.uploadImage(_imageBytes!, _imageExt, id);
       final uploadedVariants = List<VideoVariant>.from(variants);
       for (int i = 0; i < _videoEntries.length; i++) {
         final entry = _videoEntries[i];
@@ -609,14 +628,21 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
           }
         }
       }
-      if (uploadedVariants.length != variants.length) {
-        await svc.updateExercise(id, {
-          'video_variants': uploadedVariants.map((v) => v.toJson()).toList(),
-        });
+
+      if (mediaOnly) {
+        // Coach attaching media to an admin/platform exercise (privileged RPC).
+        await svc.updateExerciseMedia(id,
+          imageUrl: imageUrl,
+          videoVariants: uploadedVariants.map((v) => v.toJson()).toList());
+      } else {
+        if (imageUrl != null) await svc.updateExercise(id, {'image_url': imageUrl});
+        if (uploadedVariants.length != variants.length || _editingId != null) {
+          await svc.updateExercise(id, {
+            'video_variants': uploadedVariants.map((v) => v.toJson()).toList(),
+          });
+        }
+        await svc.syncRelations(id, _relationsJson());
       }
-      // Fan out to the normalized child tables (muscles/equipment/tags/media/
-      // substitutions/progressions/modifications/analytics). Non-blocking.
-      await svc.syncRelations(id, _relationsJson());
       _savedId = id;
     }
 
@@ -732,6 +758,18 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
             ),
           ]),
         ),
+
+        // Coaches editing an admin/platform exercise can only add media.
+        if (_isCoachMediaOnly())
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: _C.amber.withValues(alpha: 0.12),
+            child: const Text(
+              'This is a library exercise — you can add images & videos on the Media tab. '
+              'Text content is managed by admins.',
+              style: TextStyle(color: _C.amber, fontSize: 12)),
+          ),
 
         // Content
         Expanded(
@@ -865,6 +903,24 @@ class _MediaTabState extends State<_MediaTab> {
   Widget build(BuildContext context) {
     final s = widget.s;
     return ListView(padding: const EdgeInsets.all(20), children: [
+      // Encourage adding real media.
+      Container(
+        margin: const EdgeInsets.only(bottom: 18),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [
+            _C.brand.withValues(alpha: 0.18), _C.brand.withValues(alpha: 0.06)]),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _C.brand.withValues(alpha: 0.35))),
+        child: Row(children: [
+          const Icon(Icons.auto_awesome_motion_rounded, color: _C.primary, size: 22),
+          const SizedBox(width: 12),
+          const Expanded(child: Text(
+            'Add a cover photo and a form video — exercises with media get used far '
+            'more and help your clients train with correct technique.',
+            style: TextStyle(color: _C.wht, fontSize: 12, height: 1.4))),
+        ]),
+      ),
       // Image
       const Text('EXERCISE IMAGE', style: TextStyle(color: _C.mut, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
       const SizedBox(height: 10),
