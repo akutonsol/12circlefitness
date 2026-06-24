@@ -445,14 +445,14 @@ class _FeaturedCard extends ConsumerWidget {
     final String btnLabel;
     if (inProgress != null) {
       title = inProgress.title as String;
-      description = 'Resume your session — ${inProgress.exercises.length} exercises.';
+      description = 'Resume your session — ${inProgress.exercises.length} exercises · ~${inProgress.estimatedDuration} min.';
       badgeText = 'In Progress';
       progress = totalSetsInProgress > 0 ? (loggedSets / totalSetsInProgress).clamp(0.0, 1.0) : null;
       btnLabel = 'Resume Workout';
     } else if (hasProgram) {
       final next = workouts.first;
       title = next.title;
-      description = '${workouts.length} workouts in your plan · ${next.exercises.length} exercises next.';
+      description = '${workouts.length} workouts in your plan · ${next.exercises.length} exercises · ~${next.estimatedDuration} min next.';
       badgeText = completedCount >= workouts.length ? 'Complete' : 'Ready';
       progress = workouts.isNotEmpty ? (completedCount / workouts.length).clamp(0.0, 1.0) : null;
       btnLabel = 'Start Workout';

@@ -4,12 +4,23 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
-/// Web: play a short synthesized beep (built as an 8-bit PCM WAV data URL and
-/// played via an AudioElement — no asset, no removed dart:web_audio library).
+// One persistent element, unlocked on a user gesture and reused for the beep —
+// browsers block a fresh element.play() fired from a Timer.
+html.AudioElement? _alarmEl;
+
+/// Web: replay the (already-unlocked) beep element, and also speak a cue — the
+/// speech channel is reliably unlocked, guaranteeing audible end-of-rest feedback.
 void playRestAlarm() {
   try {
-    final audio = html.AudioElement(_beepDataUrl())..volume = 1.0;
-    audio.play();
+    final el = _alarmEl ??= html.AudioElement(_beepDataUrl());
+    el
+      ..volume = 1.0
+      ..currentTime = 0;
+    el.play();
+  } catch (_) {}
+  try {
+    final synth = html.window.speechSynthesis;
+    synth?.speak(html.SpeechSynthesisUtterance('Rest over')..volume = 1.0);
   } catch (_) {}
 }
 
@@ -17,8 +28,15 @@ void playRestAlarm() {
 /// the later beep/voice (fired from a Timer) aren't blocked by autoplay policy.
 void primeRestAudio() {
   try {
-    final audio = html.AudioElement(_beepDataUrl())..volume = 0;
-    audio.play();
+    final el = _alarmEl ??= html.AudioElement(_beepDataUrl());
+    el.muted = true;
+    // After the muted play unlocks it, reset so it's ready to beep audibly later.
+    el.play().then((_) {
+      el
+        ..pause()
+        ..muted = false
+        ..currentTime = 0;
+    }).catchError((_) {});
     final synth = html.window.speechSynthesis;
     synth?.speak(html.SpeechSynthesisUtterance(' ')..volume = 0);
   } catch (_) {}

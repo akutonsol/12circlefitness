@@ -392,10 +392,10 @@ class _AssignedWorkoutCard extends ConsumerWidget {
                   fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               if (inProgress)
-                Text('In progress · Started ${_date(s?['started_at'] as String?)}',
+                Text('In progress · Started ${_date(s?['started_at'] as String?)} · ~${workout.estimatedDuration} min',
                   style: const TextStyle(color: _amber, fontSize: 12, fontWeight: FontWeight.w600))
               else if (completed)
-                Text('Completed · ${_date(s?['completed_at'] as String?)}',
+                Text('Completed · ${_date(s?['completed_at'] as String?)} · ~${workout.estimatedDuration} min',
                   style: const TextStyle(color: _mint, fontSize: 12, fontWeight: FontWeight.w600))
               else
                 Row(children: [
@@ -406,7 +406,7 @@ class _AssignedWorkoutCard extends ConsumerWidget {
                   const SizedBox(width: 10),
                   const Icon(Icons.timer_outlined, color: _C.onSurfaceVar, size: 13),
                   const SizedBox(width: 4),
-                  Text('${workout.estimatedDuration} min',
+                  Text('~${workout.estimatedDuration} min',
                     style: const TextStyle(color: _C.onSurfaceVar, fontSize: 12)),
                 ]),
             ])),
