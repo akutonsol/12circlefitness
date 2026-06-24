@@ -515,6 +515,11 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                       _StatChip(label: 'Est. Kcal', value: '${(_elapsedSeconds ~/ 60 * 8)}', color: _tertiary),
                     ])),
 
+                // ── Today's coach adjustment (applied as load guidance) ──
+                ref.watch(coachAdjustmentProvider).maybeWhen(
+                  data: (adj) => adj == null ? const SizedBox.shrink() : _ActiveCoachBanner(adj: adj),
+                  orElse: () => const SizedBox.shrink()),
+
                 // ── Render groups (superset / circuit / solo) ──
                 ...groups.map((group) {
                   if (group.isCircuit) {
@@ -1121,6 +1126,50 @@ class _GuideIconPulseState extends State<_GuideIconPulse>
           ),
         );
       },
+    );
+  }
+}
+
+// ── Today's coach adjustment, applied as load guidance during the workout ─────
+class _ActiveCoachBanner extends StatelessWidget {
+  final CoachAdjustment adj;
+  const _ActiveCoachBanner({required this.adj});
+
+  String _cue() {
+    final d = adj.intensityDelta;
+    if (d <= -5) return 'Recovery focus — aim ~${d.abs()}% lighter today. Quality over quantity.';
+    if (d >= 5) return 'You’re primed — push ~$d% heavier if your form holds.';
+    return 'Train at your normal working loads today.';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = adj.intensityDelta;
+    final accent = d == 0 ? _primary : (d < 0 ? _amber : _tertiary);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [accent.withValues(alpha: 0.14), _card],
+          begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.35))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.auto_awesome_rounded, color: accent, size: 16),
+          const SizedBox(width: 8),
+          Text('COACH ADJUSTMENT',
+            style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1)),
+          const Spacer(),
+          if (d != 0) Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(color: accent.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(20)),
+            child: Text('${d > 0 ? '+' : ''}$d%',
+              style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w800))),
+        ]),
+        const SizedBox(height: 8),
+        Text(_cue(), style: const TextStyle(color: _muted, fontSize: 13, height: 1.4)),
+      ]),
     );
   }
 }
