@@ -148,7 +148,7 @@ class CustomExerciseService {
         'p': masterJson,
       });
       return true;
-    } catch (_) { return false; }
+    } catch (e) { lastError = e; return false; }
   }
 
   // ── Update ────────────────────────────────────────────────────────────────
