@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -41,10 +42,18 @@ class _SetTrackerRowState extends State<SetTrackerRow>
   late TextEditingController _rpeController;
   late TextEditingController _notesController;
   late final AnimationController _notesPulse;
+  Timer? _debounce;
   final _weightFocus = FocusNode();
   final _repsFocus = FocusNode();
   final _rpeFocus = FocusNode();
   final _notesFocus = FocusNode();
+
+  // Save shortly after the user stops typing (independent of focus/blur, which
+  // is unreliable on web). Also fires immediately on blur/submit.
+  void _scheduleEmit() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 600), _emitChange);
+  }
   bool _showNotes = false;
 
   @override
@@ -87,6 +96,7 @@ class _SetTrackerRowState extends State<SetTrackerRow>
     _rpeFocus.dispose();
     _notesFocus.dispose();
     _notesPulse.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -214,6 +224,7 @@ class _SetTrackerRowState extends State<SetTrackerRow>
             child: TextField(
               controller: _notesController,
               focusNode: _notesFocus,
+              onChanged: (_) => _scheduleEmit(),
               onSubmitted: (_) => _emitChange(),
               style: const TextStyle(color: AppColors.white, fontSize: 12),
               maxLines: 1,
@@ -245,6 +256,7 @@ class _SetTrackerRowState extends State<SetTrackerRow>
       controller: controller,
       focusNode: focusNode,
       keyboardType: TextInputType.number,
+      onChanged: (_) => _scheduleEmit(),
       onSubmitted: (_) => _emitChange(),
       style: const TextStyle(color: AppColors.white, fontSize: 14),
       textAlign: TextAlign.center,
