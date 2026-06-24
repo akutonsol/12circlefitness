@@ -119,6 +119,8 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
   // Rich master-schema fields captured on JSON import (no visible editor) —
   // merged into the save so nothing is dropped.
   Map<String, dynamic> _importedExtra = {};
+  // The full imported master JSON, used to populate the normalized child tables.
+  Map<String, dynamic>? _importedRaw;
 
   // Instructions / cues / mistakes / alternatives
   final List<TextEditingController> _instructionCtrls  = [TextEditingController()];
@@ -289,6 +291,7 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
     try {
       final m = jsonDecode(ctrl.text) as Map<String, dynamic>;
       setState(() {
+        _importedRaw = m;
         if (m['exercise_name'] != null) _nameCtrl.text = m['exercise_name'].toString();
         if (m['description'] != null) _descCtrl.text = m['description'].toString();
         // Tolerant dropdowns (the option lists merge in the current value).
@@ -346,6 +349,22 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
     if (picked != null) {
       setState(() => _videoEntries[index].file = File(picked.path));
     }
+  }
+
+  /// JSON used to populate the normalized child tables — the full imported
+  /// master JSON if present, else assembled from the form state so manually
+  /// created exercises also get normalized rows.
+  Map<String, dynamic> _relationsJson() {
+    if (_importedRaw != null) return _importedRaw!;
+    final alts = _listFrom(_alternativeCtrls);
+    return {
+      'primary_muscles': _primaryMuscles,
+      'secondary_muscles': _secondaryMuscles,
+      'equipment_required': _equipmentList,
+      if (_advancedCtrl.text.trim().isNotEmpty) 'progressions': [_advancedCtrl.text.trim()],
+      if (_beginnerCtrl.text.trim().isNotEmpty) 'beginner_modifications': [_beginnerCtrl.text.trim()],
+      if (alts.isNotEmpty) 'substitutions': {'same_movement': alts},
+    };
   }
 
   Future<void> _save() async {
@@ -422,6 +441,9 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
           'video_variants': uploadedVariants.map((v) => v.toJson()).toList(),
         });
       }
+      // Fan out to the normalized child tables (muscles/equipment/tags/media/
+      // substitutions/progressions/modifications/analytics). Non-blocking.
+      await svc.syncRelations(id, _relationsJson());
       _savedId = id;
     }
 

@@ -133,6 +133,20 @@ class CustomExerciseService {
     } catch (_) { return null; }
   }
 
+  /// Fan a master-schema exercise JSON out into the normalized child tables
+  /// (exercise_muscles/equipment/tags/media/substitutions/progressions/
+  /// modifications/analytics). Idempotent server-side. Safe to call after
+  /// createExercise; failures don't block the core save.
+  Future<bool> syncRelations(String exerciseId, Map<String, dynamic> masterJson) async {
+    try {
+      await _db.rpc('sync_exercise_relations', params: {
+        'p_exercise_id': exerciseId,
+        'p': masterJson,
+      });
+      return true;
+    } catch (_) { return false; }
+  }
+
   // ── Update ────────────────────────────────────────────────────────────────
 
   Future<bool> updateExercise(String id, Map<String, dynamic> updates) async {
