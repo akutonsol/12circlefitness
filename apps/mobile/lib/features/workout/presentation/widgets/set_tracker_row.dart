@@ -26,6 +26,8 @@ class SetTrackerRow extends StatefulWidget {
   // Bodyweight exercises (plank, push-up…) don't require external load; the
   // weight field shows "BW" and is optional.
   final bool isBodyweight;
+  // Some exercises don't track RPE — hide the field when false.
+  final bool showRpe;
 
   const SetTrackerRow({
     super.key,
@@ -43,6 +45,7 @@ class SetTrackerRow extends StatefulWidget {
     this.savedNotes,
     this.onWeightFocus,
     this.isBodyweight = false,
+    this.showRpe = true,
   });
 
   static const double _kgPerLb = 0.45359237;
@@ -202,8 +205,10 @@ class _SetTrackerRowState extends State<SetTrackerRow>
               Expanded(child: _buildInput(_weightController, widget.isBodyweight ? 'BW' : widget.unit, _weightFocus)),
               const SizedBox(width: 8),
               Expanded(child: _buildInput(_repsController, 'reps', _repsFocus)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildInput(_rpeController, 'RPE', _rpeFocus)),
+              if (widget.showRpe) ...[
+                const SizedBox(width: 8),
+                Expanded(child: _buildInput(_rpeController, 'RPE', _rpeFocus)),
+              ],
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => setState(() => _showNotes = !_showNotes),

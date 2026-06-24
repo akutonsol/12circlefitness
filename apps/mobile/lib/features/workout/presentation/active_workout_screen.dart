@@ -10,6 +10,7 @@ import '../domain/workout_provider.dart';
 import 'widgets/set_tracker_row.dart';
 import 'widgets/rest_timer_widget.dart';
 import 'widgets/exercise_guide_sheet.dart';
+import '../../exercise_database/data/custom_exercise_service.dart';
 import '../../../core/utils/rest_alarm.dart';
 import '../../coach/data/score_service.dart';
 import '../../scoring/data/score_engine.dart';
@@ -87,6 +88,10 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   final _scrollController = ScrollController();
   final _db = Supabase.instance.client;
   String? _sessionId;
+  // Per-exercise (by name) RPE-tracking flag from the library metadata.
+  final Map<String, bool> _showRpe = {};
+
+  bool _showRpeFor(String name) => _showRpe[name] ?? true;
 
   @override
   void initState() {
@@ -95,10 +100,25 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       setState(() => _elapsedSeconds++);
     });
     _startSession();
+    _loadExerciseMeta();
     // Welcome to the zone: prompt a warm-up before the first set.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _showWarmupDialog();
     });
+  }
+
+  /// Reads per-exercise tracking flags from the library so the set tracker can
+  /// hide RPE for exercises that don't support it.
+  Future<void> _loadExerciseMeta() async {
+    final workout = ref.read(selectedWorkoutProvider);
+    if (workout == null) return;
+    final svc = CustomExerciseService();
+    final names = {for (final e in workout.exercises) e.exercise.name};
+    for (final name in names) {
+      final meta = await svc.metaForName(name);
+      _showRpe[name] = meta.rpe;
+    }
+    if (mounted) setState(() {});
   }
 
   void _showWarmupDialog() {
@@ -565,7 +585,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             child: Text(we.notes!,
               style: TextStyle(color: _muted.withValues(alpha: 0.6), fontSize: 11, fontStyle: FontStyle.italic))),
         const SizedBox(height: 12),
-        _columnHeaders(),
+        _columnHeaders(showRpe: _showRpeFor(we.exercise.name)),
         ..._buildSetRows(we, exerciseData),
         const SizedBox(height: 8),
       ]));
@@ -756,24 +776,21 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       ]));
   }
 
-  Widget _columnHeaders() {
+  Widget _columnHeaders({bool showRpe = true}) {
+    final hStyle = TextStyle(color: _muted.withValues(alpha: 0.5), fontSize: 10,
+      fontWeight: FontWeight.w600, letterSpacing: 1);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Row(children: [
         SizedBox(width: 36,
-          child: Text('SET', style: TextStyle(color: _muted.withValues(alpha: 0.5), fontSize: 10,
-            fontWeight: FontWeight.w600, letterSpacing: 1))),
-        Expanded(child: Text('WEIGHT (${_unit.toUpperCase()})', textAlign: TextAlign.center,
-          style: TextStyle(color: _muted.withValues(alpha: 0.5), fontSize: 10,
-            fontWeight: FontWeight.w600, letterSpacing: 1))),
+          child: Text('SET', style: hStyle)),
+        Expanded(child: Text('WEIGHT (${_unit.toUpperCase()})', textAlign: TextAlign.center, style: hStyle)),
         const SizedBox(width: 8),
-        Expanded(child: Text('REPS', textAlign: TextAlign.center,
-          style: TextStyle(color: _muted.withValues(alpha: 0.5), fontSize: 10,
-            fontWeight: FontWeight.w600, letterSpacing: 1))),
-        const SizedBox(width: 8),
-        Expanded(child: Text('RPE', textAlign: TextAlign.center,
-          style: TextStyle(color: _muted.withValues(alpha: 0.5), fontSize: 10,
-            fontWeight: FontWeight.w600, letterSpacing: 1))),
+        Expanded(child: Text('REPS', textAlign: TextAlign.center, style: hStyle)),
+        if (showRpe) ...[
+          const SizedBox(width: 8),
+          Expanded(child: Text('RPE', textAlign: TextAlign.center, style: hStyle)),
+        ],
         const SizedBox(width: 74), // notes icon (28) + gap (6) + check (32) + gap (8)
       ]));
   }
@@ -802,6 +819,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         savedRpe: (setData['rpe'] as num?)?.toDouble(),
         savedNotes: setData['notes'] as String?,
         isBodyweight: _isBodyweight(we),
+        showRpe: _showRpeFor(we.exercise.name),
         onWeightFocus: _dismissRest,
         // Persist field edits (on blur / enter) even if the set isn't completed.
         onChanged: (reps, weight, rpe, notes) {

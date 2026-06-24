@@ -23,6 +23,30 @@ class CustomExerciseService {
     } catch (_) { return []; }
   }
 
+  /// Tracking flags for an exercise matching [name] in the global library.
+  /// Defaults to supporting both when there's no matching record.
+  Future<({bool rpe, bool pr})> metaForName(String name) async {
+    final n = name.trim();
+    if (n.isEmpty) return (rpe: true, pr: true);
+    try {
+      final rows = await _db
+          .from('custom_exercises')
+          .select('supports_rpe_tracking, supports_pr_tracking')
+          .eq('visibility', 'global')
+          .eq('submission_status', 'approved')
+          .ilike('name', '%$n%')
+          .limit(1);
+      if ((rows as List).isNotEmpty) {
+        final r = rows.first as Map;
+        return (
+          rpe: r['supports_rpe_tracking'] != false,
+          pr: r['supports_pr_tracking'] != false,
+        );
+      }
+    } catch (_) {}
+    return (rpe: true, pr: true);
+  }
+
   /// First video URL for an exercise matching [name] in the global library
   /// (coach/admin uploaded), or null. Used by the in-workout Exercise Guide.
   Future<String?> findVideoForName(String name) async {
