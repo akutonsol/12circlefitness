@@ -80,7 +80,6 @@ class ActiveWorkoutScreen extends ConsumerStatefulWidget {
 class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   int _elapsedSeconds = 0;
   Timer? _timer;
-  int? _restPreview; // mirrors the rest countdown for the floating in-view pill
   bool _saving = false;
   final _workoutService = WorkoutService();
   final _scrollController = ScrollController();
@@ -376,6 +375,14 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             valueColor: const AlwaysStoppedAnimation<Color>(_brand),
             minHeight: 3),
 
+          // ── Fixed rest banner (above the list so it never shifts content) ──
+          if (showRest && rest != null)
+            RestTimerWidget(
+              key: ValueKey(rest.end),
+              endTime: rest.end,
+              totalSeconds: rest.total,
+              onComplete: () => ref.read(restTimerProvider.notifier).state = null),
+
           // ── Exercise list ──
           Expanded(
             child: ListView(
@@ -400,19 +407,6 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                       Container(width: 1, height: 30, color: _border),
                       _StatChip(label: 'Est. Kcal', value: '${(_elapsedSeconds ~/ 60 * 8)}', color: _tertiary),
                     ])),
-
-                if (showRest && rest != null) ...[
-                  RestTimerWidget(
-                    key: ValueKey(rest.end),
-                    endTime: rest.end,
-                    totalSeconds: rest.total,
-                    onTick: (r) { if (mounted) setState(() => _restPreview = r); },
-                    onComplete: () {
-                      ref.read(restTimerProvider.notifier).state = null;
-                      if (mounted) setState(() => _restPreview = null);
-                    }),
-                  const SizedBox(height: 16),
-                ],
 
                 // ── Render groups (superset / circuit / solo) ──
                 ...groups.map((group) {
@@ -456,41 +450,8 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
                     ]))))
         ]),
-        // ── Floating in-view rest countdown (mirrors the top timer) ──
-        if (showRest && _restPreview != null && _restPreview! > 0)
-          Positioned(
-            left: 0, right: 0, bottom: 88,
-            child: Center(child: _miniRestPill(_restPreview!)),
-          ),
         ]),
         ),
-      ),
-    );
-  }
-
-  Widget _miniRestPill(int remaining) {
-    final m = remaining ~/ 60;
-    final s = remaining % 60;
-    return GestureDetector(
-      onTap: () {
-        ref.read(restTimerProvider.notifier).state = null;
-        setState(() => _restPreview = null);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: _card,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: _brand.withValues(alpha: 0.5)),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 16, offset: const Offset(0, 6))]),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.timer_outlined, color: _brand, size: 16),
-          const SizedBox(width: 8),
-          Text('Rest  ${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}',
-            style: const TextStyle(color: _white, fontSize: 14, fontWeight: FontWeight.w800)),
-          const SizedBox(width: 10),
-          Text('SKIP', style: TextStyle(color: _brand.withValues(alpha: 0.9), fontSize: 11, fontWeight: FontWeight.w700)),
-        ]),
       ),
     );
   }

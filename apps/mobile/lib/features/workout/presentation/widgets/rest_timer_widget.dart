@@ -85,44 +85,46 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
         : 0.0;
     final minutes = _remaining ~/ 60;
     final seconds = _remaining % 60;
+    final ending = _remaining <= 10;
 
+    // Compact horizontal banner — meant to sit fixed above the exercise list so
+    // it's always visible and never shifts the scroll content.
     return Container(
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.surfaceDark,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.purple.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: (ending ? AppColors.error : AppColors.purple).withValues(alpha: 0.5)),
       ),
-      child: Column(
-        children: [
-          const Text('Rest Time', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-          const SizedBox(height: 12),
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                width: 80,
-                height: 80,
-                child: CircularProgressIndicator(
-                  value: progress,
-                  backgroundColor: AppColors.surfaceDarkElevated,
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.purple),
-                  strokeWidth: 6,
-                ),
-              ),
-              Text(
-                '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
-                style: const TextStyle(color: AppColors.white, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ],
+      child: Row(children: [
+        Icon(Icons.timer_outlined, color: ending ? AppColors.error : AppColors.purple, size: 18),
+        const SizedBox(width: 8),
+        const Text('Rest', style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+        const SizedBox(width: 8),
+        Text(
+          '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
+          style: TextStyle(
+            color: ending ? AppColors.error : AppColors.white,
+            fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+        const SizedBox(width: 14),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: AppColors.surfaceDarkElevated,
+              valueColor: AlwaysStoppedAnimation<Color>(ending ? AppColors.error : AppColors.purple)),
           ),
-          const SizedBox(height: 12),
-          TextButton(
-            onPressed: widget.onComplete,
-            child: const Text('Skip Rest', style: TextStyle(color: AppColors.purple)),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 12),
+        GestureDetector(
+          onTap: widget.onComplete,
+          child: const Text('SKIP',
+            style: TextStyle(color: AppColors.purple, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1)),
+        ),
+      ]),
     );
   }
 }
