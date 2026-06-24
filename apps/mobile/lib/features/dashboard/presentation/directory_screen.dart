@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../auth/domain/auth_provider.dart';
 import '../../coach/domain/coach_provider.dart';
 import '../../dashboard/domain/dashboard_provider.dart';
+import '../../workout/domain/workout_provider.dart';
 
 // ── Colors (matches Stitch design system) ────────────────────────────────────
 class _C {
@@ -411,12 +412,67 @@ class _SectionLabel extends StatelessWidget {
 }
 
 // ── Featured Card ─────────────────────────────────────────────────────────────
-class _FeaturedCard extends StatelessWidget {
+class _FeaturedCard extends ConsumerWidget {
   final _Module module;
   const _FeaturedCard({required this.module});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final workouts = ref.watch(assignedWorkoutsProvider).valueOrNull ?? const [];
+    final statusMap = ref.watch(programSessionStatusProvider).valueOrNull ?? const {};
+
+    // Find an in-progress workout, plus program-level completion.
+    dynamic inProgress;
+    var loggedSets = 0;
+    var totalSetsInProgress = 0;
+    var completedCount = 0;
+    for (final w in workouts) {
+      final st = statusMap[w.title]?['status'] as String?;
+      if (st == 'completed') completedCount++;
+      if (st == 'in_progress' && inProgress == null) {
+        inProgress = w;
+        loggedSets = (statusMap[w.title]?['logged_sets'] as int?) ?? 0;
+        totalSetsInProgress = w.exercises.fold<int>(0, (s, e) => s + e.sets.length);
+      }
+    }
+    final hasProgram = workouts.isNotEmpty;
+
+    // Dynamic content.
+    final String title;
+    final String description;
+    final String badgeText;
+    final double? progress;
+    final String btnLabel;
+    if (inProgress != null) {
+      title = inProgress.title as String;
+      description = 'Resume your session — ${inProgress.exercises.length} exercises.';
+      badgeText = 'In Progress';
+      progress = totalSetsInProgress > 0 ? (loggedSets / totalSetsInProgress).clamp(0.0, 1.0) : null;
+      btnLabel = 'Resume Workout';
+    } else if (hasProgram) {
+      final next = workouts.first;
+      title = next.title;
+      description = '${workouts.length} workouts in your plan · ${next.exercises.length} exercises next.';
+      badgeText = completedCount >= workouts.length ? 'Complete' : 'Ready';
+      progress = workouts.isNotEmpty ? (completedCount / workouts.length).clamp(0.0, 1.0) : null;
+      btnLabel = 'Start Workout';
+    } else {
+      title = 'Workouts';
+      description = module.description;
+      badgeText = 'Active';
+      progress = null;
+      btnLabel = 'Start Workout';
+    }
+
+    void onAction() {
+      if (inProgress != null) {
+        ref.read(selectedWorkoutProvider.notifier).state = inProgress;
+        context.go('/active-workout');
+      } else {
+        context.go('/workouts');
+      }
+    }
+
     return GestureDetector(
       onTap: () => context.go(module.route),
       child: _GlassCard(
@@ -430,56 +486,59 @@ class _FeaturedCard extends StatelessWidget {
               decoration: BoxDecoration(color: module.iconBg, borderRadius: BorderRadius.circular(16)),
               child: Icon(module.icon, color: module.iconColor, size: 26)),
             const Spacer(),
-            if (module.badge != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  color: _C.green.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: _C.green.withValues(alpha: 0.3))),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Container(width: 5, height: 5, decoration: BoxDecoration(shape: BoxShape.circle, color: _C.green)),
-                  const SizedBox(width: 5),
-                  Text(module.badge!, style: TextStyle(color: _C.green, fontSize: 11, fontWeight: FontWeight.w600)),
-                ])),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: _C.green.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: _C.green.withValues(alpha: 0.3))),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(width: 5, height: 5, decoration: const BoxDecoration(shape: BoxShape.circle, color: _C.green)),
+                const SizedBox(width: 5),
+                Text(badgeText, style: const TextStyle(color: _C.green, fontSize: 11, fontWeight: FontWeight.w600)),
+              ])),
           ]),
           const SizedBox(height: 16),
-          Text(module.title,
+          Text(title,
             style: const TextStyle(color: _C.onSurface, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
           const SizedBox(height: 6),
-          Text(module.description,
+          Text(description,
             style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.8), fontSize: 14, height: 1.5)),
-          if (module.progress != null) ...[
+          if (progress != null) ...[
             const SizedBox(height: 16),
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('Progress', style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.6), fontSize: 12)),
-              Text('${(module.progress! * 100).round()}%',
+              Text(inProgress != null ? 'Session progress' : 'Plan progress',
+                style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.6), fontSize: 12)),
+              Text('${(progress * 100).round()}%',
                 style: const TextStyle(color: _C.primary, fontSize: 12, fontWeight: FontWeight.w700)),
             ]),
             const SizedBox(height: 6),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: module.progress,
+                value: progress,
                 backgroundColor: _C.surfContMax,
                 valueColor: const AlwaysStoppedAnimation<Color>(_C.brand),
                 minHeight: 5)),
           ],
           const SizedBox(height: 16),
           Row(children: [
-            Expanded(child: Container(
-              height: 44,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  colors: [Color(0xFFDDB7FF), Color(0xFFD164E2)]),
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [BoxShadow(color: _C.primary.withValues(alpha: 0.3), blurRadius: 16)]),
-              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
-                SizedBox(width: 6),
-                Text('Start Workout', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
-              ]))),
+            Expanded(child: GestureDetector(
+              onTap: onAction,
+              child: Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                    colors: [Color(0xFFDDB7FF), Color(0xFFD164E2)]),
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [BoxShadow(color: _C.primary.withValues(alpha: 0.3), blurRadius: 16)]),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(inProgress != null ? Icons.play_circle_outline : Icons.play_arrow_rounded,
+                    color: Colors.white, size: 20),
+                  const SizedBox(width: 6),
+                  Text(btnLabel, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                ])))),
           ]),
         ]),
       ),
