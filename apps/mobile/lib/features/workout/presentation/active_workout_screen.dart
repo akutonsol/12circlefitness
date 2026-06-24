@@ -460,6 +460,14 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
               key: ValueKey(rest.end),
               endTime: rest.end,
               totalSeconds: rest.total,
+              onOvertime: () {
+                ScoreEngine().idleTimePenalty(); // -5 for the rest overrun
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('−5 points — rest overrun. Keep it moving!'),
+                    backgroundColor: _error));
+                }
+              },
               onComplete: _dismissRest),
 
           // ── Exercise list ──
@@ -735,7 +743,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                 child: Text(we.exercise.name,
                   style: const TextStyle(color: _white, fontSize: 15, fontWeight: FontWeight.w700))),
               const SizedBox(width: 6),
-              Icon(Icons.menu_book_rounded, color: _primary.withValues(alpha: 0.7), size: 15),
+              const _GuideIconPulse(),
             ]),
           )),
         Container(
@@ -1054,5 +1062,47 @@ class _DialogStat extends StatelessWidget {
       const SizedBox(height: 2),
       Text(label, style: TextStyle(color: _muted.withValues(alpha: 0.5), fontSize: 11)),
     ]);
+  }
+}
+
+// ── Animated guide (book) icon — swells/glows so it reads as tappable ─────────
+class _GuideIconPulse extends StatefulWidget {
+  const _GuideIconPulse();
+  @override
+  State<_GuideIconPulse> createState() => _GuideIconPulseState();
+}
+
+class _GuideIconPulseState extends State<_GuideIconPulse>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat(reverse: true);
+  }
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        final t = Curves.easeInOut.transform(_c.value);
+        return Transform.scale(
+          scale: 1.0 + t * 0.22,
+          child: Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _primary.withValues(alpha: 0.10 + t * 0.18),
+              boxShadow: [BoxShadow(color: _primary.withValues(alpha: t * 0.45), blurRadius: 6 + t * 6)],
+            ),
+            child: Icon(Icons.menu_book_rounded,
+              color: Color.lerp(_primary.withValues(alpha: 0.7), _white, t), size: 14),
+          ),
+        );
+      },
+    );
   }
 }

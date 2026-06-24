@@ -138,6 +138,7 @@ class _MyScoreTab extends ConsumerWidget {
 }
 
 String _actionLabel(String a) => switch (a) {
+  'idle_penalty' => 'Rest overrun penalty',
   'workout_complete' => 'Workout completed',
   'workout_start' => 'Workout started',
   'workout_week_bonus' => 'All workouts this week',

@@ -26,6 +26,23 @@ class ScoreEngine {
     } catch (_) {/* scoring never blocks the user action */}
   }
 
+  Future<void> _penalize({
+    required String category, required String action, required int points,
+    String? dedupKey,
+  }) async {
+    try {
+      await _db.rpc('penalize_points', params: {
+        'p_category': category, 'p_action': action, 'p_points': points,
+        'p_dedup_key': dedupKey,
+      });
+    } catch (_) {/* scoring never blocks the user action */}
+  }
+
+  // ── Penalties ─────────────────────────────────────────────
+  /// −5 each time a rest period runs into idle/overtime.
+  Future<void> idleTimePenalty() =>
+      _penalize(category: 'workouts', action: 'idle_penalty', points: 5);
+
   // ── Workouts ──────────────────────────────────────────────
   Future<void> workoutStarted(String id) => _award(
       category: 'workouts', action: 'workout_start', points: 5,

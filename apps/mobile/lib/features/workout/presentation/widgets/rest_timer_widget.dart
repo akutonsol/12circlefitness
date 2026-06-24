@@ -12,6 +12,7 @@ class RestTimerWidget extends StatefulWidget {
   final int totalSeconds;
   final VoidCallback onComplete; // skip / dismiss
   final ValueChanged<int>? onTick; // remaining seconds (0 in overtime)
+  final VoidCallback? onOvertime; // fired once when the rest runs into overtime
 
   const RestTimerWidget({
     super.key,
@@ -19,6 +20,7 @@ class RestTimerWidget extends StatefulWidget {
     required this.totalSeconds,
     required this.onComplete,
     this.onTick,
+    this.onOvertime,
   });
 
   @override
@@ -69,6 +71,7 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
         speakRest('Rest over. Get moving.');
         startRestSiren();
         widget.onTick?.call(0);
+        widget.onOvertime?.call(); // -5 idle penalty
       }
       final over = (-diff).floor();
       setState(() {
