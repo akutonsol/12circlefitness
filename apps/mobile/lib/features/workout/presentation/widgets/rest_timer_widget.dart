@@ -41,11 +41,13 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
         timer.cancel();
         setState(() => _remaining = 0);
         widget.onTick?.call(0);
-        playRestAlarm(); // sound + haptic so the user knows rest is over
+        playRestAlarm(); // loud beep + haptic so the user knows rest is over
         widget.onComplete();
       } else {
         setState(() => _remaining--);
         widget.onTick?.call(_remaining);
+        // Spoken countdown over the final 10 seconds.
+        if (_remaining <= 10 && _remaining >= 1) speakRest('$_remaining');
       }
     });
   }

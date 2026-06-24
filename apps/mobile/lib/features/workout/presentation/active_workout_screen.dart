@@ -79,11 +79,10 @@ class ActiveWorkoutScreen extends ConsumerStatefulWidget {
 class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   int _elapsedSeconds = 0;
   Timer? _timer;
-  bool _showRestTimer = false;
-  int _restSeconds = 90;
   int? _restPreview; // mirrors the rest countdown for the floating in-view pill
   bool _saving = false;
   final _workoutService = WorkoutService();
+  final _scrollController = ScrollController();
   final _db = Supabase.instance.client;
   String? _sessionId;
 
@@ -218,6 +217,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _scrollController.dispose();
     _saveElapsed(); // persist elapsed time so resume can restore it
     super.dispose();
   }
@@ -284,6 +284,13 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   Widget build(BuildContext context) {
     final workout = ref.watch(selectedWorkoutProvider);
     final activeData = ref.watch(activeWorkoutProvider);
+
+    // Rest countdown is driven by a wall-clock end time in a provider, so it
+    // survives navigating away and resumes at the right remaining time.
+    final restEnd = ref.watch(restTimerEndProvider);
+    final restRemaining =
+        restEnd != null ? restEnd.difference(DateTime.now()).inSeconds : 0;
+    final showRest = restRemaining > 0;
 
     if (workout == null) {
       return Scaffold(
@@ -371,6 +378,8 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           // ── Exercise list ──
           Expanded(
             child: ListView(
+              controller: _scrollController,
+              key: const PageStorageKey('active_workout_list'),
               padding: const EdgeInsets.all(16),
               children: [
                 // Progress summary
@@ -391,14 +400,15 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                       _StatChip(label: 'Est. Kcal', value: '${(_elapsedSeconds ~/ 60 * 8)}', color: _tertiary),
                     ])),
 
-                if (_showRestTimer) ...[
+                if (showRest) ...[
                   RestTimerWidget(
-                    seconds: _restSeconds,
+                    key: ValueKey(restEnd),
+                    seconds: restRemaining,
                     onTick: (r) { if (mounted) setState(() => _restPreview = r); },
-                    onComplete: () => setState(() {
-                      _showRestTimer = false;
-                      _restPreview = null;
-                    })),
+                    onComplete: () {
+                      ref.read(restTimerEndProvider.notifier).state = null;
+                      if (mounted) setState(() => _restPreview = null);
+                    }),
                   const SizedBox(height: 16),
                 ],
 
@@ -445,7 +455,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                     ]))))
         ]),
         // ── Floating in-view rest countdown (mirrors the top timer) ──
-        if (_showRestTimer && _restPreview != null && _restPreview! > 0)
+        if (showRest && _restPreview != null && _restPreview! > 0)
           Positioned(
             left: 0, right: 0, bottom: 88,
             child: Center(child: _miniRestPill(_restPreview!)),
@@ -460,7 +470,10 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     final m = remaining ~/ 60;
     final s = remaining % 60;
     return GestureDetector(
-      onTap: () => setState(() { _showRestTimer = false; _restPreview = null; }),
+      onTap: () {
+        ref.read(restTimerEndProvider.notifier).state = null;
+        setState(() => _restPreview = null);
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
@@ -744,10 +757,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             ref.read(activeWorkoutProvider.notifier)
                 .toggleSetComplete(we.exercise.id, setIndex);
             if (set.restSeconds != null) {
-              setState(() {
-                _showRestTimer = true;
-                _restSeconds = set.restSeconds!;
-              });
+              // Wall-clock end time → survives navigation and resumes.
+              ref.read(restTimerEndProvider.notifier).state =
+                  DateTime.now().add(Duration(seconds: set.restSeconds!));
             }
           }
           // Always persist the current values (fire-and-forget).

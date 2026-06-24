@@ -7,3 +7,11 @@ void playRestAlarm() {
     HapticFeedback.heavyImpact();
   } catch (_) {}
 }
+
+/// Spoken countdown — no-op off web (would need a TTS plugin on mobile); a light
+/// tick haptic gives feedback instead.
+void speakRest(String text) {
+  try {
+    HapticFeedback.selectionClick();
+  } catch (_) {}
+}

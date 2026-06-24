@@ -8,8 +8,21 @@ import 'dart:typed_data';
 /// played via an AudioElement — no asset, no removed dart:web_audio library).
 void playRestAlarm() {
   try {
-    final audio = html.AudioElement(_beepDataUrl())..volume = 0.6;
+    final audio = html.AudioElement(_beepDataUrl())..volume = 1.0;
     audio.play();
+  } catch (_) {}
+}
+
+/// Web: speak the countdown number via the Speech Synthesis API.
+void speakRest(String text) {
+  try {
+    final synth = html.window.speechSynthesis;
+    if (synth == null) return;
+    final u = html.SpeechSynthesisUtterance(text)
+      ..rate = 1.1
+      ..volume = 1.0
+      ..pitch = 1.0;
+    synth.speak(u);
   } catch (_) {}
 }
 
