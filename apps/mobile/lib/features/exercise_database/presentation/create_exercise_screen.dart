@@ -21,12 +21,52 @@ class _C {
   static const mut      = Color(0xFFCFC2D6);
 }
 
-const _categories  = ['Strength', 'Cardio', 'Flexibility', 'Core', 'Olympic', 'Powerlifting', 'Functional', 'Rehab'];
-const _muscles     = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Hamstrings', 'Core', 'Full Body', 'Cardio'];
-const _equipmentOptions = ['Barbell', 'Dumbbell', 'Kettlebell', 'Machine', 'Cable', 'Bodyweight', 'Resistance Band', 'Smith Machine', 'Trap Bar', 'None'];
+const _categories  = ['Strength', 'Hypertrophy', 'Powerlifting', 'Olympic', 'Cardio', 'Conditioning', 'Functional', 'Mobility', 'Flexibility', 'Core', 'Lower Body', 'Upper Body', 'Full Body', 'Push', 'Pull', 'Rehab'];
+const _muscles     = ['Chest', 'Upper Back', 'Lats', 'Traps', 'Shoulders', 'Front Delts', 'Side Delts', 'Rear Delts', 'Biceps', 'Triceps', 'Forearms', 'Quadriceps', 'Hamstrings', 'Glutes', 'Adductors', 'Abductors', 'Calves', 'Core', 'Obliques', 'Lower Back', 'Hip Flexors', 'Full Body'];
+const _equipmentOptions = ['Barbell', 'Dumbbell', 'Kettlebell', 'Machine', 'Cable', 'Bodyweight', 'Resistance Band', 'Smith Machine', 'Trap Bar', 'EZ Bar', 'Squat Rack', 'Power Rack', 'Bench', 'Pull-up Bar', 'Dip Bars', 'Box', 'Medicine Ball', 'Battle Ropes', 'Sled', 'Landmine', 'TRX', 'None'];
 const _difficulties = ['Beginner', 'Intermediate', 'Advanced', 'Elite'];
 const _videoLabels  = ['Tutorial', 'Beginner', 'Intermediate', 'Advanced', 'Form Correction', 'Warm-up'];
 const _visibilities = ['private', 'team', 'global'];
+
+/// Preset options + any selected values not in the presets (so imported values
+/// always show). Order: presets first, then extras.
+List<String> _mergeOpts(List<String> preset, List<String> selected) {
+  final out = List<String>.from(preset);
+  for (final s in selected) {
+    if (s.trim().isNotEmpty && !out.contains(s)) out.add(s);
+  }
+  return out;
+}
+
+/// Multi-select chip picker bound to [selected] (mutated in place). Includes any
+/// already-selected values not in [options] (chip rendered as active).
+Widget _chipMulti(String label, List<String> options, List<String> selected,
+    VoidCallback onChanged) {
+  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(label, style: const TextStyle(color: _C.mut, fontSize: 12, fontWeight: FontWeight.w600)),
+    const SizedBox(height: 8),
+    Wrap(spacing: 8, runSpacing: 6, children: options.map((o) {
+      final active = selected.contains(o);
+      return GestureDetector(
+        onTap: () {
+          if (active) {
+            selected.remove(o);
+          } else {
+            selected.add(o);
+          }
+          onChanged();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: active ? _C.brand.withValues(alpha: 0.15) : _C.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: active ? _C.brand.withValues(alpha: 0.5) : _C.brd)),
+          child: Text(o, style: TextStyle(color: active ? _C.primary : _C.mut, fontSize: 12))),
+      );
+    }).toList()),
+  ]);
+}
 
 class CreateExerciseScreen extends ConsumerStatefulWidget {
   const CreateExerciseScreen({super.key});
@@ -96,13 +136,6 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
 
   List<String> _listFrom(List<TextEditingController> ctrls) =>
       ctrls.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
-
-  String _matchOpt(List<String> opts, String value, String fallback) {
-    for (final o in opts) {
-      if (o.toLowerCase() == value.toLowerCase()) return o;
-    }
-    return fallback;
-  }
 
   List<String> _strList(dynamic v) =>
       (v is List) ? v.map((e) => e.toString()).toList() : <String>[];
@@ -241,16 +274,17 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
       setState(() {
         if (m['exercise_name'] != null) _nameCtrl.text = m['exercise_name'].toString();
         if (m['description'] != null) _descCtrl.text = m['description'].toString();
-        if (m['category'] != null) _category = _matchOpt(_categories, _humanize(m['category']), _category);
-        if (m['difficulty'] != null) _difficulty = _matchOpt(_difficulties, _humanize(m['difficulty']), _difficulty);
-        // equipment: master uses equipment_required; simple uses equipment.
+        // Tolerant dropdowns (the option lists merge in the current value).
+        if (m['category'] != null) _category = _humanize(m['category']);
+        if (m['difficulty'] != null) _difficulty = _humanize(m['difficulty']);
+        // Multi-select chips hold the full arrays (master uses equipment_required).
         final eq = _strList(m['equipment_required']).isNotEmpty
             ? _strList(m['equipment_required']) : _strList(m['equipment']);
         _equipmentList..clear()..addAll(eq);
-        if (eq.isNotEmpty) _equipment = _matchOpt(_equipmentOptions, _humanize(eq.first), _equipment);
+        if (eq.isNotEmpty) _equipment = eq.first;
         final pm = _strList(m['primary_muscles']);
         _primaryMuscles..clear()..addAll(pm);
-        if (pm.isNotEmpty) _muscle = _matchOpt(_muscles, _humanize(pm.first), _muscle);
+        if (pm.isNotEmpty) _muscle = pm.first;
         _secondaryMuscles..clear()..addAll(_strList(m['secondary_muscles']));
         // list fields (master uses step_by_step_instructions)
         _setCtrls(_instructionCtrls, _strList(m['step_by_step_instructions']).isNotEmpty
@@ -317,9 +351,9 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
     final id = await ref.read(myExercisesNotifierProvider.notifier).create(fields: {
       'name': _nameCtrl.text.trim(),
       'category': _category,
-      'muscle_group': _muscle,
+      'muscle_group': _primaryMuscles.isNotEmpty ? _primaryMuscles.first : _muscle,
       'secondary_muscles': _secondaryMuscles,
-      'equipment': _equipment,
+      'equipment': _equipmentList.isNotEmpty ? _equipmentList.first : _equipment,
       'difficulty': _difficulty,
       'description': _descCtrl.text.trim(),
       'instructions': _listFrom(_instructionCtrls),
@@ -507,31 +541,15 @@ class _BasicsTabState extends State<_BasicsTab> {
       const SizedBox(height: 16),
       _field('Description', s._descCtrl, maxLines: 3),
       const SizedBox(height: 20),
-      _row('Category', _categories, s._category, (v) => setState(() => s._category = v!)),
+      _row('Category', _mergeOpts(_categories, [s._category]), s._category, (v) => setState(() => s._category = v!)),
       const SizedBox(height: 14),
-      _row('Primary Muscle', _muscles, s._muscle, (v) => setState(() => s._muscle = v!)),
-      const SizedBox(height: 14),
-      _row('Equipment', _equipmentOptions, s._equipment, (v) => setState(() => s._equipment = v!)),
-      const SizedBox(height: 14),
-      _row('Difficulty', _difficulties, s._difficulty, (v) => setState(() => s._difficulty = v!)),
+      _row('Difficulty', _mergeOpts(_difficulties, [s._difficulty]), s._difficulty, (v) => setState(() => s._difficulty = v!)),
       const SizedBox(height: 20),
-      // Secondary muscles
-      const Text('Secondary Muscles', style: TextStyle(color: _C.mut, fontSize: 12, fontWeight: FontWeight.w600)),
-      const SizedBox(height: 8),
-      Wrap(spacing: 8, runSpacing: 6, children: _muscles.map((m) {
-        final active = s._secondaryMuscles.contains(m);
-        return GestureDetector(
-          onTap: () => setState(() {
-            active ? s._secondaryMuscles.remove(m) : s._secondaryMuscles.add(m);
-          }),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: active ? _C.brand.withValues(alpha: 0.15) : _C.card,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: active ? _C.brand.withValues(alpha: 0.5) : _C.brd)),
-            child: Text(m, style: TextStyle(color: active ? _C.primary : _C.mut, fontSize: 12))));
-      }).toList()),
+      _chipMulti('Primary Muscles', _mergeOpts(_muscles, s._primaryMuscles), s._primaryMuscles, () => setState(() {})),
+      const SizedBox(height: 16),
+      _chipMulti('Secondary Muscles', _mergeOpts(_muscles, s._secondaryMuscles), s._secondaryMuscles, () => setState(() {})),
+      const SizedBox(height: 16),
+      _chipMulti('Equipment', _mergeOpts(_equipmentOptions, s._equipmentList), s._equipmentList, () => setState(() {})),
     ]);
   }
 }
