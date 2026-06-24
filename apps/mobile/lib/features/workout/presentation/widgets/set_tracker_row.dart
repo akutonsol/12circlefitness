@@ -20,9 +20,12 @@ class SetTrackerRow extends StatefulWidget {
   final int? savedReps;
   final double? savedRpe;
   final String? savedNotes;
-  // Fired when the weight field gains focus — used to dismiss the rest/overtime
-  // alarm (the user is starting the next set).
+  // Fired when the weight or reps field gains focus — used to dismiss the
+  // rest/overtime alarm (the user is starting the next set).
   final VoidCallback? onWeightFocus;
+  // Bodyweight exercises (plank, push-up…) don't require external load; the
+  // weight field shows "BW" and is optional.
+  final bool isBodyweight;
 
   const SetTrackerRow({
     super.key,
@@ -39,6 +42,7 @@ class SetTrackerRow extends StatefulWidget {
     this.savedRpe,
     this.savedNotes,
     this.onWeightFocus,
+    this.isBodyweight = false,
   });
 
   static const double _kgPerLb = 0.45359237;
@@ -87,9 +91,13 @@ class _SetTrackerRowState extends State<SetTrackerRow>
     for (final f in [_weightFocus, _repsFocus, _rpeFocus, _notesFocus]) {
       f.addListener(() { if (!f.hasFocus) _emitChange(); });
     }
-    // Focusing the weight field = starting the next set → dismiss the rest alarm.
+    // Focusing the weight (or reps, for bodyweight) field = starting the next
+    // set → dismiss the rest alarm.
     _weightFocus.addListener(() {
       if (_weightFocus.hasFocus) widget.onWeightFocus?.call();
+    });
+    _repsFocus.addListener(() {
+      if (_repsFocus.hasFocus) widget.onWeightFocus?.call();
     });
     _notesPulse = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 1100))
@@ -191,7 +199,7 @@ class _SetTrackerRowState extends State<SetTrackerRow>
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(child: _buildInput(_weightController, widget.unit, _weightFocus)),
+              Expanded(child: _buildInput(_weightController, widget.isBodyweight ? 'BW' : widget.unit, _weightFocus)),
               const SizedBox(width: 8),
               Expanded(child: _buildInput(_repsController, 'reps', _repsFocus)),
               const SizedBox(width: 8),

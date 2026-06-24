@@ -113,7 +113,7 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
               Text('+${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}',
                 style: const TextStyle(color: AppColors.error, fontSize: 18, fontWeight: FontWeight.w900)),
             ]),
-            const Text('Enter a weight to stop the siren',
+            const Text('Start your next set to stop the siren',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
           ]),
           const Spacer(),

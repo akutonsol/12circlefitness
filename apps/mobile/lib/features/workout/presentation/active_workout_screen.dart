@@ -94,6 +94,57 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       setState(() => _elapsedSeconds++);
     });
     _startSession();
+    // Welcome to the zone: prompt a warm-up before the first set.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showWarmupDialog();
+    });
+  }
+
+  void _showWarmupDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dctx) => Dialog(
+        backgroundColor: _card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 72, height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(colors: [_brand.withValues(alpha: 0.3), _primary.withValues(alpha: 0.15)])),
+              child: const Icon(Icons.local_fire_department_rounded, color: _amber, size: 38)),
+            const SizedBox(height: 18),
+            const Text('Welcome to the Workout Zone',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _white, fontSize: 20, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            const Text(
+              'Before you load up — spend 5–10 minutes warming up. Get the blood '
+              'flowing, mobilize your joints, and activate the muscles you\'re about '
+              'to train. A good warm-up means stronger lifts and fewer injuries.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _muted, fontSize: 14, height: 1.5)),
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity, height: 50,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(dctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _brand, foregroundColor: _white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(Icons.check_circle_outline_rounded, size: 20),
+                  SizedBox(width: 8),
+                  Text('I\'m Warmed Up — Let\'s Go',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                ]))),
+          ]),
+        ),
+      ),
+    );
   }
 
   Future<void> _startSession() async {
@@ -192,6 +243,18 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: _error));
+  }
+
+  /// Heuristic: does this exercise use only bodyweight (no external load)?
+  bool _isBodyweight(WorkoutExercise we) {
+    final eq = we.exercise.equipment.toLowerCase();
+    if (eq.contains('bodyweight') || eq.contains('body weight') || eq == 'none') return true;
+    final n = we.exercise.name.toLowerCase();
+    const kw = ['plank', 'push-up', 'push up', 'pushup', 'pull-up', 'pull up',
+      'pullup', 'chin-up', 'dip', 'glute bridge', 'sit-up', 'situp', 'crunch',
+      'mountain climber', 'burpee', 'inverted row', 'pike', 'air squat',
+      'hollow', 'superman', 'bird dog', 'wall sit', 'hanging', 'leg raise'];
+    return kw.any(n.contains);
   }
 
   /// Dismisses the rest/overtime alarm (the user is starting the next set).
@@ -364,9 +427,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Workout Zone',
+                    style: TextStyle(color: _white, fontSize: 15, fontWeight: FontWeight.w700)),
                   Text(workout.title,
-                    style: const TextStyle(color: _white, fontSize: 15, fontWeight: FontWeight.w700)),
-                  Text('Coach ${workout.coachName ?? ''}',
                     style: TextStyle(color: _primary.withValues(alpha: 0.7), fontSize: 11)),
                 ])),
               Container(
@@ -721,6 +784,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         savedReps: (setData['reps'] as num?)?.toInt(),
         savedRpe: (setData['rpe'] as num?)?.toDouble(),
         savedNotes: setData['notes'] as String?,
+        isBodyweight: _isBodyweight(we),
         onWeightFocus: _dismissRest,
         // Persist field edits (on blur / enter) even if the set isn't completed.
         onChanged: (reps, weight, rpe, notes) {
