@@ -76,7 +76,10 @@ class WorkoutService {
     final uid = _uid;
     if (uid == null) return;
     try {
-      await _supabase.from('workout_set_logs').insert({
+      // Upsert on (session_id, exercise_name, set_number) so editing a set's
+      // weight/reps/RPE/notes updates the same row instead of inserting a dup.
+      // rpe/notes/tempo are always sent (null when blank) so edits can clear them.
+      await _supabase.from('workout_set_logs').upsert({
         'session_id': sessionId,
         'user_id': uid,
         'exercise_name': exerciseName,
@@ -84,10 +87,10 @@ class WorkoutService {
         'set_number': setNumber,
         'reps': reps,
         'weight_kg': weightKg,
-        if (rpe != null) 'rpe': rpe,
-        if (notes != null && notes.isNotEmpty) 'notes': notes,
-        if (tempo != null) 'tempo': tempo,
-      });
+        'rpe': rpe,
+        'notes': (notes != null && notes.isNotEmpty) ? notes : null,
+        'tempo': tempo,
+      }, onConflict: 'session_id,exercise_name,set_number');
     } catch (_) {}
   }
 

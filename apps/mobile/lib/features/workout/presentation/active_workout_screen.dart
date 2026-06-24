@@ -640,6 +640,23 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         completed: isCompleted,
         tempo: set.tempo,
         unit: _unit,
+        // Persist field edits (on blur) even if the set isn't toggled complete.
+        onChanged: (reps, weight, rpe, notes) async {
+          final sid = await _ensureSession();
+          if (sid != null) {
+            await _workoutService.saveSetLog(
+              sessionId: sid,
+              exerciseName: we.exercise.name,
+              exerciseId: we.exercise.id,
+              setNumber: set.setNumber,
+              reps: reps,
+              weightKg: weight,
+              rpe: rpe,
+              notes: notes,
+              tempo: set.tempo,
+            );
+          }
+        },
         onCompleted: (reps, weight, rpe, notes) async {
           ref.read(activeWorkoutProvider.notifier)
               .toggleSetComplete(we.exercise.id, setIndex);

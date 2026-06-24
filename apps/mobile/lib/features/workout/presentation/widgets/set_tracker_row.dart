@@ -10,6 +10,9 @@ class SetTrackerRow extends StatefulWidget {
   final String unit; // display unit: 'kg' or 'lb'
   // weight is reported back in kg (converted from the display unit).
   final Function(int reps, double weight, double? rpe, String? notes) onCompleted;
+  // Fired when any field is edited (on blur), so values persist without having
+  // to (re)tap the complete button. weight is in kg.
+  final Function(int reps, double weight, double? rpe, String? notes)? onChanged;
 
   const SetTrackerRow({
     super.key,
@@ -18,6 +21,7 @@ class SetTrackerRow extends StatefulWidget {
     required this.targetWeight,
     required this.completed,
     required this.onCompleted,
+    this.onChanged,
     this.unit = 'kg',
     this.tempo,
   });
@@ -35,6 +39,10 @@ class _SetTrackerRowState extends State<SetTrackerRow> {
   late TextEditingController _weightController;
   late TextEditingController _rpeController;
   late TextEditingController _notesController;
+  final _weightFocus = FocusNode();
+  final _repsFocus = FocusNode();
+  final _rpeFocus = FocusNode();
+  final _notesFocus = FocusNode();
   bool _showNotes = false;
 
   @override
@@ -45,6 +53,22 @@ class _SetTrackerRowState extends State<SetTrackerRow> {
         text: widget.targetWeight == 0 ? '' : _fmt(widget._toDisplay(widget.targetWeight)));
     _rpeController = TextEditingController();
     _notesController = TextEditingController();
+    // Persist edits when a field loses focus.
+    for (final f in [_weightFocus, _repsFocus, _rpeFocus, _notesFocus]) {
+      f.addListener(() { if (!f.hasFocus) _emitChange(); });
+    }
+  }
+
+  void _emitChange() {
+    final cb = widget.onChanged;
+    if (cb == null) return;
+    final reps = int.tryParse(_repsController.text) ?? widget.targetReps;
+    final displayWeight =
+        double.tryParse(_weightController.text) ?? widget._toDisplay(widget.targetWeight);
+    final weightKg = widget._toKg(displayWeight);
+    final rpe = double.tryParse(_rpeController.text);
+    final notes = _notesController.text.trim().isEmpty ? null : _notesController.text.trim();
+    cb(reps, weightKg, rpe, notes);
   }
 
   @override
@@ -53,6 +77,10 @@ class _SetTrackerRowState extends State<SetTrackerRow> {
     _weightController.dispose();
     _rpeController.dispose();
     _notesController.dispose();
+    _weightFocus.dispose();
+    _repsFocus.dispose();
+    _rpeFocus.dispose();
+    _notesFocus.dispose();
     super.dispose();
   }
 
@@ -90,11 +118,11 @@ class _SetTrackerRowState extends State<SetTrackerRow> {
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(child: _buildInput(_weightController, widget.unit)),
+              Expanded(child: _buildInput(_weightController, widget.unit, _weightFocus)),
               const SizedBox(width: 8),
-              Expanded(child: _buildInput(_repsController, 'reps')),
+              Expanded(child: _buildInput(_repsController, 'reps', _repsFocus)),
               const SizedBox(width: 8),
-              Expanded(child: _buildInput(_rpeController, 'RPE')),
+              Expanded(child: _buildInput(_rpeController, 'RPE', _rpeFocus)),
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () => setState(() => _showNotes = !_showNotes),
@@ -163,6 +191,8 @@ class _SetTrackerRowState extends State<SetTrackerRow> {
             padding: const EdgeInsets.only(left: 12, right: 12, bottom: 6),
             child: TextField(
               controller: _notesController,
+              focusNode: _notesFocus,
+              onSubmitted: (_) => _emitChange(),
               style: const TextStyle(color: AppColors.white, fontSize: 12),
               maxLines: 1,
               decoration: InputDecoration(
@@ -188,10 +218,12 @@ class _SetTrackerRowState extends State<SetTrackerRow> {
     return r == r.roundToDouble() ? r.toStringAsFixed(0) : r.toStringAsFixed(1);
   }
 
-  Widget _buildInput(TextEditingController controller, String hint) {
+  Widget _buildInput(TextEditingController controller, String hint, FocusNode focusNode) {
     return TextField(
       controller: controller,
+      focusNode: focusNode,
       keyboardType: TextInputType.number,
+      onSubmitted: (_) => _emitChange(),
       style: const TextStyle(color: AppColors.white, fontSize: 14),
       textAlign: TextAlign.center,
       decoration: InputDecoration(
