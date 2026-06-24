@@ -616,7 +616,7 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
                 ref.read(myExercisesNotifierProvider.notifier).submitForGlobal(_savedId!).then((_) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Submitted for Global Library review!')));
+                    const SnackBar(content: Text('Published to the Global Library!')));
                   context.pop();
                 });
               },

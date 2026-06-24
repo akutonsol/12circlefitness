@@ -193,12 +193,13 @@ class CustomExerciseService {
   Future<bool> submitForGlobalLibrary(String exerciseId) async {
     try {
       await _db.from('custom_exercises').update({
-        'submission_status': 'pending',
+        // Platform-wide publishing: goes live for all clients immediately.
+        'submission_status': 'approved',
         'submitted_at': DateTime.now().toIso8601String(),
-        'visibility': 'team', // visible to coach's clients while pending
+        'visibility': 'global',
       }).eq('id', exerciseId);
       return true;
-    } catch (_) { return false; }
+    } catch (e) { lastError = e; return false; }
   }
 
   // ── Admin: Global Library moderation (EL-005) ─────────────────────────────
