@@ -150,38 +150,48 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     final workout = ref.read(selectedWorkoutProvider);
     final uid = _db.auth.currentUser?.id;
     if (workout == null || uid == null) return null;
-    try {
-      final row = await _db.from('workout_sessions').insert({
-        'user_id': uid,
-        'workout_title': workout.title,
-        'status': 'in_progress',
-        'started_at': DateTime.now().toIso8601String(),
-      }).select().single();
-      _sessionId = row['id'] as String;
-      return _sessionId;
-    } catch (_) {
-      return null;
-    }
+    final row = await _db.from('workout_sessions').insert({
+      'user_id': uid,
+      'workout_title': workout.title,
+      'status': 'in_progress',
+      'started_at': DateTime.now().toIso8601String(),
+    }).select().single();
+    _sessionId = row['id'] as String;
+    return _sessionId;
   }
 
   /// Persists a set (ensuring a session exists). Fire-and-forget so callers
   /// don't await across a widget-tree mutation. saveSetLog upserts, so this is
-  /// safe to call repeatedly (on edit and on complete).
+  /// safe to call repeatedly (on edit and on complete). Surfaces errors so a
+  /// failed save is visible instead of silently dropped.
   Future<void> _persistSet(String exerciseName, String exerciseId, int setNumber,
       String? tempo, int reps, double weightKg, double? rpe, String? notes) async {
-    final sid = await _ensureSession();
-    if (sid == null) return;
-    await _workoutService.saveSetLog(
-      sessionId: sid,
-      exerciseName: exerciseName,
-      exerciseId: exerciseId,
-      setNumber: setNumber,
-      reps: reps,
-      weightKg: weightKg,
-      rpe: rpe,
-      notes: notes,
-      tempo: tempo,
-    );
+    try {
+      final sid = await _ensureSession();
+      if (sid == null) {
+        _toastSave('No active workout session.');
+        return;
+      }
+      await _workoutService.saveSetLog(
+        sessionId: sid,
+        exerciseName: exerciseName,
+        exerciseId: exerciseId,
+        setNumber: setNumber,
+        reps: reps,
+        weightKg: weightKg,
+        rpe: rpe,
+        notes: notes,
+        tempo: tempo,
+      );
+    } catch (e) {
+      _toastSave('Could not save set: $e');
+    }
+  }
+
+  void _toastSave(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: _error));
   }
 
   Future<void> _saveElapsed() async {

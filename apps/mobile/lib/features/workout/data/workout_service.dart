@@ -79,37 +79,36 @@ class WorkoutService {
     // Update-or-insert (one row per set) without relying on a DB unique
     // constraint, so editing a set's weight/reps/RPE/notes updates the same row
     // and re-completing it doesn't duplicate. rpe/notes/tempo are always written
-    // (null when blank) so edits can clear them.
-    try {
-      final existing = await _supabase
-          .from('workout_set_logs')
-          .update({
-            'exercise_id': exerciseId,
-            'reps': reps,
-            'weight_kg': weightKg,
-            'rpe': rpe,
-            'notes': cleanNotes,
-            'tempo': tempo,
-          })
-          .eq('session_id', sessionId)
-          .eq('exercise_name', exerciseName)
-          .eq('set_number', setNumber)
-          .select('id');
-      if ((existing as List).isEmpty) {
-        await _supabase.from('workout_set_logs').insert({
-          'session_id': sessionId,
-          'user_id': uid,
-          'exercise_name': exerciseName,
+    // (null when blank) so edits can clear them. Errors propagate so the caller
+    // can surface them (no silent swallow).
+    final existing = await _supabase
+        .from('workout_set_logs')
+        .update({
           'exercise_id': exerciseId,
-          'set_number': setNumber,
           'reps': reps,
           'weight_kg': weightKg,
           'rpe': rpe,
           'notes': cleanNotes,
           'tempo': tempo,
-        });
-      }
-    } catch (_) {}
+        })
+        .eq('session_id', sessionId)
+        .eq('exercise_name', exerciseName)
+        .eq('set_number', setNumber)
+        .select('id');
+    if ((existing as List).isEmpty) {
+      await _supabase.from('workout_set_logs').insert({
+        'session_id': sessionId,
+        'user_id': uid,
+        'exercise_name': exerciseName,
+        'exercise_id': exerciseId,
+        'set_number': setNumber,
+        'reps': reps,
+        'weight_kg': weightKg,
+        'rpe': rpe,
+        'notes': cleanNotes,
+        'tempo': tempo,
+      });
+    }
   }
 
   /// Returns {exerciseId: [{completed: true, reps, weight_kg, rpe, notes}]}
