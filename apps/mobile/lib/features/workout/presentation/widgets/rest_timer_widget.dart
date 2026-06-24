@@ -28,6 +28,7 @@ class RestTimerWidget extends StatefulWidget {
 class _RestTimerWidgetState extends State<RestTimerWidget> {
   int _remaining = 0;
   int? _lastSpoken;
+  bool _warned30 = false;
   Timer? _timer;
   bool _done = false;
 
@@ -64,8 +65,13 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
     if (rem != _remaining) {
       if (mounted) setState(() => _remaining = rem);
       widget.onTick?.call(rem);
-      // Speak each whole number once, over the final 10 seconds.
-      if (rem <= 10 && rem != _lastSpoken) {
+      // 30-second heads-up.
+      if (rem == 30 && widget.totalSeconds > 30 && !_warned30) {
+        _warned30 = true;
+        speakRest('30 seconds left');
+      }
+      // Count down 12 → 1 (aligned with 12 Circle).
+      if (rem <= 12 && rem >= 1 && rem != _lastSpoken) {
         _lastSpoken = rem;
         speakRest('$rem');
       }
@@ -85,7 +91,7 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
         : 0.0;
     final minutes = _remaining ~/ 60;
     final seconds = _remaining % 60;
-    final ending = _remaining <= 10;
+    final ending = _remaining <= 12;
 
     // Compact horizontal banner — meant to sit fixed above the exercise list so
     // it's always visible and never shifts the scroll content.

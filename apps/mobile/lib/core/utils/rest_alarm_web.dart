@@ -12,15 +12,19 @@ html.AudioElement? _alarmEl;
 /// speech channel is reliably unlocked, guaranteeing audible end-of-rest feedback.
 void playRestAlarm() {
   try {
+    final synth = html.window.speechSynthesis;
+    // Drop any queued numbers so "Rest over" speaks immediately, not after them.
+    synth?.cancel();
+    synth?.speak(html.SpeechSynthesisUtterance('Rest over')
+      ..volume = 1.0
+      ..rate = 1.0);
+  } catch (_) {}
+  try {
     final el = _alarmEl ??= html.AudioElement(_beepDataUrl());
     el
       ..volume = 1.0
       ..currentTime = 0;
     el.play();
-  } catch (_) {}
-  try {
-    final synth = html.window.speechSynthesis;
-    synth?.speak(html.SpeechSynthesisUtterance('Rest over')..volume = 1.0);
   } catch (_) {}
 }
 
