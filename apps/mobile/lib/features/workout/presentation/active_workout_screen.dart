@@ -164,6 +164,26 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     }
   }
 
+  /// Persists a set (ensuring a session exists). Fire-and-forget so callers
+  /// don't await across a widget-tree mutation. saveSetLog upserts, so this is
+  /// safe to call repeatedly (on edit and on complete).
+  Future<void> _persistSet(String exerciseName, String exerciseId, int setNumber,
+      String? tempo, int reps, double weightKg, double? rpe, String? notes) async {
+    final sid = await _ensureSession();
+    if (sid == null) return;
+    await _workoutService.saveSetLog(
+      sessionId: sid,
+      exerciseName: exerciseName,
+      exerciseId: exerciseId,
+      setNumber: setNumber,
+      reps: reps,
+      weightKg: weightKg,
+      rpe: rpe,
+      notes: notes,
+      tempo: tempo,
+    );
+  }
+
   Future<void> _saveElapsed() async {
     if (_sessionId == null) return;
     try {
@@ -274,7 +294,11 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
     return Scaffold(
       backgroundColor: _bg,
-      body: SafeArea(
+      // Tapping empty space unfocuses the active field → its blur listener
+      // persists the entered values (so "type and click away" saves on web).
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SafeArea(
         child: Stack(children: [
         Column(children: [
           // ── Top bar ──
@@ -405,6 +429,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             child: Center(child: _miniRestPill(_restPreview!)),
           ),
         ]),
+        ),
       ),
     );
   }
@@ -677,52 +702,28 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         completed: isCompleted,
         tempo: set.tempo,
         unit: _unit,
-        // Persist field edits (on blur) even if the set isn't toggled complete.
-        onChanged: (reps, weight, rpe, notes) async {
-          final sid = await _ensureSession();
-          if (sid != null) {
-            await _workoutService.saveSetLog(
-              sessionId: sid,
-              exerciseName: we.exercise.name,
-              exerciseId: we.exercise.id,
-              setNumber: set.setNumber,
-              reps: reps,
-              weightKg: weight,
-              rpe: rpe,
-              notes: notes,
-              tempo: set.tempo,
-            );
-          }
+        // Persist field edits (on blur / enter) even if the set isn't completed.
+        onChanged: (reps, weight, rpe, notes) {
+          _persistSet(we.exercise.name, we.exercise.id, set.setNumber, set.tempo,
+              reps, weight, rpe, notes);
         },
-        onCompleted: (reps, weight, rpe, notes) async {
-          // The check button is the reliable save: ALWAYS persist the current
-          // values, whether this is the first completion or a re-tap on an
-          // already-completed set to update its weight/RPE/notes.
-          final sid = await _ensureSession();
-          if (sid != null) {
-            await _workoutService.saveSetLog(
-              sessionId: sid,
-              exerciseName: we.exercise.name,
-              exerciseId: we.exercise.id,
-              setNumber: set.setNumber,
-              reps: reps,
-              weightKg: weight, // already converted to kg by SetTrackerRow
-              rpe: rpe,
-              notes: notes,
-              tempo: set.tempo,
-            );
-          }
-          // Mark complete (idempotent) + start rest timer only on first complete.
+        onCompleted: (reps, weight, rpe, notes) {
+          // Mark complete + rest timer SYNCHRONOUSLY first (no async gap before a
+          // tree mutation — that caused the framework assertion). On first
+          // completion only; re-tapping a completed set just re-saves below.
           if (!isCompleted) {
             ref.read(activeWorkoutProvider.notifier)
                 .toggleSetComplete(we.exercise.id, setIndex);
-            if (set.restSeconds != null && mounted) {
+            if (set.restSeconds != null) {
               setState(() {
                 _showRestTimer = true;
                 _restSeconds = set.restSeconds!;
               });
             }
           }
+          // Always persist the current values (fire-and-forget).
+          _persistSet(we.exercise.name, we.exercise.id, set.setNumber, set.tempo,
+              reps, weight, rpe, notes);
         });
     }).toList();
   }
