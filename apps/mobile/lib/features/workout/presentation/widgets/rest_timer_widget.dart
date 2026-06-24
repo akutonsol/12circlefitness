@@ -3,14 +3,20 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/rest_alarm.dart';
 
+/// Wall-clock rest countdown: computes remaining from [endTime] each tick (no
+/// internal counter that can drift/jump), so it stays smooth across rebuilds and
+/// resumes correctly after navigating away. [totalSeconds] is the original
+/// duration, used only for the progress ring.
 class RestTimerWidget extends StatefulWidget {
-  final int seconds;
+  final DateTime endTime;
+  final int totalSeconds;
   final VoidCallback onComplete;
   final ValueChanged<int>? onTick; // reports remaining seconds (for a mini view)
 
   const RestTimerWidget({
     super.key,
-    required this.seconds,
+    required this.endTime,
+    required this.totalSeconds,
     required this.onComplete,
     this.onTick,
   });
@@ -20,36 +26,50 @@ class RestTimerWidget extends StatefulWidget {
 }
 
 class _RestTimerWidgetState extends State<RestTimerWidget> {
-  late int _remaining;
+  int _remaining = 0;
+  int? _lastSpoken;
   Timer? _timer;
+  bool _done = false;
+
+  int get _calcRemaining {
+    final r = widget.endTime.difference(DateTime.now()).inMilliseconds / 1000.0;
+    return r.ceil().clamp(0, 1 << 30);
+  }
 
   @override
   void initState() {
     super.initState();
-    _remaining = widget.seconds;
+    _remaining = _calcRemaining;
     // Defer the first tick: initState runs during the parent's build, and onTick
     // calls setState on the parent (which would assert "setState during build").
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) widget.onTick?.call(_remaining);
     });
-    _startTimer();
+    // Tick a bit faster than 1s so the display doesn't visibly stutter.
+    _timer = Timer.periodic(const Duration(milliseconds: 250), (_) => _tick());
   }
 
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remaining <= 1) {
-        timer.cancel();
-        setState(() => _remaining = 0);
-        widget.onTick?.call(0);
-        playRestAlarm(); // loud beep + haptic so the user knows rest is over
-        widget.onComplete();
-      } else {
-        setState(() => _remaining--);
-        widget.onTick?.call(_remaining);
-        // Spoken countdown over the final 10 seconds.
-        if (_remaining <= 10 && _remaining >= 1) speakRest('$_remaining');
+  void _tick() {
+    if (_done) return;
+    final rem = _calcRemaining;
+    if (rem <= 0) {
+      _done = true;
+      _timer?.cancel();
+      if (mounted) setState(() => _remaining = 0);
+      widget.onTick?.call(0);
+      playRestAlarm(); // loud beep + haptic so the user knows rest is over
+      widget.onComplete();
+      return;
+    }
+    if (rem != _remaining) {
+      if (mounted) setState(() => _remaining = rem);
+      widget.onTick?.call(rem);
+      // Speak each whole number once, over the final 10 seconds.
+      if (rem <= 10 && rem != _lastSpoken) {
+        _lastSpoken = rem;
+        speakRest('$rem');
       }
-    });
+    }
   }
 
   @override
@@ -60,7 +80,9 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final progress = _remaining / widget.seconds;
+    final progress = widget.totalSeconds > 0
+        ? (_remaining / widget.totalSeconds).clamp(0.0, 1.0)
+        : 0.0;
     final minutes = _remaining ~/ 60;
     final seconds = _remaining % 60;
 

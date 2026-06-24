@@ -15,3 +15,6 @@ void speakRest(String text) {
     HapticFeedback.selectionClick();
   } catch (_) {}
 }
+
+/// No audio-unlock needed off web.
+void primeRestAudio() {}

@@ -9,6 +9,7 @@ import '../data/workout_service.dart';
 import '../domain/workout_provider.dart';
 import 'widgets/set_tracker_row.dart';
 import 'widgets/rest_timer_widget.dart';
+import '../../../core/utils/rest_alarm.dart';
 import '../../coach/data/score_service.dart';
 import '../../scoring/data/score_engine.dart';
 import '../../auth/domain/auth_provider.dart';
@@ -287,9 +288,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
     // Rest countdown is driven by a wall-clock end time in a provider, so it
     // survives navigating away and resumes at the right remaining time.
-    final restEnd = ref.watch(restTimerEndProvider);
+    final rest = ref.watch(restTimerProvider);
     final restRemaining =
-        restEnd != null ? restEnd.difference(DateTime.now()).inSeconds : 0;
+        rest != null ? rest.end.difference(DateTime.now()).inSeconds : 0;
     final showRest = restRemaining > 0;
 
     if (workout == null) {
@@ -400,13 +401,14 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                       _StatChip(label: 'Est. Kcal', value: '${(_elapsedSeconds ~/ 60 * 8)}', color: _tertiary),
                     ])),
 
-                if (showRest) ...[
+                if (showRest && rest != null) ...[
                   RestTimerWidget(
-                    key: ValueKey(restEnd),
-                    seconds: restRemaining,
+                    key: ValueKey(rest.end),
+                    endTime: rest.end,
+                    totalSeconds: rest.total,
                     onTick: (r) { if (mounted) setState(() => _restPreview = r); },
                     onComplete: () {
-                      ref.read(restTimerEndProvider.notifier).state = null;
+                      ref.read(restTimerProvider.notifier).state = null;
                       if (mounted) setState(() => _restPreview = null);
                     }),
                   const SizedBox(height: 16),
@@ -471,7 +473,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     final s = remaining % 60;
     return GestureDetector(
       onTap: () {
-        ref.read(restTimerEndProvider.notifier).state = null;
+        ref.read(restTimerProvider.notifier).state = null;
         setState(() => _restPreview = null);
       },
       child: Container(
@@ -757,9 +759,12 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             ref.read(activeWorkoutProvider.notifier)
                 .toggleSetComplete(we.exercise.id, setIndex);
             if (set.restSeconds != null) {
-              // Wall-clock end time → survives navigation and resumes.
-              ref.read(restTimerEndProvider.notifier).state =
-                  DateTime.now().add(Duration(seconds: set.restSeconds!));
+              // Unlock audio now (this is a user gesture) so the later beep/voice
+              // aren't blocked, then start the wall-clock rest countdown.
+              primeRestAudio();
+              ref.read(restTimerProvider.notifier).state = RestTimerState(
+                DateTime.now().add(Duration(seconds: set.restSeconds!)),
+                set.restSeconds!);
             }
           }
           // Always persist the current values (fire-and-forget).

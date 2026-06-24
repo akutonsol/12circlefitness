@@ -13,6 +13,17 @@ void playRestAlarm() {
   } catch (_) {}
 }
 
+/// Web: "unlock" audio + speech by exercising them once from a user gesture, so
+/// the later beep/voice (fired from a Timer) aren't blocked by autoplay policy.
+void primeRestAudio() {
+  try {
+    final audio = html.AudioElement(_beepDataUrl())..volume = 0;
+    audio.play();
+    final synth = html.window.speechSynthesis;
+    synth?.speak(html.SpeechSynthesisUtterance(' ')..volume = 0);
+  } catch (_) {}
+}
+
 /// Web: speak the countdown number via the Speech Synthesis API.
 void speakRest(String text) {
   try {

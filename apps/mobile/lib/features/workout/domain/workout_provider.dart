@@ -56,10 +56,16 @@ final exercisesProvider = Provider<List<Exercise>>((ref) {
 
 final selectedWorkoutProvider = StateProvider<Workout?>((ref) => null);
 
-/// Wall-clock end time of the active rest countdown (null = no rest running).
-/// App-scoped so the countdown survives navigating away and back, and resumes
-/// at the correct remaining time.
-final restTimerEndProvider = StateProvider<DateTime?>((ref) => null);
+/// Active rest countdown as a wall-clock end time + its original duration (for
+/// the progress ring). App-scoped so it survives navigating away and resumes at
+/// the correct remaining time. Null = no rest running.
+class RestTimerState {
+  final DateTime end;
+  final int total;
+  const RestTimerState(this.end, this.total);
+}
+
+final restTimerProvider = StateProvider<RestTimerState?>((ref) => null);
 
 final exerciseSearchProvider = StateProvider<String>((ref) => '');
 
