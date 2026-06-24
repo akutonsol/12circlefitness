@@ -198,6 +198,14 @@ class CustomExerciseService {
     }
   }
 
+  /// Raw exercise row by id (for prefilling the edit form with all columns).
+  Future<Map<String, dynamic>?> getRawById(String id) async {
+    try {
+      final row = await _db.from('custom_exercises').select().eq('id', id).maybeSingle();
+      return row;
+    } catch (_) { return null; }
+  }
+
   /// Fetch a single exercise by slug (to refresh the detail after enrichment).
   Future<ExerciseDetail?> getExerciseBySlug(String slug) async {
     try {
@@ -210,9 +218,14 @@ class CustomExerciseService {
 
   Future<bool> updateExercise(String id, Map<String, dynamic> updates) async {
     try {
-      await _db.from('custom_exercises').update(updates).eq('id', id);
+      // .select() so an RLS-filtered update (0 rows, no error) is detectable.
+      final res = await _db.from('custom_exercises').update(updates).eq('id', id).select('id');
+      if ((res as List).isEmpty) {
+        lastError = "You don't have permission to edit this exercise";
+        return false;
+      }
       return true;
-    } catch (_) { return false; }
+    } catch (e) { lastError = e; return false; }
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────

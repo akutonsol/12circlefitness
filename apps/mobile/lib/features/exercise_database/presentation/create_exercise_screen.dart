@@ -97,6 +97,9 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
   final _formKey = GlobalKey<FormState>();
   bool _saving = false;
   String? _savedId;
+  // Edit mode: id of the exercise being edited (null = creating new).
+  String? _editingId;
+  String? _existingImageUrl;
 
   // Basic info
   final _nameCtrl    = TextEditingController();
@@ -141,6 +144,39 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
   void initState() {
     super.initState();
     _tabs = TabController(length: 4, vsync: this);
+    final editId = ref.read(editingExerciseProvider);
+    if (editId != null) {
+      _editingId = editId;
+      ref.read(editingExerciseProvider.notifier).state = null; // consume once
+      _loadForEdit(editId);
+    }
+  }
+
+  /// Load an existing exercise into the form for editing.
+  Future<void> _loadForEdit(String id) async {
+    final row = await ref.read(customExerciseSvcProvider).getRawById(id);
+    if (row == null || !mounted) return;
+    // Reuse the import normalizer (map the row's `name` to `exercise_name`).
+    _applyNormalized(_normalizeImport({...row, 'exercise_name': row['name']}));
+    setState(() {
+      _visibility = (row['visibility'] as String?) ?? _visibility;
+      _existingImageUrl = row['image_url'] as String?;
+      _beginnerCtrl.text = (row['beginner_modification'] as String?) ?? '';
+      _advancedCtrl.text = (row['advanced_progression'] as String?) ?? '';
+      // Prefill existing video variants as editable URL entries.
+      final vv = row['video_variants'];
+      if (vv is List && vv.isNotEmpty) {
+        _videoEntries.clear();
+        for (final v in vv) {
+          if (v is Map && (v['url'] as String?)?.isNotEmpty == true) {
+            final entry = _VideoEntry()
+              ..label = (v['label'] as String?) ?? 'Tutorial';
+            entry.urlCtrl.text = v['url'] as String;
+            _videoEntries.add(entry);
+          }
+        }
+      }
+    });
   }
 
   @override
@@ -397,44 +433,7 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
     );
     if (ok != true) return;
     try {
-      final m = _normalizeImport(jsonDecode(ctrl.text) as Map<String, dynamic>);
-      setState(() {
-        _importedRaw = m;
-        if (m['exercise_name'] != null) _nameCtrl.text = m['exercise_name'].toString();
-        if (m['description'] != null) _descCtrl.text = m['description'].toString();
-        // Tolerant dropdowns (the option lists merge in the current value).
-        if (m['category'] != null) _category = _humanize(m['category']);
-        if (m['difficulty'] != null) _difficulty = _humanize(m['difficulty']);
-        // Multi-select chips hold the full arrays (master uses equipment_required).
-        final eq = _strList(m['equipment_required']).isNotEmpty
-            ? _strList(m['equipment_required']) : _strList(m['equipment']);
-        _equipmentList..clear()..addAll(eq);
-        if (eq.isNotEmpty) _equipment = eq.first;
-        final pm = _strList(m['primary_muscles']);
-        _primaryMuscles..clear()..addAll(pm);
-        if (pm.isNotEmpty) _muscle = pm.first;
-        _secondaryMuscles..clear()..addAll(_strList(m['secondary_muscles']));
-        // list fields (master uses step_by_step_instructions)
-        _setCtrls(_instructionCtrls, _strList(m['step_by_step_instructions']).isNotEmpty
-            ? _strList(m['step_by_step_instructions']) : _strList(m['instructions']));
-        _setCtrls(_cueCtrls, _strList(m['coaching_cues']));
-        _setCtrls(_mistakeCtrls, _flattenMistakes(m['common_mistakes']));
-        // substitutions / alternatives
-        final subs = m['substitutions'];
-        final altList = (subs is Map)
-            ? subs.values.whereType<List>().expand((l) => l).map((e) => e.toString()).toList()
-            : _strList(m['alternatives']);
-        if (altList.isNotEmpty) _setCtrls(_alternativeCtrls, altList);
-        _movementPattern = m['movement_pattern']?.toString();
-        _exerciseType = m['exercise_type']?.toString();
-        _beginnerFriendly = m['beginner_friendly'] == true ||
-            _strList(m['experience_levels']).map((e) => e.toLowerCase()).contains('beginner');
-        _videoRequired = m['video_required'] == true;
-        _supportsPr = m['supports_pr_tracking'] != false;
-        final st = m['supports_tracking'];
-        _supportsRpe = (st is Map) ? st['rpe'] != false : (m['supports_rpe_tracking'] != false);
-        _importedExtra = _buildMasterExtra(m);
-      });
+      _applyNormalized(_normalizeImport(jsonDecode(ctrl.text) as Map<String, dynamic>));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Imported — review the fields, add a video, and save.')));
@@ -445,6 +444,43 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
           content: Text('Invalid JSON — check the format and try again.')));
       }
     }
+  }
+
+  /// Populate the form from a normalized exercise map (shared by Import + Edit).
+  void _applyNormalized(Map<String, dynamic> m) {
+    setState(() {
+      _importedRaw = m;
+      if (m['exercise_name'] != null) _nameCtrl.text = m['exercise_name'].toString();
+      if (m['description'] != null) _descCtrl.text = m['description'].toString();
+      if (m['category'] != null) _category = _humanize(m['category']);
+      if (m['difficulty'] != null) _difficulty = _humanize(m['difficulty']);
+      final eq = _strList(m['equipment_required']).isNotEmpty
+          ? _strList(m['equipment_required']) : _strList(m['equipment']);
+      _equipmentList..clear()..addAll(eq);
+      if (eq.isNotEmpty) _equipment = eq.first;
+      final pm = _strList(m['primary_muscles']);
+      _primaryMuscles..clear()..addAll(pm);
+      if (pm.isNotEmpty) _muscle = pm.first;
+      _secondaryMuscles..clear()..addAll(_strList(m['secondary_muscles']));
+      _setCtrls(_instructionCtrls, _strList(m['step_by_step_instructions']).isNotEmpty
+          ? _strList(m['step_by_step_instructions']) : _strList(m['instructions']));
+      _setCtrls(_cueCtrls, _strList(m['coaching_cues']));
+      _setCtrls(_mistakeCtrls, _flattenMistakes(m['common_mistakes']));
+      final subs = m['substitutions'];
+      final altList = (subs is Map)
+          ? subs.values.whereType<List>().expand((l) => l).map((e) => e.toString()).toList()
+          : _strList(m['alternatives']);
+      if (altList.isNotEmpty) _setCtrls(_alternativeCtrls, altList);
+      _movementPattern = m['movement_pattern']?.toString();
+      _exerciseType = m['exercise_type']?.toString();
+      _beginnerFriendly = m['beginner_friendly'] == true ||
+          _strList(m['experience_levels']).map((e) => e.toLowerCase()).contains('beginner');
+      _videoRequired = m['video_required'] == true;
+      _supportsPr = m['supports_pr_tracking'] != false;
+      final st = m['supports_tracking'];
+      _supportsRpe = (st is Map) ? st['rpe'] != false : (m['supports_rpe_tracking'] != false);
+      _importedExtra = _buildMasterExtra(m);
+    });
   }
 
   Future<void> _pickImage() async {
@@ -507,7 +543,7 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
       }
     }
 
-    final id = await ref.read(myExercisesNotifierProvider.notifier).create(fields: {
+    final fields = <String, dynamic>{
       'name': _nameCtrl.text.trim(),
       'category': _category,
       'muscle_group': _primaryMuscles.isNotEmpty ? _primaryMuscles.first : _muscle,
@@ -538,7 +574,21 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
         // recommended_*, video_assets, analytics, …) override/extend the above.
         ..._importedExtra,
       },
-    });
+    };
+
+    String? id;
+    if (_editingId != null) {
+      // Update the existing row (image_url + video_variants handled below).
+      final f = Map<String, dynamic>.from(fields);
+      final extra = f.remove('extra') as Map<String, dynamic>;
+      f..remove('image_url')..remove('video_variants');
+      final upd = {...f, ...extra};
+      if (_visibility == 'global') upd['submission_status'] = 'approved';
+      final ok = await svc.updateExercise(_editingId!, upd);
+      id = ok ? _editingId : null;
+    } else {
+      id = await ref.read(myExercisesNotifierProvider.notifier).create(fields: fields);
+    }
 
     if (id != null) {
       // Upload files if picked
@@ -642,8 +692,8 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
                 onTap: () => context.pop(),
                 child: const Icon(Icons.arrow_back_ios_new_rounded, color: _C.primary, size: 20)),
               const SizedBox(width: 14),
-              const Expanded(child: Text('Create Exercise',
-                style: TextStyle(color: _C.wht, fontSize: 20, fontWeight: FontWeight.w700))),
+              Expanded(child: Text(_editingId != null ? 'Edit Exercise' : 'Create Exercise',
+                style: const TextStyle(color: _C.wht, fontSize: 20, fontWeight: FontWeight.w700))),
               GestureDetector(
                 onTap: _importJson,
                 child: Container(
@@ -828,8 +878,10 @@ class _MediaTabState extends State<_MediaTab> {
             border: Border.all(color: _C.brd),
             image: s._imageBytes != null
                 ? DecorationImage(image: MemoryImage(s._imageBytes!), fit: BoxFit.cover)
-                : null),
-          child: s._imageBytes == null
+                : (s._existingImageUrl != null
+                    ? DecorationImage(image: NetworkImage(s._existingImageUrl!), fit: BoxFit.cover)
+                    : null)),
+          child: (s._imageBytes == null && s._existingImageUrl == null)
               ? const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Icon(Icons.add_photo_alternate_outlined, color: _C.brand, size: 36),
                   SizedBox(height: 8),

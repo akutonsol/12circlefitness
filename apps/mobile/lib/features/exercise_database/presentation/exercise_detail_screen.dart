@@ -69,7 +69,14 @@ class _ExerciseDetailView extends StatelessWidget {
     return Scaffold(
       backgroundColor: _C.bg,
       extendBodyBehindAppBar: true,
-      floatingActionButton: _EnrichFab(exercise: exercise),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _EditFab(exercise: exercise),
+          const SizedBox(height: 12),
+          _EnrichFab(exercise: exercise),
+        ]),
       body: CustomScrollView(slivers: [
 
         // ── Hero App Bar ──────────────────────────────────────────────────────
@@ -409,6 +416,27 @@ class _FindVideoCard extends StatelessWidget {
       ])));
 }
 
+// Coach/admin-only: open the create screen in edit mode for this exercise.
+class _EditFab extends ConsumerWidget {
+  final ExerciseDetail exercise;
+  const _EditFab({required this.exercise});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final role = ref.watch(currentUserProfileProvider).valueOrNull?['role'];
+    if (role != 'coach' && role != 'admin') return const SizedBox.shrink();
+    return FloatingActionButton.extended(
+      heroTag: 'ex-edit',
+      backgroundColor: _C.surfaceContainerHigh,
+      onPressed: () {
+        ref.read(editingExerciseProvider.notifier).state = exercise.id;
+        context.push('/create-exercise');
+      },
+      icon: const Icon(Icons.edit_outlined, color: _C.onSurface, size: 20),
+      label: const Text('Edit', style: TextStyle(color: _C.onSurface, fontWeight: FontWeight.w700)),
+    );
+  }
+}
+
 // Coach/admin-only FAB: generate coaching content with AI, then reload.
 class _EnrichFab extends ConsumerStatefulWidget {
   final ExerciseDetail exercise;
@@ -427,6 +455,7 @@ class _EnrichFabState extends ConsumerState<_EnrichFab> {
 
     final hasContent = widget.exercise.instructions.isNotEmpty;
     return FloatingActionButton.extended(
+      heroTag: 'ex-enrich',
       backgroundColor: _C.inversePrimary,
       onPressed: _loading ? null : _enrich,
       icon: _loading

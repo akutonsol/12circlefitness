@@ -4,6 +4,9 @@ import '../data/models/exercise_detail_model.dart';
 
 final customExerciseSvcProvider = Provider<CustomExerciseService>((_) => CustomExerciseService());
 
+// Id of the exercise to edit — set before navigating to the create/edit screen.
+final editingExerciseProvider = StateProvider<String?>((ref) => null);
+
 // Coach's own exercises
 final myExercisesProvider = FutureProvider<List<ExerciseDetail>>((ref) async {
   return ref.read(customExerciseSvcProvider).getMyExercises();
