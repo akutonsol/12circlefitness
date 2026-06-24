@@ -116,6 +116,21 @@ final assignedWorkoutsProvider = FutureProvider<List<Workout>>((ref) async {
   }
 });
 
+/// Generate a one-off, library-grounded AI workout for today (personalized to
+/// goal/equipment/injuries/recovery + the coach's focus & intensity) and return
+/// it as a startable Workout. null on failure.
+Future<Workout?> generateAiWorkout({int? minutes}) async {
+  try {
+    final res = await Supabase.instance.client.functions.invoke(
+      'ai-generate-workout',
+      body: {if (minutes != null) 'duration_minutes': minutes});
+    if (res.status != 200) return null;
+    final w = (res.data as Map)['workout'];
+    if (w is! Map) return null;
+    return _programWorkoutToWorkout(Map<String, dynamic>.from(w));
+  } catch (_) { return null; }
+}
+
 // ── Workout session history ───────────────────────────────────────────────────
 final workoutHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   return ref.watch(workoutServiceProvider).getWorkoutHistory();

@@ -127,6 +127,20 @@ class _WorkoutListScreenState extends ConsumerState<WorkoutListScreen> {
     context.go('/active-workout');
   }
 
+  bool _generatingAi = false;
+  Future<void> _generateAiWorkout() async {
+    setState(() => _generatingAi = true);
+    final workout = await generateAiWorkout();
+    if (!mounted) return;
+    setState(() => _generatingAi = false);
+    if (workout != null) {
+      _startWorkout(workout);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not generate a workout. Try again.')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final assignedAsync = ref.watch(assignedWorkoutsProvider);
@@ -195,6 +209,29 @@ class _WorkoutListScreenState extends ConsumerState<WorkoutListScreen> {
                           contentPadding: EdgeInsets.zero),
                       )),
                   ])),
+                const SizedBox(height: 14),
+
+                // ── Generate an AI session for today ──
+                GestureDetector(
+                  onTap: _generatingAi ? null : _generateAiWorkout,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [Color(0xFF842BD2), Color(0xFFB76DFF)]),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [BoxShadow(color: _C.inversePrimary.withValues(alpha: 0.35),
+                        blurRadius: 16, offset: const Offset(0, 6))]),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      if (_generatingAi)
+                        const SizedBox(width: 18, height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      else
+                        const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      Text(_generatingAi ? 'Building your session…' : 'Generate AI Workout',
+                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+                    ]))),
                 const SizedBox(height: 20),
 
                 // ── Assigned program section ──
