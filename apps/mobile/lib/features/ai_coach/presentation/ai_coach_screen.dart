@@ -431,6 +431,9 @@ class _DailyInsightCardState extends State<_DailyInsightCard> {
   Future<void> _load() async {
     final today = await _svc.getTodayInsight();
     if (!mounted) return;
+    // Auto-generate today's brief on open if it doesn't exist yet (bounded to
+    // once per day by the per-date dedup), so it's just there each morning.
+    if (today == null) { await _generate(); return; }
     setState(() { _insight = today; _loading = false; });
   }
 
@@ -590,7 +593,15 @@ class _WeeklyReviewCardState extends State<_WeeklyReviewCard> {
   @override void initState() { super.initState(); _load(); }
   Future<void> _load() async {
     final r = await _svc.getLatestReview();
-    if (mounted) setState(() { _review = r; _loading = false; });
+    if (!mounted) return;
+    // Auto-generate weekly if there's no review from the last 7 days.
+    final stale = r == null || _staleEnd(r['period_end']?.toString());
+    if (stale) { await _generate(); return; }
+    setState(() { _review = r; _loading = false; });
+  }
+  bool _staleEnd(String? end) {
+    final d = end == null ? null : DateTime.tryParse(end);
+    return d == null || DateTime.now().difference(d).inDays >= 7;
   }
   Future<void> _generate() async {
     setState(() => _loading = true);
