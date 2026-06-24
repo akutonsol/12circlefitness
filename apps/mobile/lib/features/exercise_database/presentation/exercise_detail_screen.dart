@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../domain/exercise_database_provider.dart';
+import '../domain/custom_exercise_provider.dart';
 import '../data/models/exercise_detail_model.dart';
 import '../../workout/data/models/video_variant_model.dart';
 import '../../workout/presentation/widgets/youtube_embed.dart';
+import '../../auth/domain/auth_provider.dart';
 
 class _C {
   static const bg                   = Color(0xFF0E0E0F);
@@ -66,6 +68,7 @@ class _ExerciseDetailView extends StatelessWidget {
     return Scaffold(
       backgroundColor: _C.bg,
       extendBodyBehindAppBar: true,
+      floatingActionButton: _EnrichFab(exercise: exercise),
       body: CustomScrollView(slivers: [
 
         // ── Hero App Bar ──────────────────────────────────────────────────────
@@ -362,6 +365,63 @@ void _openVideoLightbox(BuildContext context, String url, String label) {
       ]),
     ),
   );
+}
+
+// Coach/admin-only FAB: generate coaching content with AI, then reload.
+class _EnrichFab extends ConsumerStatefulWidget {
+  final ExerciseDetail exercise;
+  const _EnrichFab({required this.exercise});
+  @override
+  ConsumerState<_EnrichFab> createState() => _EnrichFabState();
+}
+
+class _EnrichFabState extends ConsumerState<_EnrichFab> {
+  bool _loading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final slug = widget.exercise.slug;
+    if (slug == null) return const SizedBox.shrink();
+    final role = ref.watch(currentUserProfileProvider).valueOrNull?['role'];
+    if (role != 'coach' && role != 'admin') return const SizedBox.shrink();
+
+    final hasContent = widget.exercise.instructions.isNotEmpty;
+    return FloatingActionButton.extended(
+      backgroundColor: _C.inversePrimary,
+      onPressed: _loading ? null : () => _enrich(slug),
+      icon: _loading
+          ? const SizedBox(width: 18, height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+          : const Icon(Icons.auto_awesome, color: Colors.white),
+      label: Text(
+        _loading ? 'Generating…' : (hasContent ? 'Regenerate with AI' : 'Enrich with AI'),
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+    );
+  }
+
+  Future<void> _enrich(String slug) async {
+    setState(() => _loading = true);
+    final svc = ref.read(customExerciseSvcProvider);
+    final res = await svc.enrichWithAI(slug);
+    if (!mounted) return;
+    if (!res.ok) {
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(res.error ?? 'Enrichment failed')));
+      return;
+    }
+    final updated = await svc.getExerciseBySlug(slug);
+    ref.invalidate(globalApprovedExercisesProvider);
+    ref.invalidate(myExercisesProvider);
+    if (!mounted) return;
+    setState(() => _loading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Coaching content generated ✨')));
+    if (updated != null) {
+      ref.read(selectedExerciseDetailProvider.notifier).state = updated;
+      context.pushReplacement('/exercise-detail', extra: updated);
+    }
+  }
 }
 
 class _Tag extends StatelessWidget {

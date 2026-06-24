@@ -170,6 +170,33 @@ class CustomExerciseService {
     } catch (e) { lastError = e; return false; }
   }
 
+  /// Ask the enrich-exercise edge function to generate + save coaching content
+  /// (instructions, cues, mistakes, breathing, AI tips) for [slug].
+  Future<({bool ok, String? error})> enrichWithAI(String slug) async {
+    try {
+      final res = await _db.functions.invoke('enrich-exercise', body: {'slug': slug});
+      if (res.status == 200) return (ok: true, error: null);
+      final d = res.data;
+      final msg = (d is Map && d['error'] != null)
+          ? d['error'].toString() : 'Enrichment failed (${res.status})';
+      return (ok: false, error: msg);
+    } on FunctionException catch (e) {
+      final d = e.details;
+      final msg = (d is Map && d['error'] != null) ? d['error'].toString() : 'Enrichment failed';
+      return (ok: false, error: msg);
+    } catch (e) {
+      return (ok: false, error: e.toString());
+    }
+  }
+
+  /// Fetch a single exercise by slug (to refresh the detail after enrichment).
+  Future<ExerciseDetail?> getExerciseBySlug(String slug) async {
+    try {
+      final row = await _db.from('custom_exercises').select().eq('slug', slug).maybeSingle();
+      return row == null ? null : ExerciseDetail.fromJson(row);
+    } catch (_) { return null; }
+  }
+
   // ── Update ────────────────────────────────────────────────────────────────
 
   Future<bool> updateExercise(String id, Map<String, dynamic> updates) async {

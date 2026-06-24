@@ -25,6 +25,7 @@ class ExerciseDetail {
   // null | 'pending' | 'approved' | 'rejected'
   final String? submissionStatus;
   final String? coachId;
+  final String? slug;
 
   ExerciseDetail({
     required this.id,
@@ -49,6 +50,7 @@ class ExerciseDetail {
     this.visibility = 'global',
     this.submissionStatus,
     this.coachId,
+    this.slug,
   }) : videoVariants = videoVariants ?? (videoUrl != null ? [VideoVariant(url: videoUrl, label: 'Tutorial', type: VideoVariant.detectType(videoUrl))] : []);
 
   factory ExerciseDetail.fromJson(Map<String, dynamic> j) {
@@ -83,6 +85,7 @@ class ExerciseDetail {
       visibility:           j['visibility'] as String? ?? 'global',
       submissionStatus:     j['submission_status'] as String?,
       coachId:              j['coach_id'] as String?,
+      slug:                 j['slug'] as String?,
     );
   }
 }
