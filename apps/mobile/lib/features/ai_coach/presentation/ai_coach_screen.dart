@@ -178,8 +178,10 @@ class _AICoachScreenState extends ConsumerState<AICoachScreen> {
           child: _messages.length <= 1
               ? ListView(padding: const EdgeInsets.only(top: 4, bottom: 16), children: [
                   const _DailyInsightCard(),
+                  const _ProgressInsightCard(),
                   const _WeeklyReviewCard(),
                   const _GoalPredictionCard(),
+                  const _RiskCard(),
                   const _CoachPersonaCard(),
                   const _CoachingMemoryCard(),
                   _SuggestedPrompts(mode: _mode, onTap: (p) { _ctrl.text = p; _send(); }),
@@ -737,6 +739,110 @@ class _GoalPredictionCardState extends State<_GoalPredictionCard> {
   }
 }
 const _C2_green = Color(0xFF6FFBBE);
+
+// ── Progress insight card ─────────────────────────────────────────────────────
+class _ProgressInsightCard extends StatefulWidget {
+  const _ProgressInsightCard();
+  @override State<_ProgressInsightCard> createState() => _ProgressInsightCardState();
+}
+class _ProgressInsightCardState extends State<_ProgressInsightCard> {
+  final _svc = AICoachService();
+  Map<String, dynamic>? _it;
+  bool _loading = true;
+  @override void initState() { super.initState(); _load(); }
+  Future<void> _load() async {
+    final i = await _svc.getLatestInsight('progress');
+    if (mounted) setState(() { _it = i; _loading = false; });
+  }
+  Future<void> _gen() async {
+    setState(() => _loading = true);
+    final r = await _svc.generate('progress_insight');
+    if (!mounted) return;
+    setState(() { if (r != null) _it = {'title': r['title'], 'body': r['body']}; _loading = false; });
+  }
+  @override
+  Widget build(BuildContext context) => _coachCard(
+    icon: Icons.trending_up_rounded, label: 'PROGRESS INSIGHT',
+    trailing: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _pri)) : null,
+    child: _it == null && !_loading
+        ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Surface your biggest win from the data — strength, streaks, trends.',
+              style: TextStyle(color: _mut, fontSize: 13, height: 1.4)),
+            const SizedBox(height: 12), _genButton('Find My Win', _gen),
+          ])
+        : _it == null ? const SizedBox.shrink()
+        : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(_it!['title']?.toString() ?? '', style: const TextStyle(color: _C2_green, fontSize: 16, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Text(_it!['body']?.toString() ?? '', style: const TextStyle(color: _mut, fontSize: 13, height: 1.5)),
+            GestureDetector(onTap: _gen, child: const Padding(padding: EdgeInsets.only(top: 8),
+              child: Text('↻ Refresh', style: TextStyle(color: _pri, fontSize: 12, fontWeight: FontWeight.w600)))),
+          ]),
+  );
+}
+
+// ── Risk assessment card ──────────────────────────────────────────────────────
+class _RiskCard extends StatefulWidget {
+  const _RiskCard();
+  @override State<_RiskCard> createState() => _RiskCardState();
+}
+class _RiskCardState extends State<_RiskCard> {
+  final _svc = AICoachService();
+  Map<String, dynamic>? _it;
+  bool _loading = true;
+  @override void initState() { super.initState(); _load(); }
+  Future<void> _load() async {
+    final i = await _svc.getLatestInsight('risk');
+    if (mounted) setState(() { _it = i; _loading = false; });
+  }
+  Future<void> _gen() async {
+    setState(() => _loading = true);
+    final r = await _svc.generate('risk_assessment');
+    if (!mounted) return;
+    setState(() {
+      if (r != null) {
+        _it = {'body': r['summary'], 'data': {
+          'plateau_risk': r['plateau_risk'], 'churn_risk': r['churn_risk'], 'injury_risk': r['injury_risk']}};
+      }
+      _loading = false;
+    });
+  }
+  Color _riskColor(num v) => v >= 66 ? const Color(0xFFFFB4AB) : v >= 33 ? const Color(0xFFF59E0B) : _C2_green;
+  @override
+  Widget build(BuildContext context) {
+    final d = (_it?['data'] as Map?) ?? const {};
+    return _coachCard(
+      icon: Icons.health_and_safety_rounded, label: 'RISK ASSESSMENT',
+      trailing: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _pri)) : null,
+      child: _it == null && !_loading
+          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Spot plateau, drop-off, and injury risk before they happen.',
+                style: TextStyle(color: _mut, fontSize: 13, height: 1.4)),
+              const SizedBox(height: 12), _genButton('Assess My Risk', _gen),
+            ])
+          : _it == null ? const SizedBox.shrink()
+          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                _riskStat('Plateau', d['plateau_risk']),
+                _riskStat('Drop-off', d['churn_risk']),
+                _riskStat('Injury', d['injury_risk']),
+              ]),
+              const SizedBox(height: 12),
+              Text(_it!['body']?.toString() ?? '', style: const TextStyle(color: _mut, fontSize: 13, height: 1.5)),
+              GestureDetector(onTap: _gen, child: const Padding(padding: EdgeInsets.only(top: 8),
+                child: Text('↻ Re-assess', style: TextStyle(color: _pri, fontSize: 12, fontWeight: FontWeight.w600)))),
+            ]),
+    );
+  }
+  Widget _riskStat(String label, dynamic v) {
+    final n = (v as num?)?.round() ?? 0;
+    final c = _riskColor(n);
+    return Column(children: [
+      Text('$n%', style: TextStyle(color: c, fontSize: 20, fontWeight: FontWeight.w800)),
+      Text(label.toUpperCase(), style: const TextStyle(color: _mut, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+    ]);
+  }
+}
 
 // ── Coach personality card ────────────────────────────────────────────────────
 class _CoachPersonaCard extends StatefulWidget {

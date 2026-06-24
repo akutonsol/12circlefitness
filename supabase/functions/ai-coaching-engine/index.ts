@@ -55,6 +55,27 @@ realistic projected goal date. Be honest if pace is off-track. Respond with ONLY
   "confidence": number,          // 0-100
   "summary": "2 sentence plain-language projection"
 }`,
+  accountability: `You are an accountability coach. Using the client's behavioral
+patterns (best/missed workout day, usual training time, streaks) and recent activity,
+write ONE short, specific, contextual nudge — never generic. Reference the actual
+pattern (e.g. their streak, their usual day/time). Respond with ONLY JSON: {
+  "title": "short hook (max 6 words)",
+  "body": "1-2 sentence contextual message in the client's coaching style"
+}`,
+  risk_assessment: `You are a fitness risk-analysis engine. From adherence, recovery,
+soreness, consistency trend, and history, estimate risks. Respond with ONLY JSON: {
+  "plateau_risk": number,   // 0-100
+  "churn_risk": number,     // 0-100 (likelihood they stop using the app)
+  "injury_risk": number,    // 0-100
+  "summary": "2 sentence explanation of the biggest risk and how to mitigate it"
+}`,
+  progress_insight: `You are a fitness analytics engine. From the client's recent
+workout set logs, weight trend, and adherence, surface the single most motivating,
+data-grounded insight (e.g. strength up on a lift, consistency streak, weight trend).
+Be specific with numbers when present. Respond with ONLY JSON: {
+  "title": "headline with the key number (max 9 words)",
+  "body": "1-2 sentence insight that explains why it matters"
+}`,
 };
 
 Deno.serve(async (req: Request) => {
@@ -100,6 +121,8 @@ Deno.serve(async (req: Request) => {
       recent(db, 'workout_feedback', 'user_id', uid, 7),
       recent(db, 'ai_memories', 'user_id', uid, 50),
     ]);
+    const setLogs = (type === 'progress_insight')
+      ? await recent(db, 'workout_set_logs', 'user_id', uid, 60) : [];
 
     const context = {
       profile: profile ?? {},
@@ -111,6 +134,7 @@ Deno.serve(async (req: Request) => {
       recent_nutrition_days: nutrition.length,
       recent_habit_logs: habits.length,
       recovery: feedback?.[0] ?? cycles?.[0] ?? {},
+      recent_set_logs: setLogs.map((s: Db) => ({ exercise: s.exercise_name, weight_kg: s.weight_kg, reps: s.reps, date: s.created_at })),
       memory: {
         likes: memories.filter((m: Db) => m.kind === 'like').map((m: Db) => m.content),
         dislikes: memories.filter((m: Db) => m.kind === 'dislike').map((m: Db) => m.content),
@@ -191,6 +215,30 @@ Deno.serve(async (req: Request) => {
         current_weight: out.current_weight, target_weight: out.target_weight,
         current_pace: out.current_pace, projected_date: out.projected_date,
         confidence: out.confidence, summary: out.summary ?? '',
+      });
+    } else if (type === 'accountability') {
+      const today = context.today;
+      await db.from('ai_insights').delete().eq('user_id', uid).eq('type', 'accountability').eq('for_date', today);
+      await db.from('ai_insights').insert({
+        user_id: uid, type: 'accountability', for_date: today,
+        title: out.title ?? 'Stay on track', body: out.body ?? '', data: { confidence: conf.score },
+      });
+      // Also surface as a notification.
+      try {
+        await db.from('notifications').insert({
+          recipient_id: uid, type: 'ai_accountability',
+          title: out.title ?? 'Your coach', body: out.body ?? '', data: {}, read: false,
+        });
+      } catch (_e) { /* notifications table optional */ }
+    } else if (type === 'risk_assessment') {
+      await db.from('ai_insights').insert({
+        user_id: uid, type: 'risk', title: 'Risk assessment', body: out.summary ?? '',
+        data: { plateau_risk: out.plateau_risk, churn_risk: out.churn_risk, injury_risk: out.injury_risk, confidence: conf.score },
+      });
+    } else if (type === 'progress_insight') {
+      await db.from('ai_insights').insert({
+        user_id: uid, type: 'progress', title: out.title ?? 'Progress', body: out.body ?? '',
+        data: { confidence: conf.score },
       });
     }
 

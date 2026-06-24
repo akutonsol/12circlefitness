@@ -124,6 +124,17 @@ class AICoachService {
     } catch (_) { return null; }
   }
 
+  /// Latest stored ai_insights row of a given type ('risk' | 'progress' | …).
+  Future<Map<String, dynamic>?> getLatestInsight(String type) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return null;
+    try {
+      return await _db.from('ai_insights').select()
+          .eq('user_id', uid).eq('type', type)
+          .order('created_at', ascending: false).limit(1).maybeSingle();
+    } catch (_) { return null; }
+  }
+
   Future<Map<String, dynamic>?> getLatestReview() async {
     final uid = _db.auth.currentUser?.id;
     if (uid == null) return null;
