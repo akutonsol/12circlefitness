@@ -27,7 +27,11 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
   void initState() {
     super.initState();
     _remaining = widget.seconds;
-    widget.onTick?.call(_remaining);
+    // Defer the first tick: initState runs during the parent's build, and onTick
+    // calls setState on the parent (which would assert "setState during build").
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onTick?.call(_remaining);
+    });
     _startTimer();
   }
 

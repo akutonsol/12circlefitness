@@ -92,24 +92,28 @@ class _SetTrackerRowState extends State<SetTrackerRow>
   void didUpdateWidget(SetTrackerRow old) {
     super.didUpdateWidget(old);
     // Saved values may arrive after first build (async restore). Fill any field
-    // the user hasn't already typed into.
-    void fill(TextEditingController c, String? v) {
-      if (v != null && v.isNotEmpty && c.text.isEmpty) c.text = v;
-    }
-    if (widget.savedReps != old.savedReps) fill(_repsController, widget.savedReps?.toString());
-    if (widget.savedRpe != old.savedRpe) {
-      fill(_rpeController, widget.savedRpe != null ? _fmt(widget.savedRpe!) : null);
-    }
-    if (widget.savedWeightKg != old.savedWeightKg &&
-        widget.savedWeightKg != null && widget.savedWeightKg! > 0) {
-      fill(_weightController, _fmt(widget._toDisplay(widget.savedWeightKg!)));
-    }
-    if (widget.savedNotes != old.savedNotes) {
-      fill(_notesController, widget.savedNotes);
-      if (widget.savedNotes != null && widget.savedNotes!.isNotEmpty && !_showNotes) {
-        _showNotes = true;
+    // the user hasn't typed into — deferred to post-frame because mutating a
+    // controller during build asserts on the EditableText being built.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      void fill(TextEditingController c, String? v) {
+        if (v != null && v.isNotEmpty && c.text.isEmpty) c.text = v;
       }
-    }
+      if (widget.savedReps != old.savedReps) fill(_repsController, widget.savedReps?.toString());
+      if (widget.savedRpe != old.savedRpe) {
+        fill(_rpeController, widget.savedRpe != null ? _fmt(widget.savedRpe!) : null);
+      }
+      if (widget.savedWeightKg != old.savedWeightKg &&
+          widget.savedWeightKg != null && widget.savedWeightKg! > 0) {
+        fill(_weightController, _fmt(widget._toDisplay(widget.savedWeightKg!)));
+      }
+      if (widget.savedNotes != old.savedNotes) {
+        fill(_notesController, widget.savedNotes);
+        if (widget.savedNotes != null && widget.savedNotes!.isNotEmpty && !_showNotes) {
+          setState(() => _showNotes = true);
+        }
+      }
+    });
   }
 
   void _emitChange() {
