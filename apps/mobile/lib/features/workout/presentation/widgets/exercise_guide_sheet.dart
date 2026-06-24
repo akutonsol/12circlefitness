@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/exercise_guides.dart';
+import '../../../exercise_database/data/custom_exercise_service.dart';
 import 'youtube_embed.dart';
 
 const _card  = Color(0xFF0E0B16);
@@ -37,10 +38,16 @@ class _ExerciseGuideSheet extends StatelessWidget {
     } catch (_) {}
   }
 
+  /// Resolve the best in-app video source: a coach-uploaded clip from the
+  /// library (by name), else the curated YouTube id.
+  Future<String?> _resolveVideo(ExerciseGuide? guide) async {
+    final fromLibrary = await CustomExerciseService().findVideoForName(name);
+    return fromLibrary ?? guide?.youtubeId;
+  }
+
   @override
   Widget build(BuildContext context) {
     final guide = guideFor(name);
-    final video = guide?.youtubeId != null ? buildInAppVideo(guide!.youtubeId!) : null;
 
     return DraggableScrollableSheet(
       expand: false,
@@ -70,31 +77,45 @@ class _ExerciseGuideSheet extends StatelessWidget {
           ]),
           const SizedBox(height: 16),
 
-          // ── Video ──
-          if (video != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: AspectRatio(aspectRatio: 16 / 9, child: video),
-            )
-          else
-            GestureDetector(
-              onTap: _watchExternal,
-              child: Container(
-                height: 64,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_brand.withValues(alpha: 0.25), _panel],
-                    begin: Alignment.centerLeft, end: Alignment.centerRight),
+          // ── Video (coach-uploaded clip or curated embed, played in-app) ──
+          FutureBuilder<String?>(
+            future: _resolveVideo(guide),
+            builder: (context, snap) {
+              if (snap.connectionState == ConnectionState.waiting) {
+                return Container(
+                  height: 64, alignment: Alignment.center,
+                  decoration: BoxDecoration(color: _panel, borderRadius: BorderRadius.circular(16)),
+                  child: const SizedBox(width: 20, height: 20,
+                    child: CircularProgressIndicator(color: _brand, strokeWidth: 2)));
+              }
+              final src = snap.data;
+              final player = (src != null) ? buildInAppVideo(src) : null;
+              if (player != null) {
+                return ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _brand.withValues(alpha: 0.3))),
-                child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(Icons.play_circle_fill_rounded, color: _brand, size: 26),
-                  SizedBox(width: 10),
-                  Text('Watch form video',
-                    style: TextStyle(color: _white, fontSize: 15, fontWeight: FontWeight.w700)),
-                ]),
-              ),
-            ),
+                  child: AspectRatio(aspectRatio: 16 / 9, child: player),
+                );
+              }
+              return GestureDetector(
+                onTap: _watchExternal,
+                child: Container(
+                  height: 64,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [_brand.withValues(alpha: 0.25), _panel],
+                      begin: Alignment.centerLeft, end: Alignment.centerRight),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _brand.withValues(alpha: 0.3))),
+                  child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.play_circle_fill_rounded, color: _brand, size: 26),
+                    SizedBox(width: 10),
+                    Text('Watch form video',
+                      style: TextStyle(color: _white, fontSize: 15, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              );
+            },
+          ),
           const SizedBox(height: 22),
 
           if (guide == null)

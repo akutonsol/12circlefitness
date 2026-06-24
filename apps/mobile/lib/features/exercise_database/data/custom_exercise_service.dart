@@ -23,6 +23,30 @@ class CustomExerciseService {
     } catch (_) { return []; }
   }
 
+  /// First video URL for an exercise matching [name] in the global library
+  /// (coach/admin uploaded), or null. Used by the in-workout Exercise Guide.
+  Future<String?> findVideoForName(String name) async {
+    final n = name.trim();
+    if (n.isEmpty) return null;
+    try {
+      final rows = await _db
+          .from('custom_exercises')
+          .select('name, video_variants')
+          .eq('visibility', 'global')
+          .eq('submission_status', 'approved')
+          .ilike('name', '%$n%')
+          .limit(5);
+      for (final r in (rows as List)) {
+        final vv = r['video_variants'];
+        if (vv is List && vv.isNotEmpty && vv.first is Map) {
+          final url = (vv.first as Map)['url'] as String?;
+          if (url != null && url.trim().isNotEmpty) return url.trim();
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<List<ExerciseDetail>> getGlobalApprovedExercises() async {
     try {
       final rows = await _db
