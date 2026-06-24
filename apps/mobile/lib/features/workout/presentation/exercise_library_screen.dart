@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../shared/widgets/app_scaffold.dart';
 import '../../exercise_database/domain/exercise_database_provider.dart';
+import '../../exercise_database/domain/custom_exercise_provider.dart';
 import '../../exercise_database/data/exercise_database_service.dart';
 import '../../exercise_database/data/models/exercise_detail_model.dart';
 
@@ -42,7 +43,16 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final allExercises = _service.getAllExercises();
+    // Static library + global-approved custom exercises (so coach-published
+    // exercises show up for clients). Dedup by id.
+    final builtIn = _service.getAllExercises();
+    final globalCustom =
+        ref.watch(globalApprovedExercisesProvider).whenOrNull(data: (d) => d) ?? [];
+    final seen = <String>{};
+    final allExercises = <ExerciseDetail>[];
+    for (final ex in [...globalCustom, ...builtIn]) {
+      if (seen.add(ex.id)) allExercises.add(ex);
+    }
     final tabMuscle = _tabs[_activeTab] == 'ALL'
         ? 'All'
         : _tabs[_activeTab][0] + _tabs[_activeTab].substring(1).toLowerCase();
