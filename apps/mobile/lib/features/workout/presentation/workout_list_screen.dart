@@ -166,6 +166,11 @@ class _WorkoutListScreenState extends ConsumerState<WorkoutListScreen> {
                 ]),
                 const SizedBox(height: 16),
 
+                // ── AI coach adjustment for today ──
+                ref.watch(coachAdjustmentProvider).maybeWhen(
+                  data: (adj) => adj == null ? const SizedBox.shrink() : _CoachAdjustmentBanner(adj: adj),
+                  orElse: () => const SizedBox.shrink()),
+
                 // ── Search ──
                 Container(
                   height: 50,
@@ -563,4 +568,59 @@ class _WorkoutCard extends StatelessWidget {
             ])),
         ])));
   }
+}
+
+// ── Today's AI coach adjustment banner ────────────────────────────────────────
+class _CoachAdjustmentBanner extends StatelessWidget {
+  final CoachAdjustment adj;
+  const _CoachAdjustmentBanner({required this.adj});
+
+  String _humanize(String s) => s.split(RegExp(r'[_\s]+'))
+      .where((w) => w.isNotEmpty).map((w) => '${w[0].toUpperCase()}${w.substring(1)}').join(' ');
+
+  @override
+  Widget build(BuildContext context) {
+    final d = adj.intensityDelta;
+    final downshift = d < 0;
+    final accent = d == 0 ? _C.primary : (downshift ? _C.amber : _C.tertiary);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          accent.withValues(alpha: 0.14), _C.surfaceContainerHigh.withValues(alpha: 0.5)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.35))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.auto_awesome_rounded, color: accent, size: 16),
+          const SizedBox(width: 8),
+          Expanded(child: Text('COACH: ${adj.title.toUpperCase()}',
+            style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+            maxLines: 1, overflow: TextOverflow.ellipsis)),
+        ]),
+        const SizedBox(height: 8),
+        Text(adj.body, style: const TextStyle(color: _C.onSurfaceVar, fontSize: 13, height: 1.4)),
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          if (d != 0)
+            _tag(downshift ? Icons.trending_down_rounded : Icons.trending_up_rounded,
+              'Intensity ${d > 0 ? '+' : ''}$d%', accent),
+          if (adj.focus != null && adj.focus!.isNotEmpty)
+            _tag(Icons.center_focus_strong_rounded, 'Focus: ${_humanize(adj.focus!)}', _C.primary),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _tag(IconData icon, String label, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: color.withValues(alpha: 0.35))),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, color: color, size: 13), const SizedBox(width: 5),
+      Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+    ]));
 }

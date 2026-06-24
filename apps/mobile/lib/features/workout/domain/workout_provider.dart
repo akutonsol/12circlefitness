@@ -5,6 +5,29 @@ import '../../../core/realtime/realtime.dart';
 import '../data/workout_service.dart';
 import '../data/models/exercise_model.dart';
 import '../data/models/workout_model.dart';
+import '../../ai_coach/data/ai_coach_service.dart';
+
+/// Today's coaching adjustment from the AI coach's daily insight — drives an
+/// intensity/focus banner on the workout screen. null when there's no brief yet.
+final coachAdjustmentProvider = FutureProvider.autoDispose<CoachAdjustment?>((ref) async {
+  final insight = await AICoachService().getTodayInsight();
+  if (insight == null) return null;
+  final data = (insight['data'] as Map?) ?? const {};
+  return CoachAdjustment(
+    title: insight['title']?.toString() ?? 'Today’s Coaching',
+    body: insight['body']?.toString() ?? '',
+    focus: data['focus']?.toString(),
+    intensityDelta: (data['intensity_delta'] as num?)?.round() ?? 0,
+  );
+});
+
+class CoachAdjustment {
+  final String title;
+  final String body;
+  final String? focus;
+  final int intensityDelta; // % vs planned (-30..+10)
+  const CoachAdjustment({required this.title, required this.body, this.focus, required this.intensityDelta});
+}
 
 /// Per-workout session status keyed by workout_title: the most recent session's
 /// {status: in_progress|completed, started_at, completed_at, logged_sets}. Lets
