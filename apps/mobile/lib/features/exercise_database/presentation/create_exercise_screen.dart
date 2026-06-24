@@ -59,6 +59,9 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
   bool _videoRequired = false;
   bool _supportsPr = true;
   bool _supportsRpe = true;
+  // Rich master-schema fields captured on JSON import (no visible editor) —
+  // merged into the save so nothing is dropped.
+  Map<String, dynamic> _importedExtra = {};
 
   // Instructions / cues / mistakes / alternatives
   final List<TextEditingController> _instructionCtrls  = [TextEditingController()];
@@ -104,6 +107,106 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
   List<String> _strList(dynamic v) =>
       (v is List) ? v.map((e) => e.toString()).toList() : <String>[];
 
+  // 'lower_body' -> 'Lower Body' (for matching title-case dropdown options).
+  String _humanize(dynamic v) => v
+      .toString()
+      .split(RegExp(r'[_\s]+'))
+      .where((w) => w.isNotEmpty)
+      .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
+
+  /// Replace a dynamic controller-list's contents with [values] (reusing
+  /// controllers; deferring disposal of removed ones to avoid use-after-dispose).
+  void _setCtrls(List<TextEditingController> ctrls, List<String> values) {
+    final vals = values.isEmpty ? [''] : values;
+    final removed = <TextEditingController>[];
+    while (ctrls.length > vals.length) {
+      removed.add(ctrls.removeLast());
+    }
+    while (ctrls.length < vals.length) {
+      ctrls.add(TextEditingController());
+    }
+    for (var i = 0; i < vals.length; i++) {
+      ctrls[i].text = vals[i];
+    }
+    if (removed.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final c in removed) { c.dispose(); }
+      });
+    }
+  }
+
+  List<String> _flattenMistakes(dynamic cm) {
+    if (cm is! List) return [];
+    return cm.map((e) {
+      if (e is Map) {
+        final mistake = e['mistake']?.toString() ?? '';
+        final correction = e['correction']?.toString();
+        return (correction != null && correction.isNotEmpty)
+            ? '$mistake → $correction' : mistake;
+      }
+      return e.toString();
+    }).where((s) => s.isNotEmpty).toList();
+  }
+
+  /// Rich master-schema fields (excludes the core form-editable ones, which come
+  /// from the named insert fields so manual edits win).
+  Map<String, dynamic> _buildMasterExtra(Map<String, dynamic> m) {
+    final ai = m['ai_metadata'] is Map ? Map<String, dynamic>.from(m['ai_metadata']) : null;
+    final extra = <String, dynamic>{};
+    void put(String k, dynamic v) { if (v != null) extra[k] = v; }
+    final eqReq = _strList(m['equipment_required']).isNotEmpty
+        ? _strList(m['equipment_required']) : _strList(m['equipment']);
+
+    put('slug', m['slug']);
+    put('status', m['status']);
+    put('exercise_type', m['exercise_type']);
+    put('movement_pattern', m['movement_pattern']);
+    extra['subcategories']      = _strList(m['subcategories']);
+    extra['primary_muscles']    = _strList(m['primary_muscles']);
+    extra['secondary_muscles']  = _strList(m['secondary_muscles']);
+    extra['equipment_required'] = eqReq;
+    extra['equipment_optional'] = _strList(m['equipment_optional']);
+    extra['equipment_list']     = eqReq;
+    extra['body_region']        = _strList(m['body_region']);
+    extra['goal_tags']          = _strList(m['goal_tags']);
+    extra['experience_levels']  = _strList(m['experience_levels']);
+    extra['sports_relevance']   = _strList(m['sports_relevance']);
+    extra['contraindications']  = _strList(m['contraindications']);
+    extra['beginner_modifications']   = _strList(m['beginner_modifications']);
+    extra['advanced_progressions']    = _strList(m['advanced_progressions']);
+    extra['warmup_recommendations']   = _strList(m['warmup_recommendations']);
+    extra['cooldown_recommendations'] = _strList(m['cooldown_recommendations']);
+    extra['tempo_options']      = _strList(m['tempo_options']);
+    extra['badges']             = _strList(m['badges']);
+    put('default_rest_seconds', m['default_rest_seconds']);
+    put('estimated_calories_per_set', m['estimated_calories_per_set']);
+    put('supports_volume_tracking', m['supports_volume_tracking']);
+    if (m['supports_tracking'] is Map) extra['supports_tracking'] = m['supports_tracking'];
+    if (m['substitutions'] != null) extra['substitutions'] = m['substitutions'];
+    if (m['common_mistakes'] is List &&
+        (m['common_mistakes'] as List).isNotEmpty &&
+        (m['common_mistakes'] as List).first is Map) {
+      extra['common_mistakes_detailed'] = m['common_mistakes'];
+    }
+    put('video_assets', m['video_assets']);
+    put('image_assets', m['image_assets']);
+    put('form_correction_videos', m['form_correction_videos']);
+    put('mobility_videos', m['mobility_videos']);
+    if (ai != null) {
+      extra['ai_metadata'] = ai;
+      put('fatigue_score', ai['fatigue_score']);
+      put('complexity_score', ai['complexity_score']);
+      put('recovery_demand', ai['recovery_demand']);
+      if (ai['training_effect'] != null) extra['training_effect'] = _strList(ai['training_effect']);
+    }
+    put('recommended_frequency', m['recommended_frequency']);
+    put('recommended_rep_ranges', m['recommended_rep_ranges']);
+    put('recommended_rpe', m['recommended_rpe']);
+    put('analytics', m['analytics']);
+    return extra;
+  }
+
   /// Paste an exercise JSON (e.g. AI-generated) to prefill the form.
   Future<void> _importJson() async {
     final ctrl = TextEditingController();
@@ -137,21 +240,38 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
       final m = jsonDecode(ctrl.text) as Map<String, dynamic>;
       setState(() {
         if (m['exercise_name'] != null) _nameCtrl.text = m['exercise_name'].toString();
-        if (m['category'] != null) _category = _matchOpt(_categories, m['category'].toString(), _category);
-        if (m['difficulty'] != null) _difficulty = _matchOpt(_difficulties, m['difficulty'].toString(), _difficulty);
-        final eq = _strList(m['equipment']);
+        if (m['description'] != null) _descCtrl.text = m['description'].toString();
+        if (m['category'] != null) _category = _matchOpt(_categories, _humanize(m['category']), _category);
+        if (m['difficulty'] != null) _difficulty = _matchOpt(_difficulties, _humanize(m['difficulty']), _difficulty);
+        // equipment: master uses equipment_required; simple uses equipment.
+        final eq = _strList(m['equipment_required']).isNotEmpty
+            ? _strList(m['equipment_required']) : _strList(m['equipment']);
         _equipmentList..clear()..addAll(eq);
-        if (eq.isNotEmpty) _equipment = _matchOpt(_equipmentOptions, eq.first, _equipment);
+        if (eq.isNotEmpty) _equipment = _matchOpt(_equipmentOptions, _humanize(eq.first), _equipment);
         final pm = _strList(m['primary_muscles']);
         _primaryMuscles..clear()..addAll(pm);
-        if (pm.isNotEmpty) _muscle = _matchOpt(_muscles, pm.first, _muscle);
+        if (pm.isNotEmpty) _muscle = _matchOpt(_muscles, _humanize(pm.first), _muscle);
         _secondaryMuscles..clear()..addAll(_strList(m['secondary_muscles']));
+        // list fields (master uses step_by_step_instructions)
+        _setCtrls(_instructionCtrls, _strList(m['step_by_step_instructions']).isNotEmpty
+            ? _strList(m['step_by_step_instructions']) : _strList(m['instructions']));
+        _setCtrls(_cueCtrls, _strList(m['coaching_cues']));
+        _setCtrls(_mistakeCtrls, _flattenMistakes(m['common_mistakes']));
+        // substitutions / alternatives
+        final subs = m['substitutions'];
+        final altList = (subs is Map)
+            ? subs.values.whereType<List>().expand((l) => l).map((e) => e.toString()).toList()
+            : _strList(m['alternatives']);
+        if (altList.isNotEmpty) _setCtrls(_alternativeCtrls, altList);
         _movementPattern = m['movement_pattern']?.toString();
         _exerciseType = m['exercise_type']?.toString();
-        _beginnerFriendly = m['beginner_friendly'] == true;
+        _beginnerFriendly = m['beginner_friendly'] == true ||
+            _strList(m['experience_levels']).map((e) => e.toLowerCase()).contains('beginner');
         _videoRequired = m['video_required'] == true;
         _supportsPr = m['supports_pr_tracking'] != false;
-        _supportsRpe = m['supports_rpe_tracking'] != false;
+        final st = m['supports_tracking'];
+        _supportsRpe = (st is Map) ? st['rpe'] != false : (m['supports_rpe_tracking'] != false);
+        _importedExtra = _buildMasterExtra(m);
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -221,6 +341,9 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
         'video_required': _videoRequired,
         'supports_pr_tracking': _supportsPr,
         'supports_rpe_tracking': _supportsRpe,
+        // Rich imported fields (slug, goal_tags, substitutions, ai_metadata,
+        // recommended_*, video_assets, analytics, …) override/extend the above.
+        ..._importedExtra,
       },
     });
 
