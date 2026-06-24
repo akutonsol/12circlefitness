@@ -594,7 +594,7 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
   void _showSuccess() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dctx) => AlertDialog(
         backgroundColor: _C.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Exercise Saved!', style: TextStyle(color: _C.wht, fontWeight: FontWeight.w700)),
@@ -606,12 +606,13 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
         ]),
         actions: [
           TextButton(
-            onPressed: () { Navigator.pop(context); context.pop(); },
+            // Pop the dialog via its own context (root navigator), then leave the screen.
+            onPressed: () { Navigator.of(dctx).pop(); if (mounted) context.pop(); },
             child: const Text('Back to Library', style: TextStyle(color: _C.primary))),
           if (_savedId != null)
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.of(dctx).pop();
                 ref.read(myExercisesNotifierProvider.notifier).submitForGlobal(_savedId!).then((_) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
