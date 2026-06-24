@@ -50,6 +50,7 @@ class MyExercisesNotifier extends StateNotifier<AsyncValue<List<ExerciseDetail>>
       videoVariants: List.from(fields['video_variants'] as List? ?? []),
       imageUrl: fields['image_url'] as String?,
       visibility: fields['visibility'] as String? ?? 'private',
+      extra: fields['extra'] as Map<String, dynamic>?,
     );
     if (id != null) await _load();
     return id;

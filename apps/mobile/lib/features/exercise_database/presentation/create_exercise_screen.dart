@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,7 +23,7 @@ class _C {
 
 const _categories  = ['Strength', 'Cardio', 'Flexibility', 'Core', 'Olympic', 'Powerlifting', 'Functional', 'Rehab'];
 const _muscles     = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Glutes', 'Hamstrings', 'Core', 'Full Body', 'Cardio'];
-const _equipment   = ['Barbell', 'Dumbbell', 'Kettlebell', 'Machine', 'Cable', 'Bodyweight', 'Resistance Band', 'Smith Machine', 'Trap Bar', 'None'];
+const _equipmentOptions = ['Barbell', 'Dumbbell', 'Kettlebell', 'Machine', 'Cable', 'Bodyweight', 'Resistance Band', 'Smith Machine', 'Trap Bar', 'None'];
 const _difficulties = ['Beginner', 'Intermediate', 'Advanced', 'Elite'];
 const _videoLabels  = ['Tutorial', 'Beginner', 'Intermediate', 'Advanced', 'Form Correction', 'Warm-up'];
 const _visibilities = ['private', 'team', 'global'];
@@ -49,6 +50,15 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
   String _difficulty = 'Intermediate';
   String _visibility = 'private';
   final List<String> _secondaryMuscles = [];
+  // Richer metadata (e.g. from JSON import).
+  final List<String> _primaryMuscles = [];
+  final List<String> _equipmentList = [];
+  String? _movementPattern;
+  String? _exerciseType;
+  bool _beginnerFriendly = false;
+  bool _videoRequired = false;
+  bool _supportsPr = true;
+  bool _supportsRpe = true;
 
   // Instructions / cues / mistakes / alternatives
   final List<TextEditingController> _instructionCtrls  = [TextEditingController()];
@@ -83,6 +93,77 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
 
   List<String> _listFrom(List<TextEditingController> ctrls) =>
       ctrls.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
+
+  String _matchOpt(List<String> opts, String value, String fallback) {
+    for (final o in opts) {
+      if (o.toLowerCase() == value.toLowerCase()) return o;
+    }
+    return fallback;
+  }
+
+  List<String> _strList(dynamic v) =>
+      (v is List) ? v.map((e) => e.toString()).toList() : <String>[];
+
+  /// Paste an exercise JSON (e.g. AI-generated) to prefill the form.
+  Future<void> _importJson() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1B1C),
+        title: const Text('Paste exercise JSON',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+        content: SizedBox(
+          width: 420,
+          child: TextField(
+            controller: ctrl, maxLines: 12,
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+            decoration: const InputDecoration(
+              hintText: '{ "exercise_name": "Barbell Squat", ... }',
+              hintStyle: TextStyle(color: Color(0xFF968E99)),
+              filled: true, fillColor: Color(0xFF0E0E0F)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFFCDC3D0)))),
+          TextButton(onPressed: () => Navigator.pop(dctx, true),
+            child: const Text('Import', style: TextStyle(color: _C.primary, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final m = jsonDecode(ctrl.text) as Map<String, dynamic>;
+      setState(() {
+        if (m['exercise_name'] != null) _nameCtrl.text = m['exercise_name'].toString();
+        if (m['category'] != null) _category = _matchOpt(_categories, m['category'].toString(), _category);
+        if (m['difficulty'] != null) _difficulty = _matchOpt(_difficulties, m['difficulty'].toString(), _difficulty);
+        final eq = _strList(m['equipment']);
+        _equipmentList..clear()..addAll(eq);
+        if (eq.isNotEmpty) _equipment = _matchOpt(_equipmentOptions, eq.first, _equipment);
+        final pm = _strList(m['primary_muscles']);
+        _primaryMuscles..clear()..addAll(pm);
+        if (pm.isNotEmpty) _muscle = _matchOpt(_muscles, pm.first, _muscle);
+        _secondaryMuscles..clear()..addAll(_strList(m['secondary_muscles']));
+        _movementPattern = m['movement_pattern']?.toString();
+        _exerciseType = m['exercise_type']?.toString();
+        _beginnerFriendly = m['beginner_friendly'] == true;
+        _videoRequired = m['video_required'] == true;
+        _supportsPr = m['supports_pr_tracking'] != false;
+        _supportsRpe = m['supports_rpe_tracking'] != false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Imported — review the fields, add a video, and save.')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Invalid JSON — check the format and try again.')));
+      }
+    }
+  }
 
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
@@ -131,6 +212,16 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
       'video_variants': variants,
       'image_url': null,
       'visibility': _visibility,
+      'extra': {
+        'equipment_list': _equipmentList,
+        'primary_muscles': _primaryMuscles,
+        if (_movementPattern != null) 'movement_pattern': _movementPattern,
+        if (_exerciseType != null) 'exercise_type': _exerciseType,
+        'beginner_friendly': _beginnerFriendly,
+        'video_required': _videoRequired,
+        'supports_pr_tracking': _supportsPr,
+        'supports_rpe_tracking': _supportsRpe,
+      },
     });
 
     if (id != null) {
@@ -223,6 +314,20 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
               const Expanded(child: Text('Create Exercise',
                 style: TextStyle(color: _C.wht, fontSize: 20, fontWeight: FontWeight.w700))),
               GestureDetector(
+                onTap: _importJson,
+                child: Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _C.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: _C.primary.withValues(alpha: 0.4))),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.data_object_rounded, color: _C.primary, size: 16),
+                    SizedBox(width: 5),
+                    Text('Import JSON', style: TextStyle(color: _C.primary, fontSize: 12, fontWeight: FontWeight.w700)),
+                  ]))),
+              GestureDetector(
                 onTap: _saving ? null : _save,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -283,7 +388,7 @@ class _BasicsTabState extends State<_BasicsTab> {
       const SizedBox(height: 14),
       _row('Primary Muscle', _muscles, s._muscle, (v) => setState(() => s._muscle = v!)),
       const SizedBox(height: 14),
-      _row('Equipment', _equipment, s._equipment, (v) => setState(() => s._equipment = v!)),
+      _row('Equipment', _equipmentOptions, s._equipment, (v) => setState(() => s._equipment = v!)),
       const SizedBox(height: 14),
       _row('Difficulty', _difficulties, s._difficulty, (v) => setState(() => s._difficulty = v!)),
       const SizedBox(height: 20),

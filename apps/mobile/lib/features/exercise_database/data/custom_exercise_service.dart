@@ -79,6 +79,7 @@ class CustomExerciseService {
     required List<VideoVariant> videoVariants,
     String? imageUrl,
     String visibility = 'private',
+    Map<String, dynamic>? extra, // additional columns (metadata)
   }) async {
     final uid = _uid;
     if (uid == null) return null;
@@ -102,6 +103,7 @@ class CustomExerciseService {
         'video_variants': videoVariants.map((v) => v.toJson()).toList(),
         if (imageUrl != null) 'image_url': imageUrl,
         'visibility': visibility,
+        ...?extra,
       }).select().single();
       return row['id'] as String;
     } catch (_) { return null; }
