@@ -14,6 +14,12 @@ class SetTrackerRow extends StatefulWidget {
   // Fired when any field is edited (on blur), so values persist without having
   // to (re)tap the complete button. weight is in kg.
   final Function(int reps, double weight, double? rpe, String? notes)? onChanged;
+  // Previously-logged values for this set (restored from the DB), so the fields
+  // repopulate when returning to the workout. Null = nothing logged yet.
+  final double? savedWeightKg;
+  final int? savedReps;
+  final double? savedRpe;
+  final String? savedNotes;
 
   const SetTrackerRow({
     super.key,
@@ -25,6 +31,10 @@ class SetTrackerRow extends StatefulWidget {
     this.onChanged,
     this.unit = 'kg',
     this.tempo,
+    this.savedWeightKg,
+    this.savedReps,
+    this.savedRpe,
+    this.savedNotes,
   });
 
   static const double _kgPerLb = 0.45359237;
@@ -59,11 +69,16 @@ class _SetTrackerRowState extends State<SetTrackerRow>
   @override
   void initState() {
     super.initState();
-    _repsController = TextEditingController(text: widget.targetReps.toString());
-    _weightController = TextEditingController(
-        text: widget.targetWeight == 0 ? '' : _fmt(widget._toDisplay(widget.targetWeight)));
-    _rpeController = TextEditingController();
-    _notesController = TextEditingController();
+    // Fields start from any saved value; otherwise empty (reps no longer
+    // pre-fills the target — all three inputs start blank like weight/RPE).
+    final savedWeightDisplay = (widget.savedWeightKg != null && widget.savedWeightKg! > 0)
+        ? _fmt(widget._toDisplay(widget.savedWeightKg!)) : '';
+    _repsController = TextEditingController(text: widget.savedReps?.toString() ?? '');
+    _weightController = TextEditingController(text: savedWeightDisplay);
+    _rpeController = TextEditingController(
+        text: widget.savedRpe != null ? _fmt(widget.savedRpe!) : '');
+    _notesController = TextEditingController(text: widget.savedNotes ?? '');
+    _showNotes = (widget.savedNotes != null && widget.savedNotes!.isNotEmpty);
     // Persist edits when a field loses focus.
     for (final f in [_weightFocus, _repsFocus, _rpeFocus, _notesFocus]) {
       f.addListener(() { if (!f.hasFocus) _emitChange(); });
@@ -71,6 +86,30 @@ class _SetTrackerRowState extends State<SetTrackerRow>
     _notesPulse = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 1100))
       ..repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(SetTrackerRow old) {
+    super.didUpdateWidget(old);
+    // Saved values may arrive after first build (async restore). Fill any field
+    // the user hasn't already typed into.
+    void fill(TextEditingController c, String? v) {
+      if (v != null && v.isNotEmpty && c.text.isEmpty) c.text = v;
+    }
+    if (widget.savedReps != old.savedReps) fill(_repsController, widget.savedReps?.toString());
+    if (widget.savedRpe != old.savedRpe) {
+      fill(_rpeController, widget.savedRpe != null ? _fmt(widget.savedRpe!) : null);
+    }
+    if (widget.savedWeightKg != old.savedWeightKg &&
+        widget.savedWeightKg != null && widget.savedWeightKg! > 0) {
+      fill(_weightController, _fmt(widget._toDisplay(widget.savedWeightKg!)));
+    }
+    if (widget.savedNotes != old.savedNotes) {
+      fill(_notesController, widget.savedNotes);
+      if (widget.savedNotes != null && widget.savedNotes!.isNotEmpty && !_showNotes) {
+        _showNotes = true;
+      }
+    }
   }
 
   void _emitChange() {

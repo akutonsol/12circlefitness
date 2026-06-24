@@ -706,12 +706,18 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       final isCompleted = setData['completed'] == true;
 
       return SetTrackerRow(
+        key: ValueKey('${we.exercise.id}_${set.setNumber}'),
         setNumber: set.setNumber,
         targetReps: set.reps,
         targetWeight: set.weight,
         completed: isCompleted,
         tempo: set.tempo,
         unit: _unit,
+        // Restore previously-logged values so they reappear on return.
+        savedWeightKg: (setData['weight'] as num?)?.toDouble(),
+        savedReps: (setData['reps'] as num?)?.toInt(),
+        savedRpe: (setData['rpe'] as num?)?.toDouble(),
+        savedNotes: setData['notes'] as String?,
         // Persist field edits (on blur / enter) even if the set isn't completed.
         onChanged: (reps, weight, rpe, notes) {
           _persistSet(we.exercise.name, we.exercise.id, set.setNumber, set.tempo,
