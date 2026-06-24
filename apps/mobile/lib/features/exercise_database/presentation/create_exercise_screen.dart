@@ -27,6 +27,23 @@ const _equipmentOptions = ['Barbell', 'Dumbbell', 'Kettlebell', 'Machine', 'Cabl
 const _difficulties = ['Beginner', 'Intermediate', 'Advanced', 'Elite'];
 const _videoLabels  = ['Tutorial', 'Beginner', 'Intermediate', 'Advanced', 'Form Correction', 'Warm-up'];
 const _visibilities = ['private', 'team', 'global'];
+const _movementPatterns = ['Squat', 'Hinge', 'Lunge', 'Push', 'Pull', 'Carry', 'Rotation', 'Core', 'Gait', 'Isometric'];
+const _exerciseTypes = ['Compound', 'Isolation', 'Plyometric', 'Isometric', 'Cardio'];
+const _kNone = '— Not set —';
+
+/// Label + subtitle + switch row.
+Widget _toggleRow(String label, String subtitle, bool value, ValueChanged<bool> onChanged) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(children: [
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(color: _C.wht, fontSize: 13, fontWeight: FontWeight.w600)),
+        Text(subtitle, style: const TextStyle(color: _C.mut, fontSize: 11)),
+      ])),
+      Switch(value: value, onChanged: onChanged, activeThumbColor: _C.primary),
+    ]),
+  );
+}
 
 /// Preset options + any selected values not in the presets (so imported values
 /// always show). Order: presets first, then extras.
@@ -550,6 +567,28 @@ class _BasicsTabState extends State<_BasicsTab> {
       _chipMulti('Secondary Muscles', _mergeOpts(_muscles, s._secondaryMuscles), s._secondaryMuscles, () => setState(() {})),
       const SizedBox(height: 16),
       _chipMulti('Equipment', _mergeOpts(_equipmentOptions, s._equipmentList), s._equipmentList, () => setState(() {})),
+      const SizedBox(height: 22),
+      const Text('ATTRIBUTES & TRACKING',
+        style: TextStyle(color: _C.mut, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
+      const SizedBox(height: 12),
+      _row('Movement Pattern',
+        _mergeOpts([_kNone, ..._movementPatterns], [s._movementPattern ?? _kNone]),
+        s._movementPattern ?? _kNone,
+        (v) => setState(() => s._movementPattern = (v == null || v == _kNone) ? null : v)),
+      const SizedBox(height: 14),
+      _row('Exercise Type',
+        _mergeOpts([_kNone, ..._exerciseTypes], [s._exerciseType ?? _kNone]),
+        s._exerciseType ?? _kNone,
+        (v) => setState(() => s._exerciseType = (v == null || v == _kNone) ? null : v)),
+      const SizedBox(height: 14),
+      _toggleRow('Beginner Friendly', 'Suitable for beginners', s._beginnerFriendly,
+        (v) => setState(() => s._beginnerFriendly = v)),
+      _toggleRow('Video Required', 'A form video is recommended', s._videoRequired,
+        (v) => setState(() => s._videoRequired = v)),
+      _toggleRow('Track PRs', 'Detect personal records (weight-based)', s._supportsPr,
+        (v) => setState(() => s._supportsPr = v)),
+      _toggleRow('Track RPE', 'Show the RPE field when logging sets', s._supportsRpe,
+        (v) => setState(() => s._supportsRpe = v)),
     ]);
   }
 }
