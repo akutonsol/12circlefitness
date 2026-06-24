@@ -25,7 +25,7 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600))..repeat();
-    _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..forward();
+    _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..forward();
 
     _badgeScale = CurvedAnimation(parent: _intro, curve: const Interval(0.0, 0.45, curve: Curves.easeOutBack));
     _badgeFade  = CurvedAnimation(parent: _intro, curve: const Interval(0.0, 0.30, curve: Curves.easeOut));
@@ -33,7 +33,7 @@ class _SplashScreenState extends State<SplashScreen>
     _textSlide  = CurvedAnimation(parent: _intro, curve: const Interval(0.40, 0.80, curve: Curves.easeOutCubic));
 
     // Hand off to the router (which redirects to the right place by auth/role).
-    Future.delayed(const Duration(milliseconds: 2300), () {
+    Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) context.go('/onboarding');
     });
   }
