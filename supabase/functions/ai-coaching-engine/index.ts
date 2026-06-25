@@ -69,6 +69,15 @@ soreness, consistency trend, and history, estimate risks. Respond with ONLY JSON
   "injury_risk": number,    // 0-100
   "summary": "2 sentence explanation of the biggest risk and how to mitigate it"
 }`,
+  meal_suggestion: `You are a nutrition coach. Suggest meals that help the client hit
+their REMAINING macros for today, respecting allergies/dislikes/preferences from memory.
+Keep portions realistic. Respond with ONLY JSON: {
+  "meals": [
+    { "name": "meal name", "calories": number, "protein_g": number, "carbs_g": number,
+      "fat_g": number, "note": "why it fits their remaining macros" }
+  ]
+}
+Give 3 options. If remaining calories are near zero, suggest light/high-protein snacks.`,
   progress_insight: `You are a fitness analytics engine. From the client's recent
 workout set logs, weight trend, and adherence, surface the single most motivating,
 data-grounded insight (e.g. strength up on a lift, consistency streak, weight trend).
@@ -128,6 +137,26 @@ Deno.serve(async (req: Request) => {
     const setLogs = (type === 'progress_insight')
       ? await recent(db, 'workout_set_logs', 'user_id', uid, 60) : [];
 
+    // For meal suggestions: active plan targets + today's logged macros → remaining.
+    let nutritionTargets: Record<string, number> | null = null;
+    if (type === 'meal_suggestion') {
+      const { data: plan } = await db.from('client_nutrition_plans')
+        .select('calories_target, protein_g, carbs_g, fat_g')
+        .eq('client_id', uid).eq('is_active', true).order('created_at', { ascending: false }).maybeSingle();
+      const start = new Date(); start.setHours(0, 0, 0, 0);
+      const { data: todays } = await db.from('nutrition_logs')
+        .select('calories, protein_g, carbs_g, fat_g').eq('user_id', uid).gte('logged_at', start.toISOString());
+      const sum = (k: string) => ((todays ?? []) as Db[]).reduce((a, r) => a + (Number(r[k]) || 0), 0);
+      if (plan) {
+        nutritionTargets = {
+          remaining_calories: Math.max(0, Math.round((plan.calories_target ?? 0) - sum('calories'))),
+          remaining_protein_g: Math.max(0, Math.round((plan.protein_g ?? 0) - sum('protein_g'))),
+          remaining_carbs_g: Math.max(0, Math.round((plan.carbs_g ?? 0) - sum('carbs_g'))),
+          remaining_fat_g: Math.max(0, Math.round((plan.fat_g ?? 0) - sum('fat_g'))),
+        };
+      }
+    }
+
     const context = {
       profile: profile ?? {},
       ai_profile: aiProfile ?? {},
@@ -139,6 +168,7 @@ Deno.serve(async (req: Request) => {
       recent_habit_logs: habits.length,
       recovery: feedback?.[0] ?? cycles?.[0] ?? {},
       recent_set_logs: setLogs.map((s: Db) => ({ exercise: s.exercise_name, weight_kg: s.weight_kg, reps: s.reps, date: s.created_at })),
+      remaining_macros_today: nutritionTargets,
       memory: {
         likes: memories.filter((m: Db) => m.kind === 'like').map((m: Db) => m.content),
         dislikes: memories.filter((m: Db) => m.kind === 'dislike').map((m: Db) => m.content),
@@ -243,6 +273,13 @@ Deno.serve(async (req: Request) => {
       await db.from('ai_insights').insert({
         user_id: uid, type: 'progress', title: out.title ?? 'Progress', body: out.body ?? '',
         data: { confidence: conf.score },
+      });
+    } else if (type === 'meal_suggestion') {
+      const today = context.today;
+      await db.from('ai_insights').delete().eq('user_id', uid).eq('type', 'meal_suggestion').eq('for_date', today);
+      await db.from('ai_insights').insert({
+        user_id: uid, type: 'meal_suggestion', for_date: today,
+        title: 'Meal ideas', body: '', data: { meals: out.meals ?? [], remaining: nutritionTargets },
       });
     }
 

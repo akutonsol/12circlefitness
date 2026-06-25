@@ -178,6 +178,7 @@ class _AICoachScreenState extends ConsumerState<AICoachScreen> {
           child: _messages.length <= 1
               ? ListView(padding: const EdgeInsets.only(top: 4, bottom: 16), children: [
                   const _DailyInsightCard(),
+                  const _MealIdeasCard(),
                   const _ProgressInsightCard(),
                   const _WeeklyReviewCard(),
                   const _GoalPredictionCard(),
@@ -739,6 +740,62 @@ class _GoalPredictionCardState extends State<_GoalPredictionCard> {
   }
 }
 const _C2_green = Color(0xFF6FFBBE);
+
+// ── Meal ideas card ───────────────────────────────────────────────────────────
+class _MealIdeasCard extends StatefulWidget {
+  const _MealIdeasCard();
+  @override State<_MealIdeasCard> createState() => _MealIdeasCardState();
+}
+class _MealIdeasCardState extends State<_MealIdeasCard> {
+  final _svc = AICoachService();
+  List<dynamic> _meals = [];
+  bool _loading = true;
+  @override void initState() { super.initState(); _load(); }
+  Future<void> _load() async {
+    final i = await _svc.getLatestInsight('meal_suggestion');
+    final m = (i?['data'] as Map?)?['meals'];
+    if (mounted) setState(() { _meals = m is List ? m : []; _loading = false; });
+  }
+  Future<void> _gen() async {
+    setState(() => _loading = true);
+    final r = await _svc.generate('meal_suggestion');
+    if (!mounted) return;
+    setState(() { final m = r?['meals']; _meals = m is List ? m : []; _loading = false; });
+  }
+  @override
+  Widget build(BuildContext context) => _coachCard(
+    icon: Icons.restaurant_rounded, label: 'MEAL IDEAS',
+    trailing: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _pri)) : null,
+    child: _meals.isEmpty && !_loading
+        ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Get meals that fit your remaining macros for today.',
+              style: TextStyle(color: _mut, fontSize: 13, height: 1.4)),
+            const SizedBox(height: 12), _genButton('Suggest Meals', _gen),
+          ])
+        : _meals.isEmpty ? const SizedBox.shrink()
+        : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ..._meals.whereType<Map>().map((m) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(child: Text(m['name']?.toString() ?? '',
+                    style: const TextStyle(color: _wht, fontSize: 14, fontWeight: FontWeight.w700))),
+                  Text('${(m['calories'] as num?)?.round() ?? 0} kcal',
+                    style: const TextStyle(color: _C2.green, fontSize: 12, fontWeight: FontWeight.w700)),
+                ]),
+                const SizedBox(height: 2),
+                Text('P ${(m['protein_g'] as num?)?.round() ?? 0}g · '
+                     'C ${(m['carbs_g'] as num?)?.round() ?? 0}g · '
+                     'F ${(m['fat_g'] as num?)?.round() ?? 0}g',
+                  style: const TextStyle(color: _mut, fontSize: 11)),
+                if (m['note'] != null) Text(m['note'].toString(),
+                  style: const TextStyle(color: _mut, fontSize: 11, height: 1.3)),
+              ]))),
+            GestureDetector(onTap: _gen, child: const Padding(padding: EdgeInsets.only(top: 2),
+              child: Text('↻ New ideas', style: TextStyle(color: _pri, fontSize: 12, fontWeight: FontWeight.w600)))),
+          ]),
+  );
+}
 
 // ── Progress insight card ─────────────────────────────────────────────────────
 class _ProgressInsightCard extends StatefulWidget {
