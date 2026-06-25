@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/models/workout_log_model.dart';
 import '../data/models/workout_model.dart';
+import '../data/models/exercise_model.dart';
 import '../data/workout_service.dart';
 import '../domain/workout_provider.dart';
 import 'widgets/set_tracker_row.dart';
@@ -771,6 +772,11 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
               const _GuideIconPulse(),
             ]),
           )),
+        GestureDetector(
+          onTap: () => _showSwapSheet(index, we),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Icon(Icons.swap_horiz_rounded, color: _primary.withValues(alpha: 0.8), size: 18))),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
@@ -779,6 +785,66 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           child: Text(we.exercise.muscleGroup,
             style: TextStyle(color: _primary.withValues(alpha: 0.8), fontSize: 10, fontWeight: FontWeight.w600))),
       ]));
+  }
+
+  /// Swap an exercise for a same-muscle substitute (keeps the set structure).
+  Future<void> _showSwapSheet(int index, WorkoutExercise we) async {
+    final subs = await CustomExerciseService().getSubstitutes(we.exercise.name, we.exercise.muscleGroup);
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context, backgroundColor: _card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Swap “${we.exercise.name}”',
+            style: const TextStyle(color: _white, fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text('Same muscle group · keeps your sets',
+            style: TextStyle(color: _muted.withValues(alpha: 0.7), fontSize: 12)),
+          const SizedBox(height: 12),
+          if (subs.isEmpty)
+            const Padding(padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('No substitutes found.', style: TextStyle(color: _muted)))
+          else
+            ...subs.map((s) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(s['name']?.toString() ?? '', style: const TextStyle(color: _white, fontSize: 14, fontWeight: FontWeight.w600)),
+              subtitle: Text('${s['equipment'] ?? ''} · ${s['difficulty'] ?? ''}',
+                style: TextStyle(color: _muted.withValues(alpha: 0.6), fontSize: 11)),
+              trailing: const Icon(Icons.swap_horiz_rounded, color: _primary, size: 18),
+              onTap: () { Navigator.pop(ctx); _swapExercise(index, we, s); })),
+        ]))));
+  }
+
+  void _swapExercise(int index, WorkoutExercise we, Map<String, dynamic> sub) {
+    final workout = ref.read(selectedWorkoutProvider);
+    if (workout == null || index < 0 || index >= workout.exercises.length) return;
+    final newEx = Exercise(
+      id: 'sub_${DateTime.now().millisecondsSinceEpoch}',
+      name: sub['name']?.toString() ?? we.exercise.name,
+      category: we.exercise.category,
+      muscleGroup: sub['muscle_group']?.toString() ?? we.exercise.muscleGroup,
+      equipment: sub['equipment']?.toString() ?? we.exercise.equipment,
+      difficulty: sub['difficulty']?.toString() ?? we.exercise.difficulty,
+      description: '', instructions: const []);
+    final swapped = WorkoutExercise(
+      exercise: newEx, sets: we.sets,
+      isSuperset: we.isSuperset, supersetGroup: we.supersetGroup,
+      isCircuit: we.isCircuit, circuitGroup: we.circuitGroup,
+      circuitRounds: we.circuitRounds, notes: we.notes);
+    final list = List<WorkoutExercise>.from(workout.exercises);
+    list[index] = swapped;
+    ref.read(selectedWorkoutProvider.notifier).state = Workout(
+      id: workout.id, title: workout.title, description: workout.description,
+      estimatedDuration: workout.estimatedDuration, difficulty: workout.difficulty,
+      category: workout.category, exercises: list, coachId: workout.coachId,
+      coachName: workout.coachName, isCompleted: workout.isCompleted, scheduledDate: workout.scheduledDate);
+    setState(() {});
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Swapped to ${newEx.name}')));
+    }
   }
 
   Widget _columnHeaders({bool showRpe = true}) {

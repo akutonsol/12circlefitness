@@ -212,6 +212,19 @@ class CustomExerciseService {
     } catch (e) { lastError = e; return false; }
   }
 
+  /// Substitute exercises for a given exercise — same muscle group from the
+  /// global library, excluding the exercise itself. For the active-workout swap.
+  Future<List<Map<String, dynamic>>> getSubstitutes(String name, String muscleGroup) async {
+    try {
+      final rows = await _db.from('custom_exercises')
+          .select('name, muscle_group, equipment, difficulty')
+          .eq('visibility', 'global').eq('submission_status', 'approved')
+          .ilike('muscle_group', muscleGroup.isEmpty ? '%' : muscleGroup)
+          .neq('name', name).limit(12);
+      return List<Map<String, dynamic>>.from(rows as List);
+    } catch (_) { return []; }
+  }
+
   /// Raw exercise row by id (for prefilling the edit form with all columns).
   Future<Map<String, dynamic>?> getRawById(String id) async {
     try {
