@@ -1,216 +1,175 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-// ── Brand tokens ──────────────────────────────────────────────────────────────
-class _C {
-  static const purple      = Color(0xFF7C3AED);
-  static const purpleLight = Color(0xFF9F67FF);
-  static const purpleDark  = Color(0xFF5B21B6);
-  static const muted       = Color(0xFFCFC2D6);
-}
+// ── Brand ─────────────────────────────────────────────────────────────────────
+const _purple      = Color(0xFF7C3AED);
+const _purpleLight = Color(0xFFB06BFF);
+const _muted       = Color(0xFFB9B2C7);
 
-/// Single animated welcome screen. Plays a brand intro, then reveals the
-/// Get Started CTA (→ signup) and a Sign in link (→ login).
-class OnboardingScreen extends StatefulWidget {
+/// Onboarding screen 2 — the welcome. Hero athlete, "TRAIN LIKE YOU MEAN IT",
+/// and a slide-to-start control that confirms into the create-account flow.
+class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
-  @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
-}
-
-class _OnboardingScreenState extends State<OnboardingScreen>
-    with TickerProviderStateMixin {
-  late final AnimationController _intro;
-  late final AnimationController _pulse;
-
-  // Each element fades/slides in over its own slice of the intro.
-  Animation<double> _at(double start, double end, {Curve curve = Curves.easeOut}) =>
-      CurvedAnimation(parent: _intro, curve: Interval(start, end, curve: curve));
-
-  static const _features = [
-    (Icons.fitness_center_rounded, 'Train', 'World-class programming'),
-    (Icons.restaurant_rounded, 'Fuel', 'Precision nutrition coaching'),
-    (Icons.self_improvement_rounded, 'Recover', 'Recovery & wellness tracking'),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600))..repeat();
-    _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200))..forward();
-  }
-
-  @override
-  void dispose() {
-    _intro.dispose();
-    _pulse.dispose();
-    super.dispose();
-  }
-
-  Widget _fadeUp(Animation<double> a, Widget child, {double dy = 18}) =>
-      AnimatedBuilder(
-        animation: a,
-        builder: (_, c) => Opacity(
-          opacity: a.value.clamp(0.0, 1.0),
-          child: Transform.translate(offset: Offset(0, (1 - a.value) * dy), child: c)),
-        child: child,
-      );
 
   @override
   Widget build(BuildContext context) {
-    final badgeScale = _at(0.0, 0.40, curve: Curves.easeOutBack);
-    final badgeFade  = _at(0.0, 0.28);
-    final word       = _at(0.32, 0.58);
-    final tagline    = _at(0.50, 0.72);
-    final cta        = _at(0.78, 1.0);
-
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, -0.35), radius: 1.2,
-            colors: [Color(0xFF1B2238), Color(0xFF0B1326), Color(0xFF060A14)],
-            stops: [0.0, 0.55, 1.0])),
-        child: SafeArea(
-          child: Stack(children: [
-            // Pulse rings behind the badge (upper area).
-            Align(
-              alignment: const Alignment(0, -0.55),
-              child: AnimatedBuilder(
-                animation: _pulse,
-                builder: (_, __) => CustomPaint(
-                  size: const Size(300, 300), painter: _PulsePainter(_pulse.value)),
-              ),
-            ),
+      backgroundColor: const Color(0xFF050409),
+      body: Stack(children: [
+        // ── Hero athlete (top), fading to black ──
+        Positioned(
+          top: 0, left: 0, right: 0,
+          height: MediaQuery.of(context).size.height * 0.62,
+          child: ShaderMask(
+            shaderCallback: (r) => const LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Colors.white, Colors.white, Colors.transparent],
+              stops: [0.0, 0.55, 1.0]).createShader(r),
+            blendMode: BlendMode.dstIn,
+            child: Image.asset('assets/images/splash_hero1.jpg',
+              fit: BoxFit.cover, alignment: const Alignment(0.55, -0.2)),
+          ),
+        ),
+        const DecoratedBox(decoration: BoxDecoration(
+          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            colors: [Color(0x33050409), Color(0x00050409), Color(0xCC050409), Color(0xFF050409)],
+            stops: [0.0, 0.35, 0.7, 1.0]))),
 
-            Padding(
-              padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
-              child: Column(children: [
-                const Spacer(flex: 3),
+        // ── Top brand bar ──
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+            child: Row(children: [
+              Container(
+                width: 30, height: 30,
+                decoration: BoxDecoration(shape: BoxShape.circle,
+                  gradient: const LinearGradient(colors: [_purpleLight, _purple]),
+                  boxShadow: [BoxShadow(color: _purple.withValues(alpha: 0.5), blurRadius: 12)]),
+                child: const Center(child: Text('12', style: TextStyle(
+                  color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)))),
+              const SizedBox(width: 10),
+              const Text('12Circle Fitness', style: TextStyle(
+                color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+            ]),
+          ),
+        ),
 
-                // Badge
-                ScaleTransition(
-                  scale: badgeScale,
-                  child: FadeTransition(
-                    opacity: badgeFade,
-                    child: Container(
-                      width: 104, height: 104,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [_C.purpleLight, _C.purpleDark],
-                          begin: Alignment.topLeft, end: Alignment.bottomRight),
-                        boxShadow: [BoxShadow(color: _C.purple.withValues(alpha: 0.55),
-                          blurRadius: 40, spreadRadius: 2)]),
-                      child: const Center(child: Text('12', style: TextStyle(
-                        color: Colors.white, fontSize: 42, fontWeight: FontWeight.w800,
-                        letterSpacing: -1)))),
-                  ),
-                ),
-                const SizedBox(height: 26),
-
-                // Wordmark
-                _fadeUp(word, const Column(children: [
-                  Text('12 CIRCLE', style: TextStyle(color: Colors.white, fontSize: 28,
-                    fontWeight: FontWeight.w800, letterSpacing: 6)),
-                  SizedBox(height: 6),
-                  Text('FITNESS', style: TextStyle(color: _C.purpleLight, fontSize: 13,
-                    fontWeight: FontWeight.w600, letterSpacing: 10)),
-                ])),
+        // ── Bottom content ──
+        SafeArea(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('WELCOME TO YOUR JOURNEY', style: TextStyle(
+                  color: _purpleLight, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 3)),
+                const SizedBox(height: 14),
+                const Text('TRAIN LIKE\nYOU MEAN IT', style: TextStyle(
+                  color: Colors.white, fontSize: 42, height: 1.02,
+                  fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                const SizedBox(height: 16),
+                const Text(
+                  'Coaching, workouts, and progress tracking built\nto push you through all 12 weeks.',
+                  style: TextStyle(color: _muted, fontSize: 15, height: 1.5)),
+                const SizedBox(height: 28),
+                _SlideToStart(onConfirm: () => context.go('/signup')),
                 const SizedBox(height: 18),
-
-                // Tagline
-                _fadeUp(tagline, const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(
-                    'Train smarter. Eat better. Recover deeper.\nYour complete fitness ecosystem.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: _C.muted, fontSize: 14, height: 1.5)))),
-
-                const Spacer(flex: 2),
-
-                // Feature highlights stagger in.
-                ...List.generate(_features.length, (i) {
-                  final f = _features[i];
-                  final a = _at(0.58 + i * 0.06, 0.80 + i * 0.06);
-                  return _fadeUp(a, Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(children: [
-                      Container(
-                        width: 42, height: 42,
-                        decoration: BoxDecoration(
-                          color: _C.purple.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: _C.purple.withValues(alpha: 0.3))),
-                        child: Icon(f.$1, color: _C.purpleLight, size: 20)),
-                      const SizedBox(width: 14),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(f.$2.toUpperCase(), style: const TextStyle(color: _C.purpleLight,
-                          fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.5)),
-                        const SizedBox(height: 2),
-                        Text(f.$3, style: const TextStyle(color: Colors.white, fontSize: 14,
-                          fontWeight: FontWeight.w600)),
-                      ])),
-                    ])));
-                }),
-
-                const Spacer(flex: 2),
-
-                // CTA — revealed when the intro finishes.
-                _fadeUp(cta, Column(children: [
-                  SizedBox(
-                    width: double.infinity, height: 56,
-                    child: ElevatedButton(
-                      onPressed: () => context.go('/signup'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _C.purple,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                      child: const Text('Get Started', style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  GestureDetector(
-                    onTap: () => context.go('/login'),
-                    child: const Text.rich(TextSpan(children: [
-                      TextSpan(text: 'Already have an account?  ',
-                        style: TextStyle(color: _C.muted, fontSize: 13)),
-                      TextSpan(text: 'Sign in',
-                        style: TextStyle(color: _C.purpleLight, fontSize: 13,
-                          fontWeight: FontWeight.w700)),
-                    ])),
-                  ),
-                ])),
+                Center(child: GestureDetector(
+                  onTap: () => context.go('/login'),
+                  child: const Text.rich(TextSpan(children: [
+                    TextSpan(text: 'Already a member?  ', style: TextStyle(color: _muted, fontSize: 14)),
+                    TextSpan(text: 'Sign In', style: TextStyle(
+                      color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                  ])))),
               ]),
             ),
-          ]),
+          ),
         ),
-      ),
+      ]),
     );
   }
 }
 
-/// Concentric rings expanding outward and fading.
-class _PulsePainter extends CustomPainter {
-  final double t;
-  _PulsePainter(this.t);
+// ── Slide-to-start control ────────────────────────────────────────────────────
+class _SlideToStart extends StatefulWidget {
+  final VoidCallback onConfirm;
+  const _SlideToStart({required this.onConfirm});
   @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    const rings = 3;
-    final maxR = size.width / 2;
-    const baseR = 52.0;
-    for (var i = 0; i < rings; i++) {
-      final p = (t + i / rings) % 1.0;
-      final radius = baseR + p * (maxR - baseR);
-      final paint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
-        ..color = _C.purpleLight.withValues(alpha: (1.0 - p) * 0.30);
-      canvas.drawCircle(center, radius, paint);
-    }
+  State<_SlideToStart> createState() => _SlideToStartState();
+}
+
+class _SlideToStartState extends State<_SlideToStart>
+    with SingleTickerProviderStateMixin {
+  static const _h = 64.0;
+  double _dx = 0;
+  bool _done = false;
+  late final AnimationController _hint;
+
+  @override
+  void initState() {
+    super.initState();
+    _hint = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))..repeat(reverse: true);
   }
+
   @override
-  bool shouldRepaint(_PulsePainter old) => old.t != t;
+  void dispose() {
+    _hint.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (_, c) {
+      final maxDx = c.maxWidth - _h;
+      void end() {
+        if (_dx > maxDx * 0.62) {
+          setState(() { _dx = maxDx; _done = true; });
+          widget.onConfirm();
+        } else {
+          setState(() => _dx = 0);
+        }
+      }
+      return Container(
+        height: _h,
+        decoration: BoxDecoration(
+          color: const Color(0xFF14101F),
+          borderRadius: BorderRadius.circular(_h),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08))),
+        child: Stack(alignment: Alignment.center, children: [
+          // Label fades as you slide.
+          Opacity(
+            opacity: (1 - (_dx / maxDx) * 1.4).clamp(0.0, 1.0),
+            child: const Padding(
+              padding: EdgeInsets.only(left: 40),
+              child: Text('Get Started', style: TextStyle(
+                color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)))),
+          // Draggable knob.
+          Positioned(
+            left: 4 + _dx,
+            child: AnimatedBuilder(
+              animation: _hint,
+              builder: (_, child) => Transform.translate(
+                offset: Offset(_dx == 0 && !_done ? _hint.value * 6 : 0, 0), child: child),
+              child: GestureDetector(
+                onHorizontalDragUpdate: (d) {
+                  if (_done) return;
+                  setState(() => _dx = (_dx + d.delta.dx).clamp(0.0, maxDx));
+                },
+                onHorizontalDragEnd: (_) => end(),
+                onTap: () { setState(() { _dx = maxDx; _done = true; }); widget.onConfirm(); },
+                child: Container(
+                  width: _h - 8, height: _h - 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(colors: [_purpleLight, _purple],
+                      begin: Alignment.topLeft, end: Alignment.bottomRight),
+                    boxShadow: [BoxShadow(color: _purple.withValues(alpha: 0.5), blurRadius: 16)]),
+                  child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 24)),
+              ),
+            ),
+          ),
+        ]),
+      );
+    });
+  }
 }
