@@ -2,39 +2,37 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Onboarding screen 1 — the loading splash. The 12 Circle mark inside counter-
-/// rotating loader arcs over a cinematic gym backdrop, with the FITNESS wordmark
-/// and a "PREPARING YOUR TRAINING" progress bar that fills over ~5s, then advances
-/// to screen 2.
+/// Onboarding launch splash — the Splash-standalone design. Spinning purple/pink
+/// loader arcs around a "12" over a deep purple→black wash with a soft glow and
+/// drifting embers, the 12 CIRCLE / STRENGTH IN NUMBERS wordmark, then advances
+/// to the welcome screen.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-const _purple      = Color(0xFF7C3AED);
+const _purple      = Color(0xFF8A3DF0);
 const _purpleLight = Color(0xFFB06BFF);
-const _pink        = Color(0xFFFF6BD6);
+const _pink        = Color(0xFFFF4D8D);
+const _twelve      = Color(0xFFC9B0FF);
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late final AnimationController _spin;   // ring rotation + embers
-  late final AnimationController _load;   // intro pop + progress bar
+  late final AnimationController _intro;  // pop + wordmark reveal
   late final Animation<double> _pop;
   late final Animation<double> _word;
-  late final Animation<double> _progress;
 
   @override
   void initState() {
     super.initState();
-    _spin = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
-    _load = AnimationController(vsync: this, duration: const Duration(milliseconds: 4700))..forward();
-    _pop      = CurvedAnimation(parent: _load, curve: const Interval(0.0, 0.2, curve: Curves.easeOutBack));
-    _word     = CurvedAnimation(parent: _load, curve: const Interval(0.16, 0.4, curve: Curves.easeOut));
-    _progress = CurvedAnimation(parent: _load, curve: const Interval(0.05, 1.0, curve: Curves.easeInOut));
+    _spin  = AnimationController(vsync: this, duration: const Duration(seconds: 7))..repeat();
+    _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..forward();
+    _pop  = CurvedAnimation(parent: _intro, curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack));
+    _word = CurvedAnimation(parent: _intro, curve: const Interval(0.5, 1.0, curve: Curves.easeOut));
 
-    // ~5s on screen, then hand off to screen 2.
-    Future.delayed(const Duration(milliseconds: 5000), () {
+    Future.delayed(const Duration(milliseconds: 4000), () {
       if (mounted) context.go('/onboarding');
     });
   }
@@ -42,63 +40,59 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _spin.dispose();
-    _load.dispose();
+    _intro.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF07060A),
+      backgroundColor: const Color(0xFF060409),
       body: Stack(fit: StackFit.expand, children: [
-        // Cinematic gym backdrop, dimmed.
-        Opacity(opacity: 0.55, child: Image.asset('assets/images/splash1_bg.jpg',
-          fit: BoxFit.cover, alignment: const Alignment(0, -0.1))),
+        // Deep purple → black wash.
         const DecoratedBox(decoration: BoxDecoration(
-          gradient: RadialGradient(center: Alignment(0, -0.15), radius: 1.1,
-            colors: [Color(0x8807060A), Color(0xDD07060A), Color(0xFF050409)],
-            stops: [0.0, 0.6, 1.0]))),
+          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            colors: [Color(0xFF1E1030), Color(0xFF0C0815), Color(0xFF060409)],
+            stops: [0.0, 0.5, 1.0]))),
+        // Soft purple glow behind the mark.
+        const Align(alignment: Alignment(0, 0.18),
+          child: DecoratedBox(decoration: BoxDecoration(
+            gradient: RadialGradient(radius: 0.6,
+              colors: [Color(0x3A8A3DF0), Color(0x000C0815)])),
+            child: SizedBox(width: 520, height: 520))),
 
         // Drifting embers.
         ..._embers(),
 
-        // ── Center: loader arcs + 12 Circle mark + wordmark ──
+        // ── Center: loader arcs + 12, wordmark below ──
         Align(
-          alignment: const Alignment(0, -0.12),
+          alignment: const Alignment(0, 0.12),
           child: AnimatedBuilder(
-            animation: Listenable.merge([_spin, _load]),
+            animation: Listenable.merge([_spin, _intro]),
             builder: (_, __) => Column(mainAxisSize: MainAxisSize.min, children: [
-              SizedBox(
-                width: 230, height: 230,
-                child: Stack(alignment: Alignment.center, children: [
-                  // spinning loader arcs
-                  CustomPaint(size: const Size(230, 230), painter: _RingsPainter(_spin.value)),
-                  // glowing 12 Circle mark
-                  ScaleTransition(
-                    scale: _pop,
-                    child: Container(
-                      width: 150, height: 150,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(
-                          color: const Color(0xFFD36BFF).withValues(alpha: 0.25 + 0.3 * (math.sin(_spin.value * 2 * math.pi) + 1) / 2),
-                          blurRadius: 40, spreadRadius: 4)]),
-                      child: Image.asset('assets/images/12circle-fab.png', fit: BoxFit.contain),
-                    ),
-                  ),
-                ]),
+              ScaleTransition(
+                scale: _pop,
+                child: SizedBox(
+                  width: 210, height: 210,
+                  child: Stack(alignment: Alignment.center, children: [
+                    CustomPaint(size: const Size(210, 210), painter: _RingsPainter(_spin.value)),
+                    Text('12', style: TextStyle(
+                      color: _twelve, fontSize: 54, fontWeight: FontWeight.w800, letterSpacing: -1,
+                      shadows: [Shadow(color: _purpleLight.withValues(alpha: 0.6), blurRadius: 18)])),
+                  ]),
+                ),
               ),
-              const SizedBox(height: 26),
+              const SizedBox(height: 40),
               Opacity(
                 opacity: _word.value,
                 child: Transform.translate(
-                  offset: Offset(0, (1 - _word.value) * 22),
+                  offset: Offset(0, (1 - _word.value) * 20),
                   child: Column(children: [
-                    const Text('FITNESS', style: TextStyle(
-                      color: Colors.white, fontSize: 38, fontWeight: FontWeight.w700, letterSpacing: 12)),
-                    const SizedBox(height: 8),
+                    const Text('12 CIRCLE', style: TextStyle(
+                      color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: 10)),
+                    const SizedBox(height: 10),
                     Text('STRENGTH IN NUMBERS', style: TextStyle(
-                      color: _purpleLight.withValues(alpha: 0.95), fontSize: 12,
+                      color: _purpleLight.withValues(alpha: 0.92), fontSize: 12,
                       fontWeight: FontWeight.w700, letterSpacing: 5)),
                   ]),
                 ),
@@ -106,42 +100,12 @@ class _SplashScreenState extends State<SplashScreen>
             ]),
           ),
         ),
-
-        // ── Bottom: loading label + progress bar ──
-        Align(
-          alignment: const Alignment(0, 0.88),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: AnimatedBuilder(
-              animation: _load,
-              builder: (_, __) => Opacity(
-                opacity: _word.value,
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text('PREPARING YOUR TRAINING', style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55), fontSize: 11,
-                    fontWeight: FontWeight.w700, letterSpacing: 3)),
-                  const SizedBox(height: 14),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: Stack(children: [
-                      Container(height: 4, color: const Color(0x1AFFFFFF)),
-                      FractionallySizedBox(
-                        widthFactor: (0.06 + 0.94 * _progress.value).clamp(0.0, 1.0),
-                        child: Container(height: 4, decoration: const BoxDecoration(
-                          gradient: LinearGradient(colors: [_purple, _pink])))),
-                    ]),
-                  ),
-                ]),
-              ),
-            ),
-          ),
-        ),
       ]),
     );
   }
 
   List<Widget> _embers() {
-    const spec = [(0.16, 5.0, 0.0), (0.4, 3.5, 0.4), (0.66, 6.0, 0.7), (0.84, 4.0, 0.2)];
+    const spec = [(0.16, 4.0, 0.0), (0.4, 3.0, 0.4), (0.66, 5.0, 0.7), (0.84, 3.5, 0.2)];
     return [
       for (final (x, sz, phase) in spec)
         AnimatedBuilder(
@@ -153,7 +117,7 @@ class _SplashScreenState extends State<SplashScreen>
               left: x * MediaQuery.of(ctx).size.width,
               top: h * (1 - p) - 30,
               child: Opacity(
-                opacity: math.sin(p * math.pi) * 0.6,
+                opacity: math.sin(p * math.pi) * 0.5,
                 child: Container(width: sz, height: sz, decoration: BoxDecoration(
                   shape: BoxShape.circle, color: const Color(0xFFE7C9FF),
                   boxShadow: [BoxShadow(color: _purpleLight.withValues(alpha: 0.6), blurRadius: 8)]))),
@@ -164,7 +128,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-/// Counter-rotating loader arcs that sweep around the 12 Circle mark.
+/// Concentric spinning loader arcs — purple outer + pink accents, per the design.
 class _RingsPainter extends CustomPainter {
   final double t;
   _RingsPainter(this.t);
@@ -172,20 +136,25 @@ class _RingsPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final c = size.center(Offset.zero);
-    final tau = 2 * math.pi;
+    const tau = 2 * math.pi;
+    final rOuter = size.width * 0.46;
+    final rInner = size.width * 0.34;
 
-    // Outer arc — purple/pink, clockwise.
-    final outer = Paint()..style = PaintingStyle.stroke..strokeWidth = 3..strokeCap = StrokeCap.round
-      ..shader = const SweepGradient(colors: [_purple, _purpleLight, _pink])
-          .createShader(Rect.fromCircle(center: c, radius: size.width * 0.5));
-    canvas.drawArc(Rect.fromCircle(center: c, radius: size.width * 0.5),
-      t * tau, tau * 0.5, false, outer);
+    // Outer arc — purple→pink gradient, ~3/4 turn, clockwise.
+    canvas.drawArc(Rect.fromCircle(center: c, radius: rOuter), t * tau, tau * 0.74, false,
+      Paint()..style = PaintingStyle.stroke..strokeWidth = 5..strokeCap = StrokeCap.round
+        ..shader = const SweepGradient(colors: [_purple, _purpleLight, _pink, _purple])
+            .createShader(Rect.fromCircle(center: c, radius: rOuter)));
 
-    // Inner arc — pink, counter-clockwise.
-    final inner = Paint()..style = PaintingStyle.stroke..strokeWidth = 2.5..strokeCap = StrokeCap.round
-      ..color = _pink.withValues(alpha: 0.8);
-    canvas.drawArc(Rect.fromCircle(center: c, radius: size.width * 0.44),
-      -t * tau * 1.4, tau * 0.28, false, inner);
+    // Bright pink accent arc on the outer radius, faster.
+    canvas.drawArc(Rect.fromCircle(center: c, radius: rOuter), -t * tau * 1.7, tau * 0.16, false,
+      Paint()..style = PaintingStyle.stroke..strokeWidth = 5..strokeCap = StrokeCap.round
+        ..color = _pink);
+
+    // Inner arc — pink, ~0.7 turn, counter-clockwise.
+    canvas.drawArc(Rect.fromCircle(center: c, radius: rInner), -t * tau * 1.3, tau * 0.7, false,
+      Paint()..style = PaintingStyle.stroke..strokeWidth = 3.5..strokeCap = StrokeCap.round
+        ..color = _pink.withValues(alpha: 0.85));
   }
 
   @override
