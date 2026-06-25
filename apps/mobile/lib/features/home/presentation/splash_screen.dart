@@ -21,7 +21,7 @@ const _pink        = Color(0xFFFF4D8D);
 const _heroes = [
   ('assets/images/splash_dc_0.jpg', Alignment(0.56, -0.56)),
   ('assets/images/splash_dc_1.jpg', Alignment(0.0, 0.0)),
-  ('assets/images/splash_dc_2.jpg', Alignment(0.28, -0.08)),
+  ('assets/images/dumbell.png', Alignment(0.28, -0.08)),
 ];
 const _phrases = ['Train like\nyou mean it', 'Push past\nyour limits', 'Stronger\nevery rep'];
 
@@ -163,6 +163,17 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               child: Opacity(opacity: op, child: Container(width: size.width * 0.55,
                 decoration: const BoxDecoration(gradient: LinearGradient(
                   colors: [Colors.transparent, Color(0x29DCBEFF), Colors.transparent])))))));
+        }),
+
+        // ── Pulsing purple edge glow (framePulse) ──
+        AnimatedBuilder(animation: _cta, builder: (_, __) {
+          final g = (math.sin(_cta.value * 2 * math.pi) + 1) / 2;
+          return IgnorePointer(child: Container(decoration: BoxDecoration(
+            border: Border.all(color: _purpleLight.withValues(alpha: 0.16 + 0.12 * g), width: 1.2),
+            gradient: RadialGradient(radius: 1.15, colors: [
+              Colors.transparent, Colors.transparent,
+              _purple.withValues(alpha: 0.16 + 0.14 * g),
+            ], stops: const [0.0, 0.72, 1.0]))));
         }),
       ]),
     );
