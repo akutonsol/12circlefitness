@@ -1,10 +1,11 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// Branded animated launch splash. Pulse rings radiate from a "12" badge that
-/// scales in, then the wordmark fades up — before handing off to the router's
-/// auth redirect.
+/// Cinematic launch splash: cross-fading hero photos with a slow ken-burns drift,
+/// a purple glow, and the "12 CIRCLE / FITNESS" wordmark — then hands off to the
+/// router's auth redirect.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
@@ -13,153 +14,107 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  late final AnimationController _intro;
-  late final AnimationController _pulse;
+  late final AnimationController _hero;   // cross-fade + ken burns loop
+  late final AnimationController _intro;  // wordmark + glow reveal
 
-  late final Animation<double> _badgeScale;
-  late final Animation<double> _badgeFade;
-  late final Animation<double> _textFade;
-  late final Animation<double> _textSlide;
+  late final Animation<double> _wordFade;
+  late final Animation<double> _wordSlide;
+  late final Animation<double> _glow;
 
   @override
   void initState() {
     super.initState();
-    _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600))..repeat();
-    _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..forward();
+    _hero = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
+    _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))..forward();
+    _wordFade  = CurvedAnimation(parent: _intro, curve: const Interval(0.25, 0.7, curve: Curves.easeOut));
+    _wordSlide = CurvedAnimation(parent: _intro, curve: const Interval(0.25, 0.8, curve: Curves.easeOutCubic));
+    _glow      = CurvedAnimation(parent: _intro, curve: const Interval(0.0, 0.6, curve: Curves.easeOut));
 
-    _badgeScale = CurvedAnimation(parent: _intro, curve: const Interval(0.0, 0.45, curve: Curves.easeOutBack));
-    _badgeFade  = CurvedAnimation(parent: _intro, curve: const Interval(0.0, 0.30, curve: Curves.easeOut));
-    _textFade   = CurvedAnimation(parent: _intro, curve: const Interval(0.40, 0.75, curve: Curves.easeOut));
-    _textSlide  = CurvedAnimation(parent: _intro, curve: const Interval(0.40, 0.80, curve: Curves.easeOutCubic));
-
-    // Hand off to the router (which redirects to the right place by auth/role).
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    Future.delayed(const Duration(milliseconds: 2700), () {
       if (mounted) context.go('/onboarding');
     });
   }
 
   @override
   void dispose() {
+    _hero.dispose();
     _intro.dispose();
-    _pulse.dispose();
     super.dispose();
   }
+
+  Widget get _hero1 => Image.asset('assets/images/splash_hero1.jpg',
+    fit: BoxFit.cover, alignment: const Alignment(0.5, -0.35), gaplessPlayback: true);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.center, radius: 1.1,
-            colors: [Color(0xFF1B2238), Color(0xFF0B1326), Color(0xFF060A14)],
-            stops: [0.0, 0.55, 1.0])),
-        child: Stack(children: [
-          // Pulse rings behind the badge.
-          Center(
-            child: AnimatedBuilder(
-              animation: _pulse,
-              builder: (_, __) => CustomPaint(
-                size: const Size(320, 320),
-                painter: _PulsePainter(_pulse.value)),
+      backgroundColor: const Color(0xFF050608),
+      body: AnimatedBuilder(
+        animation: Listenable.merge([_hero, _intro]),
+        builder: (_, __) {
+          // 0..1 cross-fade between the two heroes, smooth in both directions.
+          final cross = (math.sin(_hero.value * 2 * math.pi - math.pi / 2) + 1) / 2;
+          final kb = 1.06 + 0.06 * (math.sin(_hero.value * 2 * math.pi) + 1) / 2; // ken burns
+          return Stack(fit: StackFit.expand, children: [
+            // Hero 1 (always under)
+            Transform.scale(scale: kb, child: _hero1),
+            // Hero 2 (cross-fades over)
+            Opacity(
+              opacity: cross,
+              child: Transform.scale(
+                scale: 1.04 + (1.10 - 1.04) * (1 - cross),
+                child: Image.asset('assets/images/splash_hero2.jpg',
+                  fit: BoxFit.cover, alignment: const Alignment(0, -0.15), gaplessPlayback: true)),
             ),
-          ),
-          // Badge + wordmark.
-          Center(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              ScaleTransition(
-                scale: _badgeScale,
-                child: FadeTransition(
-                  opacity: _badgeFade,
-                  child: Container(
-                    width: 108, height: 108,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [AppColors.purpleLight, AppColors.purpleDark],
-                        begin: Alignment.topLeft, end: Alignment.bottomRight),
-                      boxShadow: [
-                        BoxShadow(color: AppColors.purple.withValues(alpha: 0.55),
-                          blurRadius: 40, spreadRadius: 2),
-                      ]),
-                    child: const Center(
-                      child: Text('12', style: TextStyle(
-                        color: Colors.white, fontSize: 44, fontWeight: FontWeight.w800,
-                        letterSpacing: -1)))),
-                ),
-              ),
-              const SizedBox(height: 28),
-              FadeTransition(
-                opacity: _textFade,
-                child: AnimatedBuilder(
-                  animation: _textSlide,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(0, (1 - _textSlide.value) * 16), child: child),
-                  child: Column(children: [
+            // Dark + purple wash for legibility and brand glow.
+            const DecoratedBox(decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                colors: [Color(0x00050608), Color(0x66050608), Color(0xF2050608)],
+                stops: [0.0, 0.45, 0.92]))),
+            // Purple radial glow behind the wordmark.
+            Align(
+              alignment: const Alignment(0, 0.42),
+              child: Opacity(
+                opacity: 0.55 * _glow.value,
+                child: Container(width: 320, height: 320, decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(colors: [
+                    AppColors.purple.withValues(alpha: 0.45), Colors.transparent])))),
+            ),
+
+            // Wordmark + loading.
+            Align(
+              alignment: const Alignment(0, 0.5),
+              child: Opacity(
+                opacity: _wordFade.value,
+                child: Transform.translate(
+                  offset: Offset(0, (1 - _wordSlide.value) * 20),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
                     const Text('12 CIRCLE', style: TextStyle(
-                      color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800,
-                      letterSpacing: 6)),
+                      color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: 7)),
                     const SizedBox(height: 6),
                     Text('FITNESS', style: TextStyle(
-                      color: AppColors.purpleLight.withValues(alpha: 0.9), fontSize: 13,
-                      fontWeight: FontWeight.w600, letterSpacing: 10)),
+                      color: AppColors.purpleLight, fontSize: 13,
+                      fontWeight: FontWeight.w600, letterSpacing: 11)),
                   ]),
                 ),
               ),
-            ]),
-          ),
-          // Loading shimmer at the bottom.
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 60),
-              child: FadeTransition(
-                opacity: _textFade,
-                child: SizedBox(
-                  width: 120,
-                  child: AnimatedBuilder(
-                    animation: _pulse,
-                    builder: (_, __) => ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        minHeight: 3,
-                        backgroundColor: Colors.white.withValues(alpha: 0.08),
-                        valueColor: const AlwaysStoppedAnimation(AppColors.purpleLight),
-                        value: null)),
-                  ),
-                ),
+            ),
+            Align(
+              alignment: const Alignment(0, 0.86),
+              child: Opacity(
+                opacity: _wordFade.value,
+                child: SizedBox(width: 110, child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: const LinearProgressIndicator(
+                    minHeight: 3, backgroundColor: Color(0x1AFFFFFF),
+                    valueColor: AlwaysStoppedAnimation(AppColors.purpleLight)))),
               ),
             ),
-          ),
-        ]),
+          ]);
+        },
       ),
     );
   }
-}
-
-/// Three concentric rings that expand outward and fade, staggered over time.
-class _PulsePainter extends CustomPainter {
-  final double t; // 0..1 looping
-  _PulsePainter(this.t);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    const rings = 3;
-    final maxR = size.width / 2;
-    const baseR = 54.0;
-    for (var i = 0; i < rings; i++) {
-      final p = (t + i / rings) % 1.0;
-      final radius = baseR + p * (maxR - baseR);
-      final opacity = (1.0 - p) * 0.35;
-      final paint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
-        ..color = AppColors.purpleLight.withValues(alpha: opacity);
-      canvas.drawCircle(center, radius, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_PulsePainter old) => old.t != t;
 }
