@@ -290,3 +290,9 @@ INSERT INTO community_groups (id, name, description, emoji) VALUES
   ('10000000-0000-0000-0000-000000000004', 'Beginners Circle',       'A safe space for those just starting their fitness journey',            '🌱'),
   ('10000000-0000-0000-0000-000000000005', 'Advanced Athletes',      'For experienced members pushing their limits',                          '🏆')
 ON CONFLICT (id) DO NOTHING;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 6. INTAKE ACTIVITIES  (migration 081)  — onboarding "Pick your Activities"
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS activities text[] DEFAULT '{}';

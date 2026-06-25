@@ -46,7 +46,7 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
   bool _saving = false;
   bool _loading = true;
 
-  static const int _totalSteps = 25;
+  static const int _totalSteps = 26;
 
   @override
   void initState() {
@@ -86,7 +86,7 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
           .from('user_profiles')
           .select(
             'onboarding_step, first_name, last_name, gender, date_of_birth, '
-            'fitness_goal, activity_level, '
+            'fitness_goal, activities, activity_level, '
             'training_days_per_week, training_location, nutrition_goal, '
             'protein_confidence, biggest_challenges, height_cm, '
             'weight_kg, weight_goal_kg, coaching_mode, '
@@ -111,6 +111,7 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
           _data.gender                  = saved.gender;
           _data.dateOfBirth             = saved.dateOfBirth;
           _data.primaryGoal             = saved.primaryGoal;
+          _data.activities              = saved.activities;
           _data.heightCm                = saved.heightCm;
           _data.weightKg                = saved.weightKg;
           _data.weightGoalKg            = saved.weightGoalKg;
@@ -322,7 +323,18 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
                 onContinue: _next,
                 onBack: _back,
               ),
-              // 6 — Target Timeline
+              // 6 — Activities (multi-select)
+              _ActivitiesPage(
+                selected: _data.activities,
+                onToggle: (v) => setState(() {
+                  final next = _data.activities.toList();
+                  next.contains(v) ? next.remove(v) : next.add(v);
+                  _data.activities = next;
+                }),
+                onContinue: _next,
+                onBack: _back,
+              ),
+              // 7 — Target Timeline
               _TargetTimelinePage(
                 selected: _data.targetTimeline,
                 onSelect: (v) { setState(() => _data.targetTimeline = v); },
@@ -451,7 +463,7 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
                 selected: _data.coachingMode,
                 onSelect: (v) => setState(() => _data.coachingMode = v),
                 onContinue: _next,
-                onSkipCoach: () => _jumpToPage(23),
+                onSkipCoach: () => _jumpToPage(24),
                 onBack: _back,
               ),
               // 22 — Choose Coach
@@ -792,11 +804,18 @@ class _SelectionCard extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               width: 48, height: 48,
               decoration: BoxDecoration(
-                color: selected ? _priCont.withValues(alpha: 0.20) : _surfCHH,
-                borderRadius: BorderRadius.circular(12),
+                gradient: selected
+                    ? const LinearGradient(colors: [_priCont, _btnPurple],
+                        begin: Alignment.topLeft, end: Alignment.bottomRight)
+                    : null,
+                color: selected ? null : _surfCHH,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: selected
+                    ? [BoxShadow(color: _priCont.withValues(alpha: 0.45), blurRadius: 14, offset: const Offset(0, 4))]
+                    : null,
               ),
               child: Icon(icon,
-                color: selected ? _priCont : _onSurfV, size: 22),
+                color: selected ? Colors.white : _onSurfV, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -817,9 +836,9 @@ class _SelectionCard extends StatelessWidget {
             const SizedBox(width: 12),
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: 24, height: 24,
+              width: 26, height: 26,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(8),
                 color: selected ? _priCont : Colors.transparent,
                 border: Border.all(
                   color: selected ? _priCont : _outlineV,
@@ -827,7 +846,7 @@ class _SelectionCard extends StatelessWidget {
                 ),
               ),
               child: selected
-                  ? const Icon(Icons.check, color: Colors.white, size: 14)
+                  ? const Icon(Icons.check, color: Colors.white, size: 16)
                   : null,
             ),
           ],
@@ -1079,51 +1098,14 @@ class _HeightPageState extends State<_HeightPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("What's your\nheight?",
+              const Text("What's your Height?",
                 style: TextStyle(
                   color: _onSurf, fontSize: 34,
-                  fontWeight: FontWeight.w800, height: 1.15)),
-              const SizedBox(height: 16),
-              // Info card
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: _surfC,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 44, height: 44,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: _priCont.withValues(alpha: 0.3), width: 1.5),
-                      ),
-                      child: const Icon(
-                        Icons.person_outline, color: _priCont, size: 22),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Your Blueprint Starts Here',
-                            style: TextStyle(color: Colors.white,
-                              fontSize: 15, fontWeight: FontWeight.w700)),
-                          SizedBox(height: 4),
-                          Text(
-                            "Height powers your BMI, calorie targets, and the movement mechanics behind every exercise we prescribe.",
-                            style: TextStyle(
-                              color: _onSurfV, fontSize: 13, height: 1.4)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
+                  fontWeight: FontWeight.w800, height: 1.1)),
+              const SizedBox(height: 8),
+              const Text('Helps improve accuracy of your fitness insights.',
+                style: TextStyle(color: _onSurfV, fontSize: 15, height: 1.4)),
+              const SizedBox(height: 22),
               // Unit toggle (cm / ft)
               Center(
                 child: _HeightUnitToggle(
@@ -1312,11 +1294,14 @@ class _Step1Page extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
             children: [
-              const Text("What's your\nprimary goal?",
+              const Text("What's your goal?",
                 style: TextStyle(
                   color: _onSurf, fontSize: 34,
-                  fontWeight: FontWeight.w800, height: 1.15)),
-              const SizedBox(height: 28),
+                  fontWeight: FontWeight.w800, height: 1.1)),
+              const SizedBox(height: 8),
+              const Text("We'll personalize your plan based on this.",
+                style: TextStyle(color: _onSurfV, fontSize: 15, height: 1.4)),
+              const SizedBox(height: 24),
               ..._goals.map((g) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _SelectionCard(
@@ -1325,6 +1310,74 @@ class _Step1Page extends StatelessWidget {
                   subtitle: g.$4,
                   selected: selected == g.$1,
                   onTap: () => onSelect(g.$1),
+                ),
+              )),
+            ],
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, bottom + 24),
+          child: SizedBox(
+            width: double.infinity,
+            child: _GradientButton(
+              label: 'Next',
+              enabled: hasSelection,
+              onTap: hasSelection ? onContinue : null,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Activities (multi-select) ─────────────────────────────────────────────────
+class _ActivitiesPage extends StatelessWidget {
+  final List<String> selected;
+  final ValueChanged<String> onToggle;
+  final VoidCallback onContinue;
+  final VoidCallback onBack;
+  const _ActivitiesPage({
+    required this.selected, required this.onToggle,
+    required this.onContinue, required this.onBack,
+  });
+
+  static const _activities = [
+    ('running',  Icons.directions_run,   'Running',  'Track pace, distance, calories'),
+    ('cycling',  Icons.directions_bike,  'Cycling',  'Measure speed, endurance'),
+    ('swimming', Icons.pool_outlined,    'Swimming', 'Laps, time, and calories'),
+    ('yoga',     Icons.self_improvement, 'Yoga',     'Improve flexibility and focus'),
+    ('hiking',   Icons.terrain_outlined, 'Hiking',   'Elevation, trails, distance'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).padding.bottom;
+    final hasSelection = selected.isNotEmpty;
+
+    return Column(
+      children: [
+        _IntakeStepBar(step: 5, total: 24, onBack: onBack),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            children: [
+              const Text('Pick your Activities',
+                style: TextStyle(
+                  color: _onSurf, fontSize: 34,
+                  fontWeight: FontWeight.w800, height: 1.1)),
+              const SizedBox(height: 8),
+              const Text('Choose as many as you like.',
+                style: TextStyle(color: _onSurfV, fontSize: 15, height: 1.4)),
+              const SizedBox(height: 24),
+              ..._activities.map((a) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _SelectionCard(
+                  icon: a.$2,
+                  title: a.$3,
+                  subtitle: a.$4,
+                  selected: selected.contains(a.$1),
+                  onTap: () => onToggle(a.$1),
                 ),
               )),
             ],
@@ -1371,7 +1424,6 @@ class _WeightPageState extends State<_WeightPage> {
   late final ScrollController _sc;
   bool _useKg = true;
   late double _weightKg;
-  double _rulerW = 300;
 
   double get _bmi {
     if (widget.heightCm <= 0 || _weightKg <= 0) return 0;
@@ -1454,156 +1506,122 @@ class _WeightPageState extends State<_WeightPage> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).padding.bottom;
-    final bmi = _bmi;
-    final showBmi = bmi > 0;
     final totalItems = ((_maxKg - _minKg) / 0.1).round() + 1;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _IntakeStepBar(step: 8, total: 24, onBack: widget.onBack, onSkip: widget.onSkip),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, bottom + 100),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Text(
-                  "What's your\ncurrent weight?",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _onSurf, fontSize: 32,
-                    fontWeight: FontWeight.w800, height: 1.2),
-                ),
-                const SizedBox(height: 24),
-                // kg / lb toggle
-                _WeightUnitToggle(
+        _IntakeStepBar(step: 9, total: 24, onBack: widget.onBack, onSkip: widget.onSkip),
+
+        // Headline + subtitle + unit toggle
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("What's your Weight?",
+                style: TextStyle(
+                  color: _onSurf, fontSize: 34,
+                  fontWeight: FontWeight.w800, height: 1.1)),
+              const SizedBox(height: 8),
+              const Text('Helps us tailor calories and your fitness insights.',
+                style: TextStyle(color: _onSurfV, fontSize: 15, height: 1.4)),
+              const SizedBox(height: 22),
+              Center(
+                child: _WeightUnitToggle(
                   useKg: _useKg,
                   onChanged: (v) { setState(() => _useKg = v); },
                 ),
-                const SizedBox(height: 20),
-                // Large value display
-                RichText(
-                  textAlign: TextAlign.center,
-                  text: TextSpan(children: [
-                    TextSpan(
-                      text: _displayValue,
-                      style: const TextStyle(
-                        color: _priCont, fontSize: 76,
-                        fontWeight: FontWeight.w900, height: 1,
-                        letterSpacing: -3),
-                    ),
-                    TextSpan(
-                      text: ' $_unit',
-                      style: TextStyle(
-                        color: _priCont.withValues(alpha: 0.65),
-                        fontSize: 28, fontWeight: FontWeight.w700),
-                    ),
-                  ]),
-                ),
-                const SizedBox(height: 20),
-                // Horizontal ruler
-                LayoutBuilder(builder: (ctx, box) {
-                  _rulerW = box.maxWidth;
-                  return ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [
-                        Colors.transparent, Colors.white,
-                        Colors.white, Colors.transparent,
-                      ],
-                      stops: [0.0, 0.18, 0.82, 1.0],
-                    ).createShader(bounds),
-                    blendMode: BlendMode.dstIn,
-                    child: SizedBox(
-                      height: 74,
-                      child: Stack(
-                        children: [
-                          ListView.builder(
-                            controller: _sc,
-                            scrollDirection: Axis.horizontal,
-                            physics: const BouncingScrollPhysics(),
-                            padding: EdgeInsets.symmetric(horizontal: _rulerW / 2),
-                            itemCount: totalItems,
-                            itemExtent: _tickW,
-                            itemBuilder: (_, i) {
-                              final rounded = i;
-                              final isMajor = rounded % 10 == 0;
-                              final isMid   = rounded % 5 == 0 && !isMajor;
-                              final kg      = _minKg + i * 0.1;
-                              return Column(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  SizedBox(
-                                    height: 54,
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        Container(
-                                          width: 1.5,
-                                          height: isMajor ? 40.0 : isMid ? 24.0 : 14.0,
-                                          decoration: BoxDecoration(
-                                            color: isMajor
-                                                ? Colors.white.withValues(alpha: 0.6)
-                                                : isMid
-                                                    ? Colors.white.withValues(alpha: 0.4)
-                                                    : Colors.white.withValues(alpha: 0.2),
-                                            borderRadius: BorderRadius.circular(1),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    height: 20,
-                                    child: isMajor
-                                        ? Center(
-                                            child: Text(
-                                              _useKg
-                                                  ? '${kg.toInt()}'
-                                                  : '${(kg * 2.20462).round()}',
-                                              style: TextStyle(
-                                                color: Colors.white.withValues(alpha: 0.35),
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          )
-                                        : const SizedBox.shrink(),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          // Center indicator line
-                          Positioned(
-                            top: 0, height: 54, left: 0, right: 0,
-                            child: Center(
-                              child: Container(
-                                width: 2, height: 54, color: _priCont,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-                const SizedBox(height: 28),
-                // BMI insight card
-                if (showBmi)
-                  _BmiCard(
-                    bmi: bmi,
-                    category: _bmiCategory,
-                    message: _bmiMessage,
-                  ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+
+        // Big value + vertical ruler
+        Expanded(
+          child: LayoutBuilder(builder: (ctx, box) {
+            final rulerH = box.maxHeight;
+            return Stack(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Large value (left)
+                    Expanded(
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 24),
+                          child: RichText(
+                            text: TextSpan(children: [
+                              TextSpan(text: _displayValue,
+                                style: const TextStyle(
+                                  color: _priCont, fontSize: 80,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -3, height: 1)),
+                              TextSpan(text: '  $_unit',
+                                style: TextStyle(
+                                  color: _priCont.withValues(alpha: 0.7),
+                                  fontSize: 22, fontWeight: FontWeight.w800)),
+                            ]),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Vertical ruler (right 90px) — top = min, increasing downward
+                    SizedBox(
+                      width: 90,
+                      child: ListView.builder(
+                        controller: _sc,
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.symmetric(vertical: rulerH / 2),
+                        itemCount: totalItems,
+                        itemExtent: _tickW,
+                        itemBuilder: (_, i) {
+                          final kg = _minKg + i * 0.1;
+                          final isMajor = i % 50 == 0;   // every 5 kg
+                          final isMid   = i % 10 == 0 && !isMajor; // every 1 kg
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              if (isMajor)
+                                Text(
+                                  _useKg ? '${kg.round()}' : '${(kg * 2.20462).round()}',
+                                  style: const TextStyle(
+                                    color: Color(0x4DFFFFFF),
+                                    fontSize: 11, fontWeight: FontWeight.w800)),
+                              const SizedBox(width: 4),
+                              Container(
+                                height: 1,
+                                width: isMajor ? 28.0 : isMid ? 18.0 : 12.0,
+                                color: Color(isMajor ? 0x66FFFFFF : 0x26FFFFFF),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                // Purple indicator line spanning full width
+                Positioned.fill(
+                  child: Center(
+                    child: Container(height: 2, color: _priCont),
+                  ),
+                ),
+              ],
+            );
+          }),
+        ),
+
         // Next button
         Padding(
-          padding: EdgeInsets.fromLTRB(20, 8, 20, bottom + 24),
-          child: _GradientButton(label: 'Next', onTap: widget.onContinue),
+          padding: EdgeInsets.fromLTRB(20, 12, 20, bottom + 24),
+          child: SizedBox(
+            width: double.infinity,
+            child: _GradientButton(label: 'Next', onTap: widget.onContinue),
+          ),
         ),
       ],
     );

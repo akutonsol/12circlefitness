@@ -6,6 +6,7 @@ class IntakeData {
   DateTime? dateOfBirth;
 
   String primaryGoal;
+  List<String> activities;
   String activityLevel;
   int trainingDays;
   String trainingLocation;
@@ -52,6 +53,7 @@ class IntakeData {
     this.gender = '',
     this.dateOfBirth,
     this.primaryGoal = '',
+    this.activities = const [],
     this.activityLevel = '',
     this.trainingDays = 0,
     this.trainingLocation = '',
@@ -139,6 +141,9 @@ class IntakeData {
       gender: d['gender'] as String? ?? '',
       dateOfBirth: dobStr != null ? DateTime.tryParse(dobStr) : null,
       primaryGoal: d['fitness_goal'] as String? ?? '',
+      activities: d['activities'] is List
+          ? List<String>.from((d['activities'] as List).map((e) => '$e'))
+          : _splitList(d['activities'] as String?),
       activityLevel: d['activity_level'] as String? ?? '',
       trainingDays: (d['training_days_per_week'] as num?)?.toInt() ?? 0,
       trainingLocation: d['training_location'] as String? ?? '',
@@ -176,6 +181,7 @@ class IntakeData {
     if (gender.isNotEmpty) m['gender'] = gender;
     if (dateOfBirth != null) m['date_of_birth'] = dateOfBirth!.toIso8601String().split('T')[0];
     if (primaryGoal.isNotEmpty) m['fitness_goal'] = primaryGoal;
+    if (activities.isNotEmpty) m['activities'] = activities.toList();
     if (activityLevel.isNotEmpty) m['activity_level'] = activityLevel;
     if (trainingDays > 0) m['training_days_per_week'] = trainingDays;
     if (trainingLocation.isNotEmpty) m['training_location'] = trainingLocation;
@@ -222,6 +228,7 @@ class IntakeData {
     'gender': gender,
     if (dateOfBirth != null) 'date_of_birth': dateOfBirth!.toIso8601String().split('T')[0],
     'fitness_goal': primaryGoal,
+    'activities': activities.toList(),
     'activity_level': activityLevel,
     'training_days_per_week': trainingDays,
     'training_location': trainingLocation,
