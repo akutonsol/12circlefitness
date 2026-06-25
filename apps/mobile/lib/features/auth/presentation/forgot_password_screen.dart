@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/theme/app_theme.dart';
+import 'widgets/auth_design.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
-
   @override
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
@@ -22,116 +22,60 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
+  Future<void> _send() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter your email address')));
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        email,
+        // On web, send the user back to the running app origin so supabase_flutter
+        // parses the recovery token and fires passwordRecovery (router → /reset-password).
+        redirectTo: kIsWeb ? Uri.base.origin : null,
+      );
+      if (mounted) setState(() { _loading = false; _sent = true; });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bgDark,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgDark,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.white),
-          onPressed: () => context.go('/login'),
-        ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: _sent ? _buildSuccess() : _buildForm(),
-        ),
-      ),
-    );
-  }
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent));
 
-  Widget _buildForm() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 24),
-        const Text(
-          'Reset password',
-          style: TextStyle(color: AppColors.white, fontSize: 28, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Enter your email and we will send you a reset link.',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
-        ),
-        const SizedBox(height: 40),
-        TextField(
-          controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          style: const TextStyle(color: AppColors.white),
-          decoration: const InputDecoration(
-            hintText: 'Email address',
-            prefixIcon: Icon(Icons.email_outlined, color: AppColors.textTertiary),
-          ),
-        ),
-        const SizedBox(height: 24),
-        ElevatedButton(
-          onPressed: _loading ? null : () async {
-            final email = _emailController.text.trim();
-            if (email.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Please enter your email address')),
-              );
-              return;
-            }
-            setState(() => _loading = true);
-            try {
-              await Supabase.instance.client.auth.resetPasswordForEmail(
-                email,
-                // On web, send the user back to the running app origin so
-                // supabase_flutter parses the recovery token and fires the
-                // passwordRecovery event (the router then opens /reset-password).
-                redirectTo: kIsWeb ? Uri.base.origin : null,
-              );
-              if (mounted) setState(() { _loading = false; _sent = true; });
-            } catch (e) {
-              if (mounted) {
-                setState(() => _loading = false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(e.toString())),
-                );
-              }
-            }
-          },
-          child: _loading
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Text('Send Reset Link'),
-        ),
-      ],
-    );
-  }
+    if (_sent) {
+      return AuthScaffold(
+        title: 'Check your email',
+        subtitle: 'We sent a password reset link to your email address.',
+        onBack: () => context.go('/login'),
+        children: [
+          const SizedBox(height: 12),
+          Center(child: Container(
+            width: 84, height: 84,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: AuthColors.purple.withValues(alpha: 0.18),
+              border: Border.all(color: AuthColors.purpleLight.withValues(alpha: 0.4), width: 1.5)),
+            child: const Icon(Icons.mark_email_read_outlined, color: AuthColors.purpleLight, size: 40))),
+          const SizedBox(height: 32),
+          AuthButton(label: 'Back to Sign In', onTap: () => context.go('/login')),
+        ],
+      );
+    }
 
-  Widget _buildSuccess() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return AuthScaffold(
+      title: 'Reset password',
+      subtitle: 'Enter your email and we will send you a reset link.',
+      onBack: () => context.go('/login'),
+      footer: AuthFooterLink(prefix: 'Remembered it?', action: 'Sign In', onTap: () => context.go('/login')),
       children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.success.withValues(alpha: 0.2),
-          ),
-          child: const Icon(Icons.check, color: AppColors.success, size: 40),
-        ),
+        AuthField(controller: _emailController, hint: 'Email address', keyboardType: TextInputType.emailAddress),
         const SizedBox(height: 24),
-        const Text(
-          'Check your email',
-          style: TextStyle(color: AppColors.white, fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'We sent a password reset link to your email address.',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 40),
-        ElevatedButton(
-          onPressed: () => context.go('/login'),
-          child: const Text('Back to Sign In'),
-        ),
+        AuthButton(label: 'Send Reset Link', loading: _loading, onTap: _send),
       ],
     );
   }

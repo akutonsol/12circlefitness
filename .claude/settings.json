@@ -16,7 +16,8 @@
       "Bash(python3 -c ' *)",
       "Bash(cat ~/.claude/settings.json 2>/dev/null || echo \"__NO_FILE__\")",
       "Read(//Users/dmac/.claude/**)",
-      "Bash(python3 -)"
+      "Bash(python3 -)",
+      "Bash(flutter test *)"
     ],
     "additionalDirectories": [
       "/Users/dmac/.claude"
