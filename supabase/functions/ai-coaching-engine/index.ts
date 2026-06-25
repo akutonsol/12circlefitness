@@ -104,6 +104,10 @@ Deno.serve(async (req: Request) => {
 
     // Refresh behavioral patterns first so memory + ai_profile are current.
     await db.rpc('ai_detect_patterns', { p_uid: uid }).then(() => {}, () => {});
+    // Weekly cadence: auto-adjust nutrition macros from the weight trend.
+    if (type === 'weekly_review') {
+      await db.rpc('ai_adjust_nutrition', { p_uid: uid }).then(() => {}, () => {});
+    }
 
     // ── Assemble context ──
     const [{ data: profile }, { data: aiProfile }] = await Promise.all([
