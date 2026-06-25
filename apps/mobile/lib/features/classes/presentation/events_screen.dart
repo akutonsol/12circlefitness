@@ -6,7 +6,7 @@ import 'event_ticket_screen.dart';
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 class _C {
-  static const card      = Color(0xFF131B2E);
+  static const card      = Color(0xFF120E1C);
   static const cardHigh  = Color(0xFF222A3D);
   static const primary   = Color(0xFFDDB7FF);
   static const brand     = Color(0xFFA855F7);
@@ -204,7 +204,7 @@ class _EventCard extends StatelessWidget {
   Widget _gradientHeader() => Container(
     decoration: const BoxDecoration(
       gradient: LinearGradient(
-        colors: [Color(0xFF0B2E1A), Color(0xFF0B1326)],
+        colors: [Color(0xFF0B2E1A), Color(0xFF0C0A12)],
         begin: Alignment.topLeft, end: Alignment.bottomRight)));
 
   Widget _chip(IconData icon, String label, Color color) => Row(

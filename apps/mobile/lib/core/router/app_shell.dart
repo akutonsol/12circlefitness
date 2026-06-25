@@ -23,7 +23,7 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) => NotificationWatcher(
     child: Scaffold(
-      backgroundColor: const Color(0xFF0B1326),
+      backgroundColor: const Color(0xFF0C0A12),
       body: Column(children: [
         _CoachTopBar(location: currentLocation),
         Expanded(child: child),

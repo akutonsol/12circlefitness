@@ -9,10 +9,10 @@ class AppColors {
   static const Color purpleDark = Color(0xFF5B21B6);
   static const Color charcoal = Color(0xFF374151);
   static const Color charcoalLight = Color(0xFF6B7280);
-  // Navy-based dark palette (matches the home screen — no pure black).
-  static const Color bgDark = Color(0xFF0B1326);
-  static const Color bgDarkSecondary = Color(0xFF131B2E);
-  static const Color bgDarkTertiary = Color(0xFF1B2238);
+  // Black-purple dark palette (matches the auth screens' gradient).
+  static const Color bgDark = Color(0xFF0C0A12);
+  static const Color bgDarkSecondary = Color(0xFF120E1C);
+  static const Color bgDarkTertiary = Color(0xFF1A1230);
   static const Color surfaceDark = Color(0xFF182236);
   static const Color surfaceDarkElevated = Color(0xFF222A3D);
   static const Color textPrimary = Color(0xFFFFFFFF);

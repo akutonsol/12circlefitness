@@ -21,7 +21,9 @@
       "Bash(grep -iE '\\\\.dart$')",
       "Bash(sort -t_ -k1 -n)",
       "Read(//Users/dmac/Desktop/**)",
-      "Bash(git diff *)"
+      "Bash(git diff *)",
+      "Bash(grep -rhEA15 \"CREATE TABLE \\(IF NOT EXISTS \\)?ai_\\(memories|profiles|insights|reviews|goal_predictions|conversations\\)\" 074_ai_coaching_layer.sql 075_ai_memory_autocapture.sql 078_ai_pattern_learning.sql)",
+      "Bash(grep -rliE \"0xFF0B1326|0x.{0,2}0B1326|navy\" lib)"
     ],
     "additionalDirectories": [
       "/Users/dmac/.claude"

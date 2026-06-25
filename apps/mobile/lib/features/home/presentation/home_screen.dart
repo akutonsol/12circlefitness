@@ -22,8 +22,8 @@ import '../../../core/widgets/blood_drop.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 class _C {
-  static const bg           = Color(0xFF0B1326);
-  static const surfContLow  = Color(0xFF131B2E);
+  static const bg           = Color(0xFF0C0A12);
+  static const surfContLow  = Color(0xFF120E1C);
   static const surfContHigh = Color(0xFF222A3D);
   static const primary      = Color(0xFFDDB7FF);
   static const brand        = Color(0xFFA855F7);
@@ -413,7 +413,7 @@ class _WellnessPulsePanel extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: [
-                      const Color(0xFFFFD479).withValues(alpha: 0.18), const Color(0xFF131B2E)]),
+                      const Color(0xFFFFD479).withValues(alpha: 0.18), const Color(0xFF120E1C)]),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: const Color(0xFFFFD479).withValues(alpha: 0.35))),
                   child: Row(children: [
@@ -1208,7 +1208,7 @@ class _FitnessSessionCard extends ConsumerWidget {
                 begin: Alignment.topRight, end: Alignment.bottomLeft))))),
         const DecoratedBox(decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF0B1326), Color(0xBB0B1326), Colors.transparent],
+            colors: [Color(0xFF0C0A12), Color(0xBB0B1326), Colors.transparent],
             stops: [0.0, 0.5, 1.0],
             begin: Alignment.bottomCenter, end: Alignment.topCenter))),
         Padding(

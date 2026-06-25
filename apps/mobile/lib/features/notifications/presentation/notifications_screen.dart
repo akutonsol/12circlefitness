@@ -7,7 +7,7 @@ import '../domain/notification_provider.dart';
 // ── Palette ───────────────────────────────────────────────────────────────────
 class _C {
   static const bg          = Color(0xFF060E20);
-  static const surfDim     = Color(0xFF0B1326);
+  static const surfDim     = Color(0xFF0C0A12);
   static const surfCont    = Color(0xFF171F33);
   static const primary     = Color(0xFFDDB7FF);
   static const brand       = Color(0xFFA855F7);
