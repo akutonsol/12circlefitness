@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//tmp/home/**)",
+      "Read(//private/tmp/home/**)",
+      "Bash(grep -n \"      \\),$\\\\|^      \\)\\\\|bottomNavigationBar\\\\|floatingActionButton\\\\|^    \\);\" lib/features/dashboard/presentation/dashboard_screen.dart)"
+    ]
+  }
+}

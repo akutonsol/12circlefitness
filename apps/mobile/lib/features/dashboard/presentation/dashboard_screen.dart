@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../auth/domain/auth_provider.dart';
 import '../domain/dashboard_provider.dart';
+import '../../../shared/widgets/cinematic_backdrop.dart';
 
 // Exact colors from Stitch DESIGN.md
 class _S {
@@ -42,7 +43,9 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: _S.bg,
-      body: dashboardAsync.when(
+      body: Stack(children: [
+        const Positioned.fill(child: CinematicBackdrop()),
+        dashboardAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: _S.primaryCont)),
         error: (e, _) => Center(child: Text('Error', style: _jakarta(color: Colors.red))),
         data: (data) {
@@ -70,6 +73,7 @@ class DashboardScreen extends ConsumerWidget {
           );
         },
       ),
+      ]),
     );
   }
 
