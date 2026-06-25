@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 // ── Brand ─────────────────────────────────────────────────────────────────────
 const _purple      = Color(0xFF7C3AED);
 const _purpleLight = Color(0xFFB06BFF);
+const _pink        = Color(0xFFFF4FB0);
 const _muted       = Color(0xFFB9B2C7);
 
 /// Onboarding screen 2 — the welcome. Hero athlete, "TRAIN LIKE YOU MEAN IT",
@@ -40,13 +41,8 @@ class OnboardingScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
             child: Row(children: [
-              Container(
-                width: 30, height: 30,
-                decoration: BoxDecoration(shape: BoxShape.circle,
-                  gradient: const LinearGradient(colors: [_purpleLight, _purple]),
-                  boxShadow: [BoxShadow(color: _purple.withValues(alpha: 0.5), blurRadius: 12)]),
-                child: const Center(child: Text('12', style: TextStyle(
-                  color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)))),
+              SizedBox(width: 34, height: 34,
+                child: Image.asset('assets/images/12circle-fab.png', fit: BoxFit.contain)),
               const SizedBox(width: 10),
               const Text('12Circle Fitness', style: TextStyle(
                 color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
@@ -129,46 +125,59 @@ class _SlideToStartState extends State<_SlideToStart>
           setState(() => _dx = 0);
         }
       }
+      final knob = _h - 8;
       return Container(
         height: _h,
         decoration: BoxDecoration(
           color: const Color(0xFF14101F),
           borderRadius: BorderRadius.circular(_h),
           border: Border.all(color: Colors.white.withValues(alpha: 0.08))),
-        child: Stack(alignment: Alignment.center, children: [
-          // Label fades as you slide.
-          Opacity(
-            opacity: (1 - (_dx / maxDx) * 1.4).clamp(0.0, 1.0),
-            child: const Padding(
-              padding: EdgeInsets.only(left: 40),
-              child: Text('Get Started', style: TextStyle(
-                color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)))),
-          // Draggable knob.
-          Positioned(
-            left: 4 + _dx,
-            child: AnimatedBuilder(
-              animation: _hint,
-              builder: (_, child) => Transform.translate(
-                offset: Offset(_dx == 0 && !_done ? _hint.value * 6 : 0, 0), child: child),
-              child: GestureDetector(
-                onHorizontalDragUpdate: (d) {
-                  if (_done) return;
-                  setState(() => _dx = (_dx + d.delta.dx).clamp(0.0, maxDx));
-                },
-                onHorizontalDragEnd: (_) => end(),
-                onTap: () { setState(() { _dx = maxDx; _done = true; }); widget.onConfirm(); },
-                child: Container(
-                  width: _h - 8, height: _h - 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(colors: [_purpleLight, _purple],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight),
-                    boxShadow: [BoxShadow(color: _purple.withValues(alpha: 0.5), blurRadius: 16)]),
-                  child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 24)),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(_h),
+          child: Stack(children: [
+            // Gradient fill that grows from the left as you slide.
+            Positioned(
+              left: 0, top: 0, bottom: 0,
+              child: Container(
+                width: (4 + _dx + knob).clamp(knob, c.maxWidth),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(colors: [_pink, _purple])))),
+            // Label sits to the right of the knob, fading as it nears.
+            Positioned(
+              left: _h + 10, top: 0, right: 16, bottom: 0,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Opacity(
+                  opacity: (1 - (_dx / maxDx) * 1.7).clamp(0.0, 1.0),
+                  child: const Text('Get Started', style: TextStyle(
+                    color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700))))),
+            // Draggable knob with arrow.
+            Positioned(
+              left: 4 + _dx, top: 4,
+              child: AnimatedBuilder(
+                animation: _hint,
+                builder: (_, child) => Transform.translate(
+                  offset: Offset(_dx == 0 && !_done ? _hint.value * 6 : 0, 0), child: child),
+                child: GestureDetector(
+                  onHorizontalDragUpdate: (d) {
+                    if (_done) return;
+                    setState(() => _dx = (_dx + d.delta.dx).clamp(0.0, maxDx));
+                  },
+                  onHorizontalDragEnd: (_) => end(),
+                  onTap: () { setState(() { _dx = maxDx; _done = true; }); widget.onConfirm(); },
+                  child: Container(
+                    width: knob, height: knob,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(colors: [_purpleLight, _purple],
+                        begin: Alignment.topLeft, end: Alignment.bottomRight),
+                      boxShadow: [BoxShadow(color: _purple.withValues(alpha: 0.5), blurRadius: 16)]),
+                    child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 24)),
+                ),
               ),
             ),
-          ),
-        ]),
+          ]),
+        ),
       );
     });
   }

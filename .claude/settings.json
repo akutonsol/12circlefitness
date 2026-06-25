@@ -3,7 +3,17 @@
     "allow": [
       "Read(//tmp/home/**)",
       "Read(//private/tmp/home/**)",
-      "Bash(grep -n \"      \\),$\\\\|^      \\)\\\\|bottomNavigationBar\\\\|floatingActionButton\\\\|^    \\);\" lib/features/dashboard/presentation/dashboard_screen.dart)"
+      "Bash(grep -n \"      \\),$\\\\|^      \\)\\\\|bottomNavigationBar\\\\|floatingActionButton\\\\|^    \\);\" lib/features/dashboard/presentation/dashboard_screen.dart)",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/dmac/Desktop/12circle-fitness/apps/mobile/assets/images/splash1_bg.png)",
+      "Bash(sips -s format jpeg splash1_bg.png --out splash1_bg.jpg)",
+      "Bash(rm splash1_bg.png)",
+      "Bash(sips --deleteColorManagementProperties 12circle-fab.png)",
+      "Bash(sips -s format png 12circle-fab.png --out 12circle-fab.png)",
+      "Bash(awk '{print $5, $9}')",
+      "Read(//tmp/**)",
+      "Read(//private/tmp/**)",
+      "Bash(sips -g hasAlpha 12circle-fab.png)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

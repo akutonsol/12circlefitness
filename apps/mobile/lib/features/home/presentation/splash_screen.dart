@@ -2,9 +2,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Onboarding screen 1 — the loading splash. A glowing "12" core inside counter-
-/// rotating loader rings over a moody gym backdrop, with the FITNESS wordmark and
-/// a "PREPARING YOUR TRAINING" progress bar that fills, then advances to screen 2.
+/// Onboarding screen 1 — the loading splash. The 12 Circle mark inside counter-
+/// rotating loader arcs over a cinematic gym backdrop, with the FITNESS wordmark
+/// and a "PREPARING YOUR TRAINING" progress bar that fills over ~5s, then advances
+/// to screen 2.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
@@ -17,7 +18,7 @@ const _pink        = Color(0xFFFF6BD6);
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  late final AnimationController _spin;   // ring rotation
+  late final AnimationController _spin;   // ring rotation + embers
   late final AnimationController _load;   // intro pop + progress bar
   late final Animation<double> _pop;
   late final Animation<double> _word;
@@ -27,12 +28,13 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _spin = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
-    _load = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600))..forward();
-    _pop      = CurvedAnimation(parent: _load, curve: const Interval(0.0, 0.32, curve: Curves.easeOutBack));
-    _word     = CurvedAnimation(parent: _load, curve: const Interval(0.28, 0.6, curve: Curves.easeOut));
-    _progress = CurvedAnimation(parent: _load, curve: const Interval(0.1, 1.0, curve: Curves.easeInOut));
+    _load = AnimationController(vsync: this, duration: const Duration(milliseconds: 4700))..forward();
+    _pop      = CurvedAnimation(parent: _load, curve: const Interval(0.0, 0.2, curve: Curves.easeOutBack));
+    _word     = CurvedAnimation(parent: _load, curve: const Interval(0.16, 0.4, curve: Curves.easeOut));
+    _progress = CurvedAnimation(parent: _load, curve: const Interval(0.05, 1.0, curve: Curves.easeInOut));
 
-    Future.delayed(const Duration(milliseconds: 2750), () {
+    // ~5s on screen, then hand off to screen 2.
+    Future.delayed(const Duration(milliseconds: 5000), () {
       if (mounted) context.go('/onboarding');
     });
   }
@@ -49,15 +51,18 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF07060A),
       body: Stack(fit: StackFit.expand, children: [
-        // Moody gym backdrop, dimmed.
-        Opacity(opacity: 0.5, child: Image.asset('assets/images/home_bg_gym.jpg',
+        // Cinematic gym backdrop, dimmed.
+        Opacity(opacity: 0.55, child: Image.asset('assets/images/splash1_bg.jpg',
           fit: BoxFit.cover, alignment: const Alignment(0, -0.1))),
         const DecoratedBox(decoration: BoxDecoration(
           gradient: RadialGradient(center: Alignment(0, -0.15), radius: 1.1,
-            colors: [Color(0x9907060A), Color(0xE607060A), Color(0xFF050409)],
+            colors: [Color(0x8807060A), Color(0xDD07060A), Color(0xFF050409)],
             stops: [0.0, 0.6, 1.0]))),
 
-        // ── Center: loader rings + 12 core + wordmark ──
+        // Drifting embers.
+        ..._embers(),
+
+        // ── Center: loader arcs + 12 Circle mark + wordmark ──
         Align(
           alignment: const Alignment(0, -0.12),
           child: AnimatedBuilder(
@@ -66,22 +71,19 @@ class _SplashScreenState extends State<SplashScreen>
               SizedBox(
                 width: 230, height: 230,
                 child: Stack(alignment: Alignment.center, children: [
-                  // faint full rings
+                  // spinning loader arcs
                   CustomPaint(size: const Size(230, 230), painter: _RingsPainter(_spin.value)),
-                  // glowing 12 core
+                  // glowing 12 Circle mark
                   ScaleTransition(
                     scale: _pop,
                     child: Container(
-                      width: 96, height: 96,
+                      width: 150, height: 150,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const LinearGradient(colors: [_purpleLight, _purple],
-                          begin: Alignment.topLeft, end: Alignment.bottomRight),
                         boxShadow: [BoxShadow(
-                          color: const Color(0xFFD36BFF).withValues(alpha: 0.4 + 0.4 * (math.sin(_spin.value * 2 * math.pi) + 1) / 2),
-                          blurRadius: 34, spreadRadius: 1)]),
-                      child: const Center(child: Text('12', style: TextStyle(
-                        color: Colors.white, fontSize: 38, fontWeight: FontWeight.w800, letterSpacing: -1))),
+                          color: const Color(0xFFD36BFF).withValues(alpha: 0.25 + 0.3 * (math.sin(_spin.value * 2 * math.pi) + 1) / 2),
+                          blurRadius: 40, spreadRadius: 4)]),
+                      child: Image.asset('assets/images/12circle-fab.png', fit: BoxFit.contain),
                     ),
                   ),
                 ]),
@@ -137,9 +139,32 @@ class _SplashScreenState extends State<SplashScreen>
       ]),
     );
   }
+
+  List<Widget> _embers() {
+    const spec = [(0.16, 5.0, 0.0), (0.4, 3.5, 0.4), (0.66, 6.0, 0.7), (0.84, 4.0, 0.2)];
+    return [
+      for (final (x, sz, phase) in spec)
+        AnimatedBuilder(
+          animation: _spin,
+          builder: (ctx, __) {
+            final h = MediaQuery.of(ctx).size.height;
+            final p = (_spin.value + phase) % 1.0;
+            return Positioned(
+              left: x * MediaQuery.of(ctx).size.width,
+              top: h * (1 - p) - 30,
+              child: Opacity(
+                opacity: math.sin(p * math.pi) * 0.6,
+                child: Container(width: sz, height: sz, decoration: BoxDecoration(
+                  shape: BoxShape.circle, color: const Color(0xFFE7C9FF),
+                  boxShadow: [BoxShadow(color: _purpleLight.withValues(alpha: 0.6), blurRadius: 8)]))),
+            );
+          },
+        ),
+    ];
+  }
 }
 
-/// Counter-rotating loader rings with purple/pink arc accents.
+/// Counter-rotating loader arcs that sweep around the 12 Circle mark.
 class _RingsPainter extends CustomPainter {
   final double t;
   _RingsPainter(this.t);
@@ -149,24 +174,18 @@ class _RingsPainter extends CustomPainter {
     final c = size.center(Offset.zero);
     final tau = 2 * math.pi;
 
-    // Faint full rings.
-    final faint = Paint()..style = PaintingStyle.stroke..strokeWidth = 1.2
-      ..color = _purpleLight.withValues(alpha: 0.16);
-    canvas.drawCircle(c, size.width * 0.5, faint);
-    canvas.drawCircle(c, size.width * 0.38, faint..color = _purpleLight.withValues(alpha: 0.10));
-
-    // Outer arc — purple, clockwise.
+    // Outer arc — purple/pink, clockwise.
     final outer = Paint()..style = PaintingStyle.stroke..strokeWidth = 3..strokeCap = StrokeCap.round
       ..shader = const SweepGradient(colors: [_purple, _purpleLight, _pink])
           .createShader(Rect.fromCircle(center: c, radius: size.width * 0.5));
     canvas.drawArc(Rect.fromCircle(center: c, radius: size.width * 0.5),
-      t * tau, tau * 0.62, false, outer);
+      t * tau, tau * 0.5, false, outer);
 
     // Inner arc — pink, counter-clockwise.
     final inner = Paint()..style = PaintingStyle.stroke..strokeWidth = 2.5..strokeCap = StrokeCap.round
-      ..color = _pink.withValues(alpha: 0.85);
-    canvas.drawArc(Rect.fromCircle(center: c, radius: size.width * 0.38),
-      -t * tau * 1.4, tau * 0.3, false, inner);
+      ..color = _pink.withValues(alpha: 0.8);
+    canvas.drawArc(Rect.fromCircle(center: c, radius: size.width * 0.44),
+      -t * tau * 1.4, tau * 0.28, false, inner);
   }
 
   @override
