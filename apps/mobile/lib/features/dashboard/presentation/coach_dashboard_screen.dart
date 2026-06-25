@@ -82,6 +82,22 @@ Future<List<String>> _coachClientIds() async {
   return (rels as List).map((r) => r['client_id'] as String).toList();
 }
 
+Widget _riskPill(String label, Color color) => Container(
+  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+  decoration: BoxDecoration(
+    color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: color.withValues(alpha: 0.4))),
+  child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700)));
+
+// AI coaching signals for the coach's active clients (risk/adherence/last brief).
+final coachAiSignalsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  ref.watch(tableTickerProvider('coach_client_relationships'));
+  try {
+    final data = await _supabase.rpc('coach_client_ai_signals');
+    return List<Map<String, dynamic>>.from(data as List);
+  } catch (_) { return []; }
+});
+
 final clientCheckinsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   try {
     final ids = await _coachClientIds();
@@ -517,6 +533,51 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen>
                       '$highRisk client${highRisk > 1 ? 's' : ''} flagged HIGH RISK — review PAR-Q before programming.',
                       style: const TextStyle(color: _error, fontSize: 12, fontWeight: FontWeight.w600))),
                   ])),
+
+              // ── AI Coach signals (risk + adherence from the AI engine) ──
+              ref.watch(coachAiSignalsProvider).maybeWhen(
+                data: (sigs) {
+                  final flagged = sigs.where((s) =>
+                    ((s['churn_risk'] as num?) ?? 0) >= 50 ||
+                    ((s['injury_risk'] as num?) ?? 0) >= 50).toList();
+                  if (flagged.isEmpty) return const SizedBox.shrink();
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _card,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _brand.withValues(alpha: 0.25))),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Row(children: [
+                        Icon(Icons.health_and_safety_rounded, color: _brand, size: 13),
+                        SizedBox(width: 6),
+                        Text('AI COACH SIGNALS',
+                          style: TextStyle(color: _brand, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                      ]),
+                      const SizedBox(height: 8),
+                      ...flagged.map((s) {
+                        final churn = (s['churn_risk'] as num?)?.round() ?? 0;
+                        final injury = (s['injury_risk'] as num?)?.round() ?? 0;
+                        final w7 = (s['workouts_7d'] as num?)?.round() ?? 0;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Row(children: [
+                              Expanded(child: Text(s['client_name']?.toString() ?? 'Client',
+                                style: const TextStyle(color: _white, fontSize: 13, fontWeight: FontWeight.w700))),
+                              if (churn >= 50) _riskPill('Drop-off $churn%', _error),
+                              if (injury >= 50) ...[const SizedBox(width: 6), _riskPill('Injury $injury%', const Color(0xFFF59E0B))],
+                            ]),
+                            const SizedBox(height: 2),
+                            Text('$w7 workout${w7 == 1 ? '' : 's'} this week'
+                              '${s['risk_summary'] != null ? ' · ${s['risk_summary']}' : ''}',
+                              style: const TextStyle(color: _muted, fontSize: 11, height: 1.3)),
+                          ]));
+                      }),
+                    ]));
+                },
+                orElse: () => const SizedBox.shrink()),
 
               // AI Recommendations list
               if (aiRecs.isNotEmpty) ...[
