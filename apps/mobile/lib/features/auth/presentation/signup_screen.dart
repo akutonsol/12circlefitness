@@ -14,7 +14,7 @@ class _C {
   static const outlineVar   = Color(0xFF4B444F);
 }
 
-enum _Role { client, coach, vendor, admin }
+enum _Role { client, coach, vendor }
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -239,11 +239,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       Expanded(child: _RoleChip(label: 'Coach', selected: _selectedRole == _Role.coach,
                         onTap: () => setState(() => _selectedRole = _Role.coach))),
                       const SizedBox(width: 8),
-                      Expanded(child: _RoleChip(label: 'Vendor', selected: _selectedRole == _Role.vendor,
+                      Expanded(child: _RoleChip(label: 'Wellness Partner', selected: _selectedRole == _Role.vendor,
                         onTap: () => setState(() => _selectedRole = _Role.vendor))),
-                      const SizedBox(width: 8),
-                      Expanded(child: _RoleChip(label: 'Admin', selected: _selectedRole == _Role.admin,
-                        onTap: () => setState(() => _selectedRole = _Role.admin))),
                     ],
                   ),
                   const SizedBox(height: 24),
