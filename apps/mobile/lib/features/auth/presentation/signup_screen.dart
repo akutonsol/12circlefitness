@@ -124,16 +124,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         const Text('I AM A:', style: TextStyle(color: AuthColors.purpleLight, fontSize: 11,
           fontWeight: FontWeight.w700, letterSpacing: 2)),
         const SizedBox(height: 10),
-        Row(children: [
-          Expanded(child: _RoleChip(label: 'Client', selected: _selectedRole == _Role.client,
-            onTap: () => setState(() => _selectedRole = _Role.client))),
-          const SizedBox(width: 8),
-          Expanded(child: _RoleChip(label: 'Coach', selected: _selectedRole == _Role.coach,
-            onTap: () => setState(() => _selectedRole = _Role.coach))),
-          const SizedBox(width: 8),
-          Expanded(child: _RoleChip(label: 'Wellness Partner', selected: _selectedRole == _Role.vendor,
-            onTap: () => setState(() => _selectedRole = _Role.vendor))),
-        ]),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(children: [
+            _RoleChip(label: 'Client', selected: _selectedRole == _Role.client,
+              onTap: () => setState(() => _selectedRole = _Role.client)),
+            const SizedBox(width: 10),
+            _RoleChip(label: 'Coach', selected: _selectedRole == _Role.coach,
+              onTap: () => setState(() => _selectedRole = _Role.coach)),
+            const SizedBox(width: 10),
+            _RoleChip(label: 'Wellness Partner', selected: _selectedRole == _Role.vendor,
+              onTap: () => setState(() => _selectedRole = _Role.vendor)),
+          ]),
+        ),
         const SizedBox(height: 18),
 
         // Terms
@@ -184,7 +188,7 @@ class _RoleChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           gradient: selected ? const LinearGradient(colors: [AuthColors.purpleLight, AuthColors.purple],

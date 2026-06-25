@@ -111,14 +111,16 @@ class _AuthFieldState extends State<AuthField> {
   @override
   Widget build(BuildContext context) {
     final focused = _focus.hasFocus;
-    return AnimatedContainer(
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _focus.requestFocus(),
+      child: AnimatedContainer(
       duration: const Duration(milliseconds: 160),
       height: 58,
       decoration: BoxDecoration(
         color: AuthColors.field,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: focused ? AuthColors.purpleLight : AuthColors.fieldBorder, width: focused ? 1.5 : 1),
-        boxShadow: focused ? [BoxShadow(color: AuthColors.purple.withValues(alpha: 0.25), blurRadius: 14)] : null,
       ),
       child: Row(children: [
         const SizedBox(width: 18),
@@ -142,7 +144,7 @@ class _AuthFieldState extends State<AuthField> {
               color: AuthColors.hint, size: 20)),
         const SizedBox(width: 18),
       ]),
-    );
+    ));
   }
 }
 
