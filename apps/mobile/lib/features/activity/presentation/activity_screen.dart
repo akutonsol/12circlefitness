@@ -14,7 +14,7 @@ import '../../community/domain/community_provider.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 class _C {
-  static const bg           = Color(0xFF0C0A12);
+  static const bg           = Color(0xFF0A0A0B);
   static const surfContHigh = Color(0xFF222A3D);
   static const primary      = Color(0xFFDDB7FF);
   static const brand        = Color(0xFFA855F7);
@@ -1025,7 +1025,7 @@ class _NotificationsPanel extends ConsumerWidget {
     return Container(
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
       decoration: const BoxDecoration(
-        color: Color(0xFF120E1C),
+        color: Color(0xFF0C0911),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const SizedBox(height: 12),

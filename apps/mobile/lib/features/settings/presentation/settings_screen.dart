@@ -12,7 +12,7 @@ import '../../coach/data/coach_relationship_service.dart';
 import '../../payments/domain/entitlements.dart';
 
 class _C {
-  static const bg                  = Color(0xFF0C0A12);
+  static const bg                  = Color(0xFF0A0A0B);
   static const surfaceContainer    = Color(0xFF201F20);
   static const glassCard           = Color(0x99201F20);
   static const primary             = Color(0xFFDDB7FF);

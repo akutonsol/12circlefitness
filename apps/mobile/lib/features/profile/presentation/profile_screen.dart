@@ -11,7 +11,7 @@ import '../../coaching_mode/domain/coaching_mode_provider.dart';
 import '../../payments/domain/entitlements.dart';
 
 class _C {
-  static const bg                  = Color(0xFF0C0A12);
+  static const bg                  = Color(0xFF0A0A0B);
   static const surfaceContainer    = Color(0xFF201F20);
   static const surfaceContainerHigh= Color(0xFF2A2A2B);
   static const surfaceContainerMax = Color(0xFF353436);

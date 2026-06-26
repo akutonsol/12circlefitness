@@ -190,7 +190,7 @@ class AppTopNav extends StatelessWidget {
     return Container(
       padding: EdgeInsets.only(top: top + 8, left: 16, right: 16, bottom: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0C0A12),
+        color: const Color(0xFF0A0A0B),
         border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06))),
       ),
       child: const AppTopNavRow(),

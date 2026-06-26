@@ -10,7 +10,7 @@ import '../../workout/domain/workout_provider.dart';
 
 // ── Colors (matches Stitch design system) ────────────────────────────────────
 class _C {
-  static const bg           = Color(0xFF0C0A12);
+  static const bg           = Color(0xFF0A0A0B);
   static const surfContHigh = Color(0xFF222A3D);
   static const surfContMax  = Color(0xFF2D3449);
   static const primary      = Color(0xFFDDB7FF);
@@ -235,7 +235,7 @@ class _DirectoryNotificationsPanel extends ConsumerWidget {
     return Container(
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.72),
       decoration: const BoxDecoration(
-        color: Color(0xFF120E1C),
+        color: Color(0xFF0C0911),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const SizedBox(height: 12),
@@ -693,7 +693,7 @@ class _PremiumBanner extends StatelessWidget {
             errorBuilder: (_, __, ___) => Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF1A0A35), Color(0xFF0C0A12)],
+                  colors: [Color(0xFF1A0A35), Color(0xFF0A0A0B)],
                   begin: Alignment.topLeft, end: Alignment.bottomRight)))),
           const DecoratedBox(decoration: BoxDecoration(
             gradient: LinearGradient(

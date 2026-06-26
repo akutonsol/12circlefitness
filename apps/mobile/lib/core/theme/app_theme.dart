@@ -10,9 +10,9 @@ class AppColors {
   static const Color charcoal = Color(0xFF374151);
   static const Color charcoalLight = Color(0xFF6B7280);
   // Black-purple dark palette (matches the auth screens' gradient).
-  static const Color bgDark = Color(0xFF0C0A12);
-  static const Color bgDarkSecondary = Color(0xFF120E1C);
-  static const Color bgDarkTertiary = Color(0xFF1A1230);
+  static const Color bgDark = Color(0xFF0A0A0B);
+  static const Color bgDarkSecondary = Color(0xFF0C0911);
+  static const Color bgDarkTertiary = Color(0xFF100A18);
   static const Color surfaceDark = Color(0xFF182236);
   static const Color surfaceDarkElevated = Color(0xFF222A3D);
   static const Color textPrimary = Color(0xFFFFFFFF);

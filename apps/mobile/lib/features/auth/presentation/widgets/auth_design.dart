@@ -41,7 +41,7 @@ class AuthScaffold extends StatelessWidget {
         // dark wash with purple haze up top
         const DecoratedBox(decoration: BoxDecoration(
           gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [Color(0xFF1B1230), Color(0xFF0C0A12), Color(0xFF070507)], stops: [0.0, 0.4, 1.0]))),
+            colors: [Color(0xFF100A18), Color(0xFF0A0A0B), Color(0xFF0C0911)], stops: [0.0, 0.4, 1.0]))),
         const Align(alignment: Alignment(0, -1.0), child: SizedBox(width: 460, height: 300,
           child: DecoratedBox(decoration: BoxDecoration(gradient: RadialGradient(radius: 0.7,
             colors: [Color(0x408A3DF0), Color(0x000C0A12)]))))),

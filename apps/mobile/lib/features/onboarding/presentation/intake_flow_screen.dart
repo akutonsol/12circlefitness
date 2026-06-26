@@ -11,7 +11,7 @@ import '../domain/intake_data.dart';
 import '../../coach/domain/coach_provider.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
-const _bg      = Color(0xFF0C0A12);
+const _bg      = Color(0xFF0A0A0B);
 const _primary = Color(0xFFDDB7FF);
 const _priCont = Color(0xFFB76DFF);
 const _terCont = Color(0xFFD164E2);
@@ -2867,7 +2867,7 @@ class _Step4Page extends StatelessWidget {
                   label: 'Both',
                   subtitle: 'The ultimate hybrid. Plans for home and commercial setups.',
                   icon: Icons.swap_horiz_outlined,
-                  gradientColors: [const Color(0xFF1A0D2E), const Color(0xFF0C0A12)],
+                  gradientColors: [const Color(0xFF1A0D2E), const Color(0xFF0A0A0B)],
                   accentColor: const Color(0xFFD164E2),
                   selected: selected == 'both',
                   onTap: () => onSelect('both'),
