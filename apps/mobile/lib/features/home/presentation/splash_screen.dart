@@ -165,18 +165,36 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   colors: [Colors.transparent, Color(0x29DCBEFF), Colors.transparent])))))));
         }),
 
-        // ── Pulsing purple edge glow (framePulse) ──
+        // ── Pulsing purple edge glow (framePulse) — hugs all four edges ──
         AnimatedBuilder(animation: _cta, builder: (_, __) {
           final g = (math.sin(_cta.value * 2 * math.pi) + 1) / 2;
-          return IgnorePointer(child: Container(decoration: BoxDecoration(
-            border: Border.all(color: _purpleLight.withValues(alpha: 0.16 + 0.12 * g), width: 1.2),
-            gradient: RadialGradient(radius: 1.15, colors: [
-              Colors.transparent, Colors.transparent,
-              _purple.withValues(alpha: 0.16 + 0.14 * g),
-            ], stops: const [0.0, 0.72, 1.0]))));
+          return _edgePulse(g);
         }),
       ]),
     );
+  }
+
+  // ── Pulsing edge glow that fills every edge (top/bottom/left/right) ──
+  Widget _edgePulse(double g) {
+    Widget side(Alignment begin, Alignment end, {double? w, double? h}) => SizedBox(
+      width: w, height: h,
+      child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
+        begin: begin, end: end,
+        colors: [_purple.withValues(alpha: 0.20 + 0.18 * g), Colors.transparent],
+        stops: const [0.0, 1.0]))));
+    return IgnorePointer(child: Stack(fit: StackFit.expand, children: [
+      Align(alignment: Alignment.topCenter,
+        child: side(Alignment.topCenter, Alignment.bottomCenter, h: 110)),
+      Align(alignment: Alignment.bottomCenter,
+        child: side(Alignment.bottomCenter, Alignment.topCenter, h: 150)),
+      Align(alignment: Alignment.centerLeft,
+        child: side(Alignment.centerLeft, Alignment.centerRight, w: 84)),
+      Align(alignment: Alignment.centerRight,
+        child: side(Alignment.centerRight, Alignment.centerLeft, w: 84)),
+      // crisp animated hairline right at the screen edge
+      DecoratedBox(decoration: BoxDecoration(border: Border.all(
+        color: _purpleLight.withValues(alpha: 0.20 + 0.16 * g), width: 1.4))),
+    ]));
   }
 
   // ── Cycling headline line ──
