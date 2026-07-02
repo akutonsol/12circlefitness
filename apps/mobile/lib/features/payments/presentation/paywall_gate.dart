@@ -30,6 +30,14 @@ class PaywallGate extends ConsumerWidget {
     final isCoach = ref.watch(currentUserProfileProvider).valueOrNull?['role'] == 'coach';
     if (isCoach) return child;
     final planAsync = ref.watch(clientPlanProvider);
+    // Once we know the plan, keep rendering from it even while the provider is
+    // refreshing (e.g. after a coaching-mode change re-resolves the plan). Only
+    // the genuine first load (no value yet) shows the blocking spinner — a
+    // mid-session refresh must never trap the user on a loading screen.
+    final plan = planAsync.valueOrNull;
+    if (plan != null) {
+      return plan.atLeast(required) ? child : _Locked(required: required, feature: featureName);
+    }
     return planAsync.when(
       loading: () => const Scaffold(
           backgroundColor: _bg,

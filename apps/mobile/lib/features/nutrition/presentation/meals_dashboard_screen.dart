@@ -249,44 +249,110 @@ class _Header extends StatelessWidget {
 }
 
 // ── Date strip ─────────────────────────────────────────────────────────────
-class _DateStrip extends StatelessWidget {
+class _DateStrip extends StatefulWidget {
   final DateTime selected;
   final ValueChanged<DateTime> onSelect;
   const _DateStrip({required this.selected, required this.onSelect});
 
   @override
+  State<_DateStrip> createState() => _DateStripState();
+}
+
+class _DateStripState extends State<_DateStrip> {
+  static const _months = ['Jan','Feb','Mar','Apr','May','Jun',
+    'Jul','Aug','Sep','Oct','Nov','Dec'];
+  // How far back the quick-scroll strip reaches; the calendar button below jumps
+  // to any earlier date, so history is never truncated.
+  static const _spanDays = 120;
+  static const _itemW = 64.0;
+
+  final ScrollController _sc = ScrollController();
+  late final List<DateTime> _days; // oldest → today
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    _days = List.generate(_spanDays + 1,
+        (i) => today.subtract(Duration(days: _spanDays - i)));
+    // Land on "today" (the right edge) on first paint.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_sc.hasClients) _sc.jumpTo(_sc.position.maxScrollExtent);
+    });
+  }
+
+  @override
+  void dispose() { _sc.dispose(); super.dispose(); }
+
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: widget.selected,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year, now.month, now.day),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: _brand, onPrimary: _white, surface: _card, onSurface: _white),
+          dialogTheme: const DialogThemeData(backgroundColor: _bg)),
+        child: child!),
+    );
+    if (picked != null) {
+      widget.onSelect(DateTime(picked.year, picked.month, picked.day));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    const months = ['Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec'];
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: List.generate(5, (i) {
-          final raw = DateTime.now().subtract(Duration(days: 2 - i));
-          final d   = DateTime(raw.year, raw.month, raw.day);
-          final active = d.year == selected.year &&
-              d.month == selected.month &&
-              d.day == selected.day;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onSelect(d),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: active ? _brand : Colors.transparent,
-                  borderRadius: BorderRadius.circular(22)),
-                alignment: Alignment.center,
-                child: Text(
-                  '${months[d.month - 1]} ${d.day}',
-                  style: TextStyle(
-                    color: active ? _white : _grey,
-                    fontSize: 13,
-                    fontWeight: active
-                      ? FontWeight.w700
-                      : FontWeight.w400)))));
-        })));
+      child: Row(children: [
+        Expanded(
+          child: SizedBox(
+            height: 40,
+            child: ListView.builder(
+              controller: _sc,
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.zero,
+              itemCount: _days.length,
+              itemBuilder: (_, i) {
+                final d = _days[i];
+                final active = _sameDay(d, widget.selected);
+                return GestureDetector(
+                  onTap: () => widget.onSelect(d),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: _itemW,
+                    margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: active ? _brand : Colors.transparent,
+                      borderRadius: BorderRadius.circular(22)),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${_months[d.month - 1]} ${d.day}',
+                      style: TextStyle(
+                        color: active ? _white : _grey,
+                        fontSize: 13,
+                        fontWeight: active ? FontWeight.w700 : FontWeight.w400))));
+              }))),
+        const SizedBox(width: 4),
+        // Jump to any past date — history isn't limited to the visible strip.
+        GestureDetector(
+          onTap: _pickDate,
+          child: Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: _card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08))),
+            alignment: Alignment.center,
+            child: const Icon(Icons.calendar_month_rounded, color: _brand, size: 20))),
+      ]));
   }
 }
 

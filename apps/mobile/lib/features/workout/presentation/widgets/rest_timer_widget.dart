@@ -13,6 +13,10 @@ class RestTimerWidget extends StatefulWidget {
   final VoidCallback onComplete; // skip / dismiss
   final ValueChanged<int>? onTick; // remaining seconds (0 in overtime)
   final VoidCallback? onOvertime; // fired once when the rest runs into overtime
+  // Fired again for every [penaltyIntervalSeconds] the user stays in overtime, so
+  // points keep draining until they start the next set (ongoing accountability).
+  final VoidCallback? onOvertimePenaltyTick;
+  final int penaltyIntervalSeconds;
 
   const RestTimerWidget({
     super.key,
@@ -21,6 +25,8 @@ class RestTimerWidget extends StatefulWidget {
     required this.onComplete,
     this.onTick,
     this.onOvertime,
+    this.onOvertimePenaltyTick,
+    this.penaltyIntervalSeconds = 20,
   });
 
   @override
@@ -30,6 +36,7 @@ class RestTimerWidget extends StatefulWidget {
 class _RestTimerWidgetState extends State<RestTimerWidget> {
   int _remaining = 0;
   int _overtime = 0;
+  int _intervalsPenalized = 0; // how many overtime intervals have drained points
   int? _lastSpoken;
   bool _warned30 = false;
   bool _sirenOn = false;
@@ -74,6 +81,14 @@ class _RestTimerWidgetState extends State<RestTimerWidget> {
         widget.onOvertime?.call(); // -5 idle penalty
       }
       final over = (-diff).floor();
+      // Drain points on every further interval spent in overtime.
+      final due = widget.penaltyIntervalSeconds > 0
+          ? over ~/ widget.penaltyIntervalSeconds
+          : 0;
+      if (due > _intervalsPenalized) {
+        _intervalsPenalized = due;
+        widget.onOvertimePenaltyTick?.call();
+      }
       setState(() {
         _remaining = 0;
         _overtime = over;

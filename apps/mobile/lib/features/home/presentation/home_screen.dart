@@ -11,7 +11,6 @@ import '../../coach/domain/coach_provider.dart';
 import '../../coach/domain/coach_ecosystem_provider.dart';
 import '../../workout/presentation/resume_workout_banner.dart';
 import '../../coaching_mode/domain/coaching_mode_provider.dart';
-import '../../messaging/domain/messaging_provider.dart' show selectedConversationProvider;
 import '../../womens_health/domain/cycle_provider.dart';
 import '../../womens_health/domain/cycle_phase.dart';
 import '../../scoring/domain/score_provider.dart';
@@ -23,7 +22,6 @@ import '../../../core/widgets/blood_drop.dart';
 // ── Palette ───────────────────────────────────────────────────────────────────
 class _C {
   static const bg           = Color(0xFF0A0A0B);
-  static const surfContLow  = Color(0xFF0C0911);
   static const surfContHigh = Color(0xFF222A3D);
   static const primary      = Color(0xFFDDB7FF);
   static const brand        = Color(0xFFA855F7);
@@ -135,7 +133,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final topPad  = MediaQuery.of(context).padding.top;
     final screenH = MediaQuery.of(context).size.height;
 
-    const indicatorH = 36.0;
     final headerH    = topPad + 64.0;
     final panelH     = screenH * 0.86;
 
@@ -145,81 +142,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
         // ── Static body — fills the space below header, no scrolling ─────
         Positioned(
-          top: headerH + indicatorH,
-          left: 12, right: 12, bottom: 0,
+          top: headerH,
+          left: 16, right: 16, bottom: 0,
           child: Builder(builder: (context) {
             final mode = ref.watch(coachingModeProvider);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 const ResumeWorkoutBanner(),
-                _SundayCheckinBanner(),
-                _WomensHealthBanner(),
-                // Quick actions — 2-column grid (AI Coach + mode-specific action).
-                if (mode == CoachingMode.coachGuided) ...[
-                  Row(children: [
-                    Expanded(child: _QuickActionTile(
-                      title: 'AI Coach', subtitle: 'Ask anything',
-                      icon: Icons.auto_awesome,
-                      gradient: const [Color(0xFF5BE0C8), Color(0xFFA06BFF)],
-                      borderColor: _C.brand.withValues(alpha: 0.18),
-                      onTap: () => context.push('/ai-coach'))),
-                    const SizedBox(width: 10),
-                    Expanded(child: _QuickActionTile(
-                      title: 'Book a Call', subtitle: 'With your coach',
-                      icon: Icons.videocam_rounded,
-                      iconColor: const Color(0xFF2DD49A),
-                      iconBg: const Color(0xFF2DD49A).withValues(alpha: 0.16),
-                      borderColor: const Color(0xFF2DD49A).withValues(alpha: 0.16),
-                      onTap: () => context.push('/book-call'))),
-                  ]),
-                  const SizedBox(height: 8),
-                ] else ...[
-                  _AICoachQuickCard(),
-                  const SizedBox(height: 8),
-                  if (mode == CoachingMode.selfGuided) ...[
-                    _MyPlanCard(),
-                    const SizedBox(height: 8),
-                  ] else if (mode == CoachingMode.aiGuided) ...[
-                    _AIQuickActionsCard(),
-                    const SizedBox(height: 8),
-                  ],
-                ],
+                // Hero — Today's Session (image + badges + title/Start section).
                 Expanded(child: _FitnessSessionCard(mode: mode, heroImage: _heroImage)),
-                const SizedBox(height: 8),
+                const SizedBox(height: 11),
+                // 12 Circle Score — chevron pulls down the Wellness Pulse panel.
+                _ScoreCard(onExpand: _openPanel),
+                const SizedBox(height: 11),
+                // Quick actions — 2×2 grid.
+                const _QuickGrid(),
+                const SizedBox(height: 11),
                 // Mode-specific bottom card
                 if (mode == CoachingMode.coachGuided) ...[
                   _CoachTipCard(),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                 ] else if (mode == CoachingMode.aiGuided) ...[
                   _AIInsightCard(),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
+                ] else if (mode == CoachingMode.selfGuided) ...[
+                  _MyPlanCard(),
+                  const SizedBox(height: 10),
                 ],
               ],
             );
           }),
         ),
 
-        // ── Fixed header + pull indicator ──────────────────────────────────
+        // ── Fixed header ───────────────────────────────────────────────────
         Positioned(top: 0, left: 0, right: 0,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Container(
-                  height: headerH,
-                  padding: EdgeInsets.only(top: topPad, left: 16, right: 16),
-                  decoration: BoxDecoration(
-                    color: _C.bg.withValues(alpha: 0.6),
-                    border: Border(bottom: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.06)))),
-                  child: const Center(child: AppTopNavRow()),
-                ),
+          child: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                height: headerH,
+                padding: EdgeInsets.only(top: topPad, left: 16, right: 16),
+                decoration: BoxDecoration(
+                  color: _C.bg.withValues(alpha: 0.6),
+                  border: Border(bottom: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.06)))),
+                child: const Center(child: AppTopNavRow()),
               ),
             ),
-            _PullIndicator(height: indicatorH, onOpen: _openPanel),
-          ])),
+          )),
 
         // ── Scrim ──────────────────────────────────────────────────────────
         AnimatedBuilder(
@@ -248,90 +220,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 }
 
-// ── Pull Indicator ────────────────────────────────────────────────────────────
-class _PullIndicator extends ConsumerStatefulWidget {
-  final double height;
-  final VoidCallback onOpen;
-  const _PullIndicator({required this.height, required this.onOpen});
-  @override
-  ConsumerState<_PullIndicator> createState() => _PullIndicatorState();
-}
-
-class _PullIndicatorState extends ConsumerState<_PullIndicator>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _bounce;
-  late final Animation<double> _bounceAnim;
+// ── 12 Circle Score Card ──────────────────────────────────────────────────────
+// Lives in the body now; the chevron pulls down the full Wellness Pulse panel.
+class _ScoreCard extends ConsumerWidget {
+  final VoidCallback onExpand;
+  const _ScoreCard({required this.onExpand});
 
   @override
-  void initState() {
-    super.initState();
-    _bounce = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 900))
-      ..repeat(reverse: true);
-    _bounceAnim = Tween(begin: 0.0, end: 3.0).animate(
-      CurvedAnimation(parent: _bounce, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() { _bounce.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    // The home number is now the 12 Circle Score (this month); the ring shows
-    // progress toward the next level. Tap → full score screen.
-    final s = ref.watch(myScoreProvider).valueOrNull;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s     = ref.watch(myScoreProvider).valueOrNull;
     final total = (s?['current_cycle_score'] as num?)?.toInt() ?? 0;
-    final lifetime = (s?['lifetime_score'] as num?)?.toInt() ?? 0;
-    final levelPct = (lifetime % 500) / 500.0;
 
     return GestureDetector(
-      onTap: () => context.push('/score'),
-      onLongPress: widget.onOpen,
+      onTap: onExpand,
       onVerticalDragEnd: (d) {
-        if ((d.primaryVelocity ?? 0) > 80) widget.onOpen();
+        if ((d.primaryVelocity ?? 0) > 80) onExpand();
       },
       child: Container(
-        height: widget.height,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
             colors: [
-              _C.surfContLow.withValues(alpha: 0.3),
-              _C.surfContLow.withValues(alpha: 0.65),
+              _C.brand.withValues(alpha: 0.14),
+              Colors.white.withValues(alpha: 0.03),
             ]),
-          border: Border(bottom: BorderSide(
-            color: _C.brand.withValues(alpha: 0.18), width: 0.5))),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFB06BFF).withValues(alpha: 0.18))),
         child: Row(children: [
-          SizedBox(
-            width: 18, height: 18,
-            child: CircularProgressIndicator(
-              value: levelPct.clamp(0.0, 1.0),
-              strokeWidth: 2.0,
-              backgroundColor: Colors.white.withValues(alpha: 0.08),
-              valueColor: const AlwaysStoppedAnimation(_C.primary))),
-          const SizedBox(width: 10),
-          Text('12 CIRCLE SCORE',
-            style: TextStyle(
-              color: _C.onSurfVar.withValues(alpha: 0.45),
-              fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 2)),
-          const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            width: 48, height: 48,
             decoration: BoxDecoration(
-              color: _C.brand.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _C.brand.withValues(alpha: 0.2))),
-            child: Text('$total',
-              style: const TextStyle(color: _C.primary, fontSize: 10,
-                fontWeight: FontWeight.w800))),
-          const Spacer(),
-          AnimatedBuilder(
-            animation: _bounceAnim,
-            builder: (_, child) => Transform.translate(
-              offset: Offset(0, _bounceAnim.value), child: child!),
-            child: Icon(Icons.keyboard_arrow_down_rounded,
-              color: _C.primary.withValues(alpha: 0.45), size: 20)),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.16), width: 2)),
+            alignment: Alignment.center,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('$total',
+                style: const TextStyle(color: Colors.white, fontSize: 16,
+                  fontWeight: FontWeight.w800, height: 1)),
+              Text('PTS',
+                style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.5),
+                  fontSize: 8.5, fontWeight: FontWeight.w600, letterSpacing: 1.2)),
+            ])),
+          const SizedBox(width: 13),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('12 CIRCLE SCORE',
+              style: TextStyle(color: _C.primary, fontSize: 13,
+                fontWeight: FontWeight.w700, letterSpacing: 0.9)),
+            const SizedBox(height: 2),
+            Text("Complete today's goals to earn points.",
+              style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.72), fontSize: 12.5)),
+          ])),
+          Icon(Icons.keyboard_arrow_down_rounded,
+            color: _C.onSurfVar.withValues(alpha: 0.55), size: 22),
         ])));
   }
 }
@@ -768,287 +709,135 @@ class _PanelWeekProgress extends ConsumerWidget {
   }
 }
 
-// ── Women's Health Banner (female clients only) ───────────────────────────────
-class _WomensHealthBanner extends ConsumerWidget {
+// ── Quick actions — 2×2 grid ──────────────────────────────────────────────────
+class _QuickGrid extends ConsumerWidget {
+  const _QuickGrid();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(currentUserProfileProvider).valueOrNull;
-    final gender = (profile?['gender'] as String?)?.toLowerCase();
-    if (gender != 'female') return const SizedBox.shrink();
+    // Weekly check-in points (matches the +pts shown on the check-in flow).
+    const checkinPts = 10;
 
-    final status = ref.watch(cycleStatusProvider).valueOrNull;
-    final guide = status != null ? phaseGuides[status.phase]! : null;
-    final color = guide?.color ?? const Color(0xFFFF5D7A);
-    final hasData = status != null && status.hasData;
+    // Women's Health tile adapts to the user's cycle data when available.
+    final profile  = ref.watch(currentUserProfileProvider).valueOrNull;
+    final isFemale = (profile?['gender'] as String?)?.toLowerCase() == 'female';
+    final status   = ref.watch(cycleStatusProvider).valueOrNull;
+    final guide    = status != null ? phaseGuides[status.phase] : null;
+    final whColor  = guide?.color ?? const Color(0xFFFF5D7A);
+    final whHasData = isFemale && status != null && status.hasData;
+    final whSub    = whHasData
+        ? '${guide!.label} · Day ${status.cycleDay}'
+        : 'Track your cycle';
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: GestureDetector(
-        onTap: () => context.push('/womens-health'),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [color.withValues(alpha: 0.16), const Color(0xFF281018)]),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withValues(alpha: 0.28)),
-          ),
-          child: Row(children: [
-            Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(12)),
-              alignment: Alignment.center,
-              child: BloodDrop(size: 19, color: color)),
-            const SizedBox(width: 13),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text("Women's Health",
-                  style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 2),
-              if (hasData)
-                Row(children: [
-                  Text(guide!.label,
-                      style: TextStyle(color: color, fontSize: 12.5, fontWeight: FontWeight.w600)),
-                  Container(
-                    width: 3, height: 3,
-                    margin: const EdgeInsets.symmetric(horizontal: 7),
-                    decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-                  Text('Day ${status.cycleDay}',
-                      style: TextStyle(color: color, fontSize: 12.5, fontWeight: FontWeight.w600)),
-                ])
-              else
-                Text('Track your cycle, symptoms & recovery',
-                    style: TextStyle(color: color, fontSize: 12.5, fontWeight: FontWeight.w600)),
-            ])),
-            Icon(Icons.chevron_right_rounded, color: color, size: 20),
-          ]),
-        ),
-      ),
-    );
-  }
-}
+    Widget tile({
+      required String title, required String subtitle,
+      required Widget icon, required List<Color> gradient,
+      required Color subColor, required VoidCallback onTap,
+      List<Color>? bgGradient, Color? borderColor,
+    }) => _HomeTile(
+        title: title, subtitle: subtitle, icon: icon,
+        gradient: gradient, subColor: subColor, onTap: onTap,
+        bgGradient: bgGradient, borderColor: borderColor);
 
-// ── Sunday Check-In Banner ────────────────────────────────────────────────────
-class _SundayCheckinBanner extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_SundayCheckinBanner> createState() =>
-      _SundayCheckinBannerState();
-}
-class _SundayCheckinBannerState extends ConsumerState<_SundayCheckinBanner> {
-  bool _dismissed = false;
-  bool _checkedIn = false;
-  bool _checked   = false;
+    final wh = tile(
+      title: "Women's Health", subtitle: whSub,
+      icon: BloodDrop(size: 19, color: Colors.white),
+      gradient: const [Color(0xFFFF6B8A), Color(0xFFE84D6A)],
+      subColor: whColor,
+      // Restore the phase-tinted card background from the old WH banner.
+      bgGradient: [whColor.withValues(alpha: 0.16), const Color(0xFF281018)],
+      borderColor: whColor.withValues(alpha: 0.28),
+      onTap: () => context.push('/womens-health'));
 
-  @override
-  void initState() { super.initState(); _checkIfCheckedIn(); }
+    final aiCoach = tile(
+      title: 'AI Coach', subtitle: 'Ask anything',
+      icon: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+      gradient: const [Color(0xFF7CC4FF), Color(0xFFB06BFF)],
+      subColor: _C.onSurfVar.withValues(alpha: 0.55),
+      onTap: () => context.push('/ai-coach'));
 
-  Future<void> _checkIfCheckedIn() async {
-    final uid = Supabase.instance.client.auth.currentUser?.id;
-    if (uid == null) { setState(() => _checked = true); return; }
-    final now   = DateTime.now();
-    final monday= now.subtract(Duration(days: (now.weekday - 1) % 7));
-    final start = DateTime(monday.year, monday.month, monday.day);
-    final result= await Supabase.instance.client
-        .from('weekly_checkins').select('id')
-        .eq('user_id', uid).gte('created_at', start.toIso8601String()).limit(1);
-    if (mounted) { setState(() {
-      _checkedIn = (result as List).isNotEmpty; _checked = true; }); }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_checked || _dismissed || _checkedIn) return const SizedBox.shrink();
-    if (DateTime.now().weekday != DateTime.sunday) return const SizedBox.shrink();
-    return GestureDetector(
-      onTap: () => context.push('/daily-checkin'),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2D1260), Color(0xFF1A0A3D)],
-            begin: Alignment.topLeft, end: Alignment.bottomRight),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _C.brand.withValues(alpha: 0.4)),
-          boxShadow: [BoxShadow(
-            color: _C.brand.withValues(alpha: 0.15), blurRadius: 20)]),
-        child: Row(children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(shape: BoxShape.circle,
-              color: _C.brand.withValues(alpha: 0.2)),
-            child: const Icon(Icons.check_circle_outline_rounded,
-              color: _C.primary, size: 22)),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-            const Text("Weekly Check-In",
-              style: TextStyle(color: Colors.white, fontSize: 14,
-                fontWeight: FontWeight.w700)),
-            const SizedBox(height: 2),
-            Text("It's Sunday! Complete your check-in to earn 10 pts",
-              style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.8),
-                fontSize: 12)),
-          ])),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => setState(() => _dismissed = true),
-            child: Icon(Icons.close_rounded,
-              color: _C.onSurfVar.withValues(alpha: 0.5), size: 18)),
-        ]),
-      ),
-    );
-  }
-}
-
-// ── AI Coach Quick Card ───────────────────────────────────────────────────────
-class _AICoachQuickCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: () => context.push('/ai-coach'),
-    child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [_C.brand.withValues(alpha: 0.2),
-            const Color(0xFF6FFBBE).withValues(alpha: 0.1)],
-          begin: Alignment.topLeft, end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _C.brand.withValues(alpha: 0.4))),
-      child: Row(children: [
-        Container(
-          width: 48, height: 48,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [Color(0xFFA855F7), Color(0xFF6FFBBE)],
-              begin: Alignment.topLeft, end: Alignment.bottomRight)),
-          child: const Icon(Icons.auto_awesome, color: Colors.white, size: 24)),
-        const SizedBox(width: 14),
-        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-          Text('AI Coach', style: TextStyle(color: Colors.white, fontSize: 16,
-            fontWeight: FontWeight.w800)),
-          Text('Ask about nutrition, workouts, or your progress',
-            style: TextStyle(color: Color(0xFFCFC2D6), fontSize: 12)),
-        ])),
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: _C.brand.withValues(alpha: 0.2), shape: BoxShape.circle),
-          child: const Icon(Icons.chat_bubble_outline_rounded,
-            color: Color(0xFFDDB7FF), size: 18)),
+    return Column(children: [
+      Row(children: [
+        Expanded(child: tile(
+          title: 'Weekly Check-In', subtitle: '+$checkinPts pts',
+          icon: const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 21),
+          gradient: const [Color(0xFFB06BFF), Color(0xFF8A3DF0)],
+          subColor: _C.primary,
+          onTap: () => context.push('/daily-checkin'))),
+        const SizedBox(width: 11),
+        Expanded(child: wh),
       ]),
-    ),
-  );
+      const SizedBox(height: 11),
+      Row(children: [
+        Expanded(child: aiCoach),
+        const SizedBox(width: 11),
+        Expanded(child: tile(
+          title: 'Book a Call', subtitle: 'With your coach',
+          icon: const Icon(Icons.videocam_rounded, color: Colors.white, size: 21),
+          gradient: const [Color(0xFF34D399), Color(0xFF10B981)],
+          subColor: _C.onSurfVar.withValues(alpha: 0.55),
+          onTap: () => context.push('/book-call'))),
+      ]),
+    ]);
+  }
 }
 
-// ── Quick Action Tile (2-col grid) ────────────────────────────────────────────
-class _QuickActionTile extends StatelessWidget {
+class _HomeTile extends StatelessWidget {
   final String title, subtitle;
-  final IconData icon;
-  final List<Color>? gradient;
-  final Color? iconColor, iconBg;
-  final Color borderColor;
+  final Widget icon;
+  final List<Color> gradient;
+  final Color subColor;
   final VoidCallback onTap;
-  const _QuickActionTile({
+  // Optional tinted card background (e.g. the Women's Health phase colour) — when
+  // null the tile uses the default flat translucent surface.
+  final List<Color>? bgGradient;
+  final Color? borderColor;
+  const _HomeTile({
     required this.title, required this.subtitle, required this.icon,
-    this.gradient, this.iconColor, this.iconBg,
-    required this.borderColor, required this.onTap});
+    required this.gradient, required this.subColor, required this.onTap,
+    this.bgGradient, this.borderColor});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: Container(
-      padding: const EdgeInsets.all(13),
+      constraints: const BoxConstraints(minHeight: 62),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter, end: Alignment.bottomCenter,
-          colors: [Color(0xFF1A2233), Color(0xFF10141F)]),
+        color: bgGradient == null ? Colors.white.withValues(alpha: 0.035) : null,
+        gradient: bgGradient == null ? null : LinearGradient(
+          begin: Alignment.topLeft, end: Alignment.bottomRight, colors: bgGradient!),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor)),
+        border: Border.all(
+          color: borderColor ?? Colors.white.withValues(alpha: 0.08))),
       child: Row(children: [
         Container(
-          width: 40, height: 40,
+          width: 42, height: 42,
           decoration: BoxDecoration(
-            color: iconBg,
-            gradient: gradient != null
-                ? LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: gradient!)
-                : null,
-            borderRadius: BorderRadius.circular(12)),
-          child: Icon(icon, color: iconColor ?? Colors.white, size: 20)),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft, end: Alignment.bottomRight,
+              colors: gradient),
+            borderRadius: BorderRadius.circular(13),
+            boxShadow: [BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 12, offset: const Offset(0, 4))]),
+          alignment: Alignment.center,
+          child: icon),
         const SizedBox(width: 10),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min, children: [
-          Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 1),
+          Text(title, maxLines: 2, overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white, fontSize: 13.5,
+              fontWeight: FontWeight.w700, height: 1.12)),
+          const SizedBox(height: 3),
           Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.55), fontSize: 11)),
+            style: TextStyle(color: subColor, fontSize: 11,
+              fontWeight: FontWeight.w600, height: 1.2)),
         ])),
       ]),
     ),
   );
-}
-
-// ── AI Quick Actions Card (AI Guided) ────────────────────────────────────────
-class _AIQuickActionsCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-    decoration: BoxDecoration(
-      color: const Color(0xFF0E0B16),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFF06B6D4).withValues(alpha: 0.3))),
-    child: Row(children: [
-      Container(
-        width: 36, height: 36,
-        decoration: BoxDecoration(
-          color: const Color(0xFF06B6D4).withValues(alpha: 0.15),
-          shape: BoxShape.circle),
-        child: const Icon(Icons.auto_awesome, color: Color(0xFF06B6D4), size: 18)),
-      const SizedBox(width: 10),
-      const Expanded(child: Text('AI-Guided Mode',
-        style: TextStyle(color: Colors.white, fontSize: 13,
-          fontWeight: FontWeight.w600))),
-      _AIQuickBtn(
-        icon: Icons.restaurant_rounded,
-        label: 'Nutrition',
-        color: const Color(0xFF06B6D4),
-        onTap: () => context.go('/nutrition')),
-      const SizedBox(width: 8),
-      _AIQuickBtn(
-        icon: Icons.bolt_rounded,
-        label: 'Workout',
-        color: _C.primary,
-        onTap: () => context.go('/ai-coach')),
-    ]),
-  );
-}
-
-class _AIQuickBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  const _AIQuickBtn({required this.icon, required this.label,
-    required this.color, required this.onTap});
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.3))),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, color: color, size: 13),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(color: color, fontSize: 11,
-          fontWeight: FontWeight.w700)),
-      ])));
 }
 
 // ── My Plan Card (Self Guided) ────────────────────────────────────────────────
@@ -1161,11 +950,9 @@ class _FitnessSessionCard extends ConsumerWidget {
                    : isCoach ? 'Assigned by your coach'
                    :           'Workout Session';
     final btnLabel = isAI    ? 'AI Train'
-                   : isCoach ? 'Start Session'
+                   : isCoach ? 'Start'
                    :           'Start Circle';
-    final btnColor = isAI    ? const Color(0xFF06B6D4)
-                   :           const Color(0xFF8B2BE2);
-    final kcalText = isAI    ? 'AI Optimised' : '550 Kcal';
+    final kcalText = isAI    ? 'AI Optimised' : '550 kcal';
     final kcalIcon = isAI    ? Icons.auto_awesome : Icons.local_fire_department_rounded;
 
     void onStart() {
@@ -1185,75 +972,94 @@ class _FitnessSessionCard extends ConsumerWidget {
       context.go('/active-workout');
     }
 
+    // Start button gradient — purple in the design (blue tint for AI mode).
+    final btnGradient = isAI
+        ? const [Color(0xFF22B8D6), Color(0xFF0E8FB0)]
+        : const [Color(0xFFB06BFF), Color(0xFF8A3DF0)];
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
-      child: Stack(fit: StackFit.expand, children: [
-        ColorFiltered(
-          colorFilter: ColorFilter.matrix(isAI
-            ? [0.0, 0.0, 0.4, 0, 0,   // AI: tint blue
-               0.0, 0.2, 0.3, 0, 0,
-               0.0, 0.4, 0.6, 0, 0,
-               0,   0,   0,   1, 0,]
-            : [1, 0, 0, 0, 0,         // non-AI: actual colour (identity)
-               0, 1, 0, 0, 0,
-               0, 0, 1, 0, 0,
-               0, 0, 0, 1, 0,]),
-          child: Image.asset(heroImage,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              decoration: BoxDecoration(gradient: LinearGradient(
-                colors: isAI
-                  ? [const Color(0xFF003040), const Color(0xFF060814)]
-                  : [const Color(0xFF1A0030), const Color(0xFF0A0612)],
-                begin: Alignment.topRight, end: Alignment.bottomLeft))))),
-        const DecoratedBox(decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0A0A0B), Color(0xBB0B1326), Colors.transparent],
-            stops: [0.0, 0.5, 1.0],
-            begin: Alignment.bottomCenter, end: Alignment.topCenter))),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Row(children: [
-              _SessionBadge(icon: Icons.schedule_rounded,
-                text: '45 min', iconColor: _C.primary),
-              const SizedBox(width: 8),
-              _SessionBadge(icon: kcalIcon,
-                text: kcalText,
-                iconColor: isAI ? const Color(0xFF06B6D4) : const Color(0xFFA3FFCC)),
-              if (isAI) ...[
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.07))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          // Image area — hero photo, gradient scrim, stat badges.
+          Expanded(child: Stack(fit: StackFit.expand, children: [
+            ColorFiltered(
+              colorFilter: ColorFilter.matrix(isAI
+                ? [0.0, 0.0, 0.4, 0, 0,   // AI: tint blue
+                   0.0, 0.2, 0.3, 0, 0,
+                   0.0, 0.4, 0.6, 0, 0,
+                   0,   0,   0,   1, 0,]
+                : [1, 0, 0, 0, 0,         // non-AI: actual colour (identity)
+                   0, 1, 0, 0, 0,
+                   0, 0, 1, 0, 0,
+                   0, 0, 0, 1, 0,]),
+              child: Image.asset(heroImage,
+                fit: BoxFit.cover, alignment: const Alignment(0, -0.5),
+                errorBuilder: (_, __, ___) => Container(
+                  decoration: BoxDecoration(gradient: LinearGradient(
+                    colors: isAI
+                      ? [const Color(0xFF003040), const Color(0xFF060814)]
+                      : [const Color(0xFF1A0030), const Color(0xFF0A0612)],
+                    begin: Alignment.topRight, end: Alignment.bottomLeft))))),
+            const DecoratedBox(decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.transparent, Color(0x000A0A0B), Color(0xB80C0911)],
+                stops: [0.0, 0.5, 1.0],
+                begin: Alignment.topCenter, end: Alignment.bottomCenter))),
+            Positioned(left: 14, right: 14, bottom: 13,
+              child: Row(children: [
+                _SessionBadge(icon: Icons.schedule_rounded,
+                  text: '45 min', iconColor: _C.primary),
                 const SizedBox(width: 8),
-                const _SessionBadge(icon: Icons.auto_awesome,
-                  text: 'AI-Guided', iconColor: Color(0xFF06B6D4)),
-              ],
-            ]),
-            Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                Text(title,
-                  style: const TextStyle(color: Colors.white, fontSize: 22,
-                    fontWeight: FontWeight.w800, height: 1.1)),
-                Text(subtitle,
-                  style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.7),
-                    fontSize: 12)),
+                _SessionBadge(icon: kcalIcon, text: kcalText,
+                  iconColor: isAI ? const Color(0xFF06B6D4) : const Color(0xFF4ADE80)),
+                const SizedBox(width: 8),
+                const _SessionBadge(icon: Icons.directions_walk_rounded,
+                  text: '2.0K steps', iconColor: _C.primary),
+              ])),
+          ])),
+          // Title + Start section.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 13, 16, 14),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min, children: [
+                Text(subtitle.toUpperCase(),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: _C.primary, fontSize: 11,
+                    fontWeight: FontWeight.w700, letterSpacing: 0.9)),
+                const SizedBox(height: 4),
+                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 23,
+                    fontWeight: FontWeight.w800, height: 1.05, letterSpacing: -0.2)),
               ])),
               const SizedBox(width: 12),
               GestureDetector(
                 onTap: onStart,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.fromLTRB(19, 11, 16, 11),
                   decoration: BoxDecoration(
-                    color: btnColor,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                      colors: btnGradient),
                     borderRadius: BorderRadius.circular(999),
                     boxShadow: [BoxShadow(
-                      color: btnColor.withValues(alpha: 0.4), blurRadius: 16)]),
-                  child: Text(btnLabel,
-                    style: const TextStyle(color: Colors.white, fontSize: 13,
-                      fontWeight: FontWeight.w700)))),
-            ]),
-          ])),
-      ]),
+                      color: btnGradient.last.withValues(alpha: 0.45),
+                      blurRadius: 18, offset: const Offset(0, 6))]),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text(btnLabel,
+                      style: const TextStyle(color: Colors.white, fontSize: 15,
+                        fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
+                  ]))),
+            ])),
+        ]),
+      ),
     );
   }
 }
@@ -1296,80 +1102,70 @@ class _CoachTipCard extends ConsumerWidget {
     if (coachAsync.isLoading || coach == null) return const SizedBox.shrink();
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        color: _C.brand.withValues(alpha: 0.02),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.07))),
         child: IntrinsicHeight(
           child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Container(width: 3, color: _C.brand.withValues(alpha: 0.6)),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0x1AFFFFFF))),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(width: 3, color: const Color(0xFFB06BFF)),
+            Expanded(child: Padding(
+              padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _C.brand.withValues(alpha: 0.14),
+                      border: Border.all(
+                        color: _C.brand.withValues(alpha: 0.3), width: 1)),
+                    child: ClipOval(child: avatarUrl != null
+                      ? Image.network(avatarUrl, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _CoachAvatar())
+                      : _CoachAvatar())),
+                  const SizedBox(width: 11),
+                  Expanded(child: Row(children: [
+                    Flexible(child: Text(
+                      coachName != null ? 'Coach $coachName' : 'Your Coach',
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white,
+                        fontSize: 14.5, fontWeight: FontWeight.w700))),
+                    const SizedBox(width: 8),
                     Container(
-                      width: 44, height: 44,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _C.primary.withValues(alpha: 0.3), width: 1.5)),
-                      child: ClipOval(child: avatarUrl != null
-                        ? Image.network(avatarUrl, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _CoachAvatar())
-                        : _CoachAvatar())),
-                    const SizedBox(width: 10),
-                    Expanded(child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(children: [
-                        Text(coachName != null
-                          ? 'Coach $coachName' : 'Your Coach',
-                          style: const TextStyle(color: _C.onSurface,
-                            fontSize: 14, fontWeight: FontWeight.w700)),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _C.brand.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
-                              color: _C.brand.withValues(alpha: 0.2))),
-                          child: const Text("TODAY'S TIP",
-                            style: TextStyle(color: _C.primary, fontSize: 8,
-                              fontWeight: FontWeight.w700, letterSpacing: 0.6))),
-                      ]),
-                      const SizedBox(height: 4),
-                      Text(tipText,
-                        style: TextStyle(
-                          color: _C.onSurfVar.withValues(alpha: 0.9),
-                          fontSize: 12, height: 1.45)),
-                    ])),
-                  ]),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(child: _ActionBtn(
-                      icon: Icons.chat_bubble_outline_rounded,
-                      label: 'Message Coach',
-                      // Open the assigned coach's chat directly (not the list,
-                      // which could surface a stale conversation).
-                      onTap: () {
-                        ref.read(selectedConversationProvider.notifier).state =
-                            {'participant': coach};
-                        context.go('/chat');
-                      })),
-                    const SizedBox(width: 10),
-                    Expanded(child: _ActionBtn(
-                      icon: Icons.star_rounded,
-                      label: 'Rate Coach',
-                      onTap: () => _showRateCoachDialog(
-                        context, coach['id'] as String))),
-                  ]),
+                        color: _C.brand.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10)),
+                      child: const Text('TIP',
+                        style: TextStyle(color: _C.primary, fontSize: 10,
+                          fontWeight: FontWeight.w700, letterSpacing: 0.5))),
+                  ])),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => _showRateCoachDialog(context, coach['id'] as String),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(13),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.10))),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: const [
+                        Icon(Icons.star_rounded, color: Color(0xFFFFD34D), size: 14),
+                        SizedBox(width: 6),
+                        Text('Rate', style: TextStyle(color: Colors.white,
+                          fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      ]))),
                 ]),
-              ),
-            ),
+                const SizedBox(height: 10),
+                Text('"$tipText"',
+                  style: TextStyle(
+                    color: _C.onSurfVar.withValues(alpha: 0.72),
+                    fontSize: 12.5, height: 1.4, fontStyle: FontStyle.italic)),
+              ]),
+            )),
           ]),
         ),
       ),
@@ -1479,24 +1275,3 @@ class _CoachAvatar extends StatelessWidget {
     child: const Icon(Icons.person_rounded, color: _C.primary, size: 22));
 }
 
-class _ActionBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _ActionBtn({required this.icon, required this.label, required this.onTap});
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      height: 44,
-      decoration: BoxDecoration(
-        color: const Color(0x08FFFFFF),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0x1AFFFFFF))),
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(icon, color: _C.onSurface, size: 18),
-        const SizedBox(width: 6),
-        Text(label, style: const TextStyle(color: _C.onSurface, fontSize: 12,
-          fontWeight: FontWeight.w700)),
-      ])));
-}

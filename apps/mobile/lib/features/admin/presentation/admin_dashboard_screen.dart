@@ -92,6 +92,20 @@ class AdminDashboardScreen extends ConsumerWidget {
                           subtitle: 'Approve or reject coach exercise submissions',
                           onTap: () => context.push('/admin-exercise-review'),
                         ),
+                        const SizedBox(height: 12),
+                        _AdminActionTile(
+                          icon: Icons.auto_awesome_rounded,
+                          title: 'Exercise Content Center',
+                          subtitle: 'AI-enrich instructions, cues & media for the library',
+                          onTap: () => context.push('/content-center'),
+                        ),
+                        const SizedBox(height: 12),
+                        _AdminActionTile(
+                          icon: Icons.insights_rounded,
+                          title: 'Coaching Observability',
+                          subtitle: 'Is the platform delivering coaching value?',
+                          onTap: () => context.push('/observability'),
+                        ),
                         const SizedBox(height: 24),
                         if (wide)
                           // Desktop: stats on the left, members panel on the right.

@@ -10,6 +10,10 @@ import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/dashboard/presentation/directory_screen.dart';
 import '../../features/dashboard/presentation/coach_dashboard_screen.dart';
+import '../../features/coach/presentation/coach_copilot_screen.dart';
+import '../../features/coach/presentation/dynamic_program_builder_screen.dart';
+import '../../features/coach/presentation/continuous_coaching_screen.dart';
+import '../../features/coach/presentation/weekly_review_screen.dart';
 import '../../features/dashboard/presentation/coach_directory_screen.dart';
 import '../../features/checkins/presentation/coach_checkin_review_screen.dart';
 import '../../features/workout/presentation/train_hub_screen.dart';
@@ -18,12 +22,17 @@ import '../../features/onboarding/presentation/intake_flow_screen.dart';
 import '../../features/activity/presentation/activity_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/home/presentation/splash_screen.dart';
+import '../../features/qa/presentation/qa_center_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/workout/presentation/workout_detail_screen.dart';
 import '../../features/workout/presentation/active_workout_screen.dart';
 import '../../features/workout/presentation/workout_history_screen.dart';
 import '../../features/workout/presentation/exercise_library_screen.dart';
 import '../../features/exercise_database/presentation/exercise_database_screen.dart';
+import '../../features/exercise_database/presentation/exercise_content_center_screen.dart';
+import '../../features/exercise_database/presentation/content_review_queue_screen.dart';
+import '../../features/exercise_database/presentation/mie_debugger_screen.dart';
+import '../../features/exercise_database/presentation/intelligence_review_screen.dart';
 import '../../features/exercise_database/presentation/exercise_detail_screen.dart';
 import '../../features/nutrition/presentation/nutrition_screen.dart';
 import '../../features/nutrition/presentation/nutrition_splash_screen.dart';
@@ -51,6 +60,7 @@ import '../../features/compliance/presentation/compliance_dashboard_screen.dart'
 import '../../features/coach/presentation/program_builder_screen.dart';
 import '../../features/coach/presentation/coach_packages_screen.dart';
 import '../../features/admin/presentation/admin_dashboard_screen.dart';
+import '../../features/admin/presentation/observability_screen.dart';
 import '../../features/admin/presentation/exercise_review_screen.dart';
 import '../../features/vendor/presentation/vendor_portal_screen.dart';
 import '../../features/payments/presentation/upgrade_screen.dart';
@@ -188,7 +198,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/intake',         builder: (_, __) => const IntakeFlowScreen()),
       GoRoute(path: '/admin-dashboard',builder: (_, __) => const AdminDashboardScreen()),
       GoRoute(path: '/admin-exercise-review', builder: (_, __) => const ExerciseReviewScreen()),
+      GoRoute(path: '/content-center', builder: (_, __) => const ExerciseContentCenterScreen()),
+      GoRoute(path: '/observability',  builder: (_, __) => const ObservabilityScreen()),
+      GoRoute(path: '/content-review',  builder: (_, __) => const ContentReviewQueueScreen()),
+      GoRoute(path: '/mie-debugger',    builder: (_, __) => const MieDebuggerScreen()),
+      GoRoute(path: '/knowledge-review', builder: (_, __) => const IntelligenceReviewScreen()),
       GoRoute(path: '/vendor-portal',  builder: (_, __) => const VendorPortalScreen()),
+      GoRoute(path: '/qa-center',      builder: (_, __) => const QaCenterScreen()),
       GoRoute(path: '/payment-success',builder: (_, __) => const PaymentResultScreen(success: true)),
       GoRoute(path: '/payment-cancel', builder: (_, __) => const PaymentResultScreen(success: false)),
 
@@ -269,6 +285,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/events',             builder: (_, __) => const EventsScreen()),
           GoRoute(path: '/pods',               builder: (_, __) => const PodsScreen()),
           GoRoute(path: '/coach-business',     builder: (_, __) => const CoachBusinessScreen()),
+          GoRoute(path: '/coach-copilot',      builder: (_, __) => const CoachCopilotScreen()),
+          GoRoute(path: '/program-designer',   builder: (_, __) => const DynamicProgramBuilderScreen()),
+          GoRoute(path: '/continuous-coaching', builder: (_, __) => const ContinuousCoachingScreen()),
+          GoRoute(path: '/weekly-review',      builder: (_, __) => const WeeklyReviewScreen()),
           GoRoute(path: '/coach-marketplace',       builder: (_, __) => const CoachMarketplaceScreen()),
           GoRoute(path: '/notifications',           builder: (_, __) => const NotificationsScreen()),
           GoRoute(path: '/create-exercise',         builder: (_, __) => const CreateExerciseScreen()),

@@ -38,11 +38,15 @@ class _ExerciseGuideSheet extends StatelessWidget {
     } catch (_) {}
   }
 
-  /// Resolve the best in-app video source: a coach-uploaded clip from the
-  /// library (by name), else the curated YouTube id.
+  /// Resolve the best in-app video source, best first: a coach-uploaded clip, an
+  /// id resolved by the bulk YouTube enrichment (covers the hardcoded library),
+  /// then a hand-curated guide id.
   Future<String?> _resolveVideo(ExerciseGuide? guide) async {
-    final fromLibrary = await CustomExerciseService().findVideoForName(name);
-    return fromLibrary ?? guide?.youtubeId;
+    final svc = CustomExerciseService();
+    final fromUpload = await svc.findVideoForName(name);
+    if (fromUpload != null) return fromUpload;
+    final fromEnriched = await svc.findEnrichedVideo(name);
+    return fromEnriched ?? guide?.youtubeId;
   }
 
   @override

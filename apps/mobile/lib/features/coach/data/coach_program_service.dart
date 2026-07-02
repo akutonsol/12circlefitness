@@ -3,6 +3,134 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class CoachProgramService {
   final _db = Supabase.instance.client;
 
+  // ── Program Intelligence (Dynamic Program Builder) ───────
+  /// Deterministic plan for a strategy: mesocycles + per-week targets. Null if 093 absent.
+  Future<Map<String, dynamic>?> planProgram(Map<String, dynamic> strategy) async {
+    try {
+      final res = await _db.rpc('plan_program', params: {'p_strategy': strategy});
+      if (res is Map) return res.cast<String, dynamic>();
+      return null;
+    } catch (_) { return null; }
+  }
+
+  /// Create an engine-generated program from a plan, snapshot v1, return its id.
+  Future<String?> createEngineProgram(
+      Map<String, dynamic> strategy, Map<String, dynamic> plan, {String? name}) async {
+    try {
+      final prog = await createProgram({
+        'name': name ?? '${strategy['program_type'] ?? 'Program'} · ${strategy['duration_weeks'] ?? 12}wk',
+        'description': 'Engine-generated (${strategy['progression_model'] ?? 'linear'}).',
+        'strategy': strategy, 'plan': plan, 'engine_generated': true,
+      });
+      final id = prog['id'] as String;
+      await _db.rpc('snapshot_program_version', params: {'p_program_id': id, 'p_reason': 'initial'});
+      return id;
+    } catch (_) { return null; }
+  }
+
+  /// Materialize one week's workouts by reusing build_workout per session.
+  Future<Map<String, dynamic>?> materializeWeek(
+      String programId, int week, Map<String, dynamic> context) async {
+    try {
+      final res = await _db.rpc('materialize_program_week',
+          params: {'p_program_id': programId, 'p_week': week, 'p_context': context});
+      if (res is Map) return res.cast<String, dynamic>();
+      return null;
+    } catch (_) { return null; }
+  }
+
+  // ── Coaching Communication Engine ────────────────────────
+  /// Assemble a weekly review + create a draft communication. Returns the
+  /// deterministic brief + communication_id (text filled by generate step).
+  Future<Map<String, dynamic>?> createWeeklyReview(String subjectId, String programId, int week) async {
+    try {
+      final res = await _db.rpc('create_weekly_review',
+          params: {'p_subject': subjectId, 'p_program': programId, 'p_week': week});
+      if (res is Map) return res.cast<String, dynamic>();
+      return null;
+    } catch (_) { return null; }
+  }
+
+  /// Ask the LLM to phrase the brief into coach + client text (grounded).
+  Future<Map<String, dynamic>?> generateCommunication(String communicationId) async {
+    try {
+      final res = await _db.functions.invoke('generate-communication',
+          body: {'communication_id': communicationId});
+      final d = res.data;
+      if (d is Map) return d.cast<String, dynamic>();
+      return null;
+    } catch (_) { return null; }
+  }
+
+  Future<bool> updateCommunication(String id, String clientText, String coachText) async {
+    try {
+      await _db.rpc('update_communication',
+          params: {'p_id': id, 'p_client_text': clientText, 'p_coach_text': coachText});
+      return true;
+    } catch (_) { return false; }
+  }
+
+  Future<bool> sendCommunication(String id) async {
+    try {
+      await _db.rpc('send_communication', params: {'p_id': id});
+      return true;
+    } catch (_) { return false; }
+  }
+
+  // ── Predictive Intelligence Engine ───────────────────────
+  /// Deterministic outlook for a client: goal progress, predicted finish,
+  /// confidence, plateau/injury/adherence risk, recovery forecast, alerts.
+  Future<Map<String, dynamic>?> predictClient(String subjectId, {String? programId}) async {
+    try {
+      final res = await _db.rpc('predict_client',
+          params: {'p_subject': subjectId, if (programId != null) 'p_program': programId});
+      if (res is Map) return res.cast<String, dynamic>();
+      return null;
+    } catch (_) { return null; }
+  }
+
+  /// Compute + persist a prediction (history for prediction-vs-reality).
+  Future<Map<String, dynamic>?> recordPrediction(String subjectId, {String? programId}) async {
+    try {
+      final res = await _db.rpc('record_prediction',
+          params: {'p_subject': subjectId, if (programId != null) 'p_program': programId});
+      if (res is Map) return res.cast<String, dynamic>();
+      return null;
+    } catch (_) { return null; }
+  }
+
+  // ── Continuous Coaching Engine ───────────────────────────
+  /// Record a completed week's structured feedback (upsert by program+week).
+  Future<bool> submitWeeklyFeedback(String programId, int week, Map<String, dynamic> data) async {
+    try {
+      await _db.from('weekly_feedback').upsert(
+        {'program_id': programId, 'week': week, ...data},
+        onConflict: 'program_id,week');
+      return true;
+    } catch (_) { return false; }
+  }
+
+  /// Deterministic coaching evaluation for a week's feedback → recommended action.
+  Future<Map<String, dynamic>?> evaluateWeek(String programId, int week) async {
+    try {
+      final res = await _db.rpc('evaluate_week', params: {'p_program_id': programId, 'p_week': week});
+      if (res is Map) return res.cast<String, dynamic>();
+      return null;
+    } catch (_) { return null; }
+  }
+
+  /// Apply regeneration to FUTURE weeks (completed locked). Returns status +
+  /// diff + version, or pending_approval if the change needs coach sign-off.
+  Future<Map<String, dynamic>?> regenerateProgram(String programId, int week,
+      {bool approved = false}) async {
+    try {
+      final res = await _db.rpc('regenerate_program',
+          params: {'p_program_id': programId, 'p_week': week, 'p_approved': approved});
+      if (res is Map) return res.cast<String, dynamic>();
+      return null;
+    } catch (_) { return null; }
+  }
+
   // ── Programs ────────────────────────────────────────────
   Future<List<Map<String, dynamic>>> getMyPrograms() async {
     final coachId = _db.auth.currentUser?.id;

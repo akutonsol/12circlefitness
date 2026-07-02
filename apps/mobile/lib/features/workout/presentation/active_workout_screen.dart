@@ -12,6 +12,7 @@ import 'widgets/set_tracker_row.dart';
 import 'widgets/rest_timer_widget.dart';
 import 'widgets/exercise_guide_sheet.dart';
 import '../../exercise_database/data/custom_exercise_service.dart';
+import '../../exercise_database/data/exercise_database_service.dart';
 import '../../../core/utils/rest_alarm.dart';
 import '../../coach/data/score_service.dart';
 import '../../scoring/data/score_engine.dart';
@@ -83,6 +84,7 @@ class ActiveWorkoutScreen extends ConsumerStatefulWidget {
 class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   int _elapsedSeconds = 0;
   int _idleSeconds = 0; // accumulated rest-overrun (overtime) across the session
+  int _overtimePenalties = 0; // recurring overtime deductions for the current rest
   Timer? _timer;
   bool _saving = false;
   final _workoutService = WorkoutService();
@@ -388,9 +390,6 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     // Rest countdown is driven by a wall-clock end time in a provider, so it
     // survives navigating away and resumes at the right remaining time.
     final rest = ref.watch(restTimerProvider);
-    final restRemaining =
-        rest != null ? rest.end.difference(DateTime.now()).inSeconds : 0;
-    final showRest = restRemaining > 0;
 
     if (workout == null) {
       return Scaffold(
@@ -476,18 +475,31 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             minHeight: 3),
 
           // ── Fixed rest banner (above the list so it never shifts content) ──
-          if (showRest && rest != null)
+          // Keep the rest banner mounted through overtime (negative countdown +
+          // siren + recurring penalty). Dismissed by starting the next set
+          // (weight-field focus) or STOP — NOT by the clock reaching zero.
+          if (rest != null)
             RestTimerWidget(
               key: ValueKey(rest.end),
               endTime: rest.end,
               totalSeconds: rest.total,
               onOvertime: () {
-                ScoreEngine().idleTimePenalty(); // -5 for the rest overrun
+                _overtimePenalties = 1;
+                ScoreEngine().idleTimePenalty(); // -5 the moment rest runs over
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('−5 points — rest overrun. Keep it moving!'),
+                    content: Text('−5 points — rest overrun. Start your next set to '
+                        'stop the drain!'),
                     backgroundColor: _error));
                 }
+              },
+              // Keep draining points every interval they stay in overtime, until
+              // they start the next set — capped so a forgotten timer can't zero
+              // the whole score.
+              onOvertimePenaltyTick: () {
+                if (_overtimePenalties >= 8) return;
+                _overtimePenalties++;
+                ScoreEngine().idleTimePenalty();
               },
               onComplete: _dismissRest),
 
@@ -773,10 +785,10 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             ]),
           )),
         GestureDetector(
-          onTap: () => _showSwapSheet(index, we),
+          onTap: () => _showSwapSheet(index, we), // swap this exercise
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Icon(Icons.swap_horiz_rounded, color: _primary.withValues(alpha: 0.8), size: 18))),
+            child: Icon(Icons.swap_horizontal_circle_rounded, color: _primary.withValues(alpha: 0.8), size: 22))),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
@@ -787,34 +799,90 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       ]));
   }
 
+  /// Correct swap recommendations from the built-in library — never a random
+  /// cross-muscle grab. Prefers the exercise's own curated `alternatives`
+  /// (the recommendations authored in the app); if the exercise isn't in the
+  /// library, falls back to same-muscle-group matches. An empty/unknown muscle
+  /// group returns nothing rather than "any exercise".
+  List<Map<String, dynamic>> _librarySubstitutes(WorkoutExercise we) {
+    final lib = ExerciseDatabaseService().getAllExercises();
+    final selfName = we.exercise.name.trim().toLowerCase();
+
+    // Index by lowercased name for detail lookups.
+    final byName = {for (final e in lib) e.name.trim().toLowerCase(): e};
+    final self = byName[selfName];
+
+    Map<String, dynamic> row(dynamic e) => {
+      'name': e.name, 'equipment': e.equipment, 'difficulty': e.difficulty,
+      'muscle_group': e.muscleGroup, 'video_url': e.videoUrl,
+    };
+
+    // 1) Curated alternatives for this exercise — the recommended swaps.
+    if (self != null && self.alternatives.isNotEmpty) {
+      final out = <Map<String, dynamic>>[];
+      for (final alt in self.alternatives) {
+        final match = byName[alt.trim().toLowerCase()];
+        out.add(match != null
+            ? row(match)
+            : {'name': alt, 'equipment': '', 'difficulty': '', 'muscle_group': self.muscleGroup});
+      }
+      if (out.isNotEmpty) return out;
+    }
+
+    // 2) Same-muscle-group fallback (resolve the group from the library by name).
+    final mg = (self?.muscleGroup ?? we.exercise.muscleGroup).trim().toLowerCase();
+    if (mg.isEmpty) return const [];
+    final out = <Map<String, dynamic>>[];
+    for (final e in lib) {
+      if (e.muscleGroup.trim().toLowerCase() == mg &&
+          e.name.trim().toLowerCase() != selfName) {
+        out.add(row(e));
+        if (out.length >= 12) break;
+      }
+    }
+    return out;
+  }
+
   /// Swap an exercise for a same-muscle substitute (keeps the set structure).
   Future<void> _showSwapSheet(int index, WorkoutExercise we) async {
-    final subs = await CustomExerciseService().getSubstitutes(we.exercise.name, we.exercise.muscleGroup);
+    // Prefer the built-in library (reliable same-muscle matches); only if it has
+    // nothing do we consult approved global custom exercises.
+    var subs = _librarySubstitutes(we);
+    if (subs.isEmpty) {
+      subs = await CustomExerciseService()
+          .getSubstitutes(we.exercise.name, we.exercise.muscleGroup);
+    }
     if (!mounted) return;
     showModalBottomSheet(
-      context: context, backgroundColor: _card,
+      context: context, backgroundColor: _card, isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => SafeArea(child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Swap “${we.exercise.name}”',
-            style: const TextStyle(color: _white, fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
-          Text('Same muscle group · keeps your sets',
-            style: TextStyle(color: _muted.withValues(alpha: 0.7), fontSize: 12)),
-          const SizedBox(height: 12),
-          if (subs.isEmpty)
-            const Padding(padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text('No substitutes found.', style: TextStyle(color: _muted)))
-          else
-            ...subs.map((s) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(s['name']?.toString() ?? '', style: const TextStyle(color: _white, fontSize: 14, fontWeight: FontWeight.w600)),
-              subtitle: Text('${s['equipment'] ?? ''} · ${s['difficulty'] ?? ''}',
-                style: TextStyle(color: _muted.withValues(alpha: 0.6), fontSize: 11)),
-              trailing: const Icon(Icons.swap_horiz_rounded, color: _primary, size: 18),
-              onTap: () { Navigator.pop(ctx); _swapExercise(index, we, s); })),
-        ]))));
+      builder: (ctx) => SafeArea(child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.7),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Swap “${we.exercise.name}”',
+              style: const TextStyle(color: _white, fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Text('Same muscle group · keeps your sets',
+              style: TextStyle(color: _muted.withValues(alpha: 0.7), fontSize: 12)),
+            const SizedBox(height: 12),
+            if (subs.isEmpty)
+              const Padding(padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('No substitutes found.', style: TextStyle(color: _muted)))
+            else
+              // Scrollable so a long substitute list never overflows the sheet.
+              Flexible(child: ListView(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                children: subs.map((s) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(s['name']?.toString() ?? '', style: const TextStyle(color: _white, fontSize: 14, fontWeight: FontWeight.w600)),
+                  subtitle: Text('${s['equipment'] ?? ''} · ${s['difficulty'] ?? ''}',
+                    style: TextStyle(color: _muted.withValues(alpha: 0.6), fontSize: 11)),
+                  trailing: const Icon(Icons.swap_horizontal_circle_rounded, color: _primary, size: 22),
+                  onTap: () { Navigator.pop(ctx); _swapExercise(index, we, s); })).toList())),
+          ])))));
   }
 
   void _swapExercise(int index, WorkoutExercise we, Map<String, dynamic> sub) {
@@ -909,6 +977,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
               // Unlock audio now (this is a user gesture) so the later beep/voice
               // aren't blocked, then start the wall-clock rest countdown.
               primeRestAudio();
+              _overtimePenalties = 0; // fresh overtime budget for this rest
               ref.read(restTimerProvider.notifier).state = RestTimerState(
                 DateTime.now().add(Duration(seconds: set.restSeconds!)),
                 set.restSeconds!);

@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../auth/domain/auth_provider.dart';
+import '../../payments/domain/entitlements.dart';
+import '../../workout/domain/workout_provider.dart';
 
 enum CoachingMode {
   selfGuided,
@@ -37,10 +39,12 @@ enum CoachingMode {
 
 // Mutable notifier — allows mode switching from settings
 class CoachingModeNotifier extends StateNotifier<AsyncValue<CoachingMode>> {
-  CoachingModeNotifier(this._userId) : super(const AsyncValue.loading()) {
+  CoachingModeNotifier(this._ref, this._userId)
+      : super(const AsyncValue.loading()) {
     _load();
   }
 
+  final Ref _ref;
   final String _userId;
 
   Future<void> _load() async {
@@ -90,13 +94,27 @@ class CoachingModeNotifier extends StateNotifier<AsyncValue<CoachingMode>> {
         await Supabase.instance.client.rpc('generate_client_plan');
       }
     } catch (_) {/* plan sync is best-effort */}
+
+    // ── Single point of propagation ──────────────────────────────────────────
+    // Every mode-derived view must reconverge to DB truth, not just Home (which
+    // watches this notifier directly). These are cached resolvers that otherwise
+    // stay stale until app restart — the recurring "subscription/plan shows the
+    // old mode" bug. Centralised here so ANY caller of setMode gets full
+    // propagation without each call-site maintaining its own invalidation list.
+    //
+    // NB: deliberately NOT invalidating currentUserProfileProvider — nothing
+    // reads coaching_mode/membership_tier from it for display (the plan labels
+    // come from clientPlanProvider), and yanking that heavy provider flickers
+    // PaywallGate (which reads it for `isCoach`) and stalls active checkout.
+    _ref.invalidate(clientPlanProvider);          // server-resolved effective plan
+    _ref.invalidate(assignedWorkoutsProvider);    // plan just regenerated/deactivated
   }
 }
 
 final coachingModeNotifierProvider = StateNotifierProvider<
     CoachingModeNotifier, AsyncValue<CoachingMode>>((ref) {
   final user = ref.watch(currentUserProvider);
-  return CoachingModeNotifier(user?.id ?? '');
+  return CoachingModeNotifier(ref, user?.id ?? '');
 });
 
 // Convenience read-only provider — defaults to selfGuided while loading

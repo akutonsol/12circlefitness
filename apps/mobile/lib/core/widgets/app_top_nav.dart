@@ -5,10 +5,10 @@ import '../../features/auth/domain/auth_provider.dart';
 import '../../features/notifications/domain/notification_provider.dart';
 
 // ── Palette (matches the new Home design) ──────────────────────────────────────
-const _kMuted   = Color(0xFF8A92A6);
-const _kIconBg  = Color(0xFF161B27);
-const _kIconFg  = Color(0xFFC4CAD6);
+const _kMuted   = Color(0xFF9A9AA0);
+const _kIconFg  = Color(0xFFC9A6FF);
 const _kPink    = Color(0xFFFF4D8D);
+const _kDotRing = Color(0xFF0C0911);
 
 String greetingForNow() {
   final h = DateTime.now().hour;
@@ -72,8 +72,8 @@ class AppTopNavRow extends ConsumerWidget {
       GestureDetector(
         onTap: () => context.go('/profile'),
         child: Container(
-          width: 44,
-          height: 44,
+          width: 42,
+          height: 42,
           padding: const EdgeInsets.all(2),
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
@@ -85,7 +85,7 @@ class AppTopNavRow extends ConsumerWidget {
           ),
           child: ClipOval(
             child: avatarUrl.isNotEmpty
-                ? Image.network(avatarUrl, fit: BoxFit.cover, width: 40, height: 40,
+                ? Image.network(avatarUrl, fit: BoxFit.cover, width: 38, height: 38,
                     errorBuilder: (_, __, ___) => _initialsAvatar(first, last))
                 : _initialsAvatar(first, last),
           ),
@@ -126,20 +126,16 @@ class AppTopNavRow extends ConsumerWidget {
 }
 
 Widget _initialsAvatar(String first, String last) => Container(
-      width: 40,
-      height: 40,
+      width: 38,
+      height: 38,
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2A1640), Color(0xFF120A1E)],
-        ),
+        color: Color(0xFF1A1620),
       ),
       alignment: Alignment.center,
       child: Text(initialsFrom(first, last),
           style: const TextStyle(
-              color: Color(0xFFD9B6FF), fontSize: 14, fontWeight: FontWeight.w700)),
+              color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
     );
 
 class _NavIconButton extends StatelessWidget {
@@ -155,9 +151,9 @@ class _NavIconButton extends StatelessWidget {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: _kIconBg,
+            color: Colors.white.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
           ),
           child: Stack(alignment: Alignment.center, children: [
             Icon(icon, color: _kIconFg, size: 18),
@@ -171,7 +167,7 @@ class _NavIconButton extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: _kPink,
                     shape: BoxShape.circle,
-                    border: Border.all(color: _kIconBg, width: 1.5),
+                    border: Border.all(color: _kDotRing, width: 1.5),
                   ),
                 ),
               ),

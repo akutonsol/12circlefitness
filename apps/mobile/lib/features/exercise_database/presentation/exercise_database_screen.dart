@@ -7,6 +7,7 @@ import '../../auth/domain/auth_provider.dart';
 import '../domain/exercise_database_provider.dart';
 import '../domain/custom_exercise_provider.dart';
 import '../data/exercise_database_service.dart';
+import '../data/custom_exercise_service.dart';
 import '../data/models/exercise_detail_model.dart';
 
 class _C {
@@ -39,11 +40,42 @@ class _ExerciseDatabaseScreenState extends ConsumerState<ExerciseDatabaseScreen>
   String _selectedEquipment= 'All';
   String _selectedDifficulty = 'All';
   final _service = ExerciseDatabaseService();
+  bool _enriching = false;
 
   @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  /// Coach/admin bulk video enrichment — resolves real embeddable YouTube ids for
+  /// every exercise name (built-in library + custom) via the edge function, in
+  /// batches, and caches them so they play in-app.
+  Future<void> _runVideoEnrichment() async {
+    if (_enriching) return;
+    final names = <String>{
+      for (final e in _service.getAllExercises()) e.name,
+    }.where((n) => n.trim().isNotEmpty).toList();
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _enriching = true);
+    var total = 0;
+    var failedBatch = false;
+    try {
+      const batch = 40;
+      for (var i = 0; i < names.length; i += batch) {
+        final slice = names.sublist(i, (i + batch).clamp(0, names.length));
+        final updated = await CustomExerciseService().enrichExerciseVideos(slice);
+        if (updated == null) { failedBatch = true; break; }
+        total += updated;
+      }
+    } finally {
+      if (mounted) setState(() => _enriching = false);
+    }
+    messenger.showSnackBar(SnackBar(
+      content: Text(failedBatch
+          ? 'Video enrichment failed — check YOUTUBE_API_KEY / deploy.'
+          : 'Video enrichment done — $total exercises now have an in-app video.'),
+      backgroundColor: failedBatch ? const Color(0xFFFFB4AB) : _C.primaryContainer));
   }
 
   @override
@@ -82,6 +114,8 @@ class _ExerciseDatabaseScreenState extends ConsumerState<ExerciseDatabaseScreen>
     );
 
     final isLoading = myAsync.isLoading || globalAsync.isLoading;
+    final role = ref.watch(currentUserProfileProvider).valueOrNull?['role'];
+    final isStaff = role == 'coach' || role == 'admin';
 
     return AppScaffold(
       navIndex: 2,
@@ -104,6 +138,16 @@ class _ExerciseDatabaseScreenState extends ConsumerState<ExerciseDatabaseScreen>
                   style: TextStyle(color: _C.onSurface, fontSize: 24,
                     fontWeight: FontWeight.w800, letterSpacing: -0.5)),
                 const Spacer(),
+                // Coach/admin: bulk-resolve in-app videos for the whole catalog.
+                if (isStaff)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: GestureDetector(
+                      onTap: _enriching ? null : _runVideoEnrichment,
+                      child: _enriching
+                        ? const SizedBox(width: 20, height: 20,
+                            child: CircularProgressIndicator(color: _C.tertiary, strokeWidth: 2))
+                        : const Icon(Icons.video_library_outlined, color: _C.tertiary, size: 22))),
                 if (isLoading)
                   const SizedBox(width: 16, height: 16,
                     child: CircularProgressIndicator(color: _C.primary, strokeWidth: 2)),

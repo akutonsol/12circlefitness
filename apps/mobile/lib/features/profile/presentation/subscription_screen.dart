@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../auth/domain/auth_provider.dart';
+import '../../payments/domain/entitlements.dart';
 
 const _bg   = Color(0xFF0E0E0F);
 const _pri  = Color(0xFFDDB7FF);
@@ -63,8 +63,16 @@ class SubscriptionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile    = ref.watch(currentUserProfileProvider).valueOrNull;
-    final currentTier = profile?['membership_tier'] as String? ?? 'basic';
+    // Track the client's effective plan (server-resolved from coaching_mode),
+    // not the legacy membership_tier column (which always read "basic"). This
+    // is the same source the Settings/Profile plan labels use, so the screen
+    // stays consistent — and reactive — when the coaching mode changes.
+    final plan = ref.watch(clientPlanProvider).valueOrNull ?? ClientPlan.free;
+    final currentTier = switch (plan) {
+      ClientPlan.coachGuided => 'elite',
+      ClientPlan.aiGuided    => 'pro',
+      _                      => 'basic', // free + self-guided map to Basic
+    };
     final top    = MediaQuery.of(context).padding.top;
     final bottom = MediaQuery.of(context).padding.bottom;
 

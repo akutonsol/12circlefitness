@@ -62,6 +62,13 @@ class _TrainHubScreenState extends ConsumerState<TrainHubScreen> {
     final completionAsync   = ref.watch(completionRateProvider);
     final profileAsync      = ref.watch(currentUserProfileProvider);
     final isCoach           = profileAsync.whenOrNull(data: (p) => p?['role'] == 'coach') ?? false;
+    final mode              = ref.watch(coachingModeProvider);
+    // "My Program" origin differs by mode — only coach-guided is coach-assigned.
+    final programSub = switch (mode) {
+      CoachingMode.coachGuided => 'Coach assigned',
+      CoachingMode.aiGuided    => 'AI generated',
+      CoachingMode.selfGuided  => 'Your plan',
+    };
 
     final allExercises = _exerciseService.getAllExercises();
     final catLabel = _muscleCategories[_selectedCategory].$1;
@@ -247,7 +254,7 @@ class _TrainHubScreenState extends ConsumerState<TrainHubScreen> {
                 Expanded(child: _NavTile(
                   icon: Icons.assignment_rounded,
                   label: 'My Program',
-                  sub: 'Coach assigned',
+                  sub: programSub,
                   color: _C.primary,
                   onTap: () => context.push('/workouts'))),
                 const SizedBox(width: 12),
@@ -287,6 +294,9 @@ class _TrainHubScreenState extends ConsumerState<TrainHubScreen> {
                   color: _C.tertiary,
                   onTap: () => context.push('/strength-progression'))),
                 const SizedBox(width: 12),
+                // Coach-only tools stay behind the coach role; clients get a
+                // client-appropriate tile (they must never reach the coach's
+                // "Client Workout Stats" screen — that was the inverted branch).
                 if (isCoach)
                   Expanded(child: _NavTile(
                     icon: Icons.add_circle_outline_rounded,
@@ -296,11 +306,11 @@ class _TrainHubScreenState extends ConsumerState<TrainHubScreen> {
                     onTap: () => context.push('/create-exercise')))
                 else
                   Expanded(child: _NavTile(
-                    icon: Icons.groups_rounded,
-                    label: 'Coach Clients',
-                    sub: 'View client stats',
-                    color: _C.primary,
-                    onTap: () => context.push('/coach-client-workouts'))),
+                    icon: Icons.check_circle_outline_rounded,
+                    label: 'Habits',
+                    sub: 'Build daily habits',
+                    color: _C.tertiary,
+                    onTap: () => context.push('/habits'))),
               ])),
             const SizedBox(height: 28),
 

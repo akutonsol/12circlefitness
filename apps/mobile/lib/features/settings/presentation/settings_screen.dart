@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -330,6 +330,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onTap: () => _showLogoutDialog(context),
                     ),
                   ]),
+                  // Developer tools — debug/QA builds only.
+                  if (kDebugMode) ...[
+                    const SizedBox(height: 12),
+                    _GlassSection(children: [
+                      _SettingsRow(
+                        title: '🧪 QA Center',
+                        trailing: const Icon(Icons.chevron_right, color: _C.onSurfaceVar, size: 20),
+                        hasBorder: false,
+                        onTap: () => context.push('/qa-center'),
+                      ),
+                    ]),
+                  ],
                   const SizedBox(height: 24),
 
                   // Version
