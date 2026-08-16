@@ -1,0 +1,47 @@
+name: Supabase Keep-Alive
+
+# Supabase free-tier pauses a project after 7 days without external API activity.
+# This pings the project daily so it never crosses that threshold.
+#
+# NOTE: the anon key is public by design (RLS-protected, and already shipped inside
+# the mobile app binary + apps/mobile/lib/core/constants/app_constants.dart), so it
+# is inlined here rather than stored as a secret.
+
+on:
+  schedule:
+    # Daily at 06:17 UTC. Odd minute avoids GitHub's on-the-hour scheduler congestion.
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: https://nxdbooufqzkpslkcogxc.supabase.co
+      SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54ZGJvb3VmcXprcHNsa2NvZ3hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjA4NzksImV4cCI6MjA5NjU5Njg3OX0.D0rl8hxQmDjqknsDCPRuKK1uyIYruSMjycHmNTI-xcE
+    steps:
+      - name: Ping PostgREST (real DB query)
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/rest.txt -w '%{http_code}' --retry 3 --retry-delay 10 --max-time 30 \
+            "$SUPABASE_URL/rest/v1/exercises?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "REST /exercises -> $code"
+          cat /tmp/rest.txt
+          test "$code" = "200"
+
+      - name: Ping Auth (GoTrue health)
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/auth.txt -w '%{http_code}' --retry 3 --retry-delay 10 --max-time 30 \
+            "$SUPABASE_URL/auth/v1/health" \
+            -H "apikey: $SUPABASE_ANON_KEY")
+          echo "Auth /health -> $code"
+          cat /tmp/auth.txt
+          test "$code" = "200"
