@@ -13,7 +13,7 @@ class LiveClassService {
       final from = DateTime.now().subtract(const Duration(hours: 4));
       final data = await _db
           .from('classes')
-          .select('*, user_profiles!classes_coach_id_fkey(id, first_name, last_name, avatar_url)')
+          .select('*, public_profiles!coach_id(id, first_name, last_name, avatar_url)')
           .eq('status', 'scheduled')
           .gte('scheduled_at', from.toIso8601String())
           .order('scheduled_at')
@@ -49,7 +49,7 @@ class LiveClassService {
       if (uid == null) return [];
       final rows = await _db
           .from('class_bookings')
-          .select('status, classes!inner(*, user_profiles!classes_coach_id_fkey(id, first_name, last_name, avatar_url))')
+          .select('status, classes!inner(*, public_profiles!coach_id(id, first_name, last_name, avatar_url))')
           .eq('user_id', uid)
           .inFilter('status', ['confirmed', 'waitlisted'])
           .order('booked_at', ascending: false);
@@ -65,7 +65,7 @@ class LiveClassService {
   }
 
   FitnessClass _mapRow(Map<String, dynamic> c, Set<String> bookedIds, Set<String> waitlistedIds) {
-    final coach = c['user_profiles'] as Map<String, dynamic>? ?? {};
+    final coach = c['public_profiles'] as Map<String, dynamic>? ?? {};
     final coachName = '${coach['first_name'] ?? ''} ${coach['last_name'] ?? ''}'.trim();
     final enrolled = c['current_enrolled'] as int? ?? 0;
     final max = c['max_capacity'] as int? ?? 20;
@@ -239,7 +239,7 @@ class LiveClassService {
       if (uid == null) return [];
       final data = await _db
           .from('classes')
-          .select('*, user_profiles!classes_coach_id_fkey(id, first_name, last_name, avatar_url)')
+          .select('*, public_profiles!coach_id(id, first_name, last_name, avatar_url)')
           .eq('coach_id', uid)
           .neq('status', 'cancelled')
           .order('scheduled_at');

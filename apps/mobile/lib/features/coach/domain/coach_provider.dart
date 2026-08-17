@@ -107,7 +107,7 @@ final coachReviewsProvider =
 final availableCoachesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   try {
     final coaches = await _db
-        .from('user_profiles')
+        .from('public_profiles')
         .select('id, first_name, last_name, avatar_url, coach_title, bio, coach_bio, tagline, max_clients, is_accepting_clients, specialties, certifications, pricing_monthly, years_experience, rating_avg, review_count, transformation_photo_urls')
         .eq('role', 'coach')
         .eq('is_accepting_clients', true);

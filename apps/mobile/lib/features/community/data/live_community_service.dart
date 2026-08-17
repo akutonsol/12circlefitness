@@ -9,7 +9,7 @@ class LiveCommunityService {
     final uid = _db.auth.currentUser?.id;
     final data = await _db
         .from('community_posts')
-        .select('*, user_profiles!community_posts_user_id_fkey(id, first_name, last_name, role, avatar_url)')
+        .select('*, public_profiles!user_id(id, first_name, last_name, role, avatar_url)')
         .order('created_at', ascending: false)
         .limit(limit);
 
@@ -22,12 +22,12 @@ class LiveCommunityService {
 
     final comments = List<Map<String, dynamic>>.from(
       await _db.from('post_comments')
-          .select('*, user_profiles!post_comments_user_id_fkey(first_name, last_name)')
+          .select('*, public_profiles!user_id(first_name, last_name)')
           .inFilter('post_id', postIds)
           .order('created_at'));
 
     return data.map<CommunityPost>((p) {
-      final profile = p['user_profiles'] as Map<String, dynamic>? ?? {};
+      final profile = p['public_profiles'] as Map<String, dynamic>? ?? {};
       final fn = profile['first_name'] as String? ?? '';
       final ln = profile['last_name'] as String? ?? '';
       final postId = p['id'] as String;
@@ -48,7 +48,7 @@ class LiveCommunityService {
           type: _parseReaction(r['reaction_type'] as String? ?? 'like'),
         )).toList(),
         comments: postComments.map((c) {
-          final cp = c['user_profiles'] as Map<String, dynamic>? ?? {};
+          final cp = c['public_profiles'] as Map<String, dynamic>? ?? {};
           return PostComment(
             id: c['id'] as String,
             userId: c['user_id'] as String,
@@ -72,8 +72,8 @@ class LiveCommunityService {
       'content': content,
       'post_type': postType,
       'image_urls': imageUrls,
-    }).select('*, user_profiles!community_posts_user_id_fkey(id, first_name, last_name, role)').single();
-    final profile = row['user_profiles'] as Map<String, dynamic>? ?? {};
+    }).select('*, public_profiles!user_id(id, first_name, last_name, role)').single();
+    final profile = row['public_profiles'] as Map<String, dynamic>? ?? {};
     return CommunityPost(
       id: row['id'] as String,
       userId: uid,

@@ -49,7 +49,7 @@ final upcomingClassesProvider = FutureProvider<List<Map<String, dynamic>>>((ref)
     final now = DateTime.now().toIso8601String();
     final rows = await Supabase.instance.client
         .from('classes')
-        .select('*, user_profiles!classes_coach_id_fkey(first_name, last_name)')
+        .select('*, public_profiles!coach_id(first_name, last_name)')
         .gte('scheduled_at', now)
         .order('scheduled_at')
         .limit(5);

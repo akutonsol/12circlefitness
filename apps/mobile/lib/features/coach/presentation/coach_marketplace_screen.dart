@@ -31,7 +31,7 @@ final coachMarketplaceProvider = FutureProvider<List<Map<String, dynamic>>>((ref
   } catch (_) {
     // Fallback if the ranking function isn't deployed yet.
     final data = await db
-        .from('user_profiles')
+        .from('public_profiles')
         .select('id, first_name, last_name, avatar_url, coach_title, tagline, bio, specialties, certifications, pricing_monthly, years_experience, rating_avg, review_count')
         .eq('role', 'coach')
         .order('rating_avg', ascending: false);

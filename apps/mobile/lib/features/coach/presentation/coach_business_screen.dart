@@ -68,7 +68,7 @@ class _CoachBusinessScreenState extends State<CoachBusinessScreen>
           .eq('coach_id', uid);
       final reviewData = await _db
           .from('coach_reviews')
-          .select('*, user_profiles!coach_reviews_client_id_fkey(first_name, last_name, avatar_url)')
+          .select('*, public_profiles!client_id(first_name, last_name, avatar_url)')
           .eq('coach_id', uid)
           .order('created_at', ascending: false);
       final team = teamData;
@@ -548,7 +548,7 @@ class _ReviewsTab extends StatelessWidget {
             )
           else
             ...reviews.map((r) {
-              final profile = r['user_profiles'] as Map<String, dynamic>? ?? {};
+              final profile = r['public_profiles'] as Map<String, dynamic>? ?? {};
               final name = '${profile['first_name'] ?? ''} ${profile['last_name'] ?? ''}'.trim();
               final rating = r['rating'] as int? ?? 0;
               final text = r['review_text'] as String?;

@@ -36,10 +36,10 @@ class _PodsScreenState extends State<PodsScreen> {
       final uid = _db.auth.currentUser?.id;
       final [mine, open] = await Future.wait([
         _db.from('accountability_pods')
-            .select('*, accountability_pod_members!inner(user_id), user_profiles!accountability_pods_coach_id_fkey(first_name, last_name)')
+            .select('*, accountability_pod_members!inner(user_id), public_profiles!coach_id(first_name, last_name)')
             .eq('accountability_pod_members.user_id', uid!),
         _db.from('accountability_pods')
-            .select('*, user_profiles!accountability_pods_coach_id_fkey(first_name, last_name)')
+            .select('*, public_profiles!coach_id(first_name, last_name)')
             .eq('status', 'open')
             .limit(10),
       ]);
@@ -138,7 +138,7 @@ class _PodCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final members = pod['member_count'] as int? ?? 0;
     final maxMembers = pod['max_members'] as int? ?? 8;
-    final coachProfile = pod['user_profiles'] as Map<String, dynamic>? ?? {};
+    final coachProfile = pod['public_profiles'] as Map<String, dynamic>? ?? {};
     final coachName = '${coachProfile['first_name'] ?? 'Coach'} ${coachProfile['last_name'] ?? ''}'.trim();
 
     return Container(
