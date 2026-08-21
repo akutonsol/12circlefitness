@@ -22,3 +22,12 @@ node_modules/
 
 # Legacy React Native app (superseded by apps/mobile Flutter)
 /mobile/
+# Backend build artifacts
+**/dist/
+
+# Temporary tooling
+**/.temp/
+**/.tmp/
+
+# Coverage
+**/coverage/

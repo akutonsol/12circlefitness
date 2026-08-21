@@ -1,0 +1,330 @@
+// Coach Focus — the Phase 1 layered-media overlay. On any exercise, a coach can
+// add their own coaching (a "Coach Focus Today" list, a note, and their own demo
+// video by link). The client sees their coach's overlay above the official
+// content — turning a certified library entry into that coach's teaching.
+// Text is the highest-adoption path and ships now; voice recording is next.
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/custom_exercise_service.dart';
+import '../../../auth/domain/auth_provider.dart';
+import '../../../workout/presentation/widgets/youtube_embed.dart';
+import 'coach_voice.dart';
+
+const _panel  = Color(0xFF141019);
+const _panel2 = Color(0xFF1B1526);
+const _brand  = Color(0xFFB76DFF);
+const _mint   = Color(0xFF6FFBBE);
+const _text   = Color(0xFFEDE7F3);
+const _muted  = Color(0xFFB6A9C4);
+
+class CoachFocusSection extends ConsumerStatefulWidget {
+  final String exerciseId;
+  /// Lowercased searchable attributes of the exercise (name/muscle/equipment)
+  /// used for deterministic pack suggestions. Optional.
+  final String matchText;
+  const CoachFocusSection({super.key, required this.exerciseId, this.matchText = ''});
+  @override
+  ConsumerState<CoachFocusSection> createState() => _CoachFocusSectionState();
+}
+
+/// Deterministic pack → exercise match: how many of a pack's name terms appear
+/// in this exercise's attributes. No AI — just token overlap. Returns id→%.
+Map<String, int> _packScores(List<Map<String, dynamic>> packs, String matchText) {
+  final ex = matchText.toLowerCase();
+  if (ex.trim().isEmpty) return const {};
+  const stop = {'pack', 'packs', 'cue', 'cues', 'focus', 'coach', 'the', 'and', 'for'};
+  final out = <String, int>{};
+  for (final p in packs) {
+    final tokens = (p['name']?.toString() ?? '').toLowerCase()
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((t) => t.length > 2 && !stop.contains(t)).toList();
+    if (tokens.isEmpty) continue;
+    final matched = tokens.where((t) => ex.contains(t)).length;
+    if (matched == 0) continue;
+    out[p['id'].toString()] = (matched / tokens.length * 100).round();
+  }
+  return out;
+}
+
+class _CoachFocusSectionState extends ConsumerState<CoachFocusSection> {
+  final _svc = CustomExerciseService();
+  Map<String, dynamic>? _overlay; // client: resolved coach overlay; coach: own
+  bool _loading = true;
+  bool _isStaff = false;
+
+  @override
+  void initState() { super.initState(); _load(); }
+
+  Future<void> _load() async {
+    final role = ref.read(currentUserProfileProvider).valueOrNull?['role'];
+    _isStaff = role == 'coach' || role == 'admin';
+    final data = _isStaff
+        ? await _svc.getCoachOverlay(widget.exerciseId)
+        : await _svc.resolveExerciseMedia(widget.exerciseId);
+    if (mounted) setState(() { _overlay = data; _loading = false; });
+  }
+
+  List<String> _focusOf(Map<String, dynamic>? m) {
+    final f = m?['focus'];
+    return f is List ? f.map((e) => e.toString()).where((s) => s.trim().isNotEmpty).toList() : const [];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const SizedBox.shrink();
+
+    // Coach/admin: always show the editor entry (add or edit their overlay).
+    if (_isStaff) {
+      final has = _overlay != null;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (has) _card(_overlay!, editable: true) else _addPrompt(),
+        ]),
+      );
+    }
+
+    // Client: only show when their coach has an overlay for this exercise.
+    if (_overlay?['has_coach_overlay'] != true) return const SizedBox.shrink();
+    return Padding(padding: const EdgeInsets.only(bottom: 20), child: _card(_overlay!, editable: false));
+  }
+
+  Widget _addPrompt() => GestureDetector(
+    onTap: _openEditor,
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: _panel, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _brand.withValues(alpha: 0.35))),
+      child: Row(children: [
+        const Icon(Icons.add_comment_rounded, color: _brand, size: 18),
+        const SizedBox(width: 10),
+        const Expanded(child: Text('Add your coaching — a focus, a note, your own video',
+            style: TextStyle(color: _text, fontSize: 13.5, fontWeight: FontWeight.w600))),
+        const Icon(Icons.chevron_right_rounded, color: _muted, size: 18),
+      ]),
+    ),
+  );
+
+  Widget _card(Map<String, dynamic> m, {required bool editable}) {
+    final focus = _focusOf(m);
+    final note = m['note']?.toString();
+    final video = m['video_ref']?.toString();
+    final coachName = m['coach_name']?.toString();
+    final player = (video != null && video.trim().isNotEmpty) ? buildInAppVideo(video) : null;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [_brand.withValues(alpha: 0.14), _panel2],
+            begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(16), border: Border.all(color: _brand.withValues(alpha: 0.35))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.sports_rounded, color: _brand, size: 18),
+          const SizedBox(width: 8),
+          Expanded(child: Text(editable ? 'YOUR COACHING' : 'COACH FOCUS TODAY',
+              style: const TextStyle(color: _brand, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1))),
+          if (editable)
+            GestureDetector(onTap: _openEditor,
+              child: const Text('Edit', style: TextStyle(color: _brand, fontSize: 12, fontWeight: FontWeight.w800))),
+        ]),
+        if (!editable && coachName != null) Padding(padding: const EdgeInsets.only(top: 2),
+          child: Text(coachName, style: const TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w600))),
+        // Order: voice → focus → note → video. Voice first creates connection.
+        if ((m['voice_url']?.toString() ?? '').isNotEmpty) ...[
+          const SizedBox(height: 12),
+          CoachVoicePlayer(
+            url: m['voice_url'].toString(),
+            durationMs: (m['voice_duration_ms'] as num?)?.toInt(),
+            coachName: editable ? null : coachName),
+        ],
+        if (focus.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          ...focus.map((f) => Padding(padding: const EdgeInsets.only(bottom: 6),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Icon(Icons.check_rounded, color: _mint, size: 16),
+              const SizedBox(width: 8),
+              Expanded(child: Text(f, style: const TextStyle(color: _text, fontSize: 13.5, height: 1.4))),
+            ]))),
+        ],
+        if (note != null && note.trim().isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(note, style: const TextStyle(color: _muted, fontSize: 13, height: 1.45)),
+        ],
+        if (player != null) ...[
+          const SizedBox(height: 12),
+          ClipRRect(borderRadius: BorderRadius.circular(12),
+            child: AspectRatio(aspectRatio: 16 / 9, child: player)),
+        ],
+        if (editable) Padding(padding: const EdgeInsets.only(top: 6),
+          child: Text('Only your active clients see this.', style: TextStyle(color: _muted.withValues(alpha: 0.7), fontSize: 10.5))),
+      ]),
+    );
+  }
+
+  Future<void> _openEditor() async {
+    final focusCtl = TextEditingController(text: _focusOf(_overlay).join('\n'));
+    final noteCtl = TextEditingController(text: _overlay?['note']?.toString() ?? '');
+    final videoCtl = TextEditingController(text: _overlay?['video_ref']?.toString() ?? '');
+    var packs = await _svc.getCoachingPacks();
+    var sheetOverlay = _overlay;
+    var expiry = 'never';
+    var saving = false;
+    if (!mounted) return;
+    DateTime? expiryDate() => switch (expiry) {
+      'today' => DateTime.now().add(const Duration(hours: 18)),
+      'week' => DateTime.now().add(const Duration(days: 7)),
+      _ => null,
+    };
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: _panel,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setSheet) {
+        Future<void> saveAsPack() async {
+          final nameCtl = TextEditingController();
+          final name = await showDialog<String>(context: ctx, builder: (dctx) => AlertDialog(
+            backgroundColor: _panel2,
+            title: const Text('Save cue pack', style: TextStyle(color: _text, fontSize: 16)),
+            content: TextField(controller: nameCtl, autofocus: true,
+              style: const TextStyle(color: _text),
+              decoration: const InputDecoration(hintText: 'e.g. Squat cues', hintStyle: TextStyle(color: _muted))),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('Cancel', style: TextStyle(color: _muted))),
+              TextButton(onPressed: () => Navigator.pop(dctx, nameCtl.text.trim()),
+                child: const Text('Save', style: TextStyle(color: _brand, fontWeight: FontWeight.w800))),
+            ],
+          ));
+          final cues = focusCtl.text.split('\n').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+          if (name != null && name.isNotEmpty && cues.isNotEmpty) {
+            await _svc.createCoachingPack(name, cues);
+            packs = await _svc.getCoachingPacks();
+            setSheet(() {});
+          }
+        }
+        Widget field(String label, TextEditingController c, String hint, {int min = 1}) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: const TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1)),
+            const SizedBox(height: 6),
+            TextField(controller: c, minLines: min, maxLines: min == 1 ? 1 : null,
+              style: const TextStyle(color: _text, fontSize: 14),
+              decoration: InputDecoration(hintText: hint, hintStyle: const TextStyle(color: _muted),
+                filled: true, fillColor: _panel2,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.all(12))),
+            const SizedBox(height: 14),
+          ]);
+        return Padding(
+          padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Coach this exercise',
+                style: TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            const Text('Overlay your coaching on the official content. One focus per line.',
+                style: TextStyle(color: _muted, fontSize: 12)),
+            const SizedBox(height: 16),
+            if (packs.isNotEmpty) ...[
+              Builder(builder: (_) {
+                final scores = _packScores(packs, widget.matchText);
+                final sorted = [...packs]..sort((a, b) =>
+                    (scores[b['id'].toString()] ?? -1).compareTo(scores[a['id'].toString()] ?? -1));
+                final anyMatch = scores.isNotEmpty;
+                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(anyMatch ? 'SUGGESTED PACKS' : 'APPLY A PACK',
+                      style: const TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                  const SizedBox(height: 6),
+                  Wrap(spacing: 6, runSpacing: 6, children: [
+                    for (final p in sorted) GestureDetector(
+                      onTap: () {
+                        final cues = (p['cues'] as List?)?.map((e) => e.toString()).toList() ?? [];
+                        setSheet(() => focusCtl.text = cues.join('\n'));
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: scores.containsKey(p['id'].toString()) ? _brand.withValues(alpha: 0.18) : _panel2,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: _brand.withValues(alpha: 0.3))),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          if (scores.containsKey(p['id'].toString()))
+                            const Padding(padding: EdgeInsets.only(right: 4),
+                              child: Icon(Icons.star_rounded, color: _brand, size: 13)),
+                          Text(p['name']?.toString() ?? 'Pack',
+                              style: const TextStyle(color: _brand, fontSize: 12, fontWeight: FontWeight.w700)),
+                          if (scores[p['id'].toString()] != null)
+                            Text('  ${scores[p['id'].toString()]}%',
+                                style: TextStyle(color: _brand.withValues(alpha: 0.7), fontSize: 11, fontWeight: FontWeight.w700)),
+                        ]),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 14),
+                ]);
+              }),
+            ],
+            field('COACH FOCUS TODAY', focusCtl, 'Control the descent\nPush through your heels\nIgnore weight today', min: 3),
+            Align(alignment: Alignment.centerRight, child: GestureDetector(
+              onTap: saveAsPack,
+              child: const Padding(padding: EdgeInsets.only(bottom: 14),
+                child: Text('＋ Save these as a pack', style: TextStyle(color: _brand, fontSize: 12, fontWeight: FontWeight.w700))))),
+            field('NOTE (optional)', noteCtl, 'A short message to your clients…', min: 2),
+            field('YOUR VIDEO (optional — YouTube link or id)', videoCtl, 'https://youtu.be/…'),
+            // ── Voice note ──
+            const Text('VOICE NOTE (optional)',
+                style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1)),
+            const SizedBox(height: 6),
+            if ((sheetOverlay?['voice_url']?.toString() ?? '').isNotEmpty)
+              Padding(padding: const EdgeInsets.only(bottom: 8),
+                child: Row(children: [
+                  Expanded(child: CoachVoicePlayer(
+                    url: sheetOverlay!['voice_url'].toString(),
+                    durationMs: (sheetOverlay?['voice_duration_ms'] as num?)?.toInt())),
+                  IconButton(icon: const Icon(Icons.delete_outline_rounded, color: _muted, size: 20),
+                    onPressed: () async {
+                      await _svc.clearCoachVoice(widget.exerciseId);
+                      sheetOverlay = await _svc.getCoachOverlay(widget.exerciseId);
+                      _load(); setSheet(() {});
+                    }),
+                ])),
+            Wrap(spacing: 6, children: [
+              for (final e in const [('today', 'Today'), ('week', 'This week'), ('never', 'Never')])
+                GestureDetector(
+                  onTap: () => setSheet(() => expiry = e.$1),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: expiry == e.$1 ? _brand : _panel2, borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _brand.withValues(alpha: 0.25))),
+                    child: Text(e.$2, style: TextStyle(
+                        color: expiry == e.$1 ? Colors.white : _muted, fontSize: 11, fontWeight: FontWeight.w700))),
+                ),
+            ]),
+            const SizedBox(height: 8),
+            CoachVoiceRecorder(
+              exerciseId: widget.exerciseId,
+              resolveExpiry: expiryDate,
+              onRecorded: () async {
+                sheetOverlay = await _svc.getCoachOverlay(widget.exerciseId);
+                _load(); setSheet(() {});
+              }),
+            const SizedBox(height: 16),
+            SizedBox(width: double.infinity, child: FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: _brand, padding: const EdgeInsets.symmetric(vertical: 14)),
+              onPressed: saving ? null : () async {
+                setSheet(() => saving = true);
+                final focus = focusCtl.text.split('\n').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+                final ok = await _svc.upsertCoachOverlay(widget.exerciseId,
+                    note: noteCtl.text.trim().isEmpty ? null : noteCtl.text.trim(),
+                    focus: focus,
+                    videoRef: videoCtl.text.trim().isEmpty ? null : videoCtl.text.trim());
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted && ok) { setState(() => _loading = true); _load(); }
+              },
+              child: Text(saving ? 'Saving…' : 'Save coaching',
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)))),
+          ]),
+        );
+      }),
+    );
+  }
+}

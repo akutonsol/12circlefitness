@@ -591,6 +591,111 @@ class CustomExerciseService {
     } catch (e) { lastError = e; return null; }
   }
 
+  // ── Layered exercise media (coach overlay) ────────────────────────────────
+  /// Resolve the highest-priority coaching overlay for the current viewer
+  /// (client → coach → official). Null/`has_coach_overlay:false` if none.
+  Future<Map<String, dynamic>?> resolveExerciseMedia(String exerciseId) async {
+    try {
+      final uid = _db.auth.currentUser?.id;
+      final res = await _db.rpc('resolve_exercise_media',
+          params: {'p_exercise_id': exerciseId, 'p_viewer_id': uid});
+      if (res is Map) return res.cast<String, dynamic>();
+      return null;
+    } catch (e) { lastError = e; return null; }
+  }
+
+  /// The current coach's own overlay for an exercise (for editing). Null if none.
+  Future<Map<String, dynamic>?> getCoachOverlay(String exerciseId) async {
+    try {
+      final uid = _db.auth.currentUser?.id;
+      final r = await _db.from('coach_exercise_media').select()
+          .eq('coach_id', uid ?? '').eq('exercise_id', exerciseId).maybeSingle();
+      return r?.cast<String, dynamic>();
+    } catch (e) { lastError = e; return null; }
+  }
+
+  /// Create/replace the coach's overlay (a partial override — any field optional).
+  Future<bool> upsertCoachOverlay(String exerciseId,
+      {String? note, List<String>? focus, String? videoRef}) async {
+    try {
+      final uid = _db.auth.currentUser?.id;
+      if (uid == null) return false;
+      await _db.from('coach_exercise_media').upsert({
+        'coach_id': uid, 'exercise_id': exerciseId,
+        'note': note, 'focus': focus ?? [], 'video_ref': videoRef,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'coach_id,exercise_id');
+      return true;
+    } catch (e) { lastError = e; return false; }
+  }
+
+  // ── Coaching packs (reusable cue sets) ────────────────────────────────────
+  /// The current coach's saved cue packs (name + cues), newest first.
+  Future<List<Map<String, dynamic>>> getCoachingPacks() async {
+    try {
+      final uid = _db.auth.currentUser?.id;
+      final r = await _db.from('coach_coaching_packs').select()
+          .eq('coach_id', uid ?? '').order('created_at', ascending: false);
+      return (r as List).cast<Map<String, dynamic>>();
+    } catch (_) { return []; }
+  }
+
+  /// Save a named cue set for reuse across exercises.
+  Future<bool> createCoachingPack(String name, List<String> cues) async {
+    try {
+      final uid = _db.auth.currentUser?.id;
+      if (uid == null || name.trim().isEmpty) return false;
+      await _db.from('coach_coaching_packs')
+          .insert({'coach_id': uid, 'name': name.trim(), 'cues': cues});
+      return true;
+    } catch (e) { lastError = e; return false; }
+  }
+
+  Future<bool> deleteCoachingPack(String id) async {
+    try {
+      await _db.from('coach_coaching_packs').delete().eq('id', id);
+      return true;
+    } catch (_) { return false; }
+  }
+
+  // ── Coach audio (voice note on an exercise) ───────────────────────────────
+  /// Upload recorded audio bytes to coach-media, return the public URL.
+  Future<String?> uploadCoachVoice(String exerciseId, Uint8List bytes, {String ext = 'm4a'}) async {
+    try {
+      final uid = _db.auth.currentUser?.id;
+      if (uid == null) return null;
+      final path = 'voice/$uid/$exerciseId-${DateTime.now().millisecondsSinceEpoch}.$ext';
+      await _db.storage.from('coach-media').uploadBinary(path, bytes,
+          fileOptions: const FileOptions(contentType: 'audio/mp4', upsert: true));
+      return _db.storage.from('coach-media').getPublicUrl(path);
+    } catch (e) { lastError = e; return null; }
+  }
+
+  /// Attach/replace the coach's voice note on their overlay (with expiry).
+  Future<bool> setCoachVoice(String exerciseId, String url, int durationMs, DateTime? expiresAt) async {
+    try {
+      final uid = _db.auth.currentUser?.id;
+      if (uid == null) return false;
+      await _db.from('coach_exercise_media').upsert({
+        'coach_id': uid, 'exercise_id': exerciseId,
+        'voice_url': url, 'voice_duration_ms': durationMs,
+        'voice_expires_at': expiresAt?.toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'coach_id,exercise_id');
+      return true;
+    } catch (e) { lastError = e; return false; }
+  }
+
+  Future<bool> clearCoachVoice(String exerciseId) async {
+    try {
+      final uid = _db.auth.currentUser?.id;
+      await _db.from('coach_exercise_media').update({
+        'voice_url': null, 'voice_duration_ms': null, 'voice_expires_at': null,
+      }).eq('coach_id', uid ?? '').eq('exercise_id', exerciseId);
+      return true;
+    } catch (_) { return false; }
+  }
+
   /// Raw exercise row by id (for prefilling the edit form with all columns).
   Future<Map<String, dynamic>?> getRawById(String id) async {
     try {

@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'core/theme/app_theme.dart';
+import 'core/theme/twelve_circle_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/constants/app_constants.dart';
 import 'core/utils/web_logout.dart';
@@ -96,8 +96,9 @@ class CircleFitnessApp extends ConsumerWidget {
     return MaterialApp.router(
       title: '12 Circle Fitness',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      // 12 Circle Theme on Helix (three-tier tokens; app is dark-locked).
+      theme: TwelveCircleTheme.theme,
+      darkTheme: TwelveCircleTheme.theme,
       themeMode: ThemeMode.dark,
       scrollBehavior: _AppScrollBehavior(),
       routerConfig: router,

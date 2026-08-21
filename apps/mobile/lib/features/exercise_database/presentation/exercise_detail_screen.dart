@@ -10,6 +10,7 @@ import '../data/models/exercise_detail_model.dart';
 import '../../workout/data/models/video_variant_model.dart';
 import '../../workout/presentation/widgets/youtube_embed.dart';
 import '../../auth/domain/auth_provider.dart';
+import 'widgets/coach_focus_section.dart';
 
 class _C {
   static const bg                   = Color(0xFF0E0E0F);
@@ -131,6 +132,11 @@ class _ExerciseDetailView extends StatelessWidget {
               Text(exercise.description,
                 style: const TextStyle(color: _C.onSurfaceVar, fontSize: 14, height: 1.5)),
               const SizedBox(height: 20),
+
+              // Coach overlay (layered media Phase 1): coach adds their focus /
+              // note / video; the client sees their coach's version here.
+              CoachFocusSection(exerciseId: exercise.id,
+                matchText: '${exercise.name} ${exercise.muscleGroup} ${exercise.equipment}'),
 
               // Stats chips
               Row(children: [
