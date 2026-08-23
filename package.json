@@ -8,7 +8,14 @@
     "packages/*"
   ],
   "scripts": {
-    "api": "cd apps/api && npm run start:dev"
+    "api": "cd apps/api && npm run start:dev",
+    "test": "npm run test:api && npm run test:mobile",
+    "test:api": "npm test --workspace apps/api && npm run test:e2e --workspace apps/api",
+    "test:mobile": "cd apps/mobile && flutter test",
+    "build:web:dev": "cd apps/mobile && flutter build web --dart-define-from-file=dart_defines/dev.json",
+    "build:web:qa": "cd apps/mobile && flutter build web --dart-define-from-file=dart_defines/qa.json",
+    "build:web:prod": "cd apps/mobile && flutter build web --dart-define-from-file=dart_defines/prod.json",
+    "check:web-secrets": "cd apps/mobile && tool/check_web_build_secrets.sh"
   },
   "keywords": [],
   "author": "",

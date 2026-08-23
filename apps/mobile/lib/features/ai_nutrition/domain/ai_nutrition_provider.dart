@@ -68,7 +68,9 @@ class AiNutritionNotifier extends StateNotifier<List<ChatMessage>> {
       state = [...state, ChatMessage(content: response, isUser: false, timestamp: DateTime.now())];
     } catch (e) {
       state = [...state, ChatMessage(
-        content: 'Sorry, I encountered an error. Please check your API key configuration and try again.',
+        content: e is AiNutritionException
+            ? e.message
+            : 'Sorry, I encountered an error. Please try again.',
         isUser: false,
         timestamp: DateTime.now(),
       )];
