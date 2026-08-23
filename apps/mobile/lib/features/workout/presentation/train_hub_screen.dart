@@ -9,6 +9,7 @@ import '../../exercise_database/data/exercise_database_service.dart';
 import '../../exercise_database/data/models/exercise_detail_model.dart';
 import '../../exercise_database/domain/exercise_database_provider.dart';
 import '../domain/workout_provider.dart';
+import '../data/workout_session_store.dart';
 
 class _C {
   static const bg                   = Color(0xFF0E0E0F);
@@ -168,11 +169,10 @@ class _TrainHubScreenState extends ConsumerState<TrainHubScreen> {
               error: (_, __) => const SizedBox.shrink(),
               data: (session) {
                 if (session == null) return const SizedBox.shrink();
-                final title = session['workout_title'] as String? ?? 'Workout';
-                final startedAt = session['started_at'] as String?;
-                final elapsed = startedAt != null
-                    ? DateTime.now().difference(DateTime.parse(startedAt))
-                    : Duration.zero;
+                final title = session.workoutTitle.isNotEmpty
+                    ? session.workoutTitle
+                    : 'Workout';
+                final elapsed = DateTime.now().difference(session.startedAt);
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                   child: GestureDetector(
@@ -453,19 +453,18 @@ class _TrainHubScreenState extends ConsumerState<TrainHubScreen> {
     );
   }
 
-  Future<void> _resumeWorkout(Map<String, dynamic> session) async {
-    final title = session['workout_title'] as String? ?? '';
-    // Try to find matching workout in assigned or sample workouts
-    final assigned = await ref.read(assignedWorkoutsProvider.future);
-    final sample   = ref.read(workoutsProvider);
-    final all = [...assigned, ...sample];
-    final match = all.cast<dynamic>().where((w) {
-      try { return (w.title as String) == title; } catch (_) { return false; }
-    }).cast<dynamic>().toList();
-
+  /// Opens the Workout Zone bound to the active session's own workout.
+  ///
+  /// The workout comes from the session (its snapshot, or its id) rather than
+  /// from whatever happens to be in `selectedWorkoutProvider`, so resuming can
+  /// never land on a different workout than the card advertises.
+  Future<void> _resumeWorkout(WorkoutSessionRecord session) async {
+    final workout = await bindSessionToSelectedWorkout(ref, session);
     if (!mounted) return;
-    if (match.isNotEmpty) {
-      ref.read(selectedWorkoutProvider.notifier).state = match.first;
+    if (workout == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('That workout is no longer available.')));
+      return;
     }
     context.go('/active-workout');
   }

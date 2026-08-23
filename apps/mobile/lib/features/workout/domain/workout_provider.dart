@@ -3,6 +3,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../coach/data/coach_program_service.dart';
 import '../../../core/realtime/realtime.dart';
 import '../data/workout_service.dart';
+import '../data/workout_session_store.dart';
+import '../data/workout_snapshot.dart';
+import 'workout_session_manager.dart';
 import '../data/models/exercise_model.dart';
 import '../data/models/workout_model.dart';
 import '../../ai_coach/data/ai_coach_service.dart';
@@ -110,7 +113,7 @@ final assignedWorkoutsProvider = FutureProvider<List<Workout>>((ref) async {
     if (program == null) return [];
     final workoutMaps = List<Map<String, dynamic>>.from(
         program['workouts'] as List? ?? []);
-    return workoutMaps.map(_programWorkoutToWorkout).toList();
+    return workoutMaps.map(programWorkoutToWorkout).toList();
   } catch (_) {
     return [];
   }
@@ -127,7 +130,7 @@ Future<Workout?> generateAiWorkout({int? minutes}) async {
     if (res.status != 200) return null;
     final w = (res.data as Map)['workout'];
     if (w is! Map) return null;
-    return _programWorkoutToWorkout(Map<String, dynamic>.from(w));
+    return programWorkoutToWorkout(Map<String, dynamic>.from(w));
   } catch (_) { return null; }
 }
 
@@ -139,6 +142,23 @@ final workoutHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((ref) 
 // ── Active workout in-memory state ────────────────────────────────────────────
 class ActiveWorkoutNotifier extends StateNotifier<Map<String, List<Map<String, dynamic>>>> {
   ActiveWorkoutNotifier() : super({});
+
+  /// Session these sets belong to. Entered sets are meaningless without it —
+  /// keeping them together is what stops one workout's sets showing up under
+  /// another.
+  String? _sessionId;
+  String? get sessionId => _sessionId;
+
+  /// Binds this state to [sessionId], clearing it when the session changes.
+  ///
+  /// Called on entering the Workout Zone. Re-entering the same session keeps
+  /// whatever was already typed; switching to a different session starts empty
+  /// rather than inheriting the previous workout's sets.
+  void beginSession(String sessionId) {
+    if (_sessionId == sessionId) return;
+    _sessionId = sessionId;
+    state = {};
+  }
 
   void updateSet(String exerciseId, int setIndex, String field, dynamic value) {
     final current = Map<String, List<Map<String, dynamic>>>.from(state);
@@ -186,7 +206,10 @@ class ActiveWorkoutNotifier extends StateNotifier<Map<String, List<Map<String, d
     state = current;
   }
 
-  void reset() => state = {};
+  void reset() {
+    _sessionId = null;
+    state = {};
+  }
 }
 
 final activeWorkoutProvider = StateNotifierProvider<ActiveWorkoutNotifier, Map<String, List<Map<String, dynamic>>>>(
@@ -206,9 +229,50 @@ final totalWorkoutCountProvider = FutureProvider<int>((ref) async {
   return ref.watch(workoutServiceProvider).getTotalWorkoutCount();
 });
 
-final activeSessionProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
-  return ref.watch(workoutServiceProvider).getActiveSession();
+/// The one active workout session, or null.
+///
+/// The single source of truth for "is there a workout to resume". It watches
+/// the `workout_sessions` ticker so starting, abandoning or completing a
+/// session refreshes every surface that shows a Resume card — previously this
+/// cached its first result for the lifetime of the app, which is why the same
+/// build could show different workouts at different moments.
+final activeSessionProvider = FutureProvider<WorkoutSessionRecord?>((ref) async {
+  ref.watch(tableTickerProvider('workout_sessions'));
+  final uid = Supabase.instance.client.auth.currentUser?.id;
+  if (uid == null) return null;
+  try {
+    return await ref.watch(workoutSessionManagerProvider).activeSession(uid);
+  } catch (_) {
+    return null;
+  }
 });
+
+final workoutSessionStoreProvider = Provider<WorkoutSessionStore>(
+  (ref) => SupabaseWorkoutSessionStore(),
+);
+
+final workoutSessionManagerProvider = Provider<WorkoutSessionManager>(
+  (ref) => WorkoutSessionManager(ref.watch(workoutSessionStoreProvider)),
+);
+
+/// Rebuilds the workout an active session belongs to and makes it the selected
+/// workout, so every "Resume" entry point lands in the Workout Zone bound to
+/// the session's own workout instead of whatever was last left in memory.
+Future<Workout?> bindSessionToSelectedWorkout(
+  WidgetRef ref,
+  WorkoutSessionRecord session,
+) async {
+  final manager = ref.read(workoutSessionManagerProvider);
+  final assigned = await ref.read(assignedWorkoutsProvider.future);
+  final workout = manager.workoutForSession(
+    session,
+    candidates: [...assigned, ...ref.read(workoutsProvider)],
+  );
+  if (workout != null) {
+    ref.read(selectedWorkoutProvider.notifier).state = workout;
+  }
+  return workout;
+}
 
 final personalRecordsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   return ref.watch(workoutServiceProvider).getPersonalRecords();
@@ -248,57 +312,3 @@ final clientPersonalRecordsProvider = FutureProvider.family<List<Map<String, dyn
 final clientRecentSessionsProvider = FutureProvider.family<List<Map<String, dynamic>>, String>(
   (ref, clientId) async => WorkoutService().getClientRecentSessions(clientId),
 );
-
-// ── Converter: program_workout row → Workout model ────────────────────────────
-Workout _programWorkoutToWorkout(Map<String, dynamic> w) {
-  final exerciseList = List<Map<String, dynamic>>.from(w['exercises'] as List? ?? []);
-
-  final exercises = exerciseList.asMap().entries.map((entry) {
-    final i = entry.key;
-    final e = entry.value;
-    final setCount = (e['sets'] as int?) ?? 3;
-    final reps = (e['reps'] as int?) ?? 10;
-    final weight = ((e['weight'] as num?) ?? 0).toDouble();
-    final rest = (e['rest_seconds'] as int?) ?? 90;
-    final tempo = e['tempo'] as String?;
-
-    final sets = List.generate(setCount, (si) => WorkoutSet(
-      setNumber: si + 1,
-      reps: reps,
-      weight: weight,
-      restSeconds: rest,
-      tempo: tempo,
-    ));
-
-    return WorkoutExercise(
-      exercise: Exercise(
-        id: (e['exercise_id'] as String?) ?? (e['id'] as String?) ?? 'ex_$i',
-        name: (e['name'] as String?) ?? 'Exercise ${i + 1}',
-        category: (e['category'] as String?) ?? 'Strength',
-        muscleGroup: (e['muscle_group'] as String?) ?? '',
-        equipment: (e['equipment'] as String?) ?? '',
-        difficulty: (e['difficulty'] as String?) ?? 'Intermediate',
-        description: (e['description'] as String?) ?? '',
-        instructions: List<String>.from(e['instructions'] as List? ?? []),
-      ),
-      sets: sets,
-      isSuperset: e['is_superset'] == true,
-      supersetGroup: e['superset_group'] as String?,
-      isCircuit: e['is_circuit'] == true,
-      circuitGroup: e['circuit_group'] as String?,
-      circuitRounds: (e['circuit_rounds'] as int?) ?? 1,
-      notes: e['notes'] as String?,
-    );
-  }).toList();
-
-  return Workout(
-    id: (w['id'] as String?) ?? '',
-    title: (w['title'] as String?) ?? 'Workout',
-    description: (w['description'] as String?) ?? '',
-    estimatedDuration: (w['estimated_minutes'] as int?) ?? 45,
-    difficulty: 'Intermediate',
-    category: 'Strength',
-    exercises: exercises,
-    coachName: 'Your Coach',
-  );
-}

@@ -8,6 +8,7 @@ import '../data/models/workout_model.dart';
 import '../data/models/exercise_model.dart';
 import '../data/workout_service.dart';
 import '../domain/workout_provider.dart';
+import '../domain/workout_session_manager.dart';
 import 'widgets/set_tracker_row.dart';
 import 'widgets/rest_timer_widget.dart';
 import 'widgets/exercise_guide_sheet.dart';
@@ -90,6 +91,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   final _workoutService = WorkoutService();
   final _scrollController = ScrollController();
   final _db = Supabase.instance.client;
+  /// Resolved once in initState so dispose() can persist elapsed time without
+  /// reaching for `ref` during teardown.
+  late final WorkoutSessionManager _sessions;
   String? _sessionId;
   // Per-exercise (by name) RPE-tracking flag from the library metadata.
   final Map<String, bool> _showRpe = {};
@@ -99,6 +103,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   @override
   void initState() {
     super.initState();
+    _sessions = ref.read(workoutSessionManagerProvider);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => _elapsedSeconds++);
     });
@@ -171,43 +176,42 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     );
   }
 
+  /// Activates the session for the selected workout.
+  ///
+  /// All session identity decisions live in [WorkoutSessionManager]: this
+  /// either resumes the session already open for this workout, or opens a new
+  /// one and abandons any previously open session. Either way exactly one
+  /// session is in progress afterwards, and it is the one this screen writes
+  /// sets to.
   Future<void> _startSession() async {
     final workout = ref.read(selectedWorkoutProvider);
     if (workout == null) return;
     final uid = _db.auth.currentUser?.id;
     if (uid == null) return;
     try {
-      // Reuse existing in_progress session for this workout (resume flow)
-      final existing = await _db
-          .from('workout_sessions')
-          .select()
-          .eq('user_id', uid)
-          .eq('workout_title', workout.title)
-          .eq('status', 'in_progress')
-          .order('started_at', ascending: false)
-          .limit(1)
-          .maybeSingle();
-      if (existing != null) {
-        _sessionId = existing['id'] as String;
-        final savedElapsed = existing['elapsed_seconds'] as int?;
-        if (savedElapsed != null && mounted) {
-          setState(() => _elapsedSeconds = savedElapsed);
-        }
-        // Restore previously completed sets into active workout state
-        final logs = await _workoutService.getSessionCompletedSets(_sessionId!);
+      final before = await _sessions.activeSession(uid);
+      final session = await _sessions.startWorkout(userId: uid, workout: workout);
+      _sessionId = session.id;
+
+      final isResume = before != null && before.id == session.id;
+
+      // Bind the in-memory set state to this session — switching workouts
+      // clears it so the previous workout's sets can't leak into this one.
+      ref.read(activeWorkoutProvider.notifier).beginSession(session.id);
+
+      if (isResume) {
+        if (mounted) setState(() => _elapsedSeconds = session.elapsedSeconds);
+        final logs = await _workoutService.getSessionCompletedSets(session.id);
         if (mounted && logs.isNotEmpty) {
           ref.read(activeWorkoutProvider.notifier).restoreFromLogs(logs);
         }
       } else {
-        final row = await _db.from('workout_sessions').insert({
-          'user_id': uid,
-          'workout_title': workout.title,
-          'status': 'in_progress',
-          'started_at': DateTime.now().toIso8601String(),
-        }).select().single();
-        _sessionId = row['id'] as String;
         ScoreEngine().workoutStarted(workout.id); // +5
       }
+
+      // Every Resume surface reads activeSessionProvider — refresh it now that
+      // the active session has changed.
+      if (mounted) ref.invalidate(activeSessionProvider);
     } catch (_) {}
   }
 
@@ -225,13 +229,10 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     final workout = ref.read(selectedWorkoutProvider);
     final uid = _db.auth.currentUser?.id;
     if (workout == null || uid == null) return null;
-    final row = await _db.from('workout_sessions').insert({
-      'user_id': uid,
-      'workout_title': workout.title,
-      'status': 'in_progress',
-      'started_at': DateTime.now().toIso8601String(),
-    }).select().single();
-    _sessionId = row['id'] as String;
+    final session = await _sessions.startWorkout(userId: uid, workout: workout);
+    _sessionId = session.id;
+    ref.read(activeWorkoutProvider.notifier).beginSession(session.id);
+    if (mounted) ref.invalidate(activeSessionProvider);
     return _sessionId;
   }
 
@@ -305,11 +306,10 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   }
 
   Future<void> _saveElapsed() async {
-    if (_sessionId == null) return;
+    final sid = _sessionId;
+    if (sid == null) return;
     try {
-      await _db.from('workout_sessions').update({
-        'elapsed_seconds': _elapsedSeconds,
-      }).eq('id', _sessionId!);
+      await _sessions.saveElapsed(sid, _elapsedSeconds);
     } catch (_) {}
   }
 
@@ -348,19 +348,20 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
     if (_sessionId != null) {
       try {
-        await _db.from('workout_sessions').update({
-          'status': 'completed',
-          'completed_at': DateTime.now().toIso8601String(),
-          'duration_seconds': _elapsedSeconds,
-          'idle_seconds': _idleSeconds,
-          'calories_burned': log.caloriesBurned ?? 0,
-        }).eq('id', _sessionId!);
+        await _sessions.completeSession(
+              sessionId: _sessionId!,
+              durationSeconds: _elapsedSeconds,
+              idleSeconds: _idleSeconds,
+              caloriesBurned: log.caloriesBurned ?? 0,
+            );
       } catch (_) {}
     }
 
     await ScoreService().addWorkoutPoints();
     await ScoreEngine().workoutCompleted(workout.id);
     ref.read(activeWorkoutProvider.notifier).reset();
+    // The session is archived — stop offering it as resumable.
+    ref.invalidate(activeSessionProvider);
 
     if (mounted) {
       showDialog(

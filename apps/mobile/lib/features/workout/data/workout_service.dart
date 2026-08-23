@@ -4,7 +4,10 @@ import 'models/workout_model.dart';
 import 'models/workout_log_model.dart';
 
 class WorkoutService {
-  final _supabase = Supabase.instance.client;
+  // Resolved on use, not in the constructor: the sample workout/exercise
+  // catalogue below needs no client, so constructing the service must not
+  // require an initialised Supabase instance.
+  SupabaseClient get _supabase => Supabase.instance.client;
 
   String? get _uid => _supabase.auth.currentUser?.id;
 
@@ -135,21 +138,6 @@ class WorkoutService {
     } catch (_) {
       return {};
     }
-  }
-
-  Future<Map<String, dynamic>?> getActiveSession() async {
-    final uid = _uid;
-    if (uid == null) return null;
-    try {
-      return await _supabase
-          .from('workout_sessions')
-          .select()
-          .eq('user_id', uid)
-          .eq('status', 'in_progress')
-          .order('started_at', ascending: false)
-          .limit(1)
-          .maybeSingle();
-    } catch (_) { return null; }
   }
 
   // ── History ───────────────────────────────────────────────────────────────
