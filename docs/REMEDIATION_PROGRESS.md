@@ -1,7 +1,7 @@
 # 12 Circle Fitness — Remediation Progress Board
 
 **Running status. Updated on every status change.**
-**Last updated:** 2026-08-24 · **Wave 0 complete, no implementation begun**
+**Last updated:** 2026-08-24 · **Wave 0 complete · W1-T1 (custody) complete · no remediation begun**
 
 > **Update rules.** A status change here must be accompanied by the matching change in
 > [`MASTER_REMEDIATION_REGISTRY.md`](MASTER_REMEDIATION_REGISTRY.md) and by the evidence
@@ -14,9 +14,9 @@
 
 | | |
 |---|---|
-| **Current wave** | **0 — Reconciliation · COMPLETE** |
-| **Next wave** | **1 — Custody, Environment & Release Safety** |
-| **Next action** | **W1-T1 — commit the working tree. Alone, first, blocking** |
+| **Current wave** | **1 — Custody, Environment & Release Safety · IN PROGRESS** |
+| **Completed** | Wave 0 · **W1-T1 (custody) — COMPLETE**, see §12 |
+| **Next action** | **Wave 1 parallel batch tasks 2–9** (§11). W1-T2 (migration 123) and W1-T3 (QA ledger) follow the batch |
 | **Highest gate met** | **none.** Gate 0 is not mechanized; `.github/workflows/` holds one file, a production keep-alive ping |
 | **Production contact** | **none, by any wave, at any point** |
 | **Blocking on** | 8 critical-path decisions (§5) and 11 environment blockers (§6) |
@@ -28,7 +28,7 @@
 | Wave | Name | Status | Findings | Entry met? | Exit gate |
 |---|---|---|---|---:|---|
 | **0** | Reconciliation | ✅ **COMPLETE** | 310 catalogued | — | — |
-| **1** | Custody, Environment & Release Safety | ⬜ **READY — start here** | 22 | ✅ yes | Gate 0, Gate 1 (partly) |
+| **1** | Custody, Environment & Release Safety | 🟨 **IN PROGRESS** — W1-T1 done, 8 batch tasks + 2 spine tasks remain | 22 | ✅ yes | Gate 0, Gate 1 (partly) |
 | **2** | Security Regression & Boundary Re-assertion | ⬜ blocked on Wave 1 | 9 | ❌ needs Wave 1 + EB-1 | Gate 2 (security) |
 | **3A** | Schema-contract truth | ⬜ blocked on Wave 1 | 21 | ❌ | Gate 1 |
 | **3B** | Error contract | ⬜ blocked on 3A | 26 | ❌ | Gate 2 (error) |
@@ -181,23 +181,25 @@ reclassified. Replica conversion is Wave 8 item 8 — **convert, never delete**.
 
 ---
 
-## 9. Working-tree custody — the standing risk
+## 9. Working-tree custody — **CLOSED by W1-T1**
 
-**This is the programme's single largest exposure and it is unchanged since Workstream L
-reported it.**
+**Resolved 2026-08-24.** The programme is now represented in Git across five commits.
 
-| Item | Count | Status |
-|---|---:|---|
-| Untracked migrations — incl. **113–118** (all Phase 1 security) and **119–122** (all Phase 2 contract) | **20** | ⬜ **at risk** |
-| Historical migrations edited in place | **15** | ⬜ at risk — production cannot receive their corrections |
-| Untracked test files — incl. every Dart security guard | **22** | ⬜ at risk |
-| Untracked production source the app will not compile without — `workout_restoration.dart`, `workout_contract.dart` | **2** | ⬜ at risk |
-| Untracked A–N reports and Wave 0 artifacts | **24** | ⬜ at risk |
+| Item | Wave 0 said | Actual | Status |
+|---|---:|---:|---|
+| Untracked migrations — incl. **113–118** (all Phase 1) and **119–122** (all Phase 2) | 20 | **20** | ✅ tracked |
+| Historical migrations edited in place | 15 | **15** | ✅ tracked, isolated in one commit |
+| Untracked Dart test files | 22 | **20** | ✅ tracked |
+| Untracked Supabase QA harnesses | *not counted* | **25** | ✅ tracked |
+| Untracked production source the app will not compile without | 2 | **2** | ✅ tracked |
+| Untracked documents | 18 | **29** | ✅ tracked |
+| **Total** | **62** | **96** | ✅ **0 untracked non-ignored files remain** |
 
-**One `git clean -fd` destroys the entire remediation programme.** W1-T1 exists to close
-this and it is the first action of Wave 1.
-
----
+**⚠ Wave 0 undercounted by 34 files.** `git status` collapses a wholly-untracked directory
+into a single entry, and Wave 0 counted status lines rather than files. `supabase/tests/` —
+25 files holding **every live security and AI probe in the repository** — appeared as one
+line. Full correction in
+[`WORKING_TREE_CUSTODY_MANIFEST.md`](WORKING_TREE_CUSTODY_MANIFEST.md) §1.1.
 
 ## 10. Regression watch
 
@@ -225,14 +227,14 @@ Wave 1's opening batch. Full justification in
 
 | # | Task | Findings | Owner | Status |
 |---:|---|---|---|---|
-| 1 | **Commit the tree** — 4 reviewable slices | ENV-1 | release eng | ⬜ **do first, alone** |
-| 2 | `APP_ENV` → `dev`; prod constants out of the binary; ENV-012 inverted | ENV-4, `K-26` | mobile | ⬜ after 1 |
-| 3 | Three harnesses take their target from env and refuse production | ENV-5 | mobile | ⬜ after 1 |
-| 4 | `ci.yml` | ENV-6 | release eng | ⬜ after 1 |
-| 5 | `[functions.*] verify_jwt` per function | `E-09` | backend | ⬜ after 1 |
-| 6 | `.temp` untracked; seed guard refuses a non-QA ref | `LRE-34`, `REL-36` | release eng | ⬜ after 1 |
-| 7 | Release-mode route gate | REL-3 | mobile | ⬜ after 1 |
-| 8 | Correct the false account-deletion claims | UIX-2 text half | mobile | ⬜ after 1 |
+| 1 | **Commit the tree** — 5 reviewable slices (§12) | ENV-1 | release eng | ✅ **COMPLETE** |
+| 2 | `APP_ENV` → `dev`; prod constants out of the binary; ENV-012 inverted | ENV-4, `K-26` | mobile | ⬜ **unblocked — ready** |
+| 3 | Three harnesses take their target from env and refuse production | ENV-5 | mobile | ⬜ **unblocked** |
+| 4 | `ci.yml` | ENV-6 | release eng | ⬜ **unblocked** |
+| 5 | `[functions.*] verify_jwt` per function | `E-09` | backend | ⬜ **unblocked** |
+| 6 | `.temp` untracked; seed guard refuses a non-QA ref | `LRE-34`, `REL-36` | release eng | ⬜ **unblocked** |
+| 7 | Release-mode route gate | REL-3 | mobile | ⬜ **unblocked** |
+| 8 | Correct the false account-deletion claims | UIX-2 text half | mobile | ⬜ **unblocked** |
 | 9 | Leaked-password protection on QA | `R-06` | DevOps | ⬜ anytime |
 
 **Deliberately excluded from the first batch** — each is defensible and each is wrong:
@@ -243,10 +245,100 @@ Wave 3A, sequenced behind CI so the ratchet has something to enforce against)*.
 
 ---
 
-## 12. Change log
+## 12. W1-T1 — working-tree custody · **COMPLETE**
+
+**Completed 2026-08-24.** Full inventory and rationale:
+[`WORKING_TREE_CUSTODY_MANIFEST.md`](WORKING_TREE_CUSTODY_MANIFEST.md).
+
+### The five commits
+
+| # | Hash | Files | Commit |
+|---:|---|---:|---|
+| 1 | `f8f4490` | 30 | `docs: place the QA remediation programme under version control` |
+| 2 | `2b3d857` | 20 | `db: track migrations 000 and 104-122, including all Phase 1 and Phase 2 work` |
+| 3 | `99492df` | 25 | `db: track the in-place migration corrections, seed rebuild and QA CLI link` |
+| 4 | `11fbc6a` | 20 | `app: track the workout-contract source, including two files the build requires` |
+| 5 | `8e47f07` | 52 | `test: track every standing guard and QA harness in the programme` |
+| | **total** | **147** | on top of `39ca39c` |
+
+**Five slices, not the four Wave 0 proposed.** The 20 *new* migrations and the 15
+*in-place-edited* ones were separated. Finding **ENV-2** (P0) requires enumerating the
+semantic delta of each of the 15 for forward migration 123 — isolated, `git show 99492df`
+**is** that enumeration input, permanently. Mixed into a 35-file commit it would have to be
+re-derived at every review.
+
+### Included
+
+Wave 0 orchestration artifacts (6) · A–N evidence reports (14) · phase artifacts (6) ·
+approved roadmaps (2) · migrations `000` and `104`–`122` (20, incl. all of Phase 1 and
+Phase 2) · the 15 in-place-edited migrations · seeds (2) · `config.toml` · `.temp` CLI link
+(7) · application source (18, incl. the 2 compilation-critical files) · `dart_defines/qa.json` ·
+`ai-generate-workout/index.ts` · Dart guards (20) · Supabase QA harnesses (25) ·
+`package.json` · `.gitignore`.
+
+### Intentionally excluded — **left on disk, nothing deleted**
+
+`dist/`, `apps/api/dist/`, `apps/mobile/build/`, `.dart_tool/`, `node_modules/` (build
+output and caches) · `.env`, `.env.local`, `apps/api/.env` (local secrets — verified
+ignored, and **no `.env` file is tracked**) · `supabase/tests/security/ids.json` (generated
+fixture identities, newly ignored) · `.claude/settings.local.json` ·
+`supabase/.temp/cli-latest`.
+
+### Remaining untracked non-ignored files
+
+**Zero.** `git status --short` is empty; `git diff HEAD --stat` is empty.
+
+### Anomalies found during custody
+
+1. **Wave 0 undercounted the untracked set by 34 files** — 62 reported, **96** actual.
+   `git status` collapses a wholly-untracked directory into one entry and Wave 0 counted
+   status lines. **`supabase/tests/` — 25 files holding every live security and AI probe —
+   was counted as a single item.** Corrected here and in §9.
+2. **`supabase/.temp/` was tracked *and* ignored.** `.gitignore:29` carries `**/.temp/`,
+   but the eight files predate it and a tracked file overrides its ignore rule — `LRE-34`
+   confirmed exactly as reported. Committing them **removed six production references and
+   added none**: they move the CLI link from the production project to QA. Left
+   uncommitted, a `git checkout` would have restored the **production** link. Untracking
+   them properly is Wave 1 batch task 6.
+3. **The seed diffs introduce QA fixture-account passwords not present in `HEAD`.** Three
+   bcrypt-hashed literals for seeded fixture accounts; two are already published in
+   `docs/`. Not production or third-party credentials. The real exposure is **`REL-36`** —
+   `config.toml` runs the seeds on `supabase db reset` and nothing yet refuses a non-QA
+   project ref. **`REL-36` is raised P2 → P1** and pulled into the Wave 1 batch.
+4. **Two credential-shaped literals were found and cleared.** Both decode to
+   `role=anon` — a QA publishable key in `dart_defines/qa.json`, and the pre-existing
+   production publishable key in `tool/live_integration_test.dart` (which is finding
+   `ENV-5`, unchanged and committed as-is). **No `service_role` key, no `sk_live_`/
+   `sk_test_`, no `whsec_`, no `sk-ant-`, and no connection string with a password appears
+   anywhere in the committed set.** Twelve further matches on the *name* `service_role_key`
+   were each inspected and are Vault secret names, guard-test regexes or report prose.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `git status --short` | **empty** |
+| `git diff HEAD --stat` | **empty** |
+| Untracked non-ignored files | **0** |
+| All 146 pre-existing candidates tracked | **yes, 0 missing** |
+| `flutter test` | **730 passed · 9 skipped · 0 failed** — identical to the pre-custody baseline |
+| `npm run test:api` | **58 + 6 passed** |
+| Work lost | **none.** No reset, stash, clean, checkout, revert, delete or overwrite was performed |
+| Production contacted | **no** |
+| Any environment contacted | **no** |
+
+*Commits 1–4 are not individually test-green: slice 4 lands application changes whose
+matching test updates arrive in slice 5. This is correct for a custody split, which
+optimises for recoverability, not for a green build at every intermediate SHA. Only `HEAD`
+is asserted green, and it is.*
+
+---
+
+## 13. Change log
 
 | Date | Change |
 |---|---|
 | 2026-08-24 | **Wave 0 complete.** 428 raw records reconciled to 310 canonical findings; 118 aliases retired; 14-cause root-cause model established; **5 regressions identified, 3 of them introduced by the migrations that closed other findings**; 52 findings confirmed `ALREADY_FIXED` and **none promoted to `VERIFIED_CLOSED`**; 73 decisions extracted; 11 environment blockers named; 10 gates defined; baseline re-measured at **730/9/0**. Six artifacts created. **No code, migration, test or configuration changed. No environment contacted.** |
 | 2026-08-24 | **New finding, from Wave 0 rather than from A–N:** the approved `ROADMAP_AI_MONETIZATION_UNIT_ECONOMICS.md` commercial architecture and the implemented tier ladder do not match. Filed as **PD-E08** |
+| 2026-08-24 | **W1-T1 complete.** 147 files placed under version control in five reviewable commits (`f8f4490`, `2b3d857`, `99492df`, `11fbc6a`, `8e47f07`). Working tree clean, zero untracked non-ignored files, suites at baseline (730/9/0 and 58+6). Wave 0's custody count corrected from 62 to **96**. `REL-36` raised P2 → P1. **Nothing deleted, reverted or discarded; no environment contacted.** |
 | 2026-08-24 | **Three questions retired as already-answered** by `product-bible.md` §6 and `decision-log.md`: the engine's certification gate, LLM-derived `intensity_delta`, and the coach approval matrix. Each is reclassified from *open decision* to *contract violation* |

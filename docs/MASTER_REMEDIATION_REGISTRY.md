@@ -52,7 +52,7 @@ they gate the whole plan and the tree has moved under several workstreams.
 | `build_workout` throws whenever recovery < 60 | F-J-07 | **CONFIRMED** — `089:51` declares `rules text[]`; `089:55` appends the untyped literal `'RECOVERY_REDUCTION'` |
 | Workout completion swallows persistence and celebrates anyway | EC-05 / N-07 | **CONFIRMED** — `active_workout_screen.dart:608` awaits `logWorkout` unguarded, `:611-619` wraps `completeSession` in `catch (_) {}` |
 | `public.checkins` is created by no migration | CON-01 / I-CHK-01 / E-CHK-01 / M-02 | **CONFIRMED** — only `weekly_checkins` exists (`000:146`); `checkin_service.dart` and `coach_dashboard_screen.dart` both read `checkins` |
-| Every A–N report is itself untracked | new | **CONFIRMED** — all 18 `docs/` reports are `??` |
+| Every A–N report is itself untracked | new | **CONFIRMED, and undercounted** — `docs/` held **29** untracked files, not 18. W1-T1 established that the whole untracked set is **96 files, not 62**: `git status` collapses a wholly-untracked directory into one entry, so `supabase/tests/` (25 files, every live security and AI probe) counted as a single item. All 96 are now tracked |
 | Schema-contract guard exists and is wired | I | **CONFIRMED** — `npm run test:contract`, `supabase/tests/contract/known-violations.json` carries 2 relations + 8 columns |
 | Live security / AI suites exist and are unwired | Phase 1, J, N | **CONFIRMED** — `supabase/tests/security/` (6 suites), `supabase/tests/ai/` (5 suites); neither runs in CI |
 | Current mobile baseline | N (699) | **RE-MEASURED: 730 passed, 9 skipped, 0 failed** — the tree moved again after N |
@@ -411,7 +411,7 @@ programme brief. **These are the findings that gate the plan.**
 ---
 
 ### ENV-1 · The entire remediation programme is untracked
-`LRE-03` · **P0** · `READY_TO_REMEDIATE` · Wave 1 · **do this first**
+`LRE-03` · **P0** · ✅ `REMEDIATED` 2026-08-24 (W1-T1) · Wave 1
 
 | Field | Value |
 |---|---|
@@ -425,7 +425,8 @@ programme brief. **These are the findings that gate the plan.**
 | **Dependencies** | **Hard prerequisite for every other task in the programme.** Several Wave 1 tasks edit files that are currently modified-but-uncommitted; without a clean base they cannot be reviewed or reverted independently |
 | **Decision** | none |
 | **Remediation** | Commit in reviewable slices: (1) migrations 000+104–122, (2) test files, (3) the two `lib/` files, (4) docs. Nothing is deleted; nothing is squashed |
-| **Parallel** | **NO — sequential, and it goes first, alone** |
+| **Parallel** | **NO — sequential, and it went first, alone** |
+| **Closure evidence** | **FIXED IN CODE.** 147 files in five commits — `f8f4490`, `2b3d857`, `99492df`, `11fbc6a`, `8e47f07`. Working tree clean; 0 untracked non-ignored files; suites at baseline (730/9/0, 58+6). Full record: [`WORKING_TREE_CUSTODY_MANIFEST.md`](WORKING_TREE_CUSTODY_MANIFEST.md) and progress board §12. **Not `VERIFIED_CLOSED`** — its guard (Gate 0 row 0.7, `git status --porcelain supabase/migrations` empty in CI) does not exist until ENV-6 lands |
 | **Owner** | release engineering |
 | **Tests** | `git status --porcelain supabase/migrations` is empty, asserted in CI |
 | **Live QA** | n/a |
@@ -994,7 +995,7 @@ parallel · wave · gate. P2/P3 rows carry: ID · root cause · statement · wav
 | `REL-30` | — | P1 | CRC-08 | API verifies Supabase tokens with a shared HS256 secret; Supabase is migrating to asymmetric JWKS. This path breaks on that migration and cannot be rotated without redeploying | LRE-06 | D-2 | N | 8 |
 | `REL-29` | — | P1 | CRC-11 | A second, parallel auth stack ships alongside the Supabase one — `firebase-admin`, `passport-jwt`, `bcryptjs`, `auth.controller`, `users.controller`. Unused authentication is unmaintained attack surface | — | **D-2** | Y | 8 |
 | `REL-28` | — | P1 | CRC-07 | API: `enableCors({origin:true})` when `CORS_ORIGINS` is unset; no helmet, no rate limiting on a route that spends Anthropic credits; 12 MB body limit; `ValidationPipe` per-controller not global | LRE-06 | no | Y | 8 |
-| `REL-36` | — | P2 | CRC-13 | Seed files with published test passwords run on `supabase db reset`; add a guard refusing to seed a non-QA ref | — | no | Y | 1 |
+| `REL-36` | — | **P1** *(raised from P2 by W1-T1)* | CRC-13 | Seed files with published test passwords run on `supabase db reset`; add a guard refusing to seed a non-QA ref. **Raised because W1-T1 committed three bcrypt-hashed QA fixture passwords that were not previously in git history — the seed-target guard is now the only remaining control** | — | no | Y | 1 |
 | `K-28` | REL-35 | P3 | CRC-07 | `Access-Control-Allow-Origin: '*'` on all five billing functions | — | no | Y | 6 |
 | `E-07` | K-21 | P2 | CRC-08 | Caller-controlled `successUrl`/`cancelUrl`/`returnUrl` handed straight to Stripe — an open redirect with a trusted intermediary, with `{CHECKOUT_SESSION_ID}` appended to the attacker's URL | — | **D-6(D)** | Y | 6 |
 | `E-06` | — | P2 | CRC-13 | Production URLs are the hardcoded default in four Edge Functions. A QA invite links a real recipient into **production signup** with a QA token. The SQL layer removed exactly this class deliberately; the function layer never did | — | no | Y | 5 |
