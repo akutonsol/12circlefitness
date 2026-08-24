@@ -85,11 +85,15 @@ final postNotifierProvider = StateNotifierProvider<PostNotifier, AsyncValue<List
 final liveMembersProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   try {
     final db = Supabase.instance.client;
+    // public_profiles, not user_profiles: migration 102 restricts the base table
+    // to the owner and their coach, and member discovery needs nothing beyond a
+    // display name. Demo fixtures are excluded via the explicit is_demo flag
+    // (migration 110) — email is never selected or filtered on, and is not in
+    // the view at all.
     final data = await db
-        .from('user_profiles')
-        .select('id, first_name, last_name, role, avatar_url, created_at, email')
-        // Exclude the seeded demo marketplace coaches (sarah@marketplace.test …).
-        .not('email', 'like', '%@marketplace.test')
+        .from('public_profiles')
+        .select('id, first_name, last_name, role, avatar_url, created_at')
+        .eq('is_demo', false)
         .order('created_at', ascending: false)
         .limit(100);
     return List<Map<String, dynamic>>.from(data as List);

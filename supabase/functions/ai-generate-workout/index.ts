@@ -26,6 +26,11 @@ Rules:
   means push harder.
 - Pick 4-7 exercises, ordered big→small. Use supersets where sensible (same
   superset_group letter, e.g. "A"). Prescribe realistic sets/reps/rest/tempo.
+- "sets" and "reps" MUST be whole numbers. Never a range ("8-12"), never a
+  string, never text. If you would write a range, pick the single number you
+  actually mean.
+- Do NOT prescribe a load. Weight is the deterministic engine's decision, not
+  yours.
 
 Respond with ONLY JSON — no prose, no fences:
 {
@@ -104,15 +109,59 @@ Deno.serve(async (req: Request) => {
     let out: Record<string, unknown>;
     try { out = JSON.parse(text); } catch { return json({ error: 'Could not read AI result', raw: text }, 502); }
 
-    // Normalize superset flags for the app's program_workout exercise shape.
-    const exercises = ((out.exercises as Db[]) ?? []).map((e) => ({
-      name: e.name, sets: e.sets ?? 3, reps: e.reps ?? 10, rest_seconds: e.rest_seconds ?? 90,
-      tempo: e.tempo ?? null, notes: e.notes ?? null,
-      superset_group: e.superset_group && e.superset_group !== 'null' ? e.superset_group : null,
-      is_superset: !!(e.superset_group && e.superset_group !== 'null'),
-    }));
+    // ── Canonical contract (docs/WORKOUT_DOMAIN_CONTRACT.md §3) ──────────────
+    //
+    // The model's output is untrusted text, so it is validated here rather than
+    // passed through. Previously `e.reps ?? 10` preserved whatever the model
+    // emitted — a string, a range — and the client's codec then failed on the
+    // whole workout. A model that cannot produce whole numbers is a failure to
+    // report, not a workout to half-build.
+    //
+    // Load is deliberately absent: AI explains, the engine decides. `weight_kg`
+    // is written as null, which the client renders as no prescribed load.
+    const whole = (v: unknown): number | null => {
+      if (typeof v === 'number' && Number.isInteger(v)) return v;
+      if (typeof v === 'string' && /^\d+$/.test(v.trim())) return parseInt(v.trim(), 10);
+      return null;
+    };
+    const rejected: string[] = [];
+    const exercises = ((out.exercises as Db[]) ?? []).flatMap((e, i) => {
+      const name = typeof e.name === 'string' ? e.name.trim() : '';
+      const sets = whole(e.sets);
+      const reps = whole(e.reps);
+      if (!name || sets === null || sets < 1 || reps === null || reps < 0) {
+        rejected.push(`#${i} ${name || '(unnamed)'}: sets=${JSON.stringify(e.sets)} reps=${JSON.stringify(e.reps)}`);
+        return [];
+      }
+      const group = e.superset_group && e.superset_group !== 'null' ? e.superset_group : null;
+      return [{
+        exercise_instance_id: `ai-${crypto.randomUUID()}`,
+        name, position: i, sets, reps,
+        weight_kg: null,
+        rest_seconds: whole(e.rest_seconds),
+        rpe: null,
+        tempo: typeof e.tempo === 'string' && e.tempo.trim() ? e.tempo.trim() : null,
+        duration_seconds: null,
+        notes: typeof e.notes === 'string' && e.notes.trim() ? e.notes.trim() : null,
+        superset_group: group,
+        is_superset: !!group,
+      }];
+    });
 
-    return json({ workout: { title: out.title ?? 'AI Workout', estimated_minutes: out.estimated_minutes ?? ctx.duration_minutes, exercises } });
+    if (exercises.length === 0) {
+      console.error('ai-generate-workout: no exercise satisfied the contract', rejected);
+      return json({ error: 'The generated workout was not usable', rejected }, 502);
+    }
+    if (rejected.length) console.warn('ai-generate-workout: dropped out-of-contract exercises', rejected);
+
+    return json({
+      workout: {
+        title: out.title ?? 'AI Workout',
+        estimated_minutes: whole(out.estimated_minutes) ?? ctx.duration_minutes,
+        contract_version: 2,
+        exercises,
+      },
+    });
   } catch (e) {
     console.error('ai-generate-workout error:', e);
     return json({ error: String(e) }, 500);

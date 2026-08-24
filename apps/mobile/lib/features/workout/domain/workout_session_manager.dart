@@ -107,6 +107,26 @@ class WorkoutSessionManager {
   Future<void> saveElapsed(String sessionId, int elapsedSeconds) =>
       _store.saveElapsed(sessionId, elapsedSeconds);
 
+  /// Records the client's warm-up answer against the session, so restoring the
+  /// session restores the answer with it.
+  Future<void> acknowledgeWarmup(String sessionId) =>
+      _store.acknowledgeWarmup(sessionId);
+
+  /// Re-snapshots [workout] onto [sessionId] after the client changes it
+  /// mid-session, keeping the stored definition and the running workout the
+  /// same shape.
+  Future<void> saveSnapshot(String sessionId, Workout workout) =>
+      _store.saveSnapshot(sessionId, workoutToSnapshot(workout));
+
+  /// Records the exercise and set the client is currently on, by identity, so
+  /// a refresh restores the position instead of re-deriving one.
+  Future<void> saveCursor({
+    required String sessionId,
+    required String exerciseId,
+    required String setId,
+  }) =>
+      _store.saveCursor(sessionId, exerciseId, setId);
+
   /// Identity is the workout id; the title is only a fallback for sessions
   /// written before ids were persisted. Matching on title alone is what let an
   /// unrelated session be mistaken for the selected workout.

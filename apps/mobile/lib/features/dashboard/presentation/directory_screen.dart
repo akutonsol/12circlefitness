@@ -427,11 +427,14 @@ class _FeaturedCard extends ConsumerWidget {
     var totalSetsInProgress = 0;
     var completedCount = 0;
     for (final w in workouts) {
-      final st = statusMap[w.title]?['status'] as String?;
+      // By identity — two days of a generated program can share a title, and a
+      // title-keyed lookup marked both of them as the one in progress.
+      final entry = sessionStatusFor(statusMap, w);
+      final st = entry?['status'] as String?;
       if (st == 'completed') completedCount++;
       if (st == 'in_progress' && inProgress == null) {
         inProgress = w;
-        loggedSets = (statusMap[w.title]?['logged_sets'] as int?) ?? 0;
+        loggedSets = (entry?['logged_sets'] as int?) ?? 0;
         totalSetsInProgress = w.exercises.fold<int>(0, (s, e) => s + e.sets.length);
       }
     }

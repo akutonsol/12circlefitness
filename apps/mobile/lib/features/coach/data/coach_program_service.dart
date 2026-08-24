@@ -29,14 +29,17 @@ class CoachProgramService {
   }
 
   /// Materialize one week's workouts by reusing build_workout per session.
+  ///
+  /// **Errors propagate.** This used to swallow every failure into `null`, and
+  /// the engine's own failure mode was worse than silent: an empty selection
+  /// was written as a workout with no exercises and reported as a successful
+  /// materialization. Migration 119 makes an empty selection raise; swallowing
+  /// that here would put the silence straight back.
   Future<Map<String, dynamic>?> materializeWeek(
       String programId, int week, Map<String, dynamic> context) async {
-    try {
-      final res = await _db.rpc('materialize_program_week',
-          params: {'p_program_id': programId, 'p_week': week, 'p_context': context});
-      if (res is Map) return res.cast<String, dynamic>();
-      return null;
-    } catch (_) { return null; }
+    final res = await _db.rpc('materialize_program_week',
+        params: {'p_program_id': programId, 'p_week': week, 'p_context': context});
+    return res is Map ? res.cast<String, dynamic>() : null;
   }
 
   // ── Coaching Communication Engine ────────────────────────

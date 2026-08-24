@@ -18,6 +18,7 @@ class _C {
   static const outlineVar          = Color(0xFF4B444F);
   static const tertiary            = Color(0xFF6FFBBE);
   static const amber               = Color(0xFFFFD580);
+  static const error               = Color(0xFFEF4444);
 }
 
 // ── Static sample items (browse section) ─────────────────────────────────────
@@ -130,15 +131,23 @@ class _WorkoutListScreenState extends ConsumerState<WorkoutListScreen> {
   bool _generatingAi = false;
   Future<void> _generateAiWorkout() async {
     setState(() => _generatingAi = true);
-    final workout = await generateAiWorkout();
+    Workout? workout;
+    Object? failure;
+    try {
+      workout = await generateAiWorkout();
+    } catch (e) {
+      failure = e;
+    }
     if (!mounted) return;
     setState(() => _generatingAi = false);
     if (workout != null) {
       _startWorkout(workout);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not generate a workout. Try again.')));
+      return;
     }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(failure == null
+          ? 'The generator had nothing to suggest right now.'
+          : 'Could not generate a workout: $failure')));
   }
 
   @override
@@ -239,7 +248,13 @@ class _WorkoutListScreenState extends ConsumerState<WorkoutListScreen> {
                   loading: () => const Padding(
                     padding: EdgeInsets.only(bottom: 24),
                     child: _AssignedLoadingCard()),
-                  error: (_, __) => const SizedBox.shrink(),
+                  // Named, with a retry. Rendering nothing here is what turned
+                  // "your program could not be read" into "you have no
+                  // program" — the client then reasonably concludes their coach
+                  // never assigned one.
+                  error: (e, __) => _AssignedErrorCard(
+                      error: e,
+                      onRetry: () => ref.invalidate(assignedWorkoutsProvider)),
                   data: (workouts) => workouts.isEmpty
                       ? const SizedBox.shrink()
                       : _AssignedProgramSection(
@@ -394,7 +409,7 @@ class _AssignedWorkoutCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statusMap = ref.watch(programSessionStatusProvider).valueOrNull ?? const {};
-    final s = statusMap[workout.title];
+    final s = sessionStatusFor(statusMap, workout);
     final status = s?['status'] as String?;
     final inProgress = status == 'in_progress';
     final completed = status == 'completed';
@@ -660,4 +675,45 @@ class _CoachAdjustmentBanner extends StatelessWidget {
       Icon(icon, color: color, size: 13), const SizedBox(width: 5),
       Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
     ]));
+}
+
+/// The assigned program could not be read.
+///
+/// Distinct from having no program: the request or the decode failed, the
+/// program is still there, and the client is offered a retry rather than a
+/// silent absence.
+class _AssignedErrorCard extends StatelessWidget {
+  final Object error;
+  final VoidCallback onRetry;
+  const _AssignedErrorCard({required this.error, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _C.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _C.error.withValues(alpha: 0.4))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.error_outline_rounded, color: _C.error, size: 18),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text('Your program could not be loaded',
+              style: TextStyle(color: _C.onSurface, fontSize: 14,
+                fontWeight: FontWeight.w700))),
+        ]),
+        const SizedBox(height: 6),
+        Text('$error',
+          style: TextStyle(color: _C.onSurfaceVar.withValues(alpha: 0.8),
+            fontSize: 12)),
+        const SizedBox(height: 10),
+        TextButton(
+          onPressed: onRetry,
+          child: const Text('Try again',
+            style: TextStyle(color: _C.primary, fontWeight: FontWeight.w700))),
+      ]));
+  }
 }

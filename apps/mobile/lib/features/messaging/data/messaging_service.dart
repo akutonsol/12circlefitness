@@ -8,7 +8,13 @@ class MessagingService {
   // Table schema: id, participant_1, participant_2, last_message, last_message_at
 
   /// Returns all conversations for the current user, each enriched with the
-  /// other participant's profile from user_profiles.
+  /// other participant's display profile.
+  ///
+  /// Reads conversation_participant_profiles, NOT user_profiles: migration 102
+  /// restricts the base table to the owner and their coach, and messaging has
+  /// no business seeing a partner's contact, medical or billing columns. The
+  /// view is row-scoped by shares_conversation_with(), so an id smuggled into
+  /// `otherIds` that the caller shares no conversation with returns nothing.
   Future<List<Map<String, dynamic>>> getConversations() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return [];
@@ -28,7 +34,7 @@ class MessagingService {
       ).toSet().toList();
 
       final profiles = await supabase
-          .from('user_profiles')
+          .from('conversation_participant_profiles')
           .select('id, first_name, last_name, role, avatar_url')
           .inFilter('id', otherIds);
 
