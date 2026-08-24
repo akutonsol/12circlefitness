@@ -1,1 +1,14 @@
-project_id = "nxdbooufqzkpslkcogxc"
+project_id = "eyqtldjqpgpljlqvpowh"
+
+# Seed files applied after a `supabase db reset`.
+#
+# Listed EXPLICITLY rather than globbed: order matters and a glob would sort
+# full_test_data.sql before test_accounts.sql, which breaks the fixtures --
+# full_test_data.sql builds on the coach/client that test_accounts.sql creates.
+#
+# Declaring them here makes the rebuild one reproducible CLI operation instead of
+# two out-of-band psql invocations, so a QA rebuild is `supabase db reset
+# --linked` and nothing else.
+[db.seed]
+enabled = true
+sql_paths = ["./seeds/test_accounts.sql", "./seeds/full_test_data.sql"]
