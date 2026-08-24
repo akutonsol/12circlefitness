@@ -1,0 +1,220 @@
+// Phase 1D — SECURITY DEFINER RPC execution security.
+//
+// Before migration 116, 98 of 100 public functions were executable by `anon` and
+// 73 SECURITY DEFINER functions had no pinned search_path. The subject-scoped
+// intelligence functions trusted a caller-supplied UUID outright, so any caller
+// could read a stranger's engine picture and write provenance against them.
+//
+// This suite asserts the posture, the per-function guards, and — just as
+// important — that the deterministic engine and every real app call still work.
+import { rest, rpc, svc, signIn, check, section, summary, n, loadIds } from './lib.mjs';
+
+const ids = await loadIds();
+const REL = 'coach_client_relationships';
+const now = () => new Date().toISOString();
+
+const attacker = await signIn('attacker');
+const coach    = await signIn('coach');
+const victim   = await signIn('victim');
+const admin    = await signIn('admin');
+
+const clearRel = () => svc(`${REL}?client_id=eq.${ids.victim}`, { method: 'DELETE' });
+const linkCoach = () => svc(REL, { method: 'POST', body: { coach_id: ids.coach,
+  client_id: ids.victim, status: 'active', initiated_by: 'client', activated_at: now() } });
+await clearRel();
+
+// A denial is 401/403, or the PostgREST "function not found" 404 you get when
+// the caller has no EXECUTE and therefore cannot see the function at all.
+const denied = (r) => r.status === 401 || r.status === 403 || r.status === 404;
+
+// ═══ 1. posture ════════════════════════════════════════════════════════════
+section('1. Schema-wide function posture');
+{
+  // Sampled through the API surface rather than the catalog: this is what an
+  // attacker can actually reach.
+  const probes = ['insert_notification', 'ai_adjust_nutrition', 'mie_upsert_node',
+                  'rebuild_movement_graph', 'generate_workout', 'predict_client',
+                  'marketplace_coaches', 'admin_recent_users'];
+  for (const fn of probes) {
+    const r = await rpc('anon', fn, {});
+    check(`anon cannot execute ${fn}()`, denied(r), `status=${r.status}`);
+  }
+}
+
+// ═══ 2. internal / engine-only functions ═══════════════════════════════════
+section('2. Engine-only functions are unreachable by a signed-in client');
+{
+  const cases = [
+    ['insert_notification', { p_recipient_id: ids.victim, p_type: 'phish',
+      p_title: 'Your account needs attention', p_body: 'tap here', p_data: {} }],
+    ['ai_adjust_nutrition', { p_uid: ids.victim }],
+    ['ai_detect_patterns',  { p_uid: ids.victim }],
+    ['ai_cron_generate',    { p_type: 'daily_insight' }],
+    ['ai_cron_accountability', {}],
+    ['mie_upsert_node', { p_type: 'muscle', p_name: 'P1-FORGED', p_ref: null }],
+    ['mie_upsert_edge', { p_from: ids.victim, p_to: ids.victim, p_rel: 'x',
+                          p_conf: 100, p_reason: 'p1', p_source: 'p1' }],
+    ['recalc_coach_rating', { p_coach_id: ids.coach }],
+    ['seed_exercise', { p: {}, p_coach_id: ids.coach }],
+    ['snapshot_exercise_content', { p_id: ids.victim, p_source: 'p1',
+                                    p_confidence: 1, p_actor: ids.attacker }],
+    ['predict_client_engine', { p_subject: ids.victim, p_program: null }],
+    ['evaluate_week_engine',  { p_program_id: ids.victim, p_week: 1 }],
+  ];
+  for (const [fn, args] of cases) {
+    const r = await rpc(attacker, fn, args);
+    check(`authenticated client cannot execute ${fn}()`, denied(r), `status=${r.status}`);
+  }
+
+  const notifs = await svc(`notifications?recipient_id=eq.${ids.victim}&type=eq.phish&select=id`);
+  check('no forged notification landed', n(notifs.body) === 0, `rows=${n(notifs.body)}`);
+}
+
+// ═══ 3. arbitrary subject UUID ═════════════════════════════════════════════
+section('3. Subject-scoped RPCs reject an arbitrary subject');
+{
+  const traceBefore = await svc(`decision_traces?subject_id=eq.${ids.victim}&select=id`);
+
+  const gen = await rpc(attacker, 'generate_workout',
+    { p_context: { size: 3 }, p_subject: ids.victim });
+  check('attacker cannot generate_workout for another subject', denied(gen) || gen.status >= 400,
+        `status=${gen.status} ${JSON.stringify(gen.body || '').slice(0, 90)}`);
+
+  const traceAfter = await svc(`decision_traces?subject_id=eq.${ids.victim}&select=id`);
+  check('no decision trace was forged against the victim',
+        n(traceAfter.body) === n(traceBefore.body),
+        `before=${n(traceBefore.body)} after=${n(traceAfter.body)}`);
+
+  const pred = await rpc(attacker, 'predict_client', { p_subject: ids.victim });
+  check('attacker cannot predict_client on another subject', pred.status >= 400,
+        `status=${pred.status} ${JSON.stringify(pred.body || '').slice(0, 90)}`);
+
+  const rec = await rpc(attacker, 'record_prediction', { p_subject: ids.victim });
+  check('attacker cannot record_prediction against another subject', rec.status >= 400,
+        `status=${rec.status}`);
+
+  const asm = await rpc(attacker, 'assemble_weekly_review',
+    { p_subject: ids.victim, p_program: null, p_week: 1 });
+  check('attacker cannot assemble_weekly_review for another subject', asm.status >= 400,
+        `status=${asm.status}`);
+
+  const cwr = await rpc(attacker, 'create_weekly_review',
+    { p_subject: ids.victim, p_program: null, p_week: 1 });
+  check('attacker cannot create_weekly_review against another subject', cwr.status >= 400,
+        `status=${cwr.status}`);
+  const comms = await svc(`communications?subject_id=eq.${ids.victim}&select=id`);
+  check('no communication was drafted against the victim', n(comms.body) === 0,
+        `rows=${n(comms.body)}`);
+
+  const media = await rpc(attacker, 'resolve_exercise_media',
+    { p_exercise_id: '00000000-0000-0000-0000-000000000000', p_viewer_id: ids.victim });
+  check('attacker cannot resolve another user\'s coach media', media.status >= 400,
+        `status=${media.status} ${JSON.stringify(media.body || '').slice(0, 90)}`);
+}
+
+// ═══ 4. own-subject and coach-authorized paths still work ══════════════════
+section('4. Legitimate subject-scoped use');
+{
+  const own = await rpc(victim, 'generate_workout', { p_context: { size: 3 }, p_subject: ids.victim });
+  check('a member can generate_workout for themselves', own.status < 300,
+        `status=${own.status} ${JSON.stringify(own.body || '').slice(0, 80)}`);
+
+  const implicit = await rpc(victim, 'generate_workout', { p_context: { size: 3 } });
+  check('generate_workout with no subject defaults to the caller', implicit.status < 300,
+        `status=${implicit.status}`);
+
+  const trace = await svc(`decision_traces?subject_id=eq.${ids.victim}&select=created_by&limit=1`);
+  check('the trace is attributed to the caller', trace.body?.[0]?.created_by === ids.victim,
+        JSON.stringify(trace.body?.[0] || {}));
+
+  const noCoach = await rpc(coach, 'predict_client', { p_subject: ids.victim });
+  check('a coach with no relationship is refused', noCoach.status >= 400, `status=${noCoach.status}`);
+
+  await linkCoach();
+  const withCoach = await rpc(coach, 'predict_client', { p_subject: ids.victim });
+  check('an ACTIVE coach can predict_client for their client', withCoach.status < 300,
+        `status=${withCoach.status} ${JSON.stringify(withCoach.body || '').slice(0, 80)}`);
+
+  const selfPred = await rpc(victim, 'predict_client', { p_subject: ids.victim });
+  check('a member can predict_client on themselves', selfPred.status < 300, `status=${selfPred.status}`);
+
+  const adminPred = await rpc(admin, 'predict_client', { p_subject: ids.victim });
+  check('an admin can predict_client on anyone', adminPred.status < 300, `status=${adminPred.status}`);
+
+  await clearRel();
+  const revoked = await rpc(coach, 'predict_client', { p_subject: ids.victim });
+  check('ending the relationship revokes RPC access too', revoked.status >= 400, `status=${revoked.status}`);
+}
+
+// ═══ 5. deterministic engine still executes ════════════════════════════════
+section('5. The deterministic engine is intact');
+{
+  const build = await rpc(victim, 'build_workout', { p_context: { size: 4, focus: 'push' } });
+  check('build_workout still runs for a member', build.status < 300,
+        `status=${build.status} ${JSON.stringify(build.body || '').slice(0, 70)}`);
+
+  const rank = await rpc(victim, 'rank_exercises', { p_context: { focus: 'push' }, p_limit: 5 });
+  check('rank_exercises still runs', rank.status < 300, `status=${rank.status}`);
+
+  const warm = await rpc(victim, 'generate_warmup', { p_exercise_ids: [] });
+  check('generate_warmup still runs', warm.status < 300, `status=${warm.status}`);
+
+  const plan = await rpc(victim, 'client_plan', {});
+  check('client_plan still runs', plan.status < 300, `status=${plan.status}`);
+
+  const mk = await rpc(victim, 'marketplace_coaches', {});
+  check('marketplace_coaches still runs', mk.status < 300 && Array.isArray(mk.body),
+        `status=${mk.status} rows=${n(mk.body)}`);
+
+  // service_role is the engine's own identity and must retain everything.
+  for (const fn of ['ai_detect_patterns', 'insert_notification', 'mie_upsert_node',
+                    'predict_client_engine']) {
+    const r = await rpc('service', fn, fn === 'insert_notification'
+      ? { p_recipient_id: ids.victim, p_type: 'p1_engine_probe', p_title: 'p1', p_body: 'p1', p_data: {} }
+      : fn === 'mie_upsert_node' ? { p_type: 'muscle', p_name: 'P1-ENGINE-PROBE', p_ref: null }
+      : fn === 'predict_client_engine' ? { p_subject: ids.victim, p_program: null }
+      : { p_uid: ids.victim });
+    check(`service_role can still execute ${fn}()`, r.status < 300, `status=${r.status}`);
+  }
+  await svc(`notifications?type=eq.p1_engine_probe`, { method: 'DELETE' });
+  await svc(`movement_nodes?name=eq.P1-ENGINE-PROBE`, { method: 'DELETE' });
+}
+
+// ═══ 6. RLS still evaluates its predicates ═════════════════════════════════
+section('6. RLS predicates survived the schema-wide revoke');
+{
+  // If EXECUTE on is_active_coach_of() had been revoked, every coach-read policy
+  // would fail closed and the coach dashboard would silently show nothing.
+  await linkCoach();
+  const health = await rest(coach, `weight_logs?user_id=eq.${ids.victim}&select=id`);
+  check('coach-read policies still evaluate (is_active_coach_of executable)',
+        health.status < 300 && n(health.body) >= 1, `status=${health.status} rows=${n(health.body)}`);
+
+  const prof = await rest(coach, `user_profiles?id=eq.${ids.victim}&select=id`);
+  check('user_profiles coach-read policy still evaluates', n(prof.body) === 1, `rows=${n(prof.body)}`);
+
+  const conv = await rest(victim, 'conversation_participant_profiles?select=id&limit=1');
+  check('conversation_participant_profiles view still readable', conv.status < 300, `status=${conv.status}`);
+
+  const ex = await rest(victim, 'exercises?select=id&limit=1');
+  check('exercise_readable() policy still evaluates', ex.status < 300, `status=${ex.status}`);
+  await clearRel();
+}
+
+// ═══ 7. admin / content-editor gating ══════════════════════════════════════
+section('7. Admin and content-editor RPCs');
+{
+  for (const [fn, args] of [['admin_recent_users', { p_limit: 5 }],
+                            ['admin_platform_stats', {}],
+                            ['intelligence_review_queue', { p_limit: 5 }]]) {
+    const bad = await rpc(attacker, fn, args);
+    const leaked = bad.status < 300 && (Array.isArray(bad.body) ? bad.body.length > 0
+                                        : bad.body && Object.keys(bad.body).length > 0);
+    check(`a client cannot use ${fn}()`, !leaked, `status=${bad.status}`);
+  }
+  const ok = await rpc(admin, 'admin_recent_users', { p_limit: 5 });
+  check('an admin still can', ok.status < 300 && n(ok.body) > 0, `status=${ok.status} rows=${n(ok.body)}`);
+}
+
+await clearRel();
+export default summary('Phase 1D RPC execution security');

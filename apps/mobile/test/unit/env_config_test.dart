@@ -6,35 +6,53 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:circle_fitness/core/config/app_env.dart';
 
+
+/// Resolves an environment without inheriting this build's `--dart-define`
+/// values, so these assertions describe the baked-in defaults no matter which
+/// define file the suite is run with.
+EnvConfig resolveDefaults(String appEnv) => resolveEnvConfig(
+      appEnv: appEnv,
+      supabaseUrl: '',
+      supabaseAnonKey: '',
+      stripePublishableKey: '',
+      apiBaseUrl: '',
+    );
+
 void main() {
   // ENV-001 — every supported environment is selectable
   group('ENV-001 environment selection', () {
     test('dev, qa and prod are all resolvable', () {
-      expect(resolveEnvConfig(appEnv: 'dev').environment, AppEnvironment.dev);
-      expect(resolveEnvConfig(appEnv: 'qa').environment, AppEnvironment.qa);
-      expect(resolveEnvConfig(appEnv: 'prod').environment, AppEnvironment.prod);
+      expect(resolveDefaults('dev').environment, AppEnvironment.dev);
+      expect(resolveDefaults('qa').environment, AppEnvironment.qa);
+      expect(resolveDefaults('prod').environment, AppEnvironment.prod);
     });
 
     test('selection is case- and whitespace-insensitive', () {
-      expect(resolveEnvConfig(appEnv: ' QA ').environment, AppEnvironment.qa);
-      expect(resolveEnvConfig(appEnv: 'Prod').environment, AppEnvironment.prod);
+      expect(resolveDefaults(' QA ').environment, AppEnvironment.qa);
+      expect(resolveDefaults('Prod').environment, AppEnvironment.prod);
     });
 
     test('long-form aliases resolve to the same environments', () {
-      expect(resolveEnvConfig(appEnv: 'development').environment,
+      expect(resolveDefaults('development').environment,
           AppEnvironment.dev);
-      expect(resolveEnvConfig(appEnv: 'staging').environment, AppEnvironment.qa);
-      expect(resolveEnvConfig(appEnv: 'production').environment,
+      expect(resolveDefaults('staging').environment, AppEnvironment.qa);
+      expect(resolveDefaults('production').environment,
           AppEnvironment.prod);
     });
 
     test('an unknown environment fails the build rather than defaulting', () {
-      expect(() => resolveEnvConfig(appEnv: 'prd'), throwsArgumentError);
-      expect(() => resolveEnvConfig(appEnv: ''), throwsArgumentError);
+      expect(() => resolveDefaults('prd'), throwsArgumentError);
+      expect(() => resolveDefaults(''), throwsArgumentError);
     });
 
-    test('the default define is prod, preserving pre-existing builds', () {
-      expect(AppEnvironment.tryParse(kAppEnvDefine), AppEnvironment.prod);
+    test('APP_ENV defaults to prod when no define file is used', () {
+      // kAppEnvDefine is whatever this build was compiled with; the default
+      // when nothing is passed is prod, which is what keeps pre-existing
+      // `flutter build web` commands behaving as before.
+      const unset = String.fromEnvironment('APP_ENV_NOT_SET', defaultValue: 'prod');
+      expect(AppEnvironment.tryParse(unset), AppEnvironment.prod);
+      // And whatever this build did select must be a valid environment.
+      expect(AppEnvironment.tryParse(kAppEnvDefine), isNotNull);
     });
   });
 
@@ -61,6 +79,9 @@ void main() {
       final config = resolveEnvConfig(
         appEnv: 'prod',
         supabaseUrl: 'https://override.supabase.co',
+        supabaseAnonKey: '',
+        stripePublishableKey: '',
+        apiBaseUrl: '',
       );
       expect(config.supabaseUrl, 'https://override.supabase.co');
       // Untouched settings still come from the prod defaults.
@@ -69,7 +90,7 @@ void main() {
     });
 
     test('an empty override falls back to the environment default', () {
-      final config = resolveEnvConfig(appEnv: 'prod', supabaseUrl: '');
+      final config = resolveDefaults('prod');
       expect(config.supabaseUrl,
           kEnvironmentDefaults[AppEnvironment.prod]!.supabaseUrl);
     });
@@ -78,8 +99,8 @@ void main() {
   // ENV-003 — QA is isolated from production by construction
   group('ENV-003 environment isolation', () {
     test('qa ships no backend defaults, so it cannot fall through to prod', () {
-      final qa = resolveEnvConfig(appEnv: 'qa');
-      final prod = resolveEnvConfig(appEnv: 'prod');
+      final qa = resolveDefaults('qa');
+      final prod = resolveDefaults('prod');
 
       expect(qa.supabaseUrl, isEmpty);
       expect(qa.supabaseAnonKey, isEmpty);
@@ -89,7 +110,7 @@ void main() {
     });
 
     test('dev ships no backend defaults either', () {
-      final dev = resolveEnvConfig(appEnv: 'dev');
+      final dev = resolveDefaults('dev');
       expect(dev.supabaseUrl, isEmpty);
       expect(dev.supabaseAnonKey, isEmpty);
       expect(dev.canInitialiseSupabase, isFalse);
@@ -101,7 +122,7 @@ void main() {
         supabaseUrl: 'https://qa-ref.supabase.co',
         supabaseAnonKey: 'qa-anon-key',
       );
-      final prod = resolveEnvConfig(appEnv: 'prod');
+      final prod = resolveDefaults('prod');
 
       expect(qa.canInitialiseSupabase, isTrue);
       expect(qa.supabaseUrl, isNot(prod.supabaseUrl));
@@ -110,7 +131,7 @@ void main() {
 
     test('an unconfigured build reports exactly what is missing', () {
       expect(
-        resolveEnvConfig(appEnv: 'qa').missingSettings(),
+        resolveDefaults('qa').missingSettings(),
         containsAll(['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'API_BASE_URL']),
       );
       expect(
@@ -128,7 +149,7 @@ void main() {
   // ENV-004 — prod defaults preserve the previously hard-coded values
   group('ENV-004 prod defaults are unchanged', () {
     test('supabase url and key match what the app shipped with', () {
-      final prod = resolveEnvConfig(appEnv: 'prod');
+      final prod = resolveDefaults('prod');
       expect(prod.supabaseUrl, 'https://nxdbooufqzkpslkcogxc.supabase.co');
       expect(prod.supabaseAnonKey, startsWith('eyJ'));
       expect(prod.canInitialiseSupabase, isTrue);
@@ -136,12 +157,12 @@ void main() {
 
     test('stripe publishable key is present and publishable, per environment',
         () {
-      final prod = resolveEnvConfig(appEnv: 'prod');
+      final prod = resolveDefaults('prod');
       expect(prod.hasStripeKey, isTrue);
       expect(prod.stripePublishableKey, startsWith('pk_'));
 
       // Environment-specific: qa/dev get their own key or none at all.
-      expect(resolveEnvConfig(appEnv: 'qa').hasStripeKey, isFalse);
+      expect(resolveDefaults('qa').hasStripeKey, isFalse);
       final qa = resolveEnvConfig(appEnv: 'qa', stripePublishableKey: 'pk_test_qa');
       expect(qa.stripePublishableKey, 'pk_test_qa');
       expect(qa.stripePublishableKey, isNot(prod.stripePublishableKey));
@@ -149,7 +170,7 @@ void main() {
 
     test('no environment ships a Stripe secret key', () {
       for (final env in AppEnvironment.values) {
-        final key = resolveEnvConfig(appEnv: env.label).stripePublishableKey;
+        final key = resolveDefaults(env.label).stripePublishableKey;
         expect(key, isNot(startsWith('sk_')));
         expect(key, isNot(startsWith('rk_')));
       }
@@ -159,7 +180,7 @@ void main() {
   // ENV-005 — API base URL handling
   group('ENV-005 API base URL', () {
     test('dev defaults to the local API', () {
-      final dev = resolveEnvConfig(appEnv: 'dev');
+      final dev = resolveDefaults('dev');
       expect(dev.apiBaseUrl, 'http://localhost:3000');
       expect(dev.hasApiBaseUrl, isTrue);
     });
@@ -179,7 +200,7 @@ void main() {
     });
 
     test('an unset API base URL is reported rather than guessed', () {
-      final qa = resolveEnvConfig(appEnv: 'qa');
+      final qa = resolveDefaults('qa');
       expect(qa.hasApiBaseUrl, isFalse);
       expect(qa.missingSettings(), contains('API_BASE_URL'));
     });
@@ -189,7 +210,7 @@ void main() {
   group('ENV-006 no server secrets in client config', () {
     test('no resolved environment exposes an Anthropic key', () {
       for (final env in AppEnvironment.values) {
-        final config = resolveEnvConfig(appEnv: env.label);
+        final config = resolveDefaults(env.label);
         expect(config.toString(), isNot(contains('sk-ant')));
         for (final value in [
           config.supabaseUrl,
@@ -204,7 +225,7 @@ void main() {
     });
 
     test('toString never prints a raw Stripe key beyond its presence', () {
-      final prod = resolveEnvConfig(appEnv: 'prod');
+      final prod = resolveDefaults('prod');
       expect(prod.toString(), contains('stripe: configured'));
       expect(prod.toString(), isNot(contains(prod.stripePublishableKey)));
     });

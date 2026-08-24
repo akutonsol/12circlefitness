@@ -409,8 +409,20 @@ Future<void> main() async {
             'day_of_week': 'Monday',
             'title': 'Upper Push',
             'estimated_minutes': 45,
+            // Canonical prescription contract — see
+            // docs/WORKOUT_DOMAIN_CONTRACT.md §3. This probe used to write
+            // `reps` as a String and `rest` instead of `rest_seconds`, i.e. it
+            // asserted the round trip using a shape the client cannot read.
             'exercises': [
-              {'name': 'Bench Press', 'sets': 3, 'reps': '10', 'rest': 60}
+              {
+                'exercise_instance_id': 'probe-bench-press',
+                'name': 'Bench Press',
+                'position': 0,
+                'sets': 3,
+                'reps': 10,
+                'weight_kg': null,
+                'rest_seconds': 60,
+              }
             ],
             'sort_order': 0,
           });

@@ -50,6 +50,16 @@ const _qaConfig = EnvConfig(
   apiBaseUrl: 'https://qa-api.12circle.test',
 );
 
+/// Resolves an environment ignoring this build's `--dart-define` values, so the
+/// assertions describe the baked-in defaults under any define file.
+EnvConfig resolveDefaults(String appEnv) => resolveEnvConfig(
+      appEnv: appEnv,
+      supabaseUrl: '',
+      supabaseAnonKey: '',
+      stripePublishableKey: '',
+      apiBaseUrl: '',
+    );
+
 AiNutritionService serviceWith(
   _RecordingAdapter adapter, {
   EnvConfig env = _qaConfig,
@@ -73,7 +83,7 @@ void main() {
 
     test('a dev build targets the dev API instead', () async {
       final adapter = _RecordingAdapter();
-      final dev = resolveEnvConfig(appEnv: 'dev');
+      final dev = resolveDefaults('dev');
       await serviceWith(adapter, env: dev)
           .sendMessage(message: 'hi', history: []);
 
@@ -84,7 +94,7 @@ void main() {
     test('a build with no API base URL fails before sending anything',
         () async {
       final adapter = _RecordingAdapter();
-      final unconfigured = resolveEnvConfig(appEnv: 'qa');
+      final unconfigured = resolveDefaults('qa');
 
       await expectLater(
         serviceWith(adapter, env: unconfigured)

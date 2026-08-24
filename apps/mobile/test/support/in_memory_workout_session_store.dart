@@ -31,6 +31,10 @@ class InMemoryWorkoutSessionStore implements WorkoutSessionStore {
     String status = WorkoutSessionStatus.inProgress,
     Map<String, dynamic>? workoutSnapshot,
     DateTime? startedAt,
+    int elapsedSeconds = 0,
+    DateTime? warmupAcknowledgedAt,
+    String currentExerciseId = '',
+    String currentSetId = '',
   }) {
     final id = 'session-${++_idCounter}';
     rows.add({
@@ -41,8 +45,11 @@ class InMemoryWorkoutSessionStore implements WorkoutSessionStore {
       'status': status,
       'started_at': (startedAt ?? _now()).toIso8601String(),
       'completed_at': null,
-      'elapsed_seconds': 0,
+      'elapsed_seconds': elapsedSeconds,
       'workout_snapshot': workoutSnapshot,
+      'warmup_acknowledged_at': warmupAcknowledgedAt?.toIso8601String(),
+      'current_exercise_id': currentExerciseId,
+      'current_set_id': currentSetId,
     });
     return id;
   }
@@ -58,18 +65,45 @@ class InMemoryWorkoutSessionStore implements WorkoutSessionStore {
       [for (final r in rows) if (r['status'] == status) r];
 
   /// Records a set against a session, the way the Workout Zone does.
+  ///
+  /// [setId] is the set's own identity, as the app writes it to
+  /// `workout_set_logs.set_id`. Omitting it models a row written before
+  /// migration 106, which the restore path has to fall back to matching by set
+  /// number.
   void logSet(String sessionId, String exerciseId, int setNumber,
-      {int reps = 10, double weight = 20}) {
+      {String? setId,
+      int reps = 10,
+      double weight = 20,
+      double? rpe,
+      String? notes,
+      bool completed = true}) {
     final list = setLogs.putIfAbsent(sessionId, () => []);
     list.removeWhere(
         (s) => s['exercise_id'] == exerciseId && s['set_number'] == setNumber);
     list.add({
       'exercise_id': exerciseId,
+      'set_id': setId,
       'set_number': setNumber,
       'reps': reps,
       'weight': weight,
-      'completed': true,
+      'rpe': rpe,
+      'notes': notes,
+      'completed': completed,
     });
+  }
+
+  /// Set logs grouped by exercise id, as `WorkoutService.getSessionCompletedSets`
+  /// hands them to the restore path. Deliberately *unsorted* — restoration must
+  /// not depend on the order rows come back in.
+  Future<Map<String, List<Map<String, dynamic>>>> loadSetLogs(
+      String sessionId) async {
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final row in setLogs[sessionId] ?? const <Map<String, dynamic>>[]) {
+      grouped
+          .putIfAbsent(row['exercise_id'] as String, () => [])
+          .add(Map<String, dynamic>.from(row));
+    }
+    return grouped;
   }
 
   List<Map<String, dynamic>> setsFor(String sessionId) =>
@@ -96,6 +130,26 @@ class InMemoryWorkoutSessionStore implements WorkoutSessionStore {
     required String workoutTitle,
     required Map<String, dynamic> workoutSnapshot,
   }) async {
+    // Production enforces `workout_sessions_one_active_per_user` (a unique
+    // partial index on user_id WHERE status = 'in_progress', migration 103).
+    // Reproducing it here is what makes this double honest: without it a bug
+    // that opens a second active session passes in tests and throws in the
+    // app, which is exactly how the resume-the-wrong-workout defect survived.
+    // Checked synchronously, with no await between the read and the insert:
+    // a unique index is atomic, and a check-then-act that yields in between
+    // would let exactly the concurrent insert this is meant to catch through.
+    final open = [
+      for (final r in rows)
+        if (r['user_id'] == userId &&
+            r['status'] == WorkoutSessionStatus.inProgress)
+          r,
+    ];
+    if (open.isNotEmpty) {
+      throw StateError(
+          'duplicate key value violates unique constraint '
+          '"workout_sessions_one_active_per_user" '
+          '(user $userId already has active session ${open.first['id']})');
+    }
     final id = seedSession(
       userId: userId,
       workoutId: workoutId,
@@ -131,5 +185,28 @@ class InMemoryWorkoutSessionStore implements WorkoutSessionStore {
   @override
   Future<void> saveElapsed(String sessionId, int elapsedSeconds) async {
     rowById(sessionId)?['elapsed_seconds'] = elapsedSeconds;
+  }
+
+  @override
+  Future<void> acknowledgeWarmup(String sessionId) async {
+    final row = rowById(sessionId);
+    if (row == null) return;
+    // Set once: a repeat acknowledgement keeps the original answer, as the
+    // production store's "only when null" filter does.
+    row['warmup_acknowledged_at'] ??= _now().toIso8601String();
+  }
+
+  @override
+  Future<void> saveSnapshot(String sessionId, Map<String, dynamic> snapshot) async {
+    rowById(sessionId)?['workout_snapshot'] = snapshot;
+  }
+
+  @override
+  Future<void> saveCursor(
+      String sessionId, String exerciseId, String setId) async {
+    final row = rowById(sessionId);
+    if (row == null) return;
+    row['current_exercise_id'] = exerciseId;
+    row['current_set_id'] = setId;
   }
 }

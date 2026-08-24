@@ -45,14 +45,47 @@ Workout _workout(String id, String title, {String exerciseName = 'Barbell Squat'
             instructions: const ['Step one'],
           ),
           sets: [
-            WorkoutSet(setNumber: 1, reps: 8, weight: 60, restSeconds: 90),
-            WorkoutSet(setNumber: 2, reps: 8, weight: 62.5, restSeconds: 90),
+            WorkoutSet(setNumber: 1, reps: 8, weightKg: 60, restSeconds: 90),
+            WorkoutSet(setNumber: 2, reps: 8, weightKg: 62.5, restSeconds: 90),
           ],
         ),
       ],
     );
 
 final _fullBody = _workout('1', 'Full Body Strength');
+
+/// A two-set exercise the WKT-109 session-scoping tests address by identity.
+WorkoutExercise _exerciseNamed(String exerciseId) => WorkoutExercise(
+      exercise: Exercise(
+        id: exerciseId,
+        name: 'Exercise $exerciseId',
+        category: 'Strength',
+        muscleGroup: 'Legs',
+        equipment: 'Barbell',
+        difficulty: 'Intermediate',
+        description: '',
+        instructions: const [],
+      ),
+      sets: [
+        for (var n = 1; n <= 2; n++)
+          WorkoutSet(setNumber: n, reps: 8, weightKg: 60, restSeconds: 90),
+      ],
+    );
+
+final _scoped = Workout(
+  id: 'w-scoped',
+  title: 'Scoped',
+  description: '',
+  estimatedDuration: 30,
+  difficulty: 'Intermediate',
+  category: 'Strength',
+  exercises: [_exerciseNamed('ex-1'), _exerciseNamed('ex-2')],
+);
+
+WorkoutSet _scopedSet(String exerciseId, int n) => _scoped.exercises
+    .firstWhere((e) => e.exercise.id == exerciseId)
+    .sets
+    .firstWhere((s) => s.setNumber == n);
 final _lowerBody = _workout('2', 'Lower Body', exerciseName: 'Hip Thrust');
 
 void main() {
@@ -452,8 +485,8 @@ void main() {
       expect(re.sets, hasLength(2));
       // Per-set variation is preserved — the uniform sets/reps/weight shape
       // alone would have flattened set 2 to set 1's weight.
-      expect(re.sets[0].weight, 60);
-      expect(re.sets[1].weight, 62.5);
+      expect(re.sets[0].weightKg, 60);
+      expect(re.sets[1].weightKg, 62.5);
       expect(re.sets[1].setNumber, 2);
       expect(re.sets[0].restSeconds, 90);
     });
@@ -467,13 +500,13 @@ void main() {
             exercise: Exercise(id: 'e1', name: 'Pull Up', category: 'Strength',
               muscleGroup: 'Back', equipment: 'Bodyweight',
               difficulty: 'Intermediate', description: '', instructions: const []),
-            sets: [WorkoutSet(setNumber: 1, reps: 8, weight: 0)],
+            sets: [WorkoutSet(setNumber: 1, reps: 8, weightKg: 0)],
             isSuperset: true, supersetGroup: 'A'),
           WorkoutExercise(
             exercise: Exercise(id: 'e2', name: 'Plank', category: 'Core',
               muscleGroup: 'Core', equipment: 'Bodyweight',
               difficulty: 'Beginner', description: '', instructions: const []),
-            sets: [WorkoutSet(setNumber: 1, reps: 45, weight: 0)],
+            sets: [WorkoutSet(setNumber: 1, reps: 45, weightKg: 0)],
             isCircuit: true, circuitGroup: 'C1', circuitRounds: 3),
         ],
       );
@@ -524,19 +557,21 @@ void main() {
   group('WKT-109 entered sets belong to one session', () {
     test('re-entering the same session keeps what was typed', () {
       final notifier = ActiveWorkoutNotifier()..beginSession('session-1');
-      notifier.setSetData('ex-1', 0, {'reps': 8, 'weight': 60.0});
+      final set = _scopedSet('ex-1', 1);
+      notifier.setSetData(set, {'reps': 8, 'weight': 60.0}, exerciseInstanceId: 'ex-1');
 
       // Leaving and coming back to the same session.
       notifier.beginSession('session-1');
 
       expect(notifier.sessionId, 'session-1');
-      expect(notifier.state['ex-1']!.first['reps'], 8);
-      expect(notifier.state['ex-1']!.first['weight'], 60.0);
+      expect(notifier.setData(set.id)['reps'], 8);
+      expect(notifier.setData(set.id)['weight'], 60.0);
     });
 
     test('switching session clears the previous workout\'s sets', () {
       final notifier = ActiveWorkoutNotifier()..beginSession('session-1');
-      notifier.setSetData('ex-1', 0, {'reps': 8, 'weight': 60.0});
+      notifier.setSetData(_scopedSet('ex-1', 1), {'reps': 8, 'weight': 60.0},
+          exerciseInstanceId: 'ex-1');
 
       notifier.beginSession('session-2');
 
@@ -547,27 +582,27 @@ void main() {
 
     test('restored logs land under the current session only', () {
       final notifier = ActiveWorkoutNotifier()..beginSession('session-1');
-      notifier.restoreFromLogs({
+      notifier.restoreFromLogs(_scoped, {
         'ex-1': [
-          {'completed': true, 'reps': 8, 'weight': 60.0},
+          {'completed': true, 'set_number': 1, 'reps': 8, 'weight': 60.0},
         ],
       });
-      expect(notifier.state['ex-1'], hasLength(1));
+      expect(notifier.state.keys, [_scopedSet('ex-1', 1).id]);
 
       notifier.beginSession('session-2');
       expect(notifier.state, isEmpty);
 
-      notifier.restoreFromLogs({
+      notifier.restoreFromLogs(_scoped, {
         'ex-2': [
-          {'completed': true, 'reps': 12, 'weight': 80.0},
+          {'completed': true, 'set_number': 1, 'reps': 12, 'weight': 80.0},
         ],
       });
-      expect(notifier.state.keys, ['ex-2']);
+      expect(notifier.state.keys, [_scopedSet('ex-2', 1).id]);
     });
 
     test('completing resets the binding so the next start is clean', () {
       final notifier = ActiveWorkoutNotifier()..beginSession('session-1');
-      notifier.setSetData('ex-1', 0, {'reps': 8});
+      notifier.setSetData(_scopedSet('ex-1', 1), {'reps': 8}, exerciseInstanceId: 'ex-1');
 
       notifier.reset();
 
