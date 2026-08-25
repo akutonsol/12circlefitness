@@ -1,4 +1,6 @@
-import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+import '../../../core/router/app_router.dart' show kQaToolingEnabled;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -330,8 +332,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onTap: () => _showLogoutDialog(context),
                     ),
                   ]),
-                  // Developer tools — debug/QA builds only.
-                  if (kDebugMode) ...[
+                  // Developer tools — debug/profile builds only. Gated on the
+                  // same flag as the route itself (REL-3), so the affordance and
+                  // the destination can never disagree about who may see it.
+                  if (kQaToolingEnabled) ...[
                     const SizedBox(height: 12),
                     _GlassSection(children: [
                       _SettingsRow(
