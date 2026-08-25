@@ -57,8 +57,9 @@ printf '%s\n' "$OUTPUT"
 
 [[ "$RC" -ne 0 ]] || die "WKT-204 unexpectedly passed after mutation"
 
-FAIL_COUNT="$(printf '%s\n' "$OUTPUT" | grep -c 'Some tests failed' || true)"
-[[ "$FAIL_COUNT" -ge 1 ]] || die "mutated run did not produce a Flutter test failure"
+# Flutter's failure summary differs between local and CI runners.
+# The exit code is the authoritative failure signal; the four named
+# assertions below prove the mutation broke the intended contract.
 
 for assertion in \
   "the replacement carries new identities throughout" \
