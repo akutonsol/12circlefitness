@@ -47,6 +47,53 @@ jobs:
       - name: Migration hygiene (ENV-1 / Gate 0.7)
         run: .github/scripts/check-migration-hygiene.sh
 
+      - name: Migration durability — I-MIG-03 class guard (records mode)
+        run: |
+          set -euo pipefail
+          # W2-2B. `CREATE OR REPLACE FUNCTION` keeps a function's ACL and owner
+          # and drops its `search_path` pin and its body — so an authorization
+          # wrapper an earlier migration established vanishes silently when a
+          # later migration reproduces that function from an older base. That is
+          # F-J-01, and it is why this class guard exists. Static: it reads
+          # committed migration source, needs no credentials, and contacts
+          # nothing. Node comes preinstalled on the runner image, so this step
+          # keeps the job's no-toolchain property.
+          echo "node $(node --version)"
+          echo
+
+          # The self-test first, and always fatal. If detection itself broke, a
+          # clean report would be indistinguishable from a clean tree — this
+          # asserts on synthetic fixtures that a dropped property IS flagged,
+          # that a carried-forward one is NOT, and that F-J-01 is still found in
+          # the real migration set with its exemption ignored.
+          node supabase/tests/security/migration-durability-guard.mjs --self-test
+          echo
+
+          # RECORDS MODE, and fail-closed everywhere it is not exempt: the guard
+          # exits 0 only while every open strip event is a KNOWN_OPEN entry that
+          # names its finding and its closing task. An unrecorded strip fails,
+          # and so does a KNOWN_OPEN entry that has outlived its defect — the
+          # stale-exemption trap, which is what stops records mode from decaying
+          # into a rubber stamp once 2A lands.
+          set +e
+          node supabase/tests/security/migration-durability-guard.mjs | tee /tmp/imig03.txt
+          rc=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$rc" -ne 0 ]; then
+            echo "::error title=I-MIG-03 durability violation::A migration dropped a security property that is not a recorded finding, or a KNOWN_OPEN exemption outlived its defect. Carry the property forward in a NEW migration - never by editing history. Full report in this step's log."
+            exit 1
+          fi
+
+          # Surface the known-open posture in the run summary, derived from the
+          # guard's own register rather than restated here, so this annotation
+          # cannot drift from what the guard actually found.
+          recorded=$(grep -c '\[RECORDED' /tmp/imig03.txt || true)
+          if [ "${recorded:-0}" -gt 0 ]; then
+            findings=$(grep -E '^[[:space:]]+finding:' /tmp/imig03.txt | sed 's/^[[:space:]]*finding:[[:space:]]*//' | paste -sd '; ' -)
+            echo "::notice title=I-MIG-03 records the posture::${recorded} known-open durability finding(s) DETECTED and deliberately not failing this build: ${findings}. Detected, not fixed - remediation is migration 124 (Wave 2 task 2A), and this guard is promoted to enforcing at that closure. This step passing does NOT close SEC-04 or I-MIG-03."
+          fi
+
       - name: Edge Function JWT posture is declared (E-09)
         run: .github/scripts/check-edge-function-config.sh
 

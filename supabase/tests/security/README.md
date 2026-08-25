@@ -58,9 +58,19 @@ restores the wrapper, `KNOWN_OPEN` empties, `d04` §8 probes all five members,
 and the guard's mode line becomes ENFORCING. A `KNOWN_OPEN` entry that outlives
 its defect is itself reported as a failure, so the exemption cannot rot.
 
-**The guard is not yet wired into CI** — that needs one step in
-`.github/workflows/ci.yml`'s `static-guards` job, which is outside this task's
-scope. Until then it is FIXED IN CODE only, never VERIFIED IN CI.
+**In CI:** the guard runs in the `static-guards` job of
+`.github/workflows/ci.yml`, immediately after the migration-hygiene guard — both
+read migration source, and grouping them puts every migration-integrity check in
+one place. The step runs `--self-test` first (always fatal: if detection itself
+broke, a clean report would be indistinguishable from a clean tree), then the
+guard, and surfaces the known-open posture as a run annotation derived from the
+guard's own register rather than restated in the workflow. It needs no
+credentials, no toolchain beyond the runner's preinstalled Node, and contacts
+nothing.
+
+**The step passing does not close anything.** It makes the guard VERIFIED IN CI
+— the guard, not the finding. F-J-01 stays open, SEC-04 stays open, and I-MIG-03
+is closed only when 2A restores the wrapper and the class is asserted live.
 
 ## Layout
 
