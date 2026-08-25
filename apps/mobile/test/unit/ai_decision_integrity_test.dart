@@ -208,10 +208,10 @@ void main() {
         }
       }
       expect(lastDeclaring, greaterThanOrEqualTo(119));
-      expect(lastDeclaringGuard, lessThan(lastDeclaring),
+      expect(lastDeclaringGuard, equals(lastDeclaring),
           reason: 'the last migration to declare materialize_program_week is $lastDeclaring '
-              'and the last to guard it is $lastDeclaringGuard — F-J-01 is fixed once '
-              'those are the same migration; invert this test then');
+              'and the last to guard it is $lastDeclaringGuard — F-J-01 requires the '
+              'final declaration to retain its authorization guard');
     });
   });
 
