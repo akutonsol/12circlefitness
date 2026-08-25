@@ -250,6 +250,35 @@ jobs:
   #    It is pinned to the QA project two ways: the URL comes from a secret, and
   #    supabase/tests/{security,ai}/lib.mjs refuse to run against production
   #    regardless of what the secret contains.
+  # ── Synthetic pre-fix-equivalent evidence. Owner ruling 2026-08-25 (G-3
+  #    negative-control exception): where the guard was written after the defect
+  #    was already remediated and no defective tree is recoverable from history,
+  #    the VERIFIED IN CI rung may be satisfied by a negative control instead.
+  #
+  #    This job NEVER contacts QA or production. It has no environment, no
+  #    secrets and no connection string: it builds a runner-local PostgreSQL,
+  #    replays the committed migrations 000-121, reintroduces one declared defect
+  #    at a time, requires exactly the assertions that defect breaks to fail, then
+  #    restores by re-applying the committed migration and requires 20/20 again.
+  #    The harness refuses to start if any QA credential is present in its
+  #    environment, so a future widening of scope fails loudly.
+  #
+  #    It is NOT historical pre-fix evidence and must never be recorded as such.
+  #    The real QA BEFORE -> AFTER evidence is a separate rung (VERIFIED LIVE).
+  negative-control:
+    name: Negative control — synthetic pre-fix-equivalent evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [static-guards]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Harness self-test (the parser must be able to fail)
+        run: supabase/scripts/negative-control.sh --self-test
+
+      - name: M-1, M-2, M-3 — mutate, require the declared FAIL set, restore, require 20/20
+        run: supabase/scripts/negative-control.sh
+
   live-qa:
     name: Live QA suites (security / AI / contract)
     runs-on: ubuntu-latest
