@@ -279,6 +279,9 @@ jobs:
       - name: M-1, M-2, M-3 — mutate, require the declared FAIL set, restore, require 20/20
         run: supabase/scripts/negative-control.sh
 
+      - name: WKT-204 — WRK-02/WKA-02 synthetic pre-fix-equivalent evidence
+        run: apps/mobile/tool/negative_control/wrk02_negative_control.sh
+
   live-qa:
     name: Live QA suites (security / AI / contract)
     runs-on: ubuntu-latest
