@@ -225,6 +225,13 @@ tracking key after this document.** Full list:
 > live CI evidence at `6d42b10` — see **§7.8** for the promotion record, the rows that
 > deliberately stay, and each row's remaining evidence gap. The tables below are the
 > historical Wave 0 record and are not rewritten.
+>
+> **2026-08-25:** two further rows — **SEC-11** and **OBS-4** — are promoted on the live
+> SQL evidence at `2a8d0b6`. **SEC-09 is not promoted**: FG-1 returned 5 PASS / 0 FAIL
+> live, but the owner ruling of 2026-08-25 reads §7.8's "needs FG-1 + I-MIG-03" as
+> requiring I-MIG-03 itself to reach `VERIFIED_CLOSED`, which it has not. SEC-09 stays
+> `ALREADY_FIXED`. See **§7.9**, which records the ruling and why the remaining Phase 2
+> rows deliberately stay.
 
 **Phase 1 (security), closed by migrations 113–118 — evidence: 270/270 live assertions**
 
@@ -466,7 +473,7 @@ programme brief. **These are the findings that gate the plan.**
 ---
 
 ### ENV-3 · Migrations 113–122 are applied to QA but absent from the migration ledger
-`I-MIG-01` · **P0** · `REMEDIATED` *(W1-T3 executed on QA 2026-08-25 — the ledger repair below is complete and live-verified; `VERIFIED_CLOSED` withheld, see the dated block)* · Wave 1
+`I-MIG-01` · **P0** · ✅ `VERIFIED_CLOSED` 2026-08-25 *(all eight amended closure criteria met; the live ledger check executed in CI at `2a8d0b6` — see §7.9)* · Wave 1
 
 | Field | Value |
 |---|---|
@@ -538,12 +545,38 @@ for QA and its ledger row is created only by its actual, separately authorized
 application. Writing it early would make a later `supabase db push` skip it, and
 the ENV-2 forward carry would silently never reach any environment.
 
-**Status after this amendment: `REMEDIATED`, unchanged.** Items 1, 2 and the
+**Status when this amendment was written: `REMEDIATED`.** *(Resolved 2026-08-25 — see
+the closure note at the end of this row.)* Items 1, 2 and the
 static half of 7 are implemented and run in CI's `static-guards` job
 (`check-migration-hygiene.sh` contiguity + `supabase/scripts/check-migration-manifest.mjs`).
 Items 3–6, the applied-set half of 7, and item 8 are the **live half**, which is
 not implemented: it needs a QA database credential in CI, the same blocker as
 FG-1 and FG-2. `VERIFIED_CLOSED` is unavailable until that half executes.
+
+**Closure, 2026-08-25 — evidence: the live QA run at commit `2a8d0b6`.** The QA
+database credential was provisioned, the live evidence phase executed, and the
+ledger comparison reported **5 PASS / 0 FAIL** against QA `eyqtldjqpgpljlqvpowh`:
+
+| Criterion | Evidence |
+|---|---|
+| 1 · authored inventory (filenames, duplicates, contiguity) | `check-migration-hygiene.sh`, green in `static-guards` |
+| 2 · environment-specific declaration, every migration classified | `supabase/expected_applied.json` + `check-migration-manifest.mjs`, green in `static-guards` |
+| 3 · live comparison of declared vs `schema_migrations` | executed in CI at `2a8d0b6` |
+| 4 · missing expected migrations | **L-1 = 0** |
+| 5 · unexpected applied migrations | **L-2 = 0** |
+| 6 · stale ledger rows | **L-3 = 0** |
+| 7 · skipped versions | authored half: hygiene contiguity 000–123 · applied half: **L-4 = 0** holes in 000–122 |
+| 8 · CI execution of the live check | the run itself |
+
+L-5 read "ledger rows 123 vs declared expected 123" — that is **123 rows**
+(versions 000–122 inclusive), not migration 123. The checker separately printed
+`INFO authored and PENDING for qa (declared, not applied): 123`.
+
+**Verified QA migration state: 000–122 applied; 123 authored, committed and
+declared pending — not applied, and not present as an applied ledger row.**
+Migration 123 was **not** applied at this checkpoint, no `db push` was run, and
+nothing was written to `schema_migrations`. **Production `nxdbooufqzkpslkcogxc`
+was not contacted.**
 
 ---
 
@@ -1319,6 +1352,115 @@ contacted. No REST, RPC, Auth, Storage, Realtime or Edge Function request was is
 it. No migration was applied, reverted or pushed to it. No Edge Function was deployed to
 it. The linked project remained `eyqtldjqpgpljlqvpowh` throughout. This reconciliation
 changed governance documents only.
+
+---
+
+### 7.9 Live SQL evidence reconciliation — 2026-08-25 · evidence: CI run at `2a8d0b6`
+
+The first execution of the SQL-level evidence phase (FG-1, FG-2, ENV-3 live),
+against QA `eyqtldjqpgpljlqvpowh`. Every suite is one DO block that ends by
+RAISEing its report, so all four rolled back: **no migration was applied, no
+`db push` was run, nothing was written to `schema_migrations`, and production
+`nxdbooufqzkpslkcogxc` was not contacted.**
+
+| Suite | Result | Observed |
+|---|---|---|
+| **FG-1** · `function-search-path.sql` (SEC-09 live half) | **5 PASS / 0 FAIL** | SP-1 unpinned SECURITY DEFINER functions **0** · SP-2 unpinned functions of any kind **0** · SP-3 functions pinned outside `public` **0** · SP-4 `generate_client_plan` + `materialize_program_week` re-pinned **2/2** · SP-5 EXECUTE grants to PUBLIC or anon **0** |
+| **FG-2a** · `phase2-contract.sql` (SEC-11 / Phase 2) | **20 PASS / 0 FAIL** | the AFTER-1…AFTER-8 matrix |
+| **FG-2b** · `plan-day-titles.sql` (OBS-4 / migration 121) | **15 PASS / 0 FAIL** | — |
+| **ENV-3** · live ledger comparison | **5 PASS / 0 FAIL** | L-1 0 · L-2 0 · L-3 0 · L-4 0 · L-5 123 rows vs 123 expected · INFO 123 authored and pending |
+
+**Verified QA migration state: 000–122 applied; migration 123 authored, committed
+and declared pending — not applied, not an applied ledger row.**
+
+#### The FG-2 assertion count — 32 reconciled to 35
+
+The two numbers describe the same two files, and the discrepancy is a counting
+method, not a grouping:
+
+- **32** originates in `QA_WORKSTREAM_N_TEST_COVERAGE_REPORT.md` §"Live workout
+  SQL", a **static inventory taken without running the suite** — its own row
+  reads "not run — no credentials". It propagated from there into the custody
+  manifest and the progress board's baseline table.
+- **20 + 15 = 35** is what the unchanged files actually emitted when executed.
+- The files have **one commit in their entire history** (`8e47f07`, W1-T1
+  custody) and are byte-identical to what N inventoried, so suite growth is
+  excluded. Neither contains a loop or a conditional block, so emission is
+  deterministic — the same files always emit the same 35 lines.
+- Static counting of these files is demonstrably unreliable: three independent
+  static attempts produced 32 (N), and — at the FG-2 wiring checkpoint — 25 by
+  counting `case when … then 'PASS'` ternaries, because the suites build report
+  lines in more than one syntactic shape.
+- **20 corroborates independently.** `PHASE_2_WORKOUT_TEST_MATRIX.md` records
+  "20/20 AFTER assertions PASS" and `PHASE_2_WORKOUT_RECONCILIATION.md` repeats
+  it. FG-2a's 20 is that same AFTER set, re-verified live in CI.
+
+**Resolution: the executed count is authoritative — FG-2 is 35 assertions
+(FG-2a 20 + FG-2b 15).** Workstream N's report is frozen evidence and is not
+rewritten; its 32 is superseded, and the forward-looking references in this
+registry and on the progress board are corrected. 32 was never a different
+grouping.
+
+#### Promoted to `VERIFIED_CLOSED` — 2 rows
+
+| Row | Class ladder | Evidence at `2a8d0b6` |
+|---|---|---|
+| **SEC-11** · a client could rewrite a completed session | as above | FG-2a. The matrix maps this finding to **AFTER-4a/4b/4c**, "completed history is immutable", and `phase2-contract.sql` asserts directly that a completed set cannot be un-completed. Not inferred from the suite passing as a whole |
+| **OBS-4** · duplicate generated day titles | as above | FG-2b in full — 15/15. `plan-day-titles.sql` exists solely to pin migration 121's `plan_day_titles()` authority |
+
+#### Owner ruling, 2026-08-25 — SEC-09's closure criterion. Additive amendment.
+
+**The ambiguity, as it was documented.** §7.8 held SEC-09 for "needs FG-1 +
+I-MIG-03". The reconciliation as first drafted read that bare finding ID as the
+**class guard existing and running** rather than as I-MIG-03's own closure, and
+promoted SEC-09 on FG-1's 5/5. The final governance audit of this checkpoint
+found that reading contestable and could not resolve it from the repository:
+§4.2 tracks the standing test itself as `I-MIG-03` and §7.8's follow-up table
+pairs "SEC-09 promotion · I-MIG-03's live half" *(reading A)*, while §7.8's
+SEC-04 clause two lines above says "I-MIG-03 **class guard**" explicitly where
+the SEC-09 clause says bare "I-MIG-03" *(reading B)*. The ambiguity was
+preserved and escalated rather than decided.
+
+**The ruling.** The product owner ruled on 2026-08-25 for **reading B**: §7.8
+distinguishes "I-MIG-03 class guard" from a bare "I-MIG-03", and the repository
+does not provide sufficient authority to reinterpret the bare finding ID as
+merely the class guard. **SEC-09 `VERIFIED_CLOSED` therefore requires FG-1 live
+evidence AND I-MIG-03 itself at `VERIFIED_CLOSED`.**
+
+**Effect on this checkpoint.** The SEC-09 promotion is **withdrawn**. SEC-09
+remains **`ALREADY_FIXED`**, not `VERIFIED_CLOSED`. I-MIG-03 remains **open, in
+records mode**, and is not promoted. **FG-1's 5 PASS / 0 FAIL stands as recorded
+live evidence** — SP-1 and SP-2 assert the class schema-wide with 0 unpinned
+functions of any kind, and SP-4 answers the one item the static durability guard
+flagged as "claimed by 122's dynamic sweep — NOT statically verifiable, live
+evidence is FG-1", 2/2. That evidence is not rescinded and is not re-run; under
+this ruling it is **necessary but not sufficient** for SEC-09's closure. SEC-09
+closes when I-MIG-03 closes — currently Wave 2 task 2A, where the durability
+guard moves from recording the posture to enforcing it.
+
+**Quotation correction.** An earlier draft of this section quoted §4.2 as "the
+only reason to expect the next Phase-1-equivalent to hold". §4.2 reads, verbatim:
+"the only reason to believe the next Phase-1-equivalent will hold". The
+paraphrase never appeared in a committed revision; it is corrected here.
+
+#### Deliberately NOT promoted
+
+- **The remaining Phase 2 cohort** (WRK-01…WRK-06 and the session-determinism
+  group). FG-2a's 20 assertions are the AFTER matrix and they passed, but
+  promoting these rows requires mapping **each** registry row to its specific
+  AFTER ids in `PHASE_2_WORKOUT_TEST_MATRIX.md` — a row-by-row reconciliation,
+  not a bulk inference from one green suite. That is the next checkpoint.
+- **WRK-07** and **WKA-04** are excluded outright: §4.1 already flags them with
+  open regressions (`EC-11`, `EC-05`), and both are Dart error-contract halves
+  no SQL assertion reaches. They stay until Wave 3B.
+- **OBS-4-R1/R2/R3** — live-supported by FG-1's SP-1/SP-2/SP-4, but they sit
+  inside a combined §4.1 row; splitting it belongs to the same row-by-row pass.
+- **SEC-04 / SEC-R1 / SEC-R2 / SEC-R3 / F-J-01** — unchanged, OPEN. Nothing in
+  this run touches them; migration 124 does not exist.
+- **SEC-09** — **withdrawn from the promotion set by the owner ruling above.** FG-1's
+  live half is done and recorded; the row waits on I-MIG-03's own closure.
+- **I-MIG-03** — unchanged: CI-verified in records mode, enforcement deferred to 2A.
+  Under the ruling above it is now also SEC-09's remaining gate.
 
 ---
 

@@ -1,7 +1,7 @@
 # 12 Circle Fitness — Remediation Progress Board
 
 **Running status. Updated on every status change.**
-**Last updated:** 2026-08-26 · **Wave 0 complete · W1-T1 complete · CI green at `6d42b10` (live security 271/271) · first 23 findings `VERIFIED_CLOSED` (registry §7.8)**
+**Last updated:** 2026-08-25 · **Wave 1 spine complete · live SQL evidence executed at `2a8d0b6` (FG-1 5/5, FG-2a 20/20, FG-2b 15/15, ENV-3 5/5) · 26 findings `VERIFIED_CLOSED` (registry §7.8, §7.9)**
 
 > **Update rules.** A status change here must be accompanied by the matching change in
 > [`MASTER_REMEDIATION_REGISTRY.md`](MASTER_REMEDIATION_REGISTRY.md) and by the evidence
@@ -16,7 +16,7 @@
 |---|---|
 | **Current wave** | **1 — Custody, Environment & Release Safety · IN PROGRESS** |
 | **Completed** | Wave 0 · W1-T1 · batch tasks 2–8 (task 9 blocked, EB-12) · W1B-N6…N9 CI-closed · **Phase 1 live re-verification: 271/271 at `6d42b10` → 23 rows `VERIFIED_CLOSED`** (registry §7.8) |
-| **Next action** | **W1-T2 and W1-T3 are done** (123 committed `24187bf`; QA ledger repaired 2026-08-25). Next gate: **apply migration 123 to QA** — a fresh explicit authorization with its own pre-application QA-state check. Also outstanding: task 8 wording · EB-12 (R-06 toggle) · FG-1/FG-2 assignment · the ENV-3 ledger CI check (predicate needs a ruling — registry ENV-3) → Wave 1 exit review |
+| **Next action** | Row-by-row **Phase 2 cohort reconciliation** against the AFTER matrix (registry §7.9). Then the **apply-123-to-QA** gate — fresh authorization, own pre-application state check. Also outstanding: task 8 wording · EB-12 (R-06 toggle) → Wave 1 exit review → Wave 2 2A (migration 124) |
 | **Highest gate met** | **Gate 0 mechanics exist and are green** (`6d42b10`: static guards, Flutter, API, live security 271/271, AI, contract). Formal row-by-row gate scoring is the Wave 1 exit review |
 | **Production contact** | **none, by any wave, at any point** |
 | **Blocking on** | 8 critical-path decisions (§5) and 11 open environment blockers (§6; EB-1 resolved 2026-08-25) |
@@ -49,17 +49,17 @@
 |---|---:|---|
 | `DISCOVERED` | 0 | all triaged in Wave 0 |
 | `DUPLICATE` | 118 | collapsed; see registry §3. **Retired IDs must not be used as tracking keys** |
-| `ALREADY_FIXED` | 39 | was 52; 13 Phase 1 rows promoted at `6d42b10` (registry §7.8). Remaining 39 hold — Phase 2's live suite has never run in CI (FG-2), plus §4.2-tainted and decision-coupled rows |
+| `ALREADY_FIXED` | 37 | −2 at `2a8d0b6`: SEC-11, OBS-4 (registry §7.9). **SEC-09 stays** — owner ruling 2026-08-25: its closure needs I-MIG-03 `VERIFIED_CLOSED`, not only FG-1. The rest hold — the Phase 2 cohort needs a row-by-row map to the AFTER matrix, and `WRK-07`/`WKA-04` carry open regressions (`EC-11`, `EC-05`) |
 | `FIX_IN_PROGRESS` | 0 | |
 | `BLOCKED_DECISION` | 48 | 31 have a mechanical half that is **not** blocked · +1: W1B-N3 |
 | `BLOCKED_ENVIRONMENT` | 24 | `R-06`→EB-12 in; `TST-1` out (VERIFIED_CLOSED) |
 | `READY_TO_REMEDIATE` | 180 | −1: `ENV-3` → `REMEDIATED` (W1-T3, 2026-08-25) |
-| `REMEDIATED` | 5 | `K-26` (D-1(L) pending), ENV-6 (PR run pending), `LRE-34`, `REL-36`, **`ENV-3`** (ledger repaired and live-verified; the CI ledger check its *Tests* field prescribes does not exist) *(plus the UIX-2 text half and `LRE-35` inside the `LRE-09…42` aggregate, counted at their parent rows)* |
+| `REMEDIATED` | 4 | `K-26` (D-1(L) pending), ENV-6 (PR run pending), `LRE-34`, `REL-36`, ~~`ENV-3`~~ *(promoted 2026-08-25)* *(plus the UIX-2 text half and `LRE-35` inside the `LRE-09…42` aggregate, counted at their parent rows)* |
 | `RETEST_REQUIRED` | 0 | |
-| **`VERIFIED_CLOSED`** | **23** | **first promotions of the programme** — 2026-08-26, evidence CI `6d42b10` (live security 271/271); full record registry §7.8 |
+| **`VERIFIED_CLOSED`** | **26** | 23 at `6d42b10` (registry §7.8) **+3 at `2a8d0b6`** (registry §7.9): **ENV-3, SEC-11, OBS-4** |
 | `DEFERRED` | 0 | |
 | `RELEASE_BLOCKER` | 56 | a gate attachment, not a severity — counted inside the rows above |
-| **Canonical total** | **319** | 310 from 428 raw records + 9 Wave 1 batch discoveries (W1B-N1…N9). Status sum: 39+48+24+180+5+23 = 319 ✓ |
+| **Canonical total** | **319** | 310 from 428 raw records + 9 Wave 1 batch discoveries (W1B-N1…N9). Status sum: 37+48+24+180+4+26 = 319 ✓ |
 
 | Severity | Open | Fixed | Total |
 |---|---:|---:|---:|
@@ -167,7 +167,7 @@ Measured **2026-08-24 in this session**, against the current working tree.
 | Schema contract | `npm run test:contract` | exists · 2 relations + 8 columns allowlisted |
 | **Live security** | `npm run test:security` | **NOT RUN — no `QA_SERVICE` (EB-1). 188 assertions across 6 suites** |
 | **Live AI** | `npm run test:ai` | **NOT RUN — EB-1 / EB-2. 5 suites** |
-| **Live workout SQL** | `supabase db query --file supabase/tests/workout/*.sql` | **NOT RUN — no credentials. 32 assertions** |
+| **Live workout SQL** | `supabase/scripts/live-evidence.sh` (FG-2) | **EXECUTED 2026-08-25 at `2a8d0b6` — FG-2a 20/20 · FG-2b 15/15 = 35.** The "32" was Workstream N's static, pre-execution inventory of the same two unchanged files; the executed count is authoritative (registry §7.9) |
 | **Edge Function** | *(none exist)* | **0 — no Deno runtime (EB-8)** |
 
 > **Every count quoted in a workstream report — 514 / 591 / 623 / 667 / 690 / 699 — is a
@@ -381,3 +381,4 @@ is asserted green, and it is.*
 | 2026-08-26 | **Phase 1 live-evidence reconciliation (owner-approved).** CI at `6d42b10` green: live security 271/271 across all six suites, AI + contract suites pass, W1B-N9's fix verified on the real public signup route. **23 rows promoted to `VERIFIED_CLOSED`** — the programme's first — per the closure-standard class ladder: 13 Phase 1 `ALREADY_FIXED` rows, TST-1, ENV-1, ENV-4, ENV-5, E-09, REL-3, W1B-N6…N9 (full record + retained limitations: registry §7.8). Deliberately held: SEC-04 (F-J-01 blind spot), Q-4/SEC-R2, SEC-09, SEC-11 + Phase 2 cohort (FG-2), SEC-08 (Q-2), ENV-6 (PR run), LRE-34/REL-36/LRE-35, K-26 (D-1(L)), AI domain (EB-2), contract/3A. Two evidence gaps registered, not implemented: **FG-1** (function-search-path.sql into CI) and **FG-2** (workout SQL suite into CI). Count correction: ENV-1 re-bucketed out of READY (stale since W1-T1). `d151ee6` reviewed — reporting-only, no assertion weakened. **Documentation-only change; no environment contacted; production untouched.** |
 | 2026-08-25 | **W1-T3 executed — QA migration ledger repaired.** Target independently confirmed as `eyqtldjqpgpljlqvpowh` (12Circle QA) from five agreeing local sources before the write; production not contacted. `supabase migration repair --status applied 113…122 --linked` inserted the ten missing version rows: **113–122 Local-only → Local + Remote**, **123 Local-only → Local-only**, diff exactly ten rows, no other migration-history row changed. **No migration was executed** and **migration 123 remains unapplied** — it is committed (`24187bf`) and locally validated only; excluding it is deliberate, since marking it applied would make a later `db push` skip it. ENV-3's prescribed ledger repair is satisfied → **`READY_TO_REMEDIATE` → `REMEDIATED`**; `VERIFIED_CLOSED` withheld because the CI check named in its own *Tests* field does not exist, and that check's predicate needs a ruling (ledger max 122 vs highest filename 123 is correct-by-design today). ENV-3 is the only status changed. Next gate — applying 123 to QA — requires fresh authorization. *(Date note: the three entries above are stamped 2026-08-26 in error; the true date of that work was 2026-08-25. Left as written rather than retroactively rewritten — flagged for the owner.)* |
 | 2026-08-25 | **ENV-3 static contract implemented** (the corrected predicate, static half only). The Tests field's original wording is superseded by a dated additive amendment in the registry: a max-comparison cannot see a hole, asserts *authored == applied* — which 102 and 123 violate by design — and is environment-blind. Replaced by `RELEASE_GATES` 1.2 + 0.9 made mechanical: new `supabase/expected_applied.json` declares QA's frontier (**122**) with **123 explicitly pending**, not applied; new `supabase/scripts/check-migration-manifest.mjs` fails closed on eight declaration defects and reports authored-but-pending without failing; `check-migration-hygiene.sh` gains gate 0.9's missing contiguity half; all wired into `static-guards` (no credentials, no network). **ENV-3 remains `REMEDIATED`** — items 3–6 and 8 of the amended closure list are the live ledger comparison, still blocked on a QA DB credential (FG-1/FG-2 class). No environment contacted; 123 still unapplied and never written to `schema_migrations` to make a check pass. No status changed by this task. |
+| 2026-08-25 | **First live SQL evidence executed — CI run `2a8d0b6`, QA `eyqtldjqpgpljlqvpowh`.** FG-1 **5 PASS/0 FAIL** (SP-1 0 unpinned definer · SP-2 0 unpinned of any kind · SP-3 0 pinned outside public · SP-4 2/2 re-pinned · SP-5 0 EXECUTE to PUBLIC/anon) · FG-2a **20/20** · FG-2b **15/15** · ENV-3 ledger **5/5** (L-1…L-4 all 0; L-5 123 rows vs 123 expected; INFO 123 authored and pending). **Verified QA migration state: 000–122 applied; migration 123 authored/committed and declared pending — NOT applied and NOT an applied ledger row.** No migration applied, no `db push`, no `schema_migrations` write; **production untouched**. **FG-2 count reconciled 32 → 35**: the 32 was Workstream N's static pre-execution inventory of the same two files, which have one commit in their history and no loops or conditionals; the executed 20+15 is authoritative and 20 corroborates the Phase 2 matrix's own "20/20 AFTER". N's frozen report is not rewritten. **Promoted to `VERIFIED_CLOSED`: ENV-3** (all eight amended criteria met), **SEC-11** (matrix maps it to AFTER-4a/b/c), **OBS-4** (FG-2b in full). **SEC-09 was drafted as a fourth promotion and withdrawn before commit** — the governance audit found §7.8's "needs FG-1 + I-MIG-03" ambiguous and escalated it rather than deciding; **owner ruling 2026-08-25 (reading B): SEC-09 needs FG-1 AND I-MIG-03 at `VERIFIED_CLOSED`**, so SEC-09 stays `ALREADY_FIXED` and I-MIG-03 stays open in records mode. FG-1's 5/5 remains recorded evidence — necessary, not sufficient (registry §7.9). **Held:** the remaining Phase 2 cohort pending a row-by-row AFTER map; `WRK-07`/`WKA-04` on open regressions `EC-11`/`EC-05`; SEC-04, SEC-R1/R2/R3, F-J-01 and I-MIG-03 unchanged. |
