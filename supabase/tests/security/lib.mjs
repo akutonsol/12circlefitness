@@ -155,18 +155,39 @@ export async function svc(path, opts = {}) {
 
 // ── reporting ────────────────────────────────────────────────────────────────
 export const results = [];
+let suiteStart = 0;
+
+export function beginSuite() {
+  suiteStart = results.length;
+}
+
 export function check(name, pass, detail) {
   results.push({ name, pass, detail });
   console.log(`  ${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? `  — ${detail}` : ''}`);
   return pass;
 }
-export function section(t) { console.log(`\n── ${t} ${'─'.repeat(Math.max(2, 68 - t.length))}`); }
+
+export function section(t) {
+  console.log(`\n── ${t} ${'─'.repeat(Math.max(2, 68 - t.length))}`);
+}
+
 export function summary(label) {
-  const f = results.filter(r => !r.pass);
-  console.log(`\n${'='.repeat(74)}\n${label}: ${results.length - f.length}/${results.length} passed`);
-  if (f.length) { console.log('FAILURES:'); f.forEach(r => console.log(`  x ${r.name} — ${r.detail || ''}`)); }
+  const suiteResults = results.slice(suiteStart);
+  const f = suiteResults.filter(r => !r.pass);
+
+  console.log(
+    `\n${'='.repeat(74)}\n${label}: ${suiteResults.length - f.length}/${suiteResults.length} passed`
+  );
+
+  if (f.length) {
+    console.log('FAILURES:');
+    f.forEach(r => console.log(`  x ${r.name} — ${r.detail || ''}`));
+  }
+
   return f.length;
 }
+
+
 /** Row count of a PostgREST body; an error object counts as zero rows read. */
 export const n = (b) => Array.isArray(b) ? b.length : 0;
 

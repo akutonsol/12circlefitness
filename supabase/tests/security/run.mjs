@@ -6,7 +6,7 @@
 //
 // The suites share fixtures and run sequentially on purpose — they arrange and
 // tear down the same four identities and the same relationship rows.
-import { results } from './lib.mjs';
+import { results, beginSuite } from './lib.mjs';
 
 const SUITES = [
   ['D-01  coach_client_relationships', './d01-coach-client-relationships.mjs'],
@@ -22,6 +22,7 @@ const summary = [];
 
 for (const [label, path] of SUITES) {
   console.log(`\n${'█'.repeat(74)}\n██  ${label}\n${'█'.repeat(74)}`);
+  beginSuite();
   const before = results.length;
   let failures;
   try {
