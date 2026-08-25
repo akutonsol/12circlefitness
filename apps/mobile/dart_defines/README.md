@@ -14,17 +14,23 @@ flutter build web       --dart-define-from-file=dart_defines/prod.json
 
 | Define | Meaning | Client-safe? |
 |---|---|---|
-| `APP_ENV` | `dev` \| `qa` \| `prod`. Unknown values fail the build. Defaults to `prod`. | n/a |
+| `APP_ENV` | `dev` \| `qa` \| `prod`. Unknown values fail the build. **Absent resolves to `dev`; absent in a release build fails the build.** | n/a |
 | `SUPABASE_URL` | Supabase project URL for the environment. | yes |
 | `SUPABASE_ANON_KEY` | Supabase publishable/anon key (RLS-protected). | yes |
 | `STRIPE_PK` | Stripe **publishable** key (`pk_test_…` / `pk_live_…`). Never the secret key. | yes |
 | `API_BASE_URL` | Base URL of the 12 Circle NestJS API. Hosts the AI endpoints. | yes |
 
-An empty value falls back to that environment's default. Only `prod` ships
-defaults (the values that used to be hard-coded); `dev` and `qa` must be
-pointed at their own Supabase project explicitly — that's what keeps an
-isolated QA run isolated. A missing setting is reported at startup rather than
-silently falling through to production.
+An empty value falls back to that environment's default. **No environment ships
+a backend default** — every environment, production included, must be pointed at
+its Supabase project explicitly by its define file. A build that was not told
+where to point does not start: `main()` throws with the list of missing
+settings rather than falling through to somebody's real data.
+
+`prod` used to be the exception: the production URL, anon key and Stripe key
+were compiled into `app_env.dart` as the fallback for an unset `APP_ENV`, so
+every `flutter run`, `flutter test` and IDE launch that omitted
+`--dart-define-from-file` connected to production (ENV-4, P0). Those three
+constants now live in `prod.json` and nowhere else.
 
 ## What must never be here
 
@@ -36,9 +42,9 @@ client.
 
 ## Filling these in
 
-These files are committed as templates with empty values. Fill in the
-environment you own, or keep them empty and pass the values from your CI
-secret store:
+`dev.json` and `qa.json` are committed with the values their project needs;
+`prod.json` carries the production project. Anything you would rather not
+commit can be left empty and passed from a CI secret store instead:
 
 ```bash
 flutter build web \
@@ -55,11 +61,16 @@ flutter build web \
 values; it cannot reach the production Supabase project. `test/unit/env_config_test.dart`
 covers this (`ENV-003 environment isolation`).
 
-**The compiled bundle still contains the `prod` default strings.** The
-per-environment default table is a runtime lookup, so dart2js keeps all three
-entries regardless of which environment you build. That's not a leak — the
-production Supabase URL, its publishable/anon key and the Stripe publishable
-key are public by design (the anon key is already committed to
-`.github/workflows/`, and RLS is what protects the data). No secret is
-affected: `tool/check_web_build_secrets.sh` scans every build artifact for
+**The compiled bundle contains only the environment you built.** The
+per-environment default table is now empty for all three environments, so the
+only project strings in an artifact are the ones its own define file supplied.
+A `qa` bundle contains no production URL or key; a bundle built with no defines
+contains neither.
+
+That was previously not true: the default table carried the production values
+as constants, so dart2js kept them in every artifact regardless of target. It
+was defensible on secrecy grounds — the production URL, anon key and Stripe
+publishable key are public by design, and RLS is what protects the data — but
+it was never defensible on *targeting* grounds, which is the half that mattered.
+Either way `tool/check_web_build_secrets.sh` scans every build artifact for
 credential material.

@@ -33,10 +33,12 @@ build or the boot instead of silently selecting production.
      --dart-define=API_BASE_URL="$QA_API_BASE_URL"
    ```
 
-   `dev` and `qa` ship **no** backend defaults, so a QA build that isn't given a
-   project fails at startup rather than falling through to production. Only
-   `prod` carries defaults — the values the app shipped with before
-   environments existed, so existing `flutter build web` commands are unchanged.
+   **No environment ships a backend default** (ENV-4). Every build — production
+   included — must be given its project explicitly, and one that isn't fails at
+   startup instead of falling through to production. An absent `APP_ENV`
+   resolves to `dev`, which can reach nothing; an absent `APP_ENV` in a release
+   build is a hard error. The production values live in
+   `dart_defines/prod.json`, not in the binary.
 
 3. **Verify the artifact** — `npm run check:web-secrets` scans every file the
    build emitted for credential material.
@@ -70,3 +72,22 @@ returned in a response and never logged.
 | `apps/mobile/tool/check_web_build_secrets.sh` | A compiled web bundle contains no credential material |
 
 Run everything with `npm test` from the repository root.
+
+## Deploying Edge Function configuration — never `config push` (W1B-N5)
+
+`supabase/config.toml` now declares `verify_jwt` per function (E-09). That block
+reaches an environment **only** through the deploy path the release architecture
+already uses:
+
+```bash
+supabase functions deploy <function-name>   # reads that function's verify_jwt
+```
+
+**Never run `supabase config push`.** It writes the *entire* `config.toml` to the
+linked project, and this file deliberately declares almost no `[auth]`/`[db]`
+settings — a push would silently reset QA's live auth configuration (site URL,
+redirect allowlist, JWT expiry, providers, email templates) to CLI defaults.
+This prohibition stands until `config.toml` has been reconciled with QA's live
+configuration and the reconciliation is recorded; it is a **Wave 5.0 entry
+precondition** (`MASTER_REMEDIATION_REGISTRY.md` §7.7, W1B-N5). Function
+deployment itself remains gated to Wave 5 regardless.

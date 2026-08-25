@@ -18,7 +18,22 @@
 /// shipped to clients (they are protected by RLS and by Stripe's key scoping).
 /// Server secrets — the Anthropic API key above all — must never appear here;
 /// the AI integration is reached through the NestJS API instead.
+///
+/// ENV-4: this file carries **no backend defaults for any environment**. It
+/// used to bake the production URL, anon key and Stripe key in as the fallback
+/// for an unset `APP_ENV`, which meant every `flutter run`, `flutter test` and
+/// IDE launch that forgot `--dart-define-from-file` connected to production. An
+/// omission, not a mistake, was all it took. Now:
+///
+///   * an absent `APP_ENV` resolves to **dev**, which can reach nothing;
+///   * an absent `APP_ENV` in a **release** build is a hard failure;
+///   * every project lives in `dart_defines/<env>.json`, never in the binary.
+///
+/// The consequence is deliberate: a build that was not told where to point does
+/// not start. That is the intended failure mode.
 library;
+
+import 'package:flutter/foundation.dart' show kReleaseMode;
 
 /// The environments the client can be built for.
 enum AppEnvironment {
@@ -106,19 +121,18 @@ class EnvConfig {
       'stripe: ${hasStripeKey ? 'configured' : '<unset>'})';
 }
 
-// ── Baked-in defaults ────────────────────────────────────────────────────────
+// ── Per-environment defaults ─────────────────────────────────────────────────
 //
-// `prod` carries the values that used to be hard-coded in app_constants.dart /
-// stripe_config.dart, so existing build commands keep working unchanged.
-// `dev` and `qa` deliberately ship *no* backend defaults: an isolated QA run
-// must be pointed at its own project explicitly, so it can never silently fall
-// through to production data.
-
-const String _prodSupabaseUrl = 'https://nxdbooufqzkpslkcogxc.supabase.co';
-const String _prodSupabaseAnonKey =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54ZGJvb3VmcXprcHNsa2NvZ3hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjA4NzksImV4cCI6MjA5NjU5Njg3OX0.D0rl8hxQmDjqknsDCPRuKK1uyIYruSMjycHmNTI-xcE';
-const String _prodStripePublishableKey =
-    'pk_test_51TjY6fLwsDN0E0HCYEjmJTW7kJlJAC81nHgNVtRfDpWJFcZ133ob0zSeSqJQoDw4BqqJsdlTOieOWSif2CYzzSrh00BXlrGnFb';
+// ENV-4 / K-26: no environment ships a backend default any more. The production
+// URL, anon key and Stripe publishable key that used to live here as
+// `_prodSupabaseUrl` / `_prodSupabaseAnonKey` / `_prodStripePublishableKey` now
+// live in `dart_defines/prod.json` and reach the binary only when that file is
+// passed. A build with no defines therefore resolves to an environment it
+// cannot connect to, and `main()` refuses to start rather than falling through
+// to real user data.
+//
+// The one non-empty default left is dev's `API_BASE_URL`, which points at
+// localhost — a value that is inert unless a developer is running the API.
 
 /// Per-environment defaults, overridable by the matching `--dart-define`.
 const Map<AppEnvironment, EnvConfig> kEnvironmentDefaults = {
@@ -138,22 +152,30 @@ const Map<AppEnvironment, EnvConfig> kEnvironmentDefaults = {
   ),
   AppEnvironment.prod: EnvConfig(
     environment: AppEnvironment.prod,
-    supabaseUrl: _prodSupabaseUrl,
-    supabaseAnonKey: _prodSupabaseAnonKey,
-    stripePublishableKey: _prodStripePublishableKey,
+    supabaseUrl: '',
+    supabaseAnonKey: '',
+    stripePublishableKey: '',
     apiBaseUrl: '',
   ),
 };
 
 // ── Compile-time defines ─────────────────────────────────────────────────────
 
-const String kAppEnvDefine =
-    String.fromEnvironment('APP_ENV', defaultValue: 'prod');
+/// Raw `APP_ENV` define. **Empty means "nobody said"** — deliberately not
+/// defaulted here, so [resolveEnvConfig] can tell an absent value apart from an
+/// explicit one and apply the release-build rule to the former.
+const String kAppEnvDefine = String.fromEnvironment('APP_ENV');
 const String kSupabaseUrlDefine = String.fromEnvironment('SUPABASE_URL');
 const String kSupabaseAnonKeyDefine =
     String.fromEnvironment('SUPABASE_ANON_KEY');
 const String kStripePkDefine = String.fromEnvironment('STRIPE_PK');
 const String kApiBaseUrlDefine = String.fromEnvironment('API_BASE_URL');
+
+/// The environment an absent `APP_ENV` resolves to.
+///
+/// ENV-4: this used to be `prod`. It is `dev` because dev is the environment
+/// that can reach nothing — the safe answer to "you didn't tell me".
+const AppEnvironment kDefaultEnvironment = AppEnvironment.dev;
 
 /// Resolves an [EnvConfig] from raw define values.
 ///
@@ -161,23 +183,42 @@ const String kApiBaseUrlDefine = String.fromEnvironment('API_BASE_URL');
 /// arbitrary inputs — `--dart-define` values cannot be varied within a test
 /// run. Precedence: an explicit define wins; otherwise the environment default.
 ///
-/// Throws [ArgumentError] when [appEnv] is not one of dev/qa/prod, so a typo in
-/// a build command fails the build rather than silently shipping production
-/// configuration.
+/// Throws [ArgumentError] when [appEnv] is a non-empty value that is not one of
+/// dev/qa/prod, so a typo in a build command fails the build rather than
+/// silently selecting an environment nobody asked for.
+///
+/// Throws [StateError] when [appEnv] is **absent** and [isReleaseBuild] is
+/// true. A debug or test run may omit `APP_ENV` and get [kDefaultEnvironment];
+/// a shipping binary may not, because "which backend does this app talk to" is
+/// not a question a release build is allowed to answer by default.
 EnvConfig resolveEnvConfig({
   String appEnv = kAppEnvDefine,
   String supabaseUrl = kSupabaseUrlDefine,
   String supabaseAnonKey = kSupabaseAnonKeyDefine,
   String stripePublishableKey = kStripePkDefine,
   String apiBaseUrl = kApiBaseUrlDefine,
+  bool isReleaseBuild = kReleaseMode,
 }) {
-  final environment = AppEnvironment.tryParse(appEnv);
-  if (environment == null) {
-    throw ArgumentError.value(
-      appEnv,
-      'APP_ENV',
-      'Unknown environment. Expected one of: dev, qa, prod',
-    );
+  final AppEnvironment environment;
+  if (appEnv.trim().isEmpty) {
+    if (isReleaseBuild) {
+      throw StateError(
+        'APP_ENV is not set. A release build must name its environment '
+        'explicitly: build with --dart-define-from-file=dart_defines/'
+        '<dev|qa|prod>.json (see dart_defines/README.md).',
+      );
+    }
+    environment = kDefaultEnvironment;
+  } else {
+    final parsed = AppEnvironment.tryParse(appEnv);
+    if (parsed == null) {
+      throw ArgumentError.value(
+        appEnv,
+        'APP_ENV',
+        'Unknown environment. Expected one of: dev, qa, prod',
+      );
+    }
+    environment = parsed;
   }
 
   final defaults = kEnvironmentDefaults[environment]!;
