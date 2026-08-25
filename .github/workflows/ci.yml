@@ -56,14 +56,53 @@ jobs:
           # app_env.dart must carry no project at all. dart_defines/prod.json is
           # the only place production configuration is allowed to live, and it
           # only reaches a binary that was explicitly pointed at it.
-          if grep -qE 'supabase\.co|eyJ[A-Za-z0-9_-]{20,}|pk_(test|live)_' \
-               apps/mobile/lib/core/config/app_env.dart; then
-            echo "FAIL — a project URL, JWT or Stripe key is baked into app_env.dart."
+          #
+          # W1B-N7: the patterns match REAL credential material only. A real
+          # Supabase project host is 20 lowercase alphanumerics before
+          # .supabase.co; a real JWT is eyJ + 20+ token chars; a real Stripe
+          # publishable key is pk_(test|live)_ + 24+ alphanumerics. The file's
+          # documentation placeholders (YOUR_QA_REF.supabase.co, pk_test_...)
+          # match none of them — which is the point: comments are NOT excluded
+          # from the scan, so a real key pasted anywhere in the file, comments
+          # included, still fails. Residual coverage below these thresholds
+          # comes from the production-ref guard (any occurrence of the
+          # production ref, any file) and the QA-artifact allowlist scan (any
+          # project ref in the built bundle).
+          REAL='([a-z0-9]{20}\.supabase\.co|eyJ[A-Za-z0-9_-]{20,}|pk_(test|live)_[A-Za-z0-9]{24,})'
+
+          # Pattern self-test — the standing regression guard for W1B-N7.
+          # Real-shaped material must match; the placeholder shapes that caused
+          # the aac64b3 false positive must not. If either half breaks, the
+          # guard itself is wrong, and it says so before judging the file.
+          selftest_real='aaaaaaaaaaaaaaaaaaaa.supabase.co
+          eyJabcdefghijklmnopqrstuvwx
+          pk_test_abcdefghijklmnopqrstuvwxyz'
+          selftest_placeholder='https://YOUR_QA_REF.supabase.co
+          SUPABASE_ANON_KEY=YOUR_QA_PUBLISHABLE_KEY
+          pk_test_...'
+          while IFS= read -r s; do
+            [[ -z "${s// /}" ]] && continue
+            if ! grep -qE "$REAL" <<<"$s"; then
+              echo "GUARD SELF-TEST FAIL — real-shaped material not matched: $s"
+              exit 1
+            fi
+          done <<<"$selftest_real"
+          while IFS= read -r s; do
+            [[ -z "${s// /}" ]] && continue
+            if grep -qE "$REAL" <<<"$s"; then
+              echo "GUARD SELF-TEST FAIL — placeholder matched as real: $s"
+              exit 1
+            fi
+          done <<<"$selftest_placeholder"
+
+          if grep -qE "$REAL" apps/mobile/lib/core/config/app_env.dart; then
+            echo "FAIL — a project URL, JWT or Stripe key is baked into app_env.dart:"
+            grep -nE "$REAL" apps/mobile/lib/core/config/app_env.dart
             echo "ENV-4: an omitted APP_ENV must resolve to an environment that"
             echo "can reach nothing, which requires the default table to be empty."
             exit 1
           fi
-          echo "OK — app_env.dart carries no baked-in project."
+          echo "OK — app_env.dart carries no baked-in project (doc placeholders allowed; real material anywhere, comments included, is not)."
 
   flutter:
     name: Flutter — analyze, test, QA web build
