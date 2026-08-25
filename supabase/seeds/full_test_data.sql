@@ -1,4 +1,63 @@
 -- ============================================================
+-- REL-36 · SEED TARGET GUARD — do not remove.
+--
+-- Second half of the guard in test_accounts.sql. That file refuses to run
+-- against a database that already has users; by the time THIS file runs, that
+-- one has just created some, so "auth.users is empty" is no longer the right
+-- question. The right question is "are the only accounts here the ones the
+-- fixture just made?".
+--
+-- This file writes marketplace coaches, community members and 30 days of
+-- activity, and it inserts auth.users rows of its own. Run against a populated
+-- database it would attach fabricated coaching relationships and social content
+-- to real accounts.
+--
+-- Both pinned fixture ids must be present (proving test_accounts.sql ran in
+-- this same reset, guard and all), and nothing else may be.
+-- ============================================================
+DO $seed_guard$
+DECLARE
+  fixture_client CONSTANT uuid := '5470a95f-bcae-4e01-b2be-7c16964fa432';
+  fixture_coach  CONSTANT uuid := 'f626acd9-f76c-43ca-be4c-54d028ae09db';
+  total_users    bigint;
+  strangers      bigint;
+BEGIN
+  SELECT count(*) INTO total_users FROM auth.users;
+
+  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = fixture_client)
+     OR NOT EXISTS (SELECT 1 FROM auth.users WHERE id = fixture_coach) THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'raise_exception',
+      MESSAGE = 'REFUSING TO SEED: the pinned test_accounts.sql fixtures are absent.',
+      DETAIL  = 'full_test_data.sql builds on the client and coach that '
+                'test_accounts.sql creates. Their absence means this is not a '
+                'freshly seeded QA database.',
+      HINT    = 'Run supabase/scripts/qa-db-reset.sh, which applies both seeds '
+                'in order against a verified QA project.';
+  END IF;
+
+  SELECT count(*) INTO strangers
+  FROM auth.users
+  WHERE id NOT IN (fixture_client, fixture_coach);
+
+  IF strangers > 0 THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'raise_exception',
+      MESSAGE = format(
+        'REFUSING TO SEED: %s account(s) here were not created by this fixture.',
+        strangers),
+      DETAIL  = 'This seed fabricates coaching relationships, marketplace '
+                'listings and community posts. Attaching them to real accounts '
+                'is not something that can be undone by re-running a seed.',
+      HINT    = 'Only ever seed a freshly reset QA database.';
+  END IF;
+
+  RAISE NOTICE 'REL-36 seed guard: % fixture account(s), no strangers, proceeding.',
+    total_users;
+END
+$seed_guard$;
+
+-- ============================================================
 -- 12 Circle Fitness — Comprehensive Test Data Seed
 -- Run in Supabase SQL Editor AFTER test_accounts.sql
 --

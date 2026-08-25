@@ -1,4 +1,50 @@
 -- ============================================================
+-- REL-36 · SEED TARGET GUARD — do not remove.
+--
+-- This file creates auth.users rows with PUBLISHED passwords
+-- (test@12circle.app / Test1234!, coach@12circle.app / Coach1234!, and the
+-- bcrypt hashes below, which are in git history as of W1-T1). Anywhere it runs,
+-- it creates known-credential accounts. It must therefore only ever run against
+-- an empty QA database.
+--
+-- `supabase db reset` applies this file automatically via [db.seed] in
+-- config.toml, against whatever project the CLI happens to be linked to. There
+-- is no CLI-level confirmation of that target, so the refusal lives here, in
+-- the one place every invocation path has to pass through -- including a
+-- hand-run `psql -f`, which a wrapper script cannot intercept.
+--
+-- The test: a genuine `db reset` truncates everything before seeding, so
+-- auth.users is empty. Any populated database -- production first among them --
+-- aborts the whole seed before a single credential is written.
+--
+-- Companion control: supabase/scripts/qa-db-reset.sh verifies the LINKED PROJECT
+-- REF before it will call `supabase db reset` at all. Two independent controls,
+-- because one of them is a shell script that can simply be bypassed.
+-- ============================================================
+DO $seed_guard$
+DECLARE
+  existing_users bigint;
+BEGIN
+  SELECT count(*) INTO existing_users FROM auth.users;
+
+  IF existing_users > 0 THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'raise_exception',
+      MESSAGE = format(
+        'REFUSING TO SEED: auth.users already contains %s row(s).',
+        existing_users),
+      DETAIL  = 'This seed writes accounts with published passwords and is only '
+                'valid against a freshly reset QA database. A database that '
+                'already has users is not one -- it may be production.',
+      HINT    = 'Reset first with supabase/scripts/qa-db-reset.sh, which '
+                'verifies the linked project ref before doing anything.';
+  END IF;
+
+  RAISE NOTICE 'REL-36 seed guard: auth.users is empty, proceeding.';
+END
+$seed_guard$;
+
+-- ============================================================
 -- 12 Circle Fitness — Test Accounts Seed
 -- Run in Supabase SQL Editor AFTER running 001_full_ecosystem.sql
 --
