@@ -1,7 +1,7 @@
 # 12 Circle Fitness — Remediation Progress Board
 
 **Running status. Updated on every status change.**
-**Last updated:** 2026-08-25 · **Wave 0 complete · W1-T1 complete · Wave 1 batch tasks 2–8 REMEDIATED (task 9 blocked, EB-12) · custody commit pending**
+**Last updated:** 2026-08-26 · **Wave 0 complete · W1-T1 complete · CI green at `6d42b10` (live security 271/271) · first 23 findings `VERIFIED_CLOSED` (registry §7.8)**
 
 > **Update rules.** A status change here must be accompanied by the matching change in
 > [`MASTER_REMEDIATION_REGISTRY.md`](MASTER_REMEDIATION_REGISTRY.md) and by the evidence
@@ -15,9 +15,9 @@
 | | |
 |---|---|
 | **Current wave** | **1 — Custody, Environment & Release Safety · IN PROGRESS** |
-| **Completed** | Wave 0 · **W1-T1 (custody) — COMPLETE**, see §12 · **Batch tasks 2–8 — REMEDIATED (uncommitted)**, task 9 **BLOCKED** (EB-12), see §11 and [`WAVE_1_BATCH_CLOSURE.md`](WAVE_1_BATCH_CLOSURE.md) |
-| **Next action** | **Custody commit checkpoint of the batch** (owner, locally, in the prepared slices — task 8's wording needs owner approval first) → push so `ci.yml` executes for the first time → EB-1/EB-12 owner actions → **then W1-T2 (migration 123) and W1-T3 (QA ledger), sequentially** |
-| **Highest gate met** | **none.** Gate 0 is not mechanized; `.github/workflows/` holds one file, a production keep-alive ping |
+| **Completed** | Wave 0 · W1-T1 · batch tasks 2–8 (task 9 blocked, EB-12) · W1B-N6…N9 CI-closed · **Phase 1 live re-verification: 271/271 at `6d42b10` → 23 rows `VERIFIED_CLOSED`** (registry §7.8) |
+| **Next action** | Owner decisions: task 8 wording · EB-12 (R-06 toggle) · assign **FG-1/FG-2** (registry §7.8 — search_path SQL + workout SQL suites into CI) → **then W1-T2 (migration 123) and W1-T3 (QA ledger), sequentially** → Wave 1 exit review |
+| **Highest gate met** | **Gate 0 mechanics exist and are green** (`6d42b10`: static guards, Flutter, API, live security 271/271, AI, contract). Formal row-by-row gate scoring is the Wave 1 exit review |
 | **Production contact** | **none, by any wave, at any point** |
 | **Blocking on** | 8 critical-path decisions (§5) and 11 open environment blockers (§6; EB-1 resolved 2026-08-25) |
 
@@ -28,7 +28,7 @@
 | Wave | Name | Status | Findings | Entry met? | Exit gate |
 |---|---|---|---|---:|---|
 | **0** | Reconciliation | ✅ **COMPLETE** | 310 catalogued | — | — |
-| **1** | Custody, Environment & Release Safety | 🟨 **IN PROGRESS** — W1-T1 done · batch tasks 2–8 REMEDIATED (custody commit pending) · task 9 blocked (EB-12) · spine W1-T2/W1-T3 remain | 22 (+5 new, §11a) | ✅ yes | Gate 0, Gate 1 (partly) |
+| **1** | Custody, Environment & Release Safety | 🟨 **IN PROGRESS** — W1-T1 done · batch committed · CI green · **23 rows VERIFIED_CLOSED at `6d42b10`** · remaining: task 8 (held), R-06 (EB-12), FG-1/FG-2, spine W1-T2/W1-T3 | 22 (+9 new, §11a) | ✅ yes | Gate 0, Gate 1 (partly) |
 | **2** | Security Regression & Boundary Re-assertion | ⬜ blocked on Wave 1 | 9 | ❌ needs Wave 1 + EB-1 | Gate 2 (security) |
 | **3A** | Schema-contract truth | ⬜ blocked on Wave 1 | 21 | ❌ | Gate 1 |
 | **3B** | Error contract | ⬜ blocked on 3A | 26 | ❌ | Gate 2 (error) |
@@ -49,17 +49,17 @@
 |---|---:|---|
 | `DISCOVERED` | 0 | all triaged in Wave 0 |
 | `DUPLICATE` | 118 | collapsed; see registry §3. **Retired IDs must not be used as tracking keys** |
-| `ALREADY_FIXED` | 52 | Phase 1 (24) + Phase 2 (12) + other (16). **None is `VERIFIED_CLOSED`** — see §4 |
+| `ALREADY_FIXED` | 39 | was 52; 13 Phase 1 rows promoted at `6d42b10` (registry §7.8). Remaining 39 hold — Phase 2's live suite has never run in CI (FG-2), plus §4.2-tainted and decision-coupled rows |
 | `FIX_IN_PROGRESS` | 0 | |
 | `BLOCKED_DECISION` | 48 | 31 have a mechanical half that is **not** blocked · +1: W1B-N3 |
-| `BLOCKED_ENVIRONMENT` | 25 | +1: `R-06` → EB-12 (batch task 9) |
-| `READY_TO_REMEDIATE` | 182 | −8 batch REMEDIATED, −1 `R-06` blocked, +4 new (W1B-N1/N2/N4/N5) |
-| `REMEDIATED` | 12 | ENV-4, `K-26`, ENV-5, ENV-6, `E-09`, `LRE-34`, `REL-36`, REL-3, **W1B-N6**, **W1B-N7**, **W1B-N8**, **W1B-N9** *(plus the UIX-2 text half and `LRE-35` inside the `LRE-09…42` aggregate, counted at their parent rows)* — **FIXED IN CODE, uncommitted; see registry §7.7** |
+| `BLOCKED_ENVIRONMENT` | 24 | `R-06`→EB-12 in; `TST-1` out (VERIFIED_CLOSED) |
+| `READY_TO_REMEDIATE` | 181 | `ENV-1` out (VERIFIED_CLOSED — it had never been re-bucketed after W1-T1; corrected here) |
+| `REMEDIATED` | 4 | `K-26` (D-1(L) pending), ENV-6 (PR run pending), `LRE-34`, `REL-36` *(plus the UIX-2 text half and `LRE-35` inside the `LRE-09…42` aggregate, counted at their parent rows)* — each row's exact missing evidence is in registry §7.8 |
 | `RETEST_REQUIRED` | 0 | |
-| **`VERIFIED_CLOSED`** | **0** | **and none can be until the batch is committed, pushed, and ci.yml executes (then EB-1 for the live rows)** |
+| **`VERIFIED_CLOSED`** | **23** | **first promotions of the programme** — 2026-08-26, evidence CI `6d42b10` (live security 271/271); full record registry §7.8 |
 | `DEFERRED` | 0 | |
 | `RELEASE_BLOCKER` | 56 | a gate attachment, not a severity — counted inside the rows above |
-| **Canonical total** | **319** | 310 from 428 raw records + **9 Wave 1 batch discoveries** (W1B-N1…N9, registry §7.7; N6–N9 filed and remediated 2026-08-25) |
+| **Canonical total** | **319** | 310 from 428 raw records + 9 Wave 1 batch discoveries (W1B-N1…N9). Status sum: 39+48+24+181+4+23 = 319 ✓ |
 
 | Severity | Open | Fixed | Total |
 |---|---:|---:|---:|
@@ -85,6 +85,11 @@ is the same for all of them:
 
 `ALREADY_FIXED` is therefore the honest state. It becomes `VERIFIED_CLOSED` in Wave 1,
 when the suites execute in CI for the first time — **not before, and not by assertion.**
+
+**Resolution, 2026-08-26:** that condition was met at CI commit `6d42b10` — 271/271 live
+security across the six suites. Thirteen of the fifty-two promoted; the remaining
+thirty-nine stay for exactly the reasons above (Phase 2's live suite still absent from
+CI — FG-2; §4.2 regressions; decision-coupled halves). Registry §7.8 is the record.
 
 ---
 
@@ -136,9 +141,9 @@ decision needs two authorities).*
 
 | Gate | Rows | Met | Status |
 |---|---:|---:|---|
-| **Gate 0** — Merge to `main` | 14 | **0** | ❌ no CI exists |
+| **Gate 0** — Merge to `main` | 14 | — | 🟨 CI exists and is green (`6d42b10`); formal row scoring at the Wave 1 exit review |
 | **Gate 1** — QA promotion / contract truth | 9 | 0 | ❌ |
-| **Gate 2** — Security & error contract | 13 | 0 | ❌ · *row 2.2 has never executed* |
+| **Gate 2** — Security & error contract | 13 | 0 | ❌ · row 2.2 (live suite) **executed 2026-08-26: 271/271**; error-contract rows remain Wave 3B |
 | **Gate 3** — AI enablement | 15 | 0 | ❌ · EB-2, EB-3, EB-4 |
 | **Gate 4** — Commerce enablement | 14 | 0 | ❌ · EB-5 |
 | **Gate 5** — RC → staging | 13 | 0 | ❌ · EB-11 |
@@ -175,6 +180,11 @@ defect) · analyze 0 errors · API 58 + 6 · `npm run check:guards` 10/10. Measu
 batch session against the uncommitted tree; **becomes the standing baseline only when
 ci.yml reproduces it after the custody commit.** The three static guards were
 independently re-run at the custody checkpoint (2026-08-25) and pass.
+
+**Standing live baseline (2026-08-26, CI `6d42b10`):** live security **271/271** across
+six suites (D-01 43/43 · D-02 40/40 · D-03 27/27 · 1D 54/54 · 1E 73/73 · 1F 34/34) ·
+live AI suite pass (characterization level) · contract suite pass (allowlist intact) ·
+overall workflow green. Any future count below these is a regression signal.
 
 ### 8.1 Suite composition — the number that matters more than the total
 
@@ -368,3 +378,4 @@ is asserted green, and it is.*
 | 2026-08-25 | **CI run for `aac64b3` red on the ENV-4 inline check — filed and remediated as W1B-N7** (registry §7.7). The check's over-broad patterns matched doc placeholders in `app_env.dart` (lines 11/13) on the step's first-ever execution; W1B-N6's production-ref guard fix **passed in the same run** (its first CI evidence), as did migration hygiene, edge config, Flutter (incl. the new artifact allowlist scan) and API; live-qa was skipped by the failed dependency, so the EB-1 skip path remains unobserved. Fix: real-material-only patterns + an inline pattern self-test (placeholder-vs-real regression guard); comments remain scanned. Old/new behavior and self-test integrity demonstrated locally; all other static guards re-run green. **Prepared only — `.github/` is bridge-protected: corrected ci.yml staged at `docs/cowork/pending-cifix/ci.yml` for owner copy. No commit/push; no environment contacted.** |
 | 2026-08-25 | **First live-qa execution (EB-1 resolved: `QA_URL`/`QA_ANON`/`QA_SERVICE` provisioned) reached the security suites and all six stopped at import: `ids.json missing` — filed and remediated as W1B-N8** (registry §7.7). `ids.json` is generated by `setup-identities.mjs` and deliberately untracked, so an ephemeral CI checkout can never hold it; the ci.yml live-qa job omitted the setup step the wave plan assigned to W1-B2. Fix: one creds-gated `setup-identities.mjs` step after the exact-host QA confirmation — idempotent, fixture-namespaced, no deletions; **the programme's first sanctioned standing QA write, explicitly authorized by the product owner 2026-08-25**. Harness untouched; ids.json stays untracked. Prepared via `docs/cowork/pending-cifix/ci.yml` (`.github/` is bridge-protected); **no commit/push; QA not contacted by the orchestrator; production not contacted.** CI must reproduce (expected: setup runs, six suites execute their 188 assertions) |
 | 2026-08-25 | **Live security suites executed for the first time since Phase 1: 270/271.** The single FAIL is a fixture defect, filed and remediated as **W1B-N9** (registry §7.7): hosted Supabase Auth rejects `.test` domains at public `/auth/v1/signup` (`email_address_invalid`), so the D-02 public-signup probe 400'd before the trigger; the boundary itself is proven by the passing admin-API metadata probes. Fix: one line — probe address → `p1-signup-public@qa.12circlefitness.com`, the owner-confirmed controlled business domain. No assertion, harness, Auth config or other fixture changed. **No commit/push; QA not contacted by the orchestrator; production not contacted.** Closes at 271/271 in CI |
+| 2026-08-26 | **Phase 1 live-evidence reconciliation (owner-approved).** CI at `6d42b10` green: live security 271/271 across all six suites, AI + contract suites pass, W1B-N9's fix verified on the real public signup route. **23 rows promoted to `VERIFIED_CLOSED`** — the programme's first — per the closure-standard class ladder: 13 Phase 1 `ALREADY_FIXED` rows, TST-1, ENV-1, ENV-4, ENV-5, E-09, REL-3, W1B-N6…N9 (full record + retained limitations: registry §7.8). Deliberately held: SEC-04 (F-J-01 blind spot), Q-4/SEC-R2, SEC-09, SEC-11 + Phase 2 cohort (FG-2), SEC-08 (Q-2), ENV-6 (PR run), LRE-34/REL-36/LRE-35, K-26 (D-1(L)), AI domain (EB-2), contract/3A. Two evidence gaps registered, not implemented: **FG-1** (function-search-path.sql into CI) and **FG-2** (workout SQL suite into CI). Count correction: ENV-1 re-bucketed out of READY (stale since W1-T1). `d151ee6` reviewed — reporting-only, no assertion weakened. **Documentation-only change; no environment contacted; production untouched.** |

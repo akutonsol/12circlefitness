@@ -133,10 +133,13 @@ remediation in this programme has the same half-life.
 | `DEFERRED` | Deliberately out of scope for this programme, with an owner and a date |
 | `RELEASE_BLOCKER` | Not a code defect here; blocks a named release gate |
 
-**Nothing in this registry is `VERIFIED_CLOSED`.** Fifty-two findings are `ALREADY_FIXED`
-(§4.1) — a weaker state, because the live suites that proved them **have not been re-run
-since the tree moved**, and two of them were subsequently regressed. `VERIFIED_CLOSED`
-becomes reachable only after Wave 1 puts the suites in CI.
+**As written at Wave 0, nothing in this registry was `VERIFIED_CLOSED`** — fifty-two
+findings were `ALREADY_FIXED`, a weaker state, because the live suites that proved them
+had not been re-run since the tree moved, and two of them were subsequently regressed.
+**Update 2026-08-26 (§7.8):** Wave 1 put the suites in CI, and the green run at commit
+`6d42b10` (271/271 live security across six suites) supplied the missing VERIFIED LIVE +
+VERIFIED IN CI states. **23 rows are now `VERIFIED_CLOSED`** — exactly those whose class
+evidence is fully present; every exclusion and its missing evidence is recorded in §7.8.
 
 ---
 
@@ -216,6 +219,12 @@ tracking key after this document.** Full list:
 ## 4. Already fixed, regressed, and not reproduced
 
 ### 4.1 `ALREADY_FIXED` — 52 findings. Do not re-open.
+
+> **2026-08-26:** 13 of these rows (SEC-01, SEC-02, SEC-03, SEC-05, SEC-06, SEC-07,
+> SEC-10, F-01, F-03, F-05, F-06, F-07, F-08) are promoted to `VERIFIED_CLOSED` on the
+> live CI evidence at `6d42b10` — see **§7.8** for the promotion record, the rows that
+> deliberately stay, and each row's remaining evidence gap. The tables below are the
+> historical Wave 0 record and are not rewritten.
 
 **Phase 1 (security), closed by migrations 113–118 — evidence: 270/270 live assertions**
 
@@ -411,7 +420,7 @@ programme brief. **These are the findings that gate the plan.**
 ---
 
 ### ENV-1 · The entire remediation programme is untracked
-`LRE-03` · **P0** · ✅ `REMEDIATED` 2026-08-24 (W1-T1) · Wave 1
+`LRE-03` · **P0** · ✅ `VERIFIED_CLOSED` 2026-08-26 *(W1-T1 custody + migration-hygiene guard green in CI at `6d42b10`; zero untracked non-ignored engineering files)* · Wave 1
 
 | Field | Value |
 |---|---|
@@ -475,7 +484,7 @@ programme brief. **These are the findings that gate the plan.**
 ---
 
 ### ENV-4 · `APP_ENV` defaults to production
-`LRE-01` (= REL-07) · **P0** · `REMEDIATED` *(2026-08-24, Wave 1 batch task 2 — see [`WAVE_1_BATCH_CLOSURE.md`](WAVE_1_BATCH_CLOSURE.md); FIXED IN CODE, awaiting CI execution for promotion)* · Wave 1
+`LRE-01` (= REL-07) · **P0** · ✅ `VERIFIED_CLOSED` 2026-08-26 *(Wave 1 batch task 2, [`WAVE_1_BATCH_CLOSURE.md`](WAVE_1_BATCH_CLOSURE.md); CI at `6d42b10`: ENV-4 static guard + env-ratchet tests + QA-bundle allowlist scan all green — see §7.8)* · Wave 1
 
 | Field | Value |
 |---|---|
@@ -491,7 +500,7 @@ programme brief. **These are the findings that gate the plan.**
 ---
 
 ### ENV-5 · Three QA harnesses are hardcoded to production and perform destructive writes
-`LRE-02` (= REL-18, K-ENV-1, OBS-4-R4, N-05) · **P0** · `REMEDIATED` *(2026-08-24, Wave 1 batch task 3 — shared `tool/qa_target.dart` allowlist refusal, no defaults; see [`WAVE_1_BATCH_CLOSURE.md`](WAVE_1_BATCH_CLOSURE.md); FIXED IN CODE, awaiting CI execution for promotion)* · Wave 1
+`LRE-02` (= REL-18, K-ENV-1, OBS-4-R4, N-05) · **P0** · ✅ `VERIFIED_CLOSED` 2026-08-26 *(Wave 1 batch task 3 — shared `tool/qa_target.dart` allowlist refusal, no defaults; CI at `6d42b10`: harness guard tests + `--untracked` production-ref guard green — see §7.8)* · Wave 1
 
 | Field | Value |
 |---|---|
@@ -902,7 +911,7 @@ webhook that is not yet idempotent — which is why K sequences it after BIL-1/B
 ---
 
 ### REL-3 · QA tooling ships in release builds
-`REL-06` (= LRE-26) · **P0** · `REMEDIATED` *(2026-08-24, Wave 1 batch task 7 — compile-time `kQaToolingEnabled = !kReleaseMode` route gate + `release_route_gate_test.dart`; entry-point affordances in `settings_screen.dart` and `exercise_content_center_screen.dart` gated on the same flag, recorded as an accepted scope extension; see [`WAVE_1_BATCH_CLOSURE.md`](WAVE_1_BATCH_CLOSURE.md); FIXED IN CODE, awaiting CI execution for promotion)* · Wave 1
+`REL-06` (= LRE-26) · **P0** · ✅ `VERIFIED_CLOSED` 2026-08-26 *(Wave 1 batch task 7 — compile-time `kQaToolingEnabled = !kReleaseMode` route gate + affordance gating (recorded scope extension); `release_route_gate_test.dart` executed in CI at `6d42b10` — see §7.8)* · Wave 1
 
 `/qa-center` and `/mie-debugger` are wired unconditionally into the shipping router,
 gated by neither `kReleaseMode` nor a role check. Only **4 uses of
@@ -944,7 +953,7 @@ Policy and Help Center but not Terms of Service, though the screen exists.
 ---
 
 ### TST-1 · The live security suite has never executed
-`N-01` (suite half) · **P0** · `BLOCKED_ENVIRONMENT` · Wave 1
+`N-01` (suite half) · **P0** · ✅ `VERIFIED_CLOSED` 2026-08-26 *(EB-1 resolved; the six suites executed in CI at `6d42b10` — 271/271. The row below is the historical statement)* · Wave 1
 
 188 live authorization assertions across six suites, written to fail against the
 pre-remediation database and to pass after — **not run in any workstream session**,
@@ -1173,6 +1182,79 @@ W1B-N6…N8 rows below and the progress-board changelog)*:
 | **W1B-N7** | P2 | CRC-14 | The ENV-4 inline CI check matched **documentation placeholders** as credential material: its patterns (`supabase\.co`, `pk_(test|live)_`) flagged `YOUR_QA_REF.supabase.co` and `pk_test_...` in `app_env.dart`'s usage comment, failing the `aac64b3` run's static-guards job at the step's **first-ever execution** (run 1 died at step 1, so steps 2–4 had never run — same class as W1B-N6: two tasks verified alone, integrated only in CI). Root cause: guard aimed at the wrong layer — shape-of-material was not part of the pattern. Remediated by matching **real material only** (20-char lowercase-alphanumeric project host · `eyJ`+20 token chars · `pk_(test|live)_`+24 alphanumerics) with comments still scanned — a real key pasted into a comment still fails — plus an **inline pattern self-test** asserting real-shaped fixtures match and the aac64b3 placeholder shapes do not, so a weakened pattern fails the guard itself. Residual sub-threshold coverage: the production-ref guard and the QA-artifact allowlist scan. Old check shown failing on the current file; new check passes it, catches planted real material in comments, and the self-test catches a crippled pattern arm. **Remediated in the same change** (2026-08-25); CI must reproduce | — | no | N | 1 *(closed with the ENV-4 guard fix)* |
 | **W1B-N8** | P2 | CRC-14 | With EB-1's secrets finally provisioned, the live-qa job reached the security suites for the first time and all six died at import: `ids.json missing`. The file is the generated map of the four fixture-identity UUIDs, written by `setup-identities.mjs`, gitignored by design (`.gitignore:34`; W1-T1 custody manifest; README: "generated, not authored") — so an ephemeral CI checkout can never contain it. The wave plan named the setup script as part of W1-B2's QA requirements; the ci.yml implementation omitted the step — the same first-joint-execution class as W1B-N6/N7. Remediated by one creds-gated step after the exact-host QA confirmation: `node supabase/tests/security/setup-identities.mjs` (idempotent: creates-or-repairs the four `p1-*@qa.12circle.test` identities, `is_demo`, seeds three P1-FIXTURE victim rows only if absent; no deletions). **This is the programme's first sanctioned standing QA write — explicitly authorized by the product owner 2026-08-25.** Harness untouched; ids.json stays untracked. CI must reproduce | EB-1 (resolved) | owner authorization RECORDED | N | 1 *(closed with the CI step)* |
 | **W1B-N9** | P3 | CRC-14 | **Test-fixture defect, not a security defect.** The first full live run scored 270/271; the one FAIL, D-02 "public signup cannot mint an admin", never reached the boundary: hosted Supabase Auth rejects example/test domains at the public `/auth/v1/signup` route (`email_address_invalid` — docs: "Example and test domains are currently not supported"), so the probe's `@qa.12circle.test` address 400s before `handle_new_user()` fires. The security contract itself is proven by the three admin-API metadata probes in the same suite (role=admin/content_manager/superuser all degrade to `client`; migration 115's clamp is source-controlled), and the suite correctly failed closed on the unexpected status rather than counting an unexercised probe as a pass. Remediated by one line (`d02-role-escalation.mjs:127`): probe address → `p1-signup-public@qa.12circlefitness.com` — the owner-confirmed controlled business domain (2026-08-25), so a confirmation email can never reach a third party; the fixed-address + pre-delete/post-delete cleanup pattern is unchanged. No assertion logic, harness, Auth configuration or other fixture touched. Closes when CI shows 271/271 | — | owner domain confirmation RECORDED | N | 1 *(closed with the fixture fix)* |
+
+---
+
+### 7.8 Phase 1 live-evidence reconciliation — 2026-08-26 · evidence: CI run at `6d42b10`
+
+Owner-approved promotion record. Evidence for every row below: the green CI run at
+commit `6d42b10` — live security **271/271** across the six suites (D-01 43/43 ·
+D-02 40/40 · D-03 27/27 · 1D 54/54 · 1E 73/73 · 1F 34/34), live AI suite passed
+(characterization level — see holds), contract suite passed (allowlist intact), overall
+workflow green. The suites were written to fail against the pre-remediation database
+(`supabase/tests/security/README.md`), so this run supplies **VERIFIED LIVE** and
+**VERIFIED IN CI** in one artifact. Commit `d151ee6` (suite failure accounting) was
+reviewed at reconciliation: reporting-only, no assertion weakened.
+
+**Promoted to `VERIFIED_CLOSED` — 23 rows:**
+
+| Row | From | Closing evidence at `6d42b10` |
+|---|---|---|
+| SEC-01 | ALREADY_FIXED | D-01 43/43 |
+| SEC-02 | ALREADY_FIXED | D-02 40/40 — including, for the first time, the real public `/auth/v1/signup` route (post-W1B-N9) |
+| SEC-03 | ALREADY_FIXED | D-03 27/27 |
+| SEC-05 | ALREADY_FIXED | 1D 54/54. **Retained limitation:** the anon-executability probes are a finite list; the full-catalog class assertion is **Wave 2 task 2B** |
+| SEC-06 | ALREADY_FIXED | 1E 73/73 |
+| SEC-07 | ALREADY_FIXED | 1E 73/73 |
+| SEC-10 | ALREADY_FIXED | 1F §5 |
+| F-01 | ALREADY_FIXED | 1F §2 |
+| F-03 | ALREADY_FIXED | 1F §4 |
+| F-05 | ALREADY_FIXED | 1F §5 |
+| F-06 | ALREADY_FIXED | 1F sweep |
+| F-07 | ALREADY_FIXED | 1F §6 |
+| F-08 | ALREADY_FIXED | 1F sweep |
+| TST-1 | BLOCKED_ENVIRONMENT (EB-1) | the suite itself executed in CI — its own closure criterion |
+| ENV-1 | REMEDIATED (W1-T1) | migration-hygiene guard green in CI; zero untracked engineering files |
+| ENV-4 | REMEDIATED | ENV-4 static guard + env-ratchet tests + QA-bundle allowlist scan |
+| ENV-5 | REMEDIATED | harness guard tests + `--untracked` production-ref guard |
+| E-09 | REMEDIATED | edge-function config guard 5/5. **Deployment of the block remains gated by open W1B-N5** |
+| REL-3 | REMEDIATED | `release_route_gate_test.dart` executed in CI |
+| W1B-N6 | REMEDIATED | production-ref guard green in CI on the corrected tree |
+| W1B-N7 | REMEDIATED | ENV-4 step green incl. its pattern self-test |
+| W1B-N8 | REMEDIATED | setup-identities ran in CI; all six suites executed |
+| W1B-N9 | REMEDIATED | 271/271 — its stated closure criterion |
+
+**Deliberately NOT promoted — the row's missing evidence, exactly:** SEC-04 *(open
+regression F-J-01: d04 has a documented blind spot on `materialize_program_week`'s
+wrapper; needs migration 124 + I-MIG-03 class guard + live 403 probe — Wave 2)* ·
+Q-4/PAR-Q closure *(SEC-R2 open: legitimate flag writes throw; needs 124 casts + live
+three-flag write probe)* · SEC-09 *(REST suites cannot assert catalog `search_path`
+state; `function-search-path.sql` is not wired into CI; needs FG-1 + I-MIG-03)* ·
+SEC-11 and the 12 Phase 2 closures *(their live evidence is the 32-assertion workout SQL
+suite, which has never run in CI; needs FG-2 — behavioural Dart halves did run)* ·
+SEC-08 *(mechanical half live-verified in 1F §3; row stays open on decision Q-2)* ·
+ENV-6 *(push-triggered runs proven; the row's own retest names a PR run — closes at the
+first PR)* · LRE-34 / REL-36 / LRE-35 *(no CI guard exercises them; container-only
+evidence)* · K-26 *(mechanical half CI-verified; row stays on D-1(L))* · UIX-2 text half
+*(held uncommitted for owner wording)* · R-06 *(BLOCKED, EB-12)* · W1B-N1…N5 *(open by
+design: N5 is the Wave 5.0 gate; N1→6.0, N2→2/7, N3→7B, N4→8)* · every AI-domain row
+*(the AI suite pass is characterization-level; zero functions deployed — EB-2;
+BLOCKED_ENVIRONMENT stands)* · every contract/3A row *(the contract suite passed **with**
+the allowlist — it proves the recorded-defect state, not closure)*.
+
+**Follow-up evidence gaps — recorded, NOT implemented (owner assignment required, no
+silent scope expansion):**
+
+| ID | Gap | Covers | Suggested home |
+|---|---|---|---|
+| **FG-1** | Wire `supabase/tests/security/function-search-path.sql` into the live-qa CI job with a DB-credential path | SEC-09 promotion · I-MIG-03's live half | Wave 2 (2B) |
+| **FG-2** | Wire the 32-assertion workout SQL suite (`supabase/tests/workout/*.sql`) into the live-qa CI job | SEC-11 + the Phase 2 re-verification cohort | Wave 2 retest scope |
+
+**Production statement (closure standard §6):** Production `nxdbooufqzkpslkcogxc` was not
+contacted. No REST, RPC, Auth, Storage, Realtime or Edge Function request was issued to
+it. No migration was applied, reverted or pushed to it. No Edge Function was deployed to
+it. The linked project remained `eyqtldjqpgpljlqvpowh` throughout. This reconciliation
+changed governance documents only.
 
 ---
 
