@@ -2,31 +2,40 @@
 // (Workstream N).
 //
 // `qa_environment_isolation_test.dart` proves that a BUILD of the app resolves
-// to exactly one project: qa.json names QA, an unconfigured build names prod,
-// and the two share no backend value. That guard is sound and this file does
-// not duplicate it.
+// to exactly one project, and since ENV-4 that an un-configured build resolves
+// to none. That guard is sound and this file does not duplicate it.
 //
-// It does not cover the other way the tree can reach a Supabase project: the
+// It covers the other way the tree can reach a Supabase project: the
 // write-capable harnesses under `tool/` and `integration_test/`, which are run
-// by hand, are named for QA, and do not go through `AppEnv` at all. Every one of
-// them currently resolves to PRODUCTION:
+// by hand, are named for QA, and do not go through `AppEnv` at all.
 //
-//   tool/live_integration_test.dart   hardcodes the prod ref; POST/PATCH/DELETE
+// ── CLOSED 2026-08-24 (ENV-5 / ENV-4) ────────────────────────────────────────
+//
+// Every one of them used to resolve to PRODUCTION:
+//
+//   tool/live_integration_test.dart   hardcoded the prod ref; POST/PATCH/DELETE
 //                                     on workout_sessions, nutrition_logs,
 //                                     daily_scores, weekly_checkins, posts
-//   tool/qa_self_guided.dart          hardcodes the prod ref; PATCHes
-//                                     user_profiles, calls generate_client_plan
-//   tool/qa_entitlements.dart         hardcodes the prod ref; service-role
+//   tool/qa_self_guided.dart          hardcoded the prod ref; PATCHed
+//                                     user_profiles, called generate_client_plan
+//   tool/qa_entitlements.dart         hardcoded the prod ref; service-role
 //                                     DELETEs on subscriptions and
 //                                     coach_client_relationships
 //   integration_test/service_logic_test.dart
-//                                     resolves through AppConstants -> AppEnv,
-//                                     which DEFAULTS TO PROD, and its own run
+//                                     resolved through AppConstants -> AppEnv,
+//                                     which DEFAULTED TO PROD, and its own run
 //                                     instructions pass no --dart-define-from-file
 //
-// These guards assert what is TRUE today and ratchet it. The allowlist is a
-// SHRINKING one: repointing a harness at QA is a one-line deletion here, and a
-// NEW write-capable harness aimed at production fails immediately.
+// The three `tool/` harnesses now resolve through `tool/qa_target.dart`, which
+// takes QA_URL/QA_ANON with no default and positively identifies the QA project
+// before returning. `service_logic_test.dart` still inherits `AppEnv`, but
+// `AppEnv` no longer has a production default to inherit — an un-configured run
+// resolves to dev, reaches nothing, and fails closed at `Supabase.initialize`.
+//
+// These guards now assert the ABSENCE of the contamination rather than
+// recording it. The allowlist is empty and must stay empty: a NEW write-capable
+// harness aimed at production fails immediately, and so does an old one that
+// regresses.
 //
 // Nothing in this file contacts any Supabase project. It reads committed source.
 import 'dart:io';
@@ -64,20 +73,22 @@ final _writeVerb = RegExp(
 
 void main() {
   // ── ENV-020 · the harnesses that name a project directly ──────────────────
-  group('ENV-020 no NEW harness hardcodes the production project', () {
-    // Recorded 2026-08-24. Each of these hardcodes the production ref AND
-    // writes. Delete an entry when it is repointed at QA (or made to take the
-    // target as an argument). Do not add an entry to silence a new failure.
-    const knownProdTargeted = {
-      'tool/live_integration_test.dart',
-      'tool/qa_self_guided.dart',
-      'tool/qa_entitlements.dart',
-    };
+  group('ENV-020 no harness hardcodes the production project', () {
+    // ENV-5, closed. This set held all three `tool/` harnesses; each hardcoded
+    // the production ref AND wrote. It is now EMPTY and must stay empty.
+    // Adding an entry to silence a failure re-opens a P0 — repoint the harness
+    // instead.
+    const knownProdTargeted = <String>{};
 
-    test('the set of prod-targeted harnesses has not grown', () {
+    /// The one file allowed to name production: the shared refusal guard, which
+    /// names it in order to reject it.
+    const guardFile = 'tool/qa_target.dart';
+
+    test('no harness under tool/ or integration_test/ names production', () {
       final hits = <String>{};
       for (final relative in ['tool', 'integration_test']) {
         for (final f in _dartFilesUnder(relative)) {
+          if (_relative(f) == guardFile) continue;
           if (f.readAsStringSync().contains(prodRef)) hits.add(_relative(f));
         }
       }
@@ -86,22 +97,68 @@ void main() {
       expect(hits.difference(knownProdTargeted), isEmpty,
           reason: 'a harness under tool/ or integration_test/ names the '
               'PRODUCTION project. These are run by hand against real accounts '
-              'and they write. Point it at QA, or take the project as an '
-              'argument with no default.');
+              'and they write. Resolve the target through '
+              'tool/qa_target.dart, which takes QA_URL/QA_ANON with no '
+              'default.');
 
-      expect(knownProdTargeted.difference(hits), isEmpty,
-          reason: 'a recorded harness no longer names production — delete it '
-              'from `knownProdTargeted` so the guard tightens');
+      expect(knownProdTargeted, isEmpty,
+          reason: 'the ENV-5 allowlist must stay empty');
     });
 
-    test('each recorded harness is genuinely write-capable, which is why it '
-        'is recorded', () {
-      for (final relative in knownProdTargeted) {
-        final src = File('${_mobileRoot().path}/$relative').readAsStringSync();
-        expect(_writeVerb.hasMatch(src), isTrue,
-            reason: '$relative was recorded as a write-capable prod-targeted '
-                'harness; if it is now read-only, say so here');
+    test('the guard names production only in order to refuse it', () {
+      final src = File('${_mobileRoot().path}/$guardFile').readAsStringSync();
+      // It must know the ref...
+      expect(src, contains(prodRef));
+      // ...and the only executable thing it does with it is refuse.
+      final code = src
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('//'))
+          .join('\n');
+      expect(code, contains('kProductionRef'));
+      expect(code, contains('_refuse'));
+      expect(RegExp(r'https://' + prodRef).hasMatch(code), isFalse,
+          reason: 'the guard must hold the bare ref, never a usable prod URL');
+    });
+
+    test('every write-capable tool/ harness resolves through the guard', () {
+      // The property that actually matters: not "does it mention production"
+      // but "does it get its target from the one place that verifies it".
+      final checked = <String>[];
+      for (final f in _dartFilesUnder('tool')) {
+        final rel = _relative(f);
+        if (rel == guardFile) continue;
+        final src = f.readAsStringSync();
+        if (!_writeVerb.hasMatch(src)) continue;
+        checked.add(rel);
+
+        expect(src, contains("import 'qa_target.dart';"),
+            reason: '$rel writes to a Supabase project but does not import '
+                'the target guard');
+        expect(src, contains('resolveQaTarget()'),
+            reason: '$rel imports the guard but never calls it');
+        expect(RegExp(r"""const\s+_url\s*=""").hasMatch(src), isFalse,
+            reason: '$rel has a compile-time target again');
       }
+      expect(checked, containsAll(<String>[
+        'tool/live_integration_test.dart',
+        'tool/qa_self_guided.dart',
+        'tool/qa_entitlements.dart',
+      ]), reason: 'the three known write-capable harnesses must be covered; '
+          'if one is now read-only, say so here rather than dropping it');
+    });
+
+    test('the guard refuses by allowlist, not merely by blocklist', () {
+      // "is not production" is a weaker claim than "is QA", and only the
+      // second one is safe to write against. A future third project, a typo'd
+      // ref, or a colleague's fork must all be refused too.
+      final src = File('${_mobileRoot().path}/$guardFile').readAsStringSync();
+      expect(src, contains('kQaRef'));
+      expect(src, contains(qaRef));
+      expect(src, contains('QA_URL'));
+      expect(src, contains('QA_ANON'));
+      // No default target of any kind.
+      expect(RegExp(r"QA_URL'\]\s*\?\?\s*'https").hasMatch(src), isFalse,
+          reason: 'the guard supplies a default target');
     });
 
     test('no harness carries a service_role key in source', () {
@@ -121,7 +178,7 @@ void main() {
   });
 
   // ── ENV-021 · the harness that inherits the app's default ─────────────────
-  group('ENV-021 the in-app integration harness inherits the prod default', () {
+  group('ENV-021 the in-app integration harness inherits a SAFE default', () {
     late final String src = File(
             '${_mobileRoot().path}/integration_test/service_logic_test.dart')
         .readAsStringSync();
@@ -132,17 +189,32 @@ void main() {
       expect(src.contains(qaRef), isFalse);
     });
 
-    test('DEFECT: it writes, and AppEnv defaults to prod, so the documented '
-        'invocation targets production', () {
-      // `env_config_test.dart` ENV-001 pins the default: "APP_ENV defaults to
-      // prod when no define file is used". This harness's own run instructions
-      // pass no --dart-define-from-file, so the two facts compose into a
-      // production write from a file named "integration test".
-      expect(_writeVerb.hasMatch(src), isTrue);
-      expect(src, contains('flutter test integration_test/service_logic_test.dart -d macos'));
-      expect(src.contains('--dart-define-from-file'), isFalse,
-          reason: 'if this now fails because the instructions name a defines '
-              'file, delete this test — the finding is closed');
+    // INVERTED (ENV-4). This test used to read "DEFECT: it writes, and AppEnv
+    // defaults to prod, so the documented invocation targets production", and
+    // asserted that composition held. Half of it — the prod default — is gone,
+    // so the composition cannot occur. What is asserted now is the property
+    // that replaced it: this harness writes, so if it is run without being told
+    // where to point, it must reach nothing rather than reaching production.
+    test('it writes, so its un-configured run must fail closed', () {
+      expect(_writeVerb.hasMatch(src), isTrue,
+          reason: 'if this is now read-only the finding is closed for a '
+              'different reason — say so here');
+
+      // The safety now comes from AppEnv itself, which is what this asserts:
+      // no baked-in project for any environment, so AppConstants.supabaseUrl
+      // is empty unless a define file supplied one, and Supabase.initialize
+      // fails rather than silently connecting.
+      final appEnv = File('${_mobileRoot().path}/lib/core/config/app_env.dart')
+          .readAsLinesSync()
+          .where((l) => !l.trimLeft().startsWith('//'))
+          .join('\n');
+      expect(appEnv, isNot(contains(prodRef)),
+          reason: 'ENV-4 regressed: the production project is baked into '
+              'AppEnv again, which re-arms this harness');
+      expect(appEnv, isNot(contains('.supabase.co')));
+      expect(appEnv, contains('kDefaultEnvironment = AppEnvironment.dev'),
+          reason: 'ENV-4 regressed: an omitted APP_ENV no longer resolves to '
+              'dev');
     });
 
     test('it signs in as a shared seeded account, so a failed teardown is '
@@ -153,15 +225,42 @@ void main() {
 
   // ── ENV-022 · the QA project is never named by the shipped app ────────────
   group('ENV-022 QA and production stay separated in the committed tree', () {
-    test('lib/ names both refs only as environment defaults', () {
-      // AppEnv is the one place allowed to know both, because knowing both is
-      // its job. Anywhere else is a hardcoded target.
+    test('lib/ names neither project — the app has no baked-in target', () {
+      // This used to allow exactly one file, `lib/core/config/app_env.dart`,
+      // on the grounds that knowing both refs was its job. ENV-4 removed that
+      // job: every project now lives in `dart_defines/*.json` and reaches the
+      // binary only through --dart-define. So the allowance is gone and the
+      // expected set is empty.
       final naming = <String>[];
       for (final f in _dartFilesUnder('lib')) {
         final src = f.readAsStringSync();
         if (src.contains(prodRef) || src.contains(qaRef)) naming.add(_relative(f));
       }
-      expect(naming, ['lib/core/config/app_env.dart']);
+      printOnFailure(naming.join('\n'));
+      expect(naming, isEmpty,
+          reason: 'no file under lib/ may name a Supabase project; the target '
+              'is a build-time define');
+    });
+
+    test('each define file names exactly one project, and the right one', () {
+      const expected = <String, String?>{
+        'dev': null,
+        'qa': qaRef,
+        'prod': prodRef,
+      };
+      expected.forEach((env, ref) {
+        final f = File('${_mobileRoot().path}/dart_defines/$env.json');
+        expect(f.existsSync(), isTrue, reason: '$env.json is missing');
+        final src = f.readAsStringSync();
+        for (final other in const [prodRef, qaRef]) {
+          if (other == ref) continue;
+          expect(src.contains(other), isFalse,
+              reason: '$env.json names the wrong project ($other)');
+        }
+        if (ref != null) {
+          expect(src, contains(ref), reason: '$env.json should name $ref');
+        }
+      });
     });
 
     test('the keep-alive workflow pings production and writes nothing', () {

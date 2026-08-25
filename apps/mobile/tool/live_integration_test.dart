@@ -1,8 +1,11 @@
 // 12 Circle Fitness — Live integration smoke test
-// Runs against the real Supabase dev instance as the seeded test accounts.
+// Runs against the 12 Circle QA project as the seeded test accounts. The
+// target comes from QA_URL / QA_ANON and is verified before anything runs --
+// see tool/qa_target.dart. It used to be a hardcoded production constant.
 // Validates schema presence, RLS, and CRUD round-trips for the built modules
 // (Modules 1–14). Maps each check to a QA spec ID.
 //
+//   export QA_URL=... QA_ANON=...
 //   dart run tool/live_integration_test.dart
 //
 // NOTE: service-layer logic (12 Circle Score awarding, in-app notifications)
@@ -12,9 +15,14 @@
 import 'dart:convert';
 import 'dart:io';
 
-const _url = 'https://nxdbooufqzkpslkcogxc.supabase.co';
-const _anon =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54ZGJvb3VmcXprcHNsa2NvZ3hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMjA4NzksImV4cCI6MjA5NjU5Njg3OX0.D0rl8hxQmDjqknsDCPRuKK1uyIYruSMjycHmNTI-xcE';
+import 'qa_target.dart';
+
+// ENV-5: the target is resolved from QA_URL / QA_ANON and positively verified
+// as the QA project before a single request goes out. There is no default --
+// this file used to hardcode the PRODUCTION ref and key right here.
+final QaTarget _target = resolveQaTarget();
+String get _url => _target.url;
+String get _anon => _target.anonKey;
 
 const _clientEmail = 'test@12circle.app';
 const _clientPass = 'Test1234!';
