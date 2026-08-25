@@ -1,0 +1,205 @@
+name: CI
+
+# ENV-6 — until this file existed, every test in the repository protected only a
+# developer who remembered to run it. 763 executable tests, 188 live
+# authorization assertions, 32 live workout assertions and every static guard
+# were manual. The live security suite — written to fail against the
+# pre-remediation database, and the best test asset in the tree — had never run
+# in CI and did not run in any discovery workstream.
+#
+# PRODUCTION IS NEVER CONTACTED BY THIS WORKFLOW. The only job that touches a
+# real project is `live-qa`, which is pinned to the QA project, gated behind
+# repository secrets, and skipped entirely when they are absent. The
+# production-ref guard in `static-guards` is what keeps that true.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.44.4'
+  NODE_VERSION: '20'
+
+jobs:
+  # ── Fast, no toolchain. Runs first so an environment-targeting mistake is
+  #    reported in seconds rather than after a ten-minute build.
+  static-guards:
+    name: Static guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Production-ref guard (ENV-5)
+        run: .github/scripts/check-production-refs.sh
+
+      - name: Migration hygiene (ENV-1 / Gate 0.7)
+        run: .github/scripts/check-migration-hygiene.sh
+
+      - name: Edge Function JWT posture is declared (E-09)
+        run: .github/scripts/check-edge-function-config.sh
+
+      - name: No environment file names production as a default (ENV-4)
+        run: |
+          set -euo pipefail
+          # app_env.dart must carry no project at all. dart_defines/prod.json is
+          # the only place production configuration is allowed to live, and it
+          # only reaches a binary that was explicitly pointed at it.
+          if grep -qE 'supabase\.co|eyJ[A-Za-z0-9_-]{20,}|pk_(test|live)_' \
+               apps/mobile/lib/core/config/app_env.dart; then
+            echo "FAIL — a project URL, JWT or Stripe key is baked into app_env.dart."
+            echo "ENV-4: an omitted APP_ENV must resolve to an environment that"
+            echo "can reach nothing, which requires the default table to be empty."
+            exit 1
+          fi
+          echo "OK — app_env.dart carries no baked-in project."
+
+  flutter:
+    name: Flutter — analyze, test, QA web build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: flutter analyze
+        # Errors fail the build; the tree's 171 pre-existing infos/warnings do
+        # not, so this gate is meaningful on day one rather than after a cleanup
+        # that has not been scheduled.
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: flutter test
+        # Includes the ENV-4 / ENV-5 environment ratchets, the REL-3 release
+        # route gate, the error-contract guards and the Phase 1/2 boundary tests.
+        run: flutter test
+
+      - name: Build the QA web bundle
+        # QA, explicitly. A bundle built with no defines would now fail to
+        # resolve an environment at all, which is the ENV-4 behaviour under test
+        # above; here we want a real artifact to scan.
+        run: flutter build web --dart-define-from-file=dart_defines/qa.json
+
+      - name: Scan the artifact for credential material
+        run: tool/check_web_build_secrets.sh build/web
+
+      - name: The QA artifact must not contain the production project
+        run: |
+          set -euo pipefail
+          if grep -rqF 'nxdbooufqzkpslkcogxc' build/web; then
+            echo "FAIL — a QA web build contains the production project ref."
+            exit 1
+          fi
+          echo "OK — the QA artifact names only the QA project."
+
+  api:
+    name: API — unit + e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run test:api
+
+  # ── The live suites. EB-1 provisions the scoped QA service-role key that this
+  #    job needs; until then it SKIPS rather than fails, so ENV-6's always-on
+  #    half lands now instead of waiting on a credential.
+  #
+  #    It is pinned to the QA project two ways: the URL comes from a secret, and
+  #    supabase/tests/{security,ai}/lib.mjs refuse to run against production
+  #    regardless of what the secret contains.
+  live-qa:
+    name: Live QA suites (security / AI / contract)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [static-guards]
+    environment: qa
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Are the QA credentials provisioned?
+        id: creds
+        env:
+          QA_URL: ${{ secrets.QA_URL }}
+          QA_ANON: ${{ secrets.QA_ANON }}
+          QA_SERVICE: ${{ secrets.QA_SERVICE }}
+        run: |
+          if [[ -n "$QA_URL" && -n "$QA_ANON" && -n "$QA_SERVICE" ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Live QA suites skipped::EB-1 has not provisioned QA_URL / QA_ANON / QA_SERVICE. 188 live authorization assertions are NOT running."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.creds.outputs.present == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+        if: steps.creds.outputs.present == 'true'
+
+      - name: Confirm the target is QA and not production
+        if: steps.creds.outputs.present == 'true'
+        env:
+          QA_URL: ${{ secrets.QA_URL }}
+        run: |
+          set -euo pipefail
+          # Positive identification, before anything connects. A target is QA
+          # because its ref says so, never because the secret is called QA_URL.
+          if [[ "$QA_URL" != *"eyqtldjqpgpljlqvpowh"* ]]; then
+            echo "FAIL — QA_URL does not name the 12 Circle QA project."
+            exit 1
+          fi
+          if [[ "$QA_URL" == *"nxdbooufqzkpslkcogxc"* ]]; then
+            echo "FAIL — QA_URL names PRODUCTION."
+            exit 1
+          fi
+          echo "OK — target is the 12 Circle QA project."
+
+      - name: Live security suite
+        if: steps.creds.outputs.present == 'true'
+        env:
+          QA_URL: ${{ secrets.QA_URL }}
+          QA_ANON: ${{ secrets.QA_ANON }}
+          QA_SERVICE: ${{ secrets.QA_SERVICE }}
+        run: npm run test:security
+
+      - name: Live AI suite
+        if: steps.creds.outputs.present == 'true'
+        env:
+          QA_URL: ${{ secrets.QA_URL }}
+          QA_ANON: ${{ secrets.QA_ANON }}
+          QA_SERVICE: ${{ secrets.QA_SERVICE }}
+        run: npm run test:ai
+
+      - name: Contract suite
+        if: steps.creds.outputs.present == 'true'
+        env:
+          QA_URL: ${{ secrets.QA_URL }}
+          QA_ANON: ${{ secrets.QA_ANON }}
+          QA_SERVICE: ${{ secrets.QA_SERVICE }}
+        run: npm run test:contract

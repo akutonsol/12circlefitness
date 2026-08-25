@@ -18,7 +18,11 @@
     "build:web:dev": "cd apps/mobile && flutter build web --dart-define-from-file=dart_defines/dev.json",
     "build:web:qa": "cd apps/mobile && flutter build web --dart-define-from-file=dart_defines/qa.json",
     "build:web:prod": "cd apps/mobile && flutter build web --dart-define-from-file=dart_defines/prod.json",
-    "check:web-secrets": "cd apps/mobile && tool/check_web_build_secrets.sh"
+    "check:web-secrets": "cd apps/mobile && tool/check_web_build_secrets.sh",
+    "check:prod-refs": ".github/scripts/check-production-refs.sh",
+    "check:migrations": ".github/scripts/check-migration-hygiene.sh",
+    "check:functions": ".github/scripts/check-edge-function-config.sh",
+    "check:guards": "npm run check:prod-refs && npm run check:migrations && npm run check:functions"
   },
   "keywords": [],
   "author": "",
