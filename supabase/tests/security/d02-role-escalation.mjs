@@ -124,7 +124,7 @@ section('4. Role injected through signup metadata');
   }
 
   // The real public route, best effort.
-  const pubEmail = 'p1-signup-public@qa.12circle.test';
+  const pubEmail = 'p1-signup-public@qa.12circlefitness.com';
   const ex = await adminFindUser(pubEmail);
   if (ex) await rm(ex.id);
   const pub = await fetch(`${URL_}/auth/v1/signup`, {
