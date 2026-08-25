@@ -46,4 +46,33 @@ else
   echo "OK — migration numbers are unique ($(git ls-files "$DIR" | wc -l | tr -d ' ') migrations)."
 fi
 
+
+# 4. The sequence is contiguous. Gate 0.9's other half.
+#
+#    A hole means either a number was skipped when the migration was authored,
+#    or a migration that once existed has been deleted. Both make the numbering
+#    stop describing the history it claims to describe, and both are invisible
+#    to the duplicate check above -- 118 twice and 119 missing are different
+#    defects with the same symptom at a glance.
+#
+#    Contiguity of the AUTHORED set is owned here, not by the ENV-3 manifest
+#    guard: that guard reconciles the declaration against the tree and assumes
+#    the tree is already well-formed. One rule, one owner.
+nums="$(git ls-files "$DIR" | xargs -n1 basename | sed -E 's/^([0-9]{3})_.*/\1/' | sort -u)"
+if [[ -n "$nums" ]]; then
+  first="$(head -1 <<<"$nums")"
+  last="$(tail -1 <<<"$nums")"
+  full="$(seq "$((10#$first))" "$((10#$last))" | awk '{printf "%03d\n", $1}' | sort)"
+  missing="$(comm -13 <(printf '%s\n' "$nums") <(printf '%s\n' "$full") || true)"
+  if [[ -n "$missing" ]]; then
+    echo "FAIL — the migration sequence has gaps between $first and $last:"
+    printf '  %s\n' $missing
+    echo "A skipped or deleted number makes the ordering stop describing the"
+    echo "history. Do not renumber an existing migration to close a gap."
+    fail=1
+  else
+    echo "OK   — the migration sequence is contiguous ($first-$last)."
+  fi
+fi
+
 exit $fail

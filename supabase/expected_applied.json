@@ -1,0 +1,49 @@
+{
+  "_": [
+    "ENV-3 · the declared migration state of each environment.",
+    "",
+    "This file is NOT a ledger. supabase_migrations.schema_migrations is the ledger",
+    "and the only authority on what IS applied. This file declares what SHOULD be",
+    "applied where, so CI has something true to compare the ledger against.",
+    "",
+    "The comparison is two-way, exactly as known-violations.json is: a version",
+    "applied without being declared here fails, and a version declared here without",
+    "being applied fails. The frontier can only move when reality and intent move",
+    "together.",
+    "",
+    "Semantics, and there are only four rules:",
+    "  applied_through  the frontier. Expected = every authored version <= this,",
+    "                   minus anything in `excluded`.",
+    "  excluded         authored versions AT OR BELOW the frontier that are",
+    "                   deliberately not applied here. Each needs a reason and the",
+    "                   gate that releases it.",
+    "  pending          authored versions ABOVE the frontier, deliberately not yet",
+    "                   applied. Each needs a reason and the gate that releases it.",
+    "  every authored version must appear in exactly one of those three states.",
+    "                   Silence is not a state -- an undeclared migration fails.",
+    "",
+    "Only QA is declared. Production's history is reconciled by RELEASE_GATES row",
+    "9B.2 (G-09), which owns dumping and reconciling its ledger and enumerates its",
+    "known divergences in 9B.3. Declaring a production frontier here before that",
+    "work exists would be inventing state this repository cannot yet stand behind.",
+    "",
+    "The live half of this contract -- comparing these declarations against the real",
+    "schema_migrations -- is NOT implemented. It needs a QA database credential in",
+    "CI, the same blocker as FG-1/FG-2. Until it runs, ENV-3 stays REMEDIATED."
+  ],
+
+  "environments": {
+    "qa": {
+      "ref": "eyqtldjqpgpljlqvpowh",
+      "name": "12Circle QA",
+      "applied_through": "122",
+      "excluded": {},
+      "pending": {
+        "123": {
+          "reason": "Authored and committed in 24187bf (W1-T2, ENV-2 forward carry); locally validated only -- applied three times to a throwaway cluster with an identical end state, never applied to any environment.",
+          "gate": "Application of 123 to QA is a separate, explicitly authorized step with its own pre-application QA-state check. Its schema_migrations row is created by that application -- never inserted ahead of it to make a check pass."
+        }
+      }
+    }
+  }
+}

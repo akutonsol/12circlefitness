@@ -94,6 +94,25 @@ jobs:
             echo "::notice title=I-MIG-03 records the posture::${recorded} known-open durability finding(s) DETECTED and deliberately not failing this build: ${findings}. Detected, not fixed - remediation is migration 124 (Wave 2 task 2A), and this guard is promoted to enforcing at that closure. This step passing does NOT close SEC-04 or I-MIG-03."
           fi
 
+      - name: Migration state declaration — ENV-3 static contract
+        run: |
+          set -euo pipefail
+          # ENV-3, static half. Reconciles supabase/expected_applied.json against
+          # the authored migration tree: every authored migration is declared
+          # (applied below the frontier, or deliberately pending/excluded with a
+          # reason and a gate), and every declaration names a migration that
+          # exists. It opens no connection and needs no credential.
+          #
+          # It does NOT check the live ledger. The live half — comparing the
+          # declaration against supabase_migrations.schema_migrations — needs a
+          # QA database credential in CI (the FG-1/FG-2 blocker) and is what
+          # finally moves ENV-3 to VERIFIED_CLOSED. ENV-3 stays REMEDIATED.
+          #
+          # A committed-but-unapplied migration (123 today) is REPORTED here as
+          # pending and is not a failure. It is never written into
+          # schema_migrations to make a check green.
+          node supabase/scripts/check-migration-manifest.mjs
+
       - name: Edge Function JWT posture is declared (E-09)
         run: .github/scripts/check-edge-function-config.sh
 

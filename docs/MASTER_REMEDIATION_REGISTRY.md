@@ -496,6 +496,55 @@ BLOCKED rather than worked around, per governance §5).
 | **Why not `VERIFIED_CLOSED`** | The closure standard's release/environment class requires **VERIFIED IN CI**, and this row's own *Tests* field names the specific check — "a CI check that the ledger's max version equals the highest migration filename". **That check does not exist.** Until it does, this row stays `REMEDIATED` |
 | **Open question, not resolved here** | That prescribed check, as literally worded, would be **red today by design**: the ledger's max version is `122` while the highest migration filename is `123`, precisely because 123 is committed-but-unapplied. Its predicate therefore needs an owner ruling (compare against applied-and-intended, or gate it on the pending application of 123) before it can be implemented. Recorded, not decided |
 
+**Amendment, 2026-08-25 — the Tests field, corrected and expanded.** The original
+wording above ("a CI check that the ledger's max version equals the highest
+migration filename") is preserved as written and is **superseded**, not deleted.
+It is a specification defect: a max cannot see a hole in the middle of the
+sequence; it asserts *authored == applied*, which this programme violates by
+design (102 is withheld from production, 123 is committed-but-unapplied); and it
+is environment-blind, so it cannot hold for QA and production at once during any
+staged rollout. Read literally it is red today for a correct reason.
+
+`RELEASE_GATES.md` row **1.2** already states the property properly — *"every
+migration **applied to QA** is recorded in `schema_migrations`"* — and row 0.9
+owns migration numbering. The corrected contract is those two, made mechanical:
+
+| Term | Source of truth |
+|---|---|
+| `authored` | the migration files in `supabase/migrations/` |
+| `declared` | `supabase/expected_applied.json` — per environment: the applied frontier, plus deliberately `pending` / `excluded` versions, each with a reason and the gate that releases it |
+| `observed` | `supabase_migrations.schema_migrations`, the only authority on what is applied |
+
+**Closure of ENV-3 requires all of:**
+
+1. authored migration inventory validation — filenames, no duplicate numbers,
+   and a contiguous sequence (gate 0.9, owned by `check-migration-hygiene.sh`);
+2. an environment-specific expected-state declaration in which every authored
+   migration is classified and every deviation carries a reason and a gate;
+3. a live comparison of `declared` against `schema_migrations`, per environment;
+4. detection of **missing expected migrations** (`declared − observed`);
+5. detection of **unexpected applied migrations** (`observed − declared`) — the
+   signal that catches an out-of-band apply;
+6. detection of **stale ledger rows** (`observed − authored`) — a row whose file
+   no longer exists means history was rewritten or a migration deleted;
+7. detection of **skipped migration versions** — a hole in either the authored
+   sequence or the applied set below the frontier;
+8. **CI execution of the live ledger check**. A check that has never run in CI
+   is not a gate (closure standard §4).
+
+**Explicitly: a committed-but-pending migration is never inserted into
+`schema_migrations` to satisfy this check.** Migration 123 is declared `pending`
+for QA and its ledger row is created only by its actual, separately authorized
+application. Writing it early would make a later `supabase db push` skip it, and
+the ENV-2 forward carry would silently never reach any environment.
+
+**Status after this amendment: `REMEDIATED`, unchanged.** Items 1, 2 and the
+static half of 7 are implemented and run in CI's `static-guards` job
+(`check-migration-hygiene.sh` contiguity + `supabase/scripts/check-migration-manifest.mjs`).
+Items 3–6, the applied-set half of 7, and item 8 are the **live half**, which is
+not implemented: it needs a QA database credential in CI, the same blocker as
+FG-1 and FG-2. `VERIFIED_CLOSED` is unavailable until that half executes.
+
 ---
 
 ### ENV-4 · `APP_ENV` defaults to production
