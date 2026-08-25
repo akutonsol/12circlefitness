@@ -341,3 +341,25 @@ jobs:
           QA_ANON: ${{ secrets.QA_ANON }}
           QA_SERVICE: ${{ secrets.QA_SERVICE }}
         run: npm run test:contract
+      # ── Live SQL evidence: FG-1, FG-2 and the ENV-3 live ledger check.
+      #
+      #    One phase, one credential. These three are SQL-level assertions that
+      #    the REST secrets above cannot reach: supabase_migrations is not an
+      #    exposed PostgREST schema, and neither SQL suite is reachable over
+      #    REST at all. QA_DB_URL is therefore scoped to this single step and
+      #    to no other job.
+      #
+      #    Read-only by construction: every suite is one DO block that ends by
+      #    RAISEing its report, so the transaction always rolls back, and the
+      #    runner refuses to execute a suite that lost its RAISE. It applies no
+      #    migration, runs no db push or repair, and writes nothing to
+      #    schema_migrations.
+      #
+      #    The runner proves its target is QA by allowlist before connecting and
+      #    SKIPS cleanly when QA_DB_URL is absent, so this step is safe to land
+      #    before the secret exists (blocker EB-13).
+      - name: Live SQL evidence — FG-1, FG-2, ENV-3 ledger
+        if: steps.creds.outputs.present == 'true'
+        env:
+          QA_DB_URL: ${{ secrets.QA_DB_URL }}
+        run: supabase/scripts/live-evidence.sh
