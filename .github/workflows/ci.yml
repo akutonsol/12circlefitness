@@ -232,6 +232,26 @@ jobs:
           fi
           echo "OK — target is the 12 Circle QA project."
 
+      - name: Fixture identities (setup-identities.mjs → ids.json)
+        # W1B-N8. The suites read their four fixture UUIDs from
+        # supabase/tests/security/ids.json, which is generated, ignored and
+        # deliberately never committed — so an ephemeral CI checkout can never
+        # contain it, and without this step all six suites die at import with
+        # "ids.json missing". The script is idempotent: it creates the four
+        # p1-*@qa.12circle.test identities only if absent (repairs them
+        # otherwise), flags them is_demo, and seeds the victim's three
+        # P1-FIXTURE rows only if absent. This is the programme's one sanctioned
+        # standing QA write, authorized by the product owner 2026-08-25; it runs
+        # strictly after the exact-host QA confirmation above, and lib.mjs
+        # independently refuses a production URL. ids.json lives and dies with
+        # this runner's workspace.
+        if: steps.creds.outputs.present == 'true'
+        env:
+          QA_URL: ${{ secrets.QA_URL }}
+          QA_ANON: ${{ secrets.QA_ANON }}
+          QA_SERVICE: ${{ secrets.QA_SERVICE }}
+        run: node supabase/tests/security/setup-identities.mjs
+
       - name: Live security suite
         if: steps.creds.outputs.present == 'true'
         env:

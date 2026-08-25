@@ -19,7 +19,7 @@
 | **Next action** | **Custody commit checkpoint of the batch** (owner, locally, in the prepared slices — task 8's wording needs owner approval first) → push so `ci.yml` executes for the first time → EB-1/EB-12 owner actions → **then W1-T2 (migration 123) and W1-T3 (QA ledger), sequentially** |
 | **Highest gate met** | **none.** Gate 0 is not mechanized; `.github/workflows/` holds one file, a production keep-alive ping |
 | **Production contact** | **none, by any wave, at any point** |
-| **Blocking on** | 8 critical-path decisions (§5) and 12 environment blockers (§6) |
+| **Blocking on** | 8 critical-path decisions (§5) and 11 open environment blockers (§6; EB-1 resolved 2026-08-25) |
 
 ---
 
@@ -54,12 +54,12 @@
 | `BLOCKED_DECISION` | 48 | 31 have a mechanical half that is **not** blocked · +1: W1B-N3 |
 | `BLOCKED_ENVIRONMENT` | 25 | +1: `R-06` → EB-12 (batch task 9) |
 | `READY_TO_REMEDIATE` | 182 | −8 batch REMEDIATED, −1 `R-06` blocked, +4 new (W1B-N1/N2/N4/N5) |
-| `REMEDIATED` | 10 | ENV-4, `K-26`, ENV-5, ENV-6, `E-09`, `LRE-34`, `REL-36`, REL-3, **W1B-N6**, **W1B-N7** *(plus the UIX-2 text half and `LRE-35` inside the `LRE-09…42` aggregate, counted at their parent rows)* — **FIXED IN CODE, uncommitted; see registry §7.7** |
+| `REMEDIATED` | 11 | ENV-4, `K-26`, ENV-5, ENV-6, `E-09`, `LRE-34`, `REL-36`, REL-3, **W1B-N6**, **W1B-N7**, **W1B-N8** *(plus the UIX-2 text half and `LRE-35` inside the `LRE-09…42` aggregate, counted at their parent rows)* — **FIXED IN CODE, uncommitted; see registry §7.7** |
 | `RETEST_REQUIRED` | 0 | |
 | **`VERIFIED_CLOSED`** | **0** | **and none can be until the batch is committed, pushed, and ci.yml executes (then EB-1 for the live rows)** |
 | `DEFERRED` | 0 | |
 | `RELEASE_BLOCKER` | 56 | a gate attachment, not a severity — counted inside the rows above |
-| **Canonical total** | **317** | 310 from 428 raw records + **7 Wave 1 batch discoveries** (W1B-N1…N7, registry §7.7; N6 and N7 filed and remediated 2026-08-25) |
+| **Canonical total** | **318** | 310 from 428 raw records + **8 Wave 1 batch discoveries** (W1B-N1…N8, registry §7.7; N6–N8 filed and remediated 2026-08-25) |
 
 | Severity | Open | Fixed | Total |
 |---|---:|---:|---:|
@@ -117,7 +117,7 @@ decision needs two authorities).*
 
 | ID | Blocker | Owner | Status | Blocks |
 |---|---|---|---|---|
-| **EB-1** | No `QA_SERVICE` key in any working copy | QA key holder | ⬜ **open · highest-value unblock** | 188 live assertions; every security closure |
+| **EB-1** | No `QA_SERVICE` key in any working copy | QA key holder | ✅ **RESOLVED 2026-08-25** — secrets provisioned; live-qa executed (surfaced W1B-N8) | 188 live assertions; every security closure |
 | **EB-2** | Zero Edge Functions deployed to QA; `secrets: []` | DevOps | ⬜ open | Wave 5 entire |
 | **EB-3** | QA Vault `project_url` / `service_role_key` unset | DevOps | ⬜ open | the coaching crons |
 | **EB-4** | Intelligence substrate empty — 0 profiles / 621 exercises, 0 graph nodes | Content + PD-A02 | ⬜ open | any real engine decision |
@@ -366,3 +366,4 @@ is asserted green, and it is.*
 | 2026-08-25 | **Custody checkpoint prepared** (orchestrator). Batch reconciled against the tree; classifications confirmed; W1B-N1…N5 registered in registry §7.7; EB-12 added; counts moved (310→315 canonical, 8 `REMEDIATED`); config-push prohibition written into `config.toml`, `qa-environments.md` and Wave 5 prerequisites; commit slices prepared for owner execution. **Registry and this board updated together per the §1 update rule. No environment contacted.** |
 | 2026-08-25 | **First CI run (`9319c67`) red on the production-ref guard** — `ci.yml` and `qa-db-reset.sh` named the production ref. Classified **B** (refusal/assertion references, no executable production path). Remediated by rewriting all three usages in QA-allowlist form with no production literal (artifact scan now fails on *any* foreign project ref) and adding `--untracked` to the guard scan, closing the local-green/CI-red blind spot. Filed + closed as **W1B-N6** (registry §7.7). Guards re-run locally: all green; the two files reproduce the CI failure under the corrected guard before the fix and pass after. **No commit/push performed; CI must reproduce. No environment contacted.** |
 | 2026-08-25 | **CI run for `aac64b3` red on the ENV-4 inline check — filed and remediated as W1B-N7** (registry §7.7). The check's over-broad patterns matched doc placeholders in `app_env.dart` (lines 11/13) on the step's first-ever execution; W1B-N6's production-ref guard fix **passed in the same run** (its first CI evidence), as did migration hygiene, edge config, Flutter (incl. the new artifact allowlist scan) and API; live-qa was skipped by the failed dependency, so the EB-1 skip path remains unobserved. Fix: real-material-only patterns + an inline pattern self-test (placeholder-vs-real regression guard); comments remain scanned. Old/new behavior and self-test integrity demonstrated locally; all other static guards re-run green. **Prepared only — `.github/` is bridge-protected: corrected ci.yml staged at `docs/cowork/pending-cifix/ci.yml` for owner copy. No commit/push; no environment contacted.** |
+| 2026-08-25 | **First live-qa execution (EB-1 resolved: `QA_URL`/`QA_ANON`/`QA_SERVICE` provisioned) reached the security suites and all six stopped at import: `ids.json missing` — filed and remediated as W1B-N8** (registry §7.7). `ids.json` is generated by `setup-identities.mjs` and deliberately untracked, so an ephemeral CI checkout can never hold it; the ci.yml live-qa job omitted the setup step the wave plan assigned to W1-B2. Fix: one creds-gated `setup-identities.mjs` step after the exact-host QA confirmation — idempotent, fixture-namespaced, no deletions; **the programme's first sanctioned standing QA write, explicitly authorized by the product owner 2026-08-25**. Harness untouched; ids.json stays untracked. Prepared via `docs/cowork/pending-cifix/ci.yml` (`.github/` is bridge-protected); **no commit/push; QA not contacted by the orchestrator; production not contacted.** CI must reproduce (expected: setup runs, six suites execute their 188 assertions) |
