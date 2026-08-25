@@ -466,7 +466,7 @@ programme brief. **These are the findings that gate the plan.**
 ---
 
 ### ENV-3 · Migrations 113–122 are applied to QA but absent from the migration ledger
-`I-MIG-01` · **P0** · `READY_TO_REMEDIATE` · Wave 1
+`I-MIG-01` · **P0** · `REMEDIATED` *(W1-T3 executed on QA 2026-08-25 — the ledger repair below is complete and live-verified; `VERIFIED_CLOSED` withheld, see the dated block)* · Wave 1
 
 | Field | Value |
 |---|---|
@@ -480,6 +480,21 @@ programme brief. **These are the findings that gate the plan.**
 | **Tests** | A CI check that the ledger's max version equals the highest migration filename |
 | **Live QA** | `supabase migration list --linked` shows local and remote in step |
 | **Gate** | G-03 → G-09 |
+
+**W1-T3 · QA ledger repair — executed 2026-08-25.** Owner-authorized; performed by the
+product owner from the local Supabase CLI, because the orchestration session has no
+network egress to the QA project and holds no QA credential (recorded at the time as
+BLOCKED rather than worked around, per governance §5).
+
+| | |
+|---|---|
+| **Target** | `eyqtldjqpgpljlqvpowh` — *12Circle QA*. Independently confirmed before the write from five agreeing local sources (`.temp/project-ref`, `.temp/linked-project.json`, `config.toml` `project_id`, `dart_defines/qa.json`, and `supabase/scripts/qa-db-reset.sh --check-only`), not from a variable name. Production `nxdbooufqzkpslkcogxc` was **not** the target and was not contacted |
+| **Operation** | `supabase migration repair --status applied 113 114 115 116 117 118 119 120 121 122 --linked` — a ledger write only. **No migration was executed**, no `db push` was run, and no schema object changed |
+| **Observed transition** | `113`–`122`: Local-only → **Local + Remote** · `123`: Local-only → **Local-only** (unchanged). Before/after captured as `/tmp/w1t3-before.txt` and `/tmp/w1t3-after.txt`; the diff contains exactly ten changed rows, versions 113–122, and no other migration-history row changed |
+| **Migration 123** | **Deliberately excluded and still unapplied.** It is committed (`24187bf`) and locally validated only. Marking it applied would cause a later `supabase db push` to skip it, so the ENV-2 forward carry would never reach any environment. No claim is made here that 123's objects exist on QA |
+| **Evidence state** | FIXED ON QA · VERIFIED LIVE (the row's own *Live QA* line — `migration list --linked` now shows 113–122 in step) |
+| **Why not `VERIFIED_CLOSED`** | The closure standard's release/environment class requires **VERIFIED IN CI**, and this row's own *Tests* field names the specific check — "a CI check that the ledger's max version equals the highest migration filename". **That check does not exist.** Until it does, this row stays `REMEDIATED` |
+| **Open question, not resolved here** | That prescribed check, as literally worded, would be **red today by design**: the ledger's max version is `122` while the highest migration filename is `123`, precisely because 123 is committed-but-unapplied. Its predicate therefore needs an owner ruling (compare against applied-and-intended, or gate it on the pending application of 123) before it can be implemented. Recorded, not decided |
 
 ---
 
