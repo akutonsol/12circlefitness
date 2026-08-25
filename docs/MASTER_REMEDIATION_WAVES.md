@@ -358,14 +358,14 @@ both reach the client with a valid prescription · ✅ a mis-logged meal can be 
 |---|---|
 | **Purpose** | Correct inputs and authorization **first**, then deploy, then verify. Never the other way round |
 | **Findings** | 44 AI/engine + 20 Edge Function findings |
-| **Prerequisites** | Waves 1–4 · EB-2, EB-3, EB-4, EB-7, P-11 · **D-1, D-2(D), D-4, D-8 answered** |
+| **Prerequisites** | Waves 1–4 · EB-2, EB-3, EB-4, EB-7, P-11 · **D-1, D-2(D), D-4, D-8 answered** · **W1B-N5 resolved** *(added 2026-08-24, Wave 1 batch: `config.toml` reconciled with QA's live configuration; until then the `[functions.*]` block deploys only per function via `supabase functions deploy` — never `supabase config push`, which would silently reset QA's auth configuration)* |
 | **Exit** | Gate 3 |
 
 **Sub-waves, strictly ordered. This is Workstream D §6 and J §11 reconciled.**
 
 | # | Sub-wave | Contents | Deploys? |
 |---|---|---|---|
-| **5.0** | Configuration | EB-2 QA secrets; EB-3 QA Vault (**QA values only**); EB-7 Resend domain; P-11 a QA-scoped Anthropic key **with a budget cap**; confirm 113–128 applied | **no** |
+| **5.0** | Configuration | EB-2 QA secrets; EB-3 QA Vault (**QA values only**); EB-7 Resend domain; P-11 a QA-scoped Anthropic key **with a budget cap**; confirm 113–128 applied. **Entry precondition W1B-N5:** reconcile `config.toml` with QA's live configuration first; deploy `[functions.*]` only via `supabase functions deploy` per function — **`supabase config push` is forbidden** (registry §7.7) | **no** |
 | **5.1** | Vocabulary | `ENG-25` equipment, `ENG-26` warm-up patterns, `ENG-18` bootstrap ordering guard. **Without these, populating the substrate still yields an engine that selects nothing** | no |
 | **5.2** | Substrate | `rebuild_exercise_intelligence` → `rebuild_movement_graph` → `seed_warmup_library` → batched enrichment at `limit ≤ 5` → review. `F-J-23` first, or the injury rule can never fire. **Blocked on D-1.** Fixtures are legitimate product data, never fabricated to make a test pass | no |
 | **5.3** | RED remediation | `E-04`/`F-J-12` (Wave 2 if D-7 landed), `E-05` audience gate, `E-01`/`E-02` (**D-4(D)/D-5(D)** — deletion or a service-role gate + idempotency), `E-03` (**D-3(D)**), `E-10` non-empty guard | no |

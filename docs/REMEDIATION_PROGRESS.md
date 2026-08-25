@@ -1,7 +1,7 @@
 # 12 Circle Fitness — Remediation Progress Board
 
 **Running status. Updated on every status change.**
-**Last updated:** 2026-08-24 · **Wave 0 complete · W1-T1 (custody) complete · no remediation begun**
+**Last updated:** 2026-08-25 · **Wave 0 complete · W1-T1 complete · Wave 1 batch tasks 2–8 REMEDIATED (task 9 blocked, EB-12) · custody commit pending**
 
 > **Update rules.** A status change here must be accompanied by the matching change in
 > [`MASTER_REMEDIATION_REGISTRY.md`](MASTER_REMEDIATION_REGISTRY.md) and by the evidence
@@ -15,11 +15,11 @@
 | | |
 |---|---|
 | **Current wave** | **1 — Custody, Environment & Release Safety · IN PROGRESS** |
-| **Completed** | Wave 0 · **W1-T1 (custody) — COMPLETE**, see §12 |
-| **Next action** | **Wave 1 parallel batch tasks 2–9** (§11). W1-T2 (migration 123) and W1-T3 (QA ledger) follow the batch |
+| **Completed** | Wave 0 · **W1-T1 (custody) — COMPLETE**, see §12 · **Batch tasks 2–8 — REMEDIATED (uncommitted)**, task 9 **BLOCKED** (EB-12), see §11 and [`WAVE_1_BATCH_CLOSURE.md`](WAVE_1_BATCH_CLOSURE.md) |
+| **Next action** | **Custody commit checkpoint of the batch** (owner, locally, in the prepared slices — task 8's wording needs owner approval first) → push so `ci.yml` executes for the first time → EB-1/EB-12 owner actions → **then W1-T2 (migration 123) and W1-T3 (QA ledger), sequentially** |
 | **Highest gate met** | **none.** Gate 0 is not mechanized; `.github/workflows/` holds one file, a production keep-alive ping |
 | **Production contact** | **none, by any wave, at any point** |
-| **Blocking on** | 8 critical-path decisions (§5) and 11 environment blockers (§6) |
+| **Blocking on** | 8 critical-path decisions (§5) and 12 environment blockers (§6) |
 
 ---
 
@@ -28,7 +28,7 @@
 | Wave | Name | Status | Findings | Entry met? | Exit gate |
 |---|---|---|---|---:|---|
 | **0** | Reconciliation | ✅ **COMPLETE** | 310 catalogued | — | — |
-| **1** | Custody, Environment & Release Safety | 🟨 **IN PROGRESS** — W1-T1 done, 8 batch tasks + 2 spine tasks remain | 22 | ✅ yes | Gate 0, Gate 1 (partly) |
+| **1** | Custody, Environment & Release Safety | 🟨 **IN PROGRESS** — W1-T1 done · batch tasks 2–8 REMEDIATED (custody commit pending) · task 9 blocked (EB-12) · spine W1-T2/W1-T3 remain | 22 (+5 new, §11a) | ✅ yes | Gate 0, Gate 1 (partly) |
 | **2** | Security Regression & Boundary Re-assertion | ⬜ blocked on Wave 1 | 9 | ❌ needs Wave 1 + EB-1 | Gate 2 (security) |
 | **3A** | Schema-contract truth | ⬜ blocked on Wave 1 | 21 | ❌ | Gate 1 |
 | **3B** | Error contract | ⬜ blocked on 3A | 26 | ❌ | Gate 2 (error) |
@@ -51,15 +51,15 @@
 | `DUPLICATE` | 118 | collapsed; see registry §3. **Retired IDs must not be used as tracking keys** |
 | `ALREADY_FIXED` | 52 | Phase 1 (24) + Phase 2 (12) + other (16). **None is `VERIFIED_CLOSED`** — see §4 |
 | `FIX_IN_PROGRESS` | 0 | |
-| `BLOCKED_DECISION` | 47 | 31 of these have a mechanical half that is **not** blocked |
-| `BLOCKED_ENVIRONMENT` | 24 | |
-| `READY_TO_REMEDIATE` | 187 | 22 of them are Wave 1 |
-| `REMEDIATED` | 0 | |
+| `BLOCKED_DECISION` | 48 | 31 have a mechanical half that is **not** blocked · +1: W1B-N3 |
+| `BLOCKED_ENVIRONMENT` | 25 | +1: `R-06` → EB-12 (batch task 9) |
+| `READY_TO_REMEDIATE` | 182 | −8 batch REMEDIATED, −1 `R-06` blocked, +4 new (W1B-N1/N2/N4/N5) |
+| `REMEDIATED` | 8 | ENV-4, `K-26`, ENV-5, ENV-6, `E-09`, `LRE-34`, `REL-36`, REL-3 *(plus the UIX-2 text half and `LRE-35` inside the `LRE-09…42` aggregate, counted at their parent rows)* — **FIXED IN CODE, uncommitted; see registry §7.7** |
 | `RETEST_REQUIRED` | 0 | |
-| **`VERIFIED_CLOSED`** | **0** | **and none can be until Gate 0 is mechanized** |
+| **`VERIFIED_CLOSED`** | **0** | **and none can be until the batch is committed, pushed, and ci.yml executes (then EB-1 for the live rows)** |
 | `DEFERRED` | 0 | |
 | `RELEASE_BLOCKER` | 56 | a gate attachment, not a severity — counted inside the rows above |
-| **Canonical total** | **310** | from 428 raw records |
+| **Canonical total** | **315** | 310 from 428 raw records + **5 Wave 1 batch discoveries** (W1B-N1…N5, registry §7.7) |
 
 | Severity | Open | Fixed | Total |
 |---|---:|---:|---:|
@@ -128,6 +128,7 @@ decision needs two authorities).*
 | **EB-9** | No runtime UI harness — no driver, no device | QA | ⬜ open | every UI finding's end-to-end evidence |
 | **EB-10** | No QA content-editor or coach credential | QA key holder | ⬜ open | library re-measurement, H-06 coach half |
 | **EB-11** | No staging environment, no `dart_defines/staging.json` | Release eng | ⬜ open | Gate 5 entire |
+| **EB-12** | No Management API credential; HIBP state not exposed read-only. One owner dashboard action: QA → Authentication → Policies → "Prevent use of leaked passwords", record before/after | Product owner / DevOps | ⬜ **open · added by Wave 1 batch** | `R-06` (task 9) |
 
 ---
 
@@ -167,6 +168,13 @@ Measured **2026-08-24 in this session**, against the current working tree.
 > **Every count quoted in a workstream report — 514 / 591 / 623 / 667 / 690 / 699 — is a
 > snapshot of a tree that several sessions were writing to concurrently. `730 / 9 / 0` is
 > the Wave 0 baseline. No count below 730 is a regression signal on its own.**
+
+**Post-batch (2026-08-24, [`WAVE_1_BATCH_CLOSURE.md`](WAVE_1_BATCH_CLOSURE.md)):**
+`flutter test` **750 / 9 / 0** (20 net-new tests, each shown failing against the restored
+defect) · analyze 0 errors · API 58 + 6 · `npm run check:guards` 10/10. Measured by the
+batch session against the uncommitted tree; **becomes the standing baseline only when
+ci.yml reproduces it after the custody commit.** The three static guards were
+independently re-run at the custody checkpoint (2026-08-25) and pass.
 
 ### 8.1 Suite composition — the number that matters more than the total
 
@@ -228,14 +236,26 @@ Wave 1's opening batch. Full justification in
 | # | Task | Findings | Owner | Status |
 |---:|---|---|---|---|
 | 1 | **Commit the tree** — 5 reviewable slices (§12) | ENV-1 | release eng | ✅ **COMPLETE** |
-| 2 | `APP_ENV` → `dev`; prod constants out of the binary; ENV-012 inverted | ENV-4, `K-26` | mobile | ⬜ **unblocked — ready** |
-| 3 | Three harnesses take their target from env and refuse production | ENV-5 | mobile | ⬜ **unblocked** |
-| 4 | `ci.yml` | ENV-6 | release eng | ⬜ **unblocked** |
-| 5 | `[functions.*] verify_jwt` per function | `E-09` | backend | ⬜ **unblocked** |
-| 6 | `.temp` untracked; seed guard refuses a non-QA ref | `LRE-34`, `REL-36` | release eng | ⬜ **unblocked** |
-| 7 | Release-mode route gate | REL-3 | mobile | ⬜ **unblocked** |
-| 8 | Correct the false account-deletion claims | UIX-2 text half | mobile | ⬜ **unblocked** |
-| 9 | Leaked-password protection on QA | `R-06` | DevOps | ⬜ anytime |
+| 2 | `APP_ENV` → `dev`; prod constants out of the binary; ENV-012 inverted | ENV-4, `K-26` | mobile | ✅ **REMEDIATED** (2026-08-24) |
+| 3 | Three harnesses take their target from env and refuse production | ENV-5 | mobile | ✅ **REMEDIATED** (2026-08-24) |
+| 4 | `ci.yml` | ENV-6 | release eng | ✅ **REMEDIATED** — has never executed; first run requires the custody commit + push |
+| 5 | `[functions.*] verify_jwt` per function | `E-09` | backend | ✅ **REMEDIATED** — deployment gated by **W1B-N5** (never `config push`) |
+| 6 | `.temp` untracked; seed guard refuses a non-QA ref | `LRE-34`, `REL-36` | release eng | ✅ **REMEDIATED** — guards proven in a local container only |
+| 7 | Release-mode route gate | REL-3 | mobile | ✅ **REMEDIATED** (incl. recorded affordance-gating scope extension) |
+| 8 | Correct the false account-deletion claims | UIX-2 text half | mobile | 🟨 **REMEDIATED · wording REQUIRES_REVIEW** — replacement text promises an email deletion path (30-day window) with no recorded owner decision; **held for owner approval before commit** |
+| 9 | Leaked-password protection on QA | `R-06` | DevOps | ⛔ **BLOCKED — EB-12.** Preserved; HIBP state unverified, not disproven. Owner dashboard action + recorded before/after required |
+
+Closure evidence: [`WAVE_1_BATCH_CLOSURE.md`](WAVE_1_BATCH_CLOSURE.md). Statuses are
+`REMEDIATED` (FIXED IN CODE), **not** `VERIFIED_CLOSED` — the tree is uncommitted, CI has
+never run, and EB-1 still blocks the live suites.
+
+### 11a. Wave 1 batch discoveries
+
+Five new findings, **W1B-N1…W1B-N5**, registered in
+[`MASTER_REMEDIATION_REGISTRY.md`](MASTER_REMEDIATION_REGISTRY.md) §7.7 with root causes
+and waves. **W1B-N5 is a Wave 5.0 entry precondition:** the `[functions.*]` block may be
+deployed only per function via `supabase functions deploy` — never `supabase config
+push` — until `config.toml` is reconciled with QA's live configuration.
 
 **Deliberately excluded from the first batch** — each is defensible and each is wrong:
 migration 123 *(one analytical act, one owner, sequential)*; migration 124 *(numbers are
@@ -342,3 +362,5 @@ is asserted green, and it is.*
 | 2026-08-24 | **New finding, from Wave 0 rather than from A–N:** the approved `ROADMAP_AI_MONETIZATION_UNIT_ECONOMICS.md` commercial architecture and the implemented tier ladder do not match. Filed as **PD-E08** |
 | 2026-08-24 | **W1-T1 complete.** 147 files placed under version control in five reviewable commits (`f8f4490`, `2b3d857`, `99492df`, `11fbc6a`, `8e47f07`). Working tree clean, zero untracked non-ignored files, suites at baseline (730/9/0 and 58+6). Wave 0's custody count corrected from 62 to **96**. `REL-36` raised P2 → P1. **Nothing deleted, reverted or discarded; no environment contacted.** |
 | 2026-08-24 | **Three questions retired as already-answered** by `product-bible.md` §6 and `decision-log.md`: the engine's certification gate, LLM-derived `intensity_delta`, and the coach approval matrix. Each is reclassified from *open decision* to *contract violation* |
+| 2026-08-24 | **Wave 1 parallel batch tasks 2–9 executed.** Tasks 2–8 `REMEDIATED` (task 8 wording `REQUIRES_REVIEW`); task 9 `BLOCKED` on new **EB-12**. Suites 750/9/0 · 58+6 · guards 10/10 (uncommitted tree). Five new findings **W1B-N1…N5** (registry §7.7); **W1B-N5 recorded as a Wave 5.0 entry precondition**. `REL-36`'s seed guard, the reset wrapper (`LRE-35`) and the edge-function config guard added. **No QA mutation; production not contacted.** Evidence: `WAVE_1_BATCH_CLOSURE.md` |
+| 2026-08-25 | **Custody checkpoint prepared** (orchestrator). Batch reconciled against the tree; classifications confirmed; W1B-N1…N5 registered in registry §7.7; EB-12 added; counts moved (310→315 canonical, 8 `REMEDIATED`); config-push prohibition written into `config.toml`, `qa-environments.md` and Wave 5 prerequisites; commit slices prepared for owner execution. **Registry and this board updated together per the §1 update rule. No environment contacted.** |

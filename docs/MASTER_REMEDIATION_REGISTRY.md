@@ -475,7 +475,7 @@ programme brief. **These are the findings that gate the plan.**
 ---
 
 ### ENV-4 · `APP_ENV` defaults to production
-`LRE-01` (= REL-07) · **P0** · `READY_TO_REMEDIATE` · Wave 1
+`LRE-01` (= REL-07) · **P0** · `REMEDIATED` *(2026-08-24, Wave 1 batch task 2 — see [`WAVE_1_BATCH_CLOSURE.md`](WAVE_1_BATCH_CLOSURE.md); FIXED IN CODE, awaiting CI execution for promotion)* · Wave 1
 
 | Field | Value |
 |---|---|
@@ -491,7 +491,7 @@ programme brief. **These are the findings that gate the plan.**
 ---
 
 ### ENV-5 · Three QA harnesses are hardcoded to production and perform destructive writes
-`LRE-02` (= REL-18, K-ENV-1, OBS-4-R4, N-05) · **P0** · `READY_TO_REMEDIATE` · Wave 1
+`LRE-02` (= REL-18, K-ENV-1, OBS-4-R4, N-05) · **P0** · `REMEDIATED` *(2026-08-24, Wave 1 batch task 3 — shared `tool/qa_target.dart` allowlist refusal, no defaults; see [`WAVE_1_BATCH_CLOSURE.md`](WAVE_1_BATCH_CLOSURE.md); FIXED IN CODE, awaiting CI execution for promotion)* · Wave 1
 
 | Field | Value |
 |---|---|
@@ -507,7 +507,7 @@ programme brief. **These are the findings that gate the plan.**
 ---
 
 ### ENV-6 · No CI, and the only workflow contacts production
-`LRE-05` (= REL-20, N-01) · **P0** · `READY_TO_REMEDIATE` · Wave 1
+`LRE-05` (= REL-20, N-01) · **P0** · `REMEDIATED` *(2026-08-24, Wave 1 batch task 4 — `ci.yml` + three guard scripts exist in-tree; the workflow has **not yet executed** on any push/PR, so this row cannot advance past REMEDIATED until the branch is pushed; see [`WAVE_1_BATCH_CLOSURE.md`](WAVE_1_BATCH_CLOSURE.md))* · Wave 1
 
 | Field | Value |
 |---|---|
@@ -868,6 +868,14 @@ deletes, so both program deletion and account deletion are blocked at the schema
 (Q-7). **Until it ships, correct the false help-centre and privacy-policy text** — that
 half needs no decision and should land in Wave 1.
 
+**2026-08-24 · Wave 1 batch task 8 — text half `REMEDIATED`, wording `REQUIRES_REVIEW`.**
+The false in-app-path claims are removed and pinned by
+`account_deletion_claims_test.dart`. The replacement text, however, promises an
+**email-based deletion path** (support@/privacy@12circle.app, permanent removal within
+30 days) — a user-facing support/policy commitment not traceable to a recorded owner
+decision. The wording is held at the custody checkpoint for explicit owner approval or
+substitution before commit. The feature half is unchanged: `BLOCKED_DECISION`, Wave 7.
+
 ---
 
 ### REL-1 · iOS build cannot be produced
@@ -894,12 +902,14 @@ webhook that is not yet idempotent — which is why K sequences it after BIL-1/B
 ---
 
 ### REL-3 · QA tooling ships in release builds
-`REL-06` (= LRE-26) · **P0** · `READY_TO_REMEDIATE` · Wave 1
+`REL-06` (= LRE-26) · **P0** · `REMEDIATED` *(2026-08-24, Wave 1 batch task 7 — compile-time `kQaToolingEnabled = !kReleaseMode` route gate + `release_route_gate_test.dart`; entry-point affordances in `settings_screen.dart` and `exercise_content_center_screen.dart` gated on the same flag, recorded as an accepted scope extension; see [`WAVE_1_BATCH_CLOSURE.md`](WAVE_1_BATCH_CLOSURE.md); FIXED IN CODE, awaiting CI execution for promotion)* · Wave 1
 
 `/qa-center` and `/mie-debugger` are wired unconditionally into the shipping router,
 gated by neither `kReleaseMode` nor a role check. Only **4 uses of
 `kReleaseMode`/`kDebugMode` exist in the entire client**, so the audit should be broad,
-not limited to these two routes.
+not limited to these two routes. *(The broad-audit instruction produced finding
+**W1B-N2**, §7.7 — `/admin-exercise-review` and `/vendor-portal` carry no UI role
+check.)*
 
 ---
 
@@ -1127,6 +1137,39 @@ parallel · wave · gate. P2/P3 rows carry: ID · root cause · statement · wav
 
 ---
 
+### 7.7 Wave 1 batch amendment — 2026-08-24/25
+
+Recorded at the Wave 1 batch custody checkpoint. Closure evidence:
+[`WAVE_1_BATCH_CLOSURE.md`](WAVE_1_BATCH_CLOSURE.md). Nothing here rewrites a
+historical report; the A–N reports and Wave 0 text above are unchanged.
+
+**Status movements (batch tasks 2–9).** `REMEDIATED` = FIXED IN CODE only; the tree is
+not yet committed/pushed, CI has never executed, and EB-1 still blocks the live suites,
+so nothing here is `VERIFIED_CLOSED`:
+
+| Finding | Task | New status |
+|---|---|---|
+| ENV-4, `K-26` | 2 | `REMEDIATED` |
+| ENV-5 | 3 | `REMEDIATED` |
+| ENV-6 | 4 | `REMEDIATED` *(ci.yml has never run — commit+push required)* |
+| `E-09` | 5 | `REMEDIATED` *(deployment of the block is gated by **W1B-N5** below)* |
+| `LRE-34`, `REL-36`, `LRE-35` *(the reset-wrapper row inside `LRE-09…42`)* | 6 | `REMEDIATED` *(seed/link guards proven in a local container only, never against QA)* |
+| REL-3 | 7 | `REMEDIATED` |
+| UIX-2 *(text half only)* | 8 | `REMEDIATED` — replacement wording `REQUIRES_REVIEW` by owner (see the UIX-2 row) |
+| `R-06` | 9 | `BLOCKED_ENVIRONMENT` (**EB-12**) — no Management credential; current HIBP state unverifiable read-only; premise unverified, not disproven |
+
+**New findings.** Per §10.4: each carries an ID, a CRC from §1, and a wave.
+
+| ID | Sev | RC | Statement | Dep | Dec | ∥ | Wave |
+|---|---|---|---|---|---|---|---|
+| **W1B-N1** | P1 | CRC-13 | `supabase/STRIPE_SETUP.md` instructs `supabase link --project-ref <production>` — a committed runbook that points the CLI at production. Allowlisted **with an explanatory comment** in `check-production-refs.sh` so CI is honest rather than red; the allowlist entry is a marker of the defect, not an acceptance of it | EB-5 | no | Y | 6 *(6.0 replaces the runbook with the QA Stripe runbook; remove the allowlist entry in the same change)* |
+| **W1B-N2** | P2 | CRC-07 | `/admin-exercise-review` and `/vendor-portal` are registered unconditionally and their screens contain no role check (four sibling admin screens each have one). Server-side RLS is the real control, so this is attack surface + UX, not presumed exposure — confirm against Phase 1 policies, then gate the UI | — | no | Y | 2 *(RLS confirmation)* / 7 *(UI gate)* |
+| **W1B-N3** | P2 | CRC-10 | `privacy_policy_screen.dart` §5 claims data export "from Profile → Settings → Account" and "in JSON or CSV format on request" — the same nonexistent path UIX-2 removed for deletion, asserted for a different right. Left standing deliberately: task 8's authority covered only the deletion half | — | **owner** (whether export ships, or the claim is corrected) | Y | 7B |
+| **W1B-N4** | P3 | CRC-13 | `supabase-keepalive.yml`'s header claims the anon key "is already shipped inside the mobile app binary + `app_constants.dart`" — untrue since ENV-4. The workflow is the one production-targeting file in the tree and no batch task owns it; not edited | — | no | Y | 8 |
+| **W1B-N5** | P2 | CRC-13 | `supabase config push` writes the **entire** `config.toml` to the linked project, and the file deliberately declares almost no `[auth]`/`[db]` settings — a push to deploy the new `[functions.*]` block would silently reset QA's live auth configuration to CLI defaults. Until `config.toml` is reconciled with QA's live configuration and the reconciliation is recorded, the `[functions.*]` block may be deployed **only** per function via `supabase functions deploy` (the mechanism the existing release architecture already uses). Guidance recorded in `config.toml`, `docs/qa-environments.md` and the Wave 5 prerequisites | — | no | N | **5.0 — entry precondition** |
+
+---
+
 ## 8. Environment blockers
 
 | ID | Blocker | Blocks | Owner | Wave |
@@ -1142,6 +1185,7 @@ parallel · wave · gate. P2/P3 rows carry: ID · root cause · statement · wav
 | **EB-9** | No runtime UI harness — no integration-test driver, no device | Every UI finding in M is static + query-replay evidence; none was observed on a running screen | QA | 9 |
 | **EB-10** | No QA content-editor or coach credential available to the workstreams | Re-measuring the exercise library, the certification pipeline, and the coach half of H-06 | whoever holds the QA keys | 5 |
 | **EB-11** | No staging environment and no `dart_defines/staging.json` | Gate 2 in its entirety. **Beta is currently undefined** (D-4 in L) | release engineering | 8 |
+| **EB-12** *(added 2026-08-24, Wave 1 batch)* | No Supabase Management API credential in any working copy, and `GET /auth/v1/settings` does not expose HIBP state — the CLI's keychain token is off-limits per governance | `R-06` (leaked-password protection). One dashboard action by the owner: QA project → Authentication → Policies → enable "Prevent use of leaked passwords", then record before/after in `WAVE_1_BATCH_CLOSURE.md` §3 | product owner / DevOps | 1 |
 
 ---
 
