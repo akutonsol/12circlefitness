@@ -279,6 +279,13 @@ jobs:
       - name: M-1, M-2, M-3 — mutate, require the declared FAIL set, restore, require 20/20
         run: supabase/scripts/negative-control.sh
 
+      - name: Set up Flutter for WRK-02
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
       - name: WKT-204 — WRK-02/WKA-02 synthetic pre-fix-equivalent evidence
         run: apps/mobile/tool/negative_control/wrk02_negative_control.sh
 
