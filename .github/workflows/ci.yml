@@ -102,14 +102,28 @@ jobs:
       - name: Scan the artifact for credential material
         run: tool/check_web_build_secrets.sh build/web
 
-      - name: The QA artifact must not contain the production project
+      - name: The QA artifact must name no project other than QA
         run: |
           set -euo pipefail
-          if grep -rqF 'nxdbooufqzkpslkcogxc' build/web; then
-            echo "FAIL — a QA web build contains the production project ref."
+          # Allowlist, not blocklist: extract every Supabase project ref the
+          # bundle contains and fail on any that is not the QA ref the bundle
+          # was built from. This catches production AND any other foreign
+          # project, and it keeps the production literal out of this file
+          # (ENV-5 guard). Fail closed if the QA ref cannot be derived.
+          QA_REF="$(grep -oE 'https://[a-z]{20}\.supabase\.co' dart_defines/qa.json \
+                    | head -1 | sed -E 's#https://([a-z]{20})\.supabase\.co#\1#')"
+          if [[ -z "$QA_REF" ]]; then
+            echo "FAIL — could not derive the QA project ref from dart_defines/qa.json."
             exit 1
           fi
-          echo "OK — the QA artifact names only the QA project."
+          foreign="$(grep -rhoaE '[a-z]{20}\.supabase\.co' build/web | sort -u \
+                     | grep -v "^${QA_REF}\.supabase\.co$" || true)"
+          if [[ -n "$foreign" ]]; then
+            echo "FAIL — the QA web build names a project other than QA:"
+            echo "$foreign"
+            exit 1
+          fi
+          echo "OK — the QA artifact names only the QA project (${QA_REF})."
 
   api:
     name: API — unit + e2e
@@ -170,12 +184,11 @@ jobs:
           set -euo pipefail
           # Positive identification, before anything connects. A target is QA
           # because its ref says so, never because the secret is called QA_URL.
-          if [[ "$QA_URL" != *"eyqtldjqpgpljlqvpowh"* ]]; then
-            echo "FAIL — QA_URL does not name the 12 Circle QA project."
-            exit 1
-          fi
-          if [[ "$QA_URL" == *"nxdbooufqzkpslkcogxc"* ]]; then
-            echo "FAIL — QA_URL names PRODUCTION."
+          # Allowlist only: an exact-host match on the QA project. Production —
+          # and every other project — fails this check identically, so the
+          # production literal has no business in this file (ENV-5 guard).
+          if [[ "$QA_URL" != "https://eyqtldjqpgpljlqvpowh.supabase.co" ]]; then
+            echo "FAIL — QA_URL is not exactly the 12 Circle QA project URL."
             exit 1
           fi
           echo "OK — target is the 12 Circle QA project."

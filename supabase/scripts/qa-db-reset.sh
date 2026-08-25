@@ -19,7 +19,6 @@ set -euo pipefail
 
 QA_REF='eyqtldjqpgpljlqvpowh'
 QA_NAME='12Circle QA'
-PROD_REF='nxdbooufqzkpslkcogxc'
 
 cd "$(git rev-parse --show-toplevel)"
 REF_FILE='supabase/.temp/project-ref'
@@ -32,17 +31,15 @@ die() { echo; echo "  REFUSING — $1"; echo; exit 2; }
 
 linked="$(tr -d '[:space:]' < "$REF_FILE")"
 
-if [[ "$linked" == "$PROD_REF" ]]; then
-  die "the CLI is linked to PRODUCTION ($PROD_REF).
-  This script will not reset, seed, or otherwise touch that project.
-  Re-link to QA:  supabase link --project-ref $QA_REF"
-fi
-
+# Refusal is by allowlist: anything that is not the QA ref — production
+# included — is refused identically. Naming the production ref here would add
+# nothing but a copy of it (see the ENV-5 production-ref guard).
 if [[ "$linked" != "$QA_REF" ]]; then
-  die "the CLI is linked to project '$linked', which is not the QA project.
+  die "the CLI is linked to project '$linked', which is NOT the QA project.
+  This script will not reset, seed, or otherwise touch that project.
   A target is QA because its ref says so — never because a script, a file or a
   variable is named 'qa'.
-  Expected: $QA_REF ($QA_NAME)"
+  Expected: $QA_REF ($QA_NAME) · re-link:  supabase link --project-ref $QA_REF"
 fi
 
 # Cross-check the ref against the CLI's own record of what it linked, so a

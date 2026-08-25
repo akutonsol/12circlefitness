@@ -54,12 +54,12 @@
 | `BLOCKED_DECISION` | 48 | 31 have a mechanical half that is **not** blocked · +1: W1B-N3 |
 | `BLOCKED_ENVIRONMENT` | 25 | +1: `R-06` → EB-12 (batch task 9) |
 | `READY_TO_REMEDIATE` | 182 | −8 batch REMEDIATED, −1 `R-06` blocked, +4 new (W1B-N1/N2/N4/N5) |
-| `REMEDIATED` | 8 | ENV-4, `K-26`, ENV-5, ENV-6, `E-09`, `LRE-34`, `REL-36`, REL-3 *(plus the UIX-2 text half and `LRE-35` inside the `LRE-09…42` aggregate, counted at their parent rows)* — **FIXED IN CODE, uncommitted; see registry §7.7** |
+| `REMEDIATED` | 9 | ENV-4, `K-26`, ENV-5, ENV-6, `E-09`, `LRE-34`, `REL-36`, REL-3, **W1B-N6** *(plus the UIX-2 text half and `LRE-35` inside the `LRE-09…42` aggregate, counted at their parent rows)* — **FIXED IN CODE, uncommitted; see registry §7.7** |
 | `RETEST_REQUIRED` | 0 | |
 | **`VERIFIED_CLOSED`** | **0** | **and none can be until the batch is committed, pushed, and ci.yml executes (then EB-1 for the live rows)** |
 | `DEFERRED` | 0 | |
 | `RELEASE_BLOCKER` | 56 | a gate attachment, not a severity — counted inside the rows above |
-| **Canonical total** | **315** | 310 from 428 raw records + **5 Wave 1 batch discoveries** (W1B-N1…N5, registry §7.7) |
+| **Canonical total** | **316** | 310 from 428 raw records + **6 Wave 1 batch discoveries** (W1B-N1…N6, registry §7.7; N6 filed and remediated 2026-08-25) |
 
 | Severity | Open | Fixed | Total |
 |---|---:|---:|---:|
@@ -364,3 +364,4 @@ is asserted green, and it is.*
 | 2026-08-24 | **Three questions retired as already-answered** by `product-bible.md` §6 and `decision-log.md`: the engine's certification gate, LLM-derived `intensity_delta`, and the coach approval matrix. Each is reclassified from *open decision* to *contract violation* |
 | 2026-08-24 | **Wave 1 parallel batch tasks 2–9 executed.** Tasks 2–8 `REMEDIATED` (task 8 wording `REQUIRES_REVIEW`); task 9 `BLOCKED` on new **EB-12**. Suites 750/9/0 · 58+6 · guards 10/10 (uncommitted tree). Five new findings **W1B-N1…N5** (registry §7.7); **W1B-N5 recorded as a Wave 5.0 entry precondition**. `REL-36`'s seed guard, the reset wrapper (`LRE-35`) and the edge-function config guard added. **No QA mutation; production not contacted.** Evidence: `WAVE_1_BATCH_CLOSURE.md` |
 | 2026-08-25 | **Custody checkpoint prepared** (orchestrator). Batch reconciled against the tree; classifications confirmed; W1B-N1…N5 registered in registry §7.7; EB-12 added; counts moved (310→315 canonical, 8 `REMEDIATED`); config-push prohibition written into `config.toml`, `qa-environments.md` and Wave 5 prerequisites; commit slices prepared for owner execution. **Registry and this board updated together per the §1 update rule. No environment contacted.** |
+| 2026-08-25 | **First CI run (`9319c67`) red on the production-ref guard** — `ci.yml` and `qa-db-reset.sh` named the production ref. Classified **B** (refusal/assertion references, no executable production path). Remediated by rewriting all three usages in QA-allowlist form with no production literal (artifact scan now fails on *any* foreign project ref) and adding `--untracked` to the guard scan, closing the local-green/CI-red blind spot. Filed + closed as **W1B-N6** (registry §7.7). Guards re-run locally: all green; the two files reproduce the CI failure under the corrected guard before the fix and pass after. **No commit/push performed; CI must reproduce. No environment contacted.** |

@@ -42,7 +42,11 @@ is_allowed() {
 violations=()
 while IFS= read -r f; do
   is_allowed "$f" || violations+=("$f")
-done < <(git grep -l --fixed-strings "$PROD_REF" -- . | sort)
+done < <(git grep -l --fixed-strings --untracked "$PROD_REF" -- . | sort)
+# --untracked: without it, git grep scans TRACKED files only, so a new file
+# carrying the ref passes this guard locally right up until the commit that
+# makes CI red (this happened: ci.yml and qa-db-reset.sh, 2026-08-25, W1B-N6).
+# Ignored files stay ignored; CI checkouts are unaffected.
 
 if ((${#violations[@]})); then
   echo "FAIL — the production project ($PROD_REF) is named outside the allowlist:"
