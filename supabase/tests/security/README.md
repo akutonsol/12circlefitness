@@ -20,6 +20,14 @@ node supabase/tests/security/setup-identities.mjs   # once, or after a rebuild
 node supabase/tests/security/run.mjs
 ```
 
+The migration durability guard is **static** — it reads committed migration
+source, needs no credentials and contacts nothing:
+
+```bash
+node supabase/tests/security/migration-durability-guard.mjs
+node supabase/tests/security/migration-durability-guard.mjs --self-test
+```
+
 `npm run test:security` from the repo root does the same thing.
 
 Keys come from `supabase projects api-keys --project-ref <ref>`. They are never
@@ -31,6 +39,28 @@ committed; `ids.json` (the fixture UUIDs) is generated, not authored.
 * It only ever touches its own `p1-*@qa.12circle.test` fixtures, and the rows it
   creates carry a `P1` marker and are torn down.
 * `setup-identities.mjs` is idempotent.
+* A member of the 116 wrapper class whose guard is **known stripped** is not
+  probed by `d04` §8 — calling it would exercise the open hole rather than test
+  a boundary (closure standard §5.2). The exemption is registered in
+  `migration-durability-guard.mjs`'s `KNOWN_OPEN`, names its finding, and is
+  reported on every run.
+
+## I-MIG-03 posture — records, not yet enforcing
+
+`migration-durability-guard.mjs` currently runs in **records-the-posture** mode:
+a strip event listed in `KNOWN_OPEN` is printed in full and not counted as a
+failure; any *other* unrestored strip is fatal. Exactly one entry is registered
+— **F-J-01 / SEC-R1**, `materialize_program_week`, whose authorization wrapper
+migration 119 dropped and nothing restores. It is detected, not fixed.
+
+Promotion to enforcement belongs to **Wave 2 task 2A**: when migration 124
+restores the wrapper, `KNOWN_OPEN` empties, `d04` §8 probes all five members,
+and the guard's mode line becomes ENFORCING. A `KNOWN_OPEN` entry that outlives
+its defect is itself reported as a failure, so the exemption cannot rot.
+
+**The guard is not yet wired into CI** — that needs one step in
+`.github/workflows/ci.yml`'s `static-guards` job, which is outside this task's
+scope. Until then it is FIXED IN CODE only, never VERIFIED IN CI.
 
 ## Layout
 
@@ -44,6 +74,7 @@ committed; `ids.json` (the fixture UUIDs) is generated, not authored.
 | `d04-rpc-execution.mjs` | Phase 1D — SECURITY DEFINER execution + arbitrary subject UUIDs |
 | `d05-intelligence-substrate.mjs` | Phase 1E — engine substrate, provenance, programming |
 | `d06-sweep-posture.mjs` | Phase 1F — schema-wide posture + F-01..F-07 |
+| `migration-durability-guard.mjs` | **I-MIG-03** — static: no migration may redefine a function carrying an authorization wrapper, a `search_path` pin or a SECURITY DEFINER boundary without carrying it forward |
 
 ## Writing a new assertion
 

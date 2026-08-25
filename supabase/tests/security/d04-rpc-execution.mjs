@@ -8,6 +8,7 @@
 // This suite asserts the posture, the per-function guards, and — just as
 // important — that the deterministic engine and every real app call still work.
 import { rest, rpc, svc, signIn, check, section, summary, n, loadIds } from './lib.mjs';
+import { engineWrapperClass, KNOWN_OPEN } from './migration-durability-guard.mjs';
 
 const ids = await loadIds();
 const REL = 'coach_client_relationships';
@@ -214,6 +215,77 @@ section('7. Admin and content-editor RPCs');
   }
   const ok = await rpc(admin, 'admin_recent_users', { p_limit: 5 });
   check('an admin still can', ok.status < 300 && n(ok.body) > 0, `status=${ok.status} rows=${n(ok.body)}`);
+}
+
+// ═══ 8. The 116 engine-wrapper CLASS ═══════════════════════════════════════
+//
+// I-MIG-03 / W2-2B. Sections 3 and 4 above assert individual wrappers, and that
+// is exactly how F-J-01 survived: migration 116 published FIVE thin wrappers in
+// front of `<name>_engine` implementations, this suite named two of them, and
+// migration 119 stripped one of the three nobody was asserting. An assertion
+// that pins instances cannot notice the class growing a hole.
+//
+// So the class is read from the migration source at run time — never
+// hand-copied here — and every member must be exercised or explicitly exempted.
+// If 116's set grows, the completeness assertion below fails until someone
+// extends this coverage deliberately.
+section('8. Every 116 engine wrapper refuses an unauthorized caller (class)');
+{
+  // 116's five, read from the migration source. Migration 117 applied the same
+  // wrapper-over-engine shape to eight content-editor functions; none is
+  // stripped and covering them is a follow-up, deliberately outside W2-2B.
+  const CLASS = engineWrapperClass({ establishedIn: '116' });
+  const members = [...CLASS.keys()].sort();
+
+  // A stand-in uuid: not a program, so `can_act_on_program()` is false and a
+  // guarded function refuses before the engine is reached. The same convention
+  // section 2 already uses for the *_engine probes.
+  const NOT_A_PROGRAM = ids.victim;
+  const ARGS = {
+    predict_client:           { p_subject: ids.victim, p_program: null },
+    assemble_weekly_review:   { p_subject: ids.victim, p_program: null, p_week: 1 },
+    evaluate_week:            { p_program_id: NOT_A_PROGRAM, p_week: 1 },
+    regenerate_program:       { p_program_id: NOT_A_PROGRAM, p_week: 1, p_approved: false },
+    materialize_program_week: { p_program_id: NOT_A_PROGRAM, p_week: 1, p_context: {} },
+  };
+
+  // Members whose guard is KNOWN STRIPPED are not probed. Calling
+  // materialize_program_week today would not test an authorization boundary —
+  // there is not one — it would EXERCISE the open hole and write to QA through
+  // the engine. Closure standard §5.2: where a security-sensitive probe cannot
+  // be made safe, the probe is not run and the limitation is recorded. It
+  // becomes an enforced assertion in 2A, once migration 124 restores the guard
+  // and refusal is the expected outcome.
+  const exempt = new Map(KNOWN_OPEN
+    .filter((k) => k.property === 'auth-wrapper')
+    .map((k) => [k.fn, k]));
+
+  check('the 116 engine-wrapper class still has five members',
+        members.length === 5, `${members.length}: ${members.join(', ')}`);
+  check('every class member has an authorization probe defined here',
+        members.every((fn) => ARGS[fn]),
+        members.filter((fn) => !ARGS[fn]).join(', ') || 'all covered');
+
+  for (const fn of members) {
+    if (exempt.has(fn)) {
+      const k = exempt.get(fn);
+      console.log(`  SKIP  ${fn}() — NOT PROBED. ${k.finding}: the wrapper was stripped by `
+        + `migration ${k.strippedBy} and is not restored, so this call would exercise the `
+        + `open hole rather than test a boundary. Closes: ${k.closedBy}.`);
+      continue;
+    }
+    const r = await rpc(attacker, fn, ARGS[fn]);
+    check(`${fn}() refuses an unauthorized caller`, r.status >= 400,
+          `status=${r.status} ${JSON.stringify(r.body || '').slice(0, 80)}`);
+  }
+
+  // The engine implementations behind the class stay unreachable to a client
+  // whatever the wrapper does — the second, independent leg of 116's design,
+  // and the one that still holds for the stripped member.
+  for (const fn of members) {
+    const r = await rpc(attacker, `${fn}_engine`, ARGS[fn]);
+    check(`${fn}_engine() is unreachable by a client`, denied(r), `status=${r.status}`);
+  }
 }
 
 await clearRel();
