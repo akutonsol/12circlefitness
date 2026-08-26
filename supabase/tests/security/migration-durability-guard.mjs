@@ -50,29 +50,27 @@
 // From that migration onward, every redefinition of that function must carry
 // each property it had. A redefinition that drops one is a **strip event**.
 //
-// ── CI posture: RECORDS THE POSTURE, NOT YET ENFORCING ──────────────────────
+// ── CI posture: ENFORCING ──────────────────────
 //
-// Enforcement is deliberately deferred, and the reason is a specific open
-// finding rather than a preference: **F-J-01 is live in the tree right now.**
-// A guard that failed the build today would be reporting a defect the programme
-// has already recorded, triaged and scheduled — it would make CI red for the
-// duration of Wave 2 and train everyone to ignore it.
+// Migration 124 remediated F-J-01 and restored the authorization wrapper.
+// `KNOWN_OPEN` is now empty, so the guard operates in full enforcement mode.
 //
-// So the guard runs in two tiers, and the detection logic is identical in both:
+// The guard runs in two tiers, and the detection logic is identical in both:
 //
 //   * a strip event listed in `KNOWN_OPEN` — recorded, printed in full, and
-//     **not counted as a failure**. Each entry names the finding that owns it
-//     and the wave task that closes it.
+//     **not counted as a failure**. This mechanism exists only for a finding
+//     that has been explicitly accepted as open during a transition.
 //   * any other unrestored strip event — **fatal**. A regression this programme
 //     has not already accepted fails the guard the first time it appears.
 //
-// The guard therefore protects against the *next* F-J-01 from today, while
-// staying honest about the current one. **Promotion to full enforcement is a
-// deliberate step in Wave 2 task 2A's closure**: when 124 restores the wrapper,
-// `KNOWN_OPEN` empties, this file's mode line becomes ENFORCING, and the entry
-// below turns into a permanent assertion. If F-J-01 is fixed and this register
-// is not emptied, the guard says so loudly (see `staleKnownOpen`) — a stale
-// exemption is exactly how a records-mode guard rots into a rubber stamp.
+// The guard therefore protects against the next authorization regression.
+// If a finding is remediated but its `KNOWN_OPEN` entry is not removed,
+// `staleKnownOpen` reports that stale exemption explicitly. This prevents
+// a temporary records-mode exception from becoming a permanent bypass.
+//
+// Historical F-J-01 detection remains covered by the self-test: the synthetic
+// 116 → 119 regression must still be detected, while the current migration
+// chain must prove that migration 124 has closed it.
 //
 //   node supabase/tests/security/migration-durability-guard.mjs
 //
@@ -108,18 +106,7 @@ export const AUTH_PREDICATES = [
  * Recorded, not fatal. Every entry must name a finding and the task that closes
  * it — an exemption without an owner is not an exemption, it is a hole.
  */
-export const KNOWN_OPEN = [
-  {
-    fn: 'materialize_program_week',
-    property: 'auth-wrapper',
-    strippedBy: '119',
-    finding: 'F-J-01 / SEC-R1',
-    closedBy: 'Wave 2 task 2A — migration 124 restores the can_act_on_program wrapper',
-    note: '116 published this as a wrapper over materialize_program_week_engine; '
-        + '119 replaced it with a bare SECURITY DEFINER body and re-granted EXECUTE '
-        + 'to authenticated. Registry §4.2. Detection only — this guard does not fix it.',
-  },
-];
+export const KNOWN_OPEN = [];
 
 // ── parsing ─────────────────────────────────────────────────────────────────
 
@@ -378,7 +365,7 @@ function report() {
 
   console.log(`\n${'█'.repeat(74)}`);
   console.log('██  I-MIG-03 · migration durability (class) guard');
-  console.log('██  MODE: RECORDS THE POSTURE — enforcement deferred, see below');
+  console.log('██  MODE: ENFORCING — no known-open exemptions');
   console.log('█'.repeat(74));
   console.log(`\n  ${v.files.length} migrations scanned · ${v.strips.length} strip event(s) found`);
 
@@ -453,9 +440,9 @@ function report() {
 
   console.log(`\n${line}`);
   if (failures === 0) {
-    console.log(`  PASS (records mode) — ${v.recorded.length} recorded known-open, `
+    console.log(`  PASS (enforcing) — ${v.recorded.length} recorded known-open, `
       + `${v.unrecorded.length} unrecorded, ${v.sweepRestored.length} sweep-claimed.`);
-    console.log('  No unrecorded regression. The recorded one is F-J-01 and it is still open.');
+    console.log('  No unrecorded regression. KNOWN_OPEN is empty; F-J-01 is closed.');
   } else {
     console.log(`  FAIL — ${failures} condition(s) this guard does not exempt.`);
   }
@@ -530,14 +517,60 @@ $$;`;
     rmSync(dir, { recursive: true, force: true });
   }
 
-  // 4 — the real tree, exemption ignored: F-J-01 must surface as a violation.
-  const real = analyse();
-  const fj01 = real.strips.find((s) => s.fn === 'materialize_program_week'
-    && s.property === 'auth-wrapper' && s.resolution === 'open');
-  t('F-J-01 is detected in the real migration set (exemption ignored)',
-    Boolean(fj01), fj01 ? `established ${fj01.establishedBy} → stripped ${fj01.strippedBy}` : 'not detected');
-  t('F-J-01 is detected from migration 119 specifically',
-    fj01?.strippedBy === '119', `strippedBy=${fj01?.strippedBy}`);
+  // 4 — historical F-J-01 detection remains proven without requiring the
+  // current migration chain to retain the already-remediated defect.
+  //
+  // Migration 116 established the authorization wrapper. Migration 119 then
+  // reproduced the public function without that wrapper. This synthetic
+  // historical chain proves I-MIG-03 still detects that exact regression.
+  const historicalDir = mkdtempSync(join(tmpdir(), 'imig03-fj01-history-'));
+  try {
+    writeFileSync(join(historicalDir, '116_establish.sql'),
+      `CREATE OR REPLACE FUNCTION public.materialize_program_week(p uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  IF NOT public.can_act_on_program(p) THEN RAISE EXCEPTION 'no'; END IF;
+  RETURN public.materialize_program_week_engine(p);
+END;
+$$;`);
+
+    writeFileSync(join(historicalDir, '119_regression.sql'),
+      `CREATE OR REPLACE FUNCTION public.materialize_program_week(p uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN '{}'::jsonb;
+END;
+$$;`);
+
+    const historical = analyse(historicalDir);
+    const fj01 = historical.strips.find((s) =>
+      s.fn === 'materialize_program_week'
+      && s.property === 'auth-wrapper'
+      && s.resolution === 'open');
+
+    t('F-J-01 historical regression remains detectable',
+      Boolean(fj01),
+      fj01 ? `established ${fj01.establishedBy} → stripped ${fj01.strippedBy}` : 'not detected');
+
+    t('F-J-01 historical regression is attributed to migration 119',
+      fj01?.strippedBy === '119',
+      `strippedBy=${fj01?.strippedBy}`);
+  } finally {
+    rmSync(historicalDir, { recursive: true, force: true });
+  }
+
+  // 5 — the current tree must contain no open F-J-01 strip.
+  const current = analyse();
+  const currentFj01 = current.strips.find((s) =>
+    s.fn === 'materialize_program_week'
+    && s.property === 'auth-wrapper'
+    && s.resolution === 'open');
+
+  t('F-J-01 is closed in the current migration chain',
+    !currentFj01,
+    currentFj01
+      ? `still open: ${currentFj01.establishedBy} → ${currentFj01.strippedBy}`
+      : 'no open authorization-wrapper strip');
 
   console.log(`\n  self-test: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}\n`);
   return failures;
