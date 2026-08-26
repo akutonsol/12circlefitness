@@ -26,11 +26,10 @@ section('J-04A  who can read a decision trace');
   const asCoach = await rest(coach, 'decision_traces?select=id,subject_id');
   const subjects = Array.isArray(asCoach.body)
     ? [...new Set(asCoach.body.map(r => r.subject_id))] : [];
-  characterize('F-J-12  an unrelated coach reads every member\'s decision traces',
-    subjects.length > 1 || (Array.isArray(asCoach.body) && asCoach.body.length > 0 && relCount === 0),
-    `${Array.isArray(asCoach.body) ? asCoach.body.length : 0} trace(s) across ` +
-    `${subjects.length} subject(s), with zero relationships — the role arm of the ` +
-    'SELECT policy is unscoped');
+  invariant('an unrelated coach cannot read another member\'s decision traces',
+    Array.isArray(asCoach.body) && asCoach.body.length === 0,
+    `${Array.isArray(asCoach.body) ? asCoach.body.length : asCoach.status} trace(s) across ` +
+    `${subjects.length} subject(s) — decision-trace reads are scoped to authorized relationships`);
 
   const asClient = await rest(attacker, 'decision_traces?select=id,subject_id');
   invariant('an unrelated CLIENT still reads nothing',
