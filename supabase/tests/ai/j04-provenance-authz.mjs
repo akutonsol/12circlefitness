@@ -84,8 +84,8 @@ section('J-04C  subject-scoped engine RPCs');
   // Migration 116 wrapped each subject/program-scoped engine function in a
   // can_act_for / can_act_on_program guard. Migration 119 then CREATE OR
   // REPLACEd one of them by its public name, which replaced the wrapper.
-  // 116's own comment predicted exactly this; 122 restored the search_path and
-  // grant halves of the 119 escape but not the guard.
+  // Migration 124 restored the authorization wrapper for
+  // materialize_program_week() and its intended program-scoping boundary.
   const program = (await rest(admin, 'workout_programs?select=id,coach_id&coach_id=not.is.null&limit=1')).body?.[0];
   invariant('a program owned by someone else exists to probe', !!program, program?.id ?? 'none');
 
@@ -102,11 +102,10 @@ section('J-04C  subject-scoped engine RPCs');
 
     const m = await rpc(attacker, 'materialize_program_week',
       { p_program_id: program.id, p_week: 99, p_context: { size: 3 } });
-    characterize('F-J-01  materialize_program_week lost its can_act_on_program guard',
-      !(m.status === 403 || m.body?.code === '42501'),
-      `HTTP ${m.status} ${m.body?.code ?? ''} "${m.body?.message ?? ''}" — the caller reached ` +
-      'the engine body against another coach\'s program. With a real week number it would ' +
-      'have DELETEd and rewritten that week\'s program_workouts.');
+    invariant('materialize_program_week refuses an unrelated caller',
+      m.status === 403 || m.body?.code === '42501',
+      `HTTP ${m.status} ${m.body?.code ?? ''} "${m.body?.message ?? ''}" — ` +
+      'the authorization boundary correctly prevents access to another coach\'s program.');
   }
 
   const forVictim = await rpc(attacker, 'generate_workout',
