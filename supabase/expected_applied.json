@@ -42,6 +42,10 @@
         "123": {
           "reason": "Authored and committed in 24187bf (W1-T2, ENV-2 forward carry); locally validated only -- applied three times to a throwaway cluster with an identical end state, never applied to any environment.",
           "gate": "Application of 123 to QA is a separate, explicitly authorized step with its own pre-application QA-state check. Its schema_migrations row is created by that application -- never inserted ahead of it to make a check pass."
+        },
+        "124": {
+          "reason": "Authored and committed in b89c4ac (Wave 2A security regression closure); locally validated and CI-validated for static authorization integrity only -- not yet applied to the QA environment.",
+          "gate": "Application of 124 to QA is a separate, explicitly authorized step after the QA pre-application state is verified. Its schema_migrations row must be created by the actual migration application, never inserted ahead of it to make the declaration check pass."
         }
       }
     }
