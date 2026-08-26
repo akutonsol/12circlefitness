@@ -1,6 +1,6 @@
 {
   "_": [
-    "ENV-3 · the declared migration state of each environment.",
+    "ENV-3 \u00b7 the declared migration state of each environment.",
     "",
     "This file is NOT a ledger. supabase_migrations.schema_migrations is the ledger",
     "and the only authority on what IS applied. This file declares what SHOULD be",
@@ -31,14 +31,13 @@
     "schema_migrations -- is NOT implemented. It needs a QA database credential in",
     "CI, the same blocker as FG-1/FG-2. Until it runs, ENV-3 stays REMEDIATED."
   ],
-
   "environments": {
     "qa": {
       "ref": "eyqtldjqpgpljlqvpowh",
       "name": "12Circle QA",
-      "applied_through": "125",
-      "excluded": {},
-      "pending": {}
+      "applied_through": "126",
+      "excluded": [],
+      "pending": []
     }
   }
 }

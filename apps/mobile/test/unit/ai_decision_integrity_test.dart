@@ -26,7 +26,8 @@
 // Findings guarded — see docs/QA_WORKSTREAM_J_AI_DECISION_INTEGRITY_REPORT.md
 //   F-J-01  migration 119 replaced a 116 authorization wrapper and dropped it
 //   F-J-07  build_workout's deload rule appends an untyped literal to a text[]
-//   F-J-17  derive_parq_risk does the same, in the PAR-Q classifier trigger
+//   F-J-17  derive_parq_risk did the same in the PAR-Q classifier trigger —
+//           REMEDIATED by migration 126; the guard is now an invariant
 //   F-J-10  the AI generator names the engine as load authority, never calls it
 //   F-J-18  ai-coach ignores the target_client_id its own client sends
 //   F-J-19  the client parses a JSON risk verdict with Uri.splitQueryString
@@ -103,6 +104,27 @@ String _fnBody(int migration, String name) {
     return _fnFrom(sql, legacy);
   }
   return _fnFrom(sql, start);
+}
+
+/// The highest-numbered migration that declares
+/// `CREATE OR REPLACE FUNCTION public.<name>(`. A forward-only correction
+/// redeclares a function in a NEW migration — an applied migration is never
+/// edited — so a guard on the LIVE definition must read the last declaration,
+/// not the first.
+int _lastMigrationDeclaring(String name) {
+  final dir = Directory('${_repoRoot().path}/supabase/migrations');
+  final needle = 'CREATE OR REPLACE FUNCTION PUBLIC.${name.toUpperCase()}(';
+  var last = -1;
+  for (final f in dir.listSync().whereType<File>()) {
+    final fname = f.uri.pathSegments.last;
+    if (!fname.endsWith('.sql')) continue;
+    final n = int.tryParse(fname.split('_').first);
+    if (n == null || n <= last) continue;
+    final sql = _flat(_stripSqlComments(f.readAsStringSync())).toUpperCase();
+    if (sql.contains(needle)) last = n;
+  }
+  if (last < 0) throw StateError('$name is declared in no migration');
+  return last;
 }
 
 String _fnFrom(String sql, int start) {
@@ -241,19 +263,53 @@ void main() {
           reason: 'the rejection rules append a declared text variable and work');
     });
 
-    test('[characterizes F-J-17] derive_parq_risk appends its narrative flags the same way', () {
-      // Live: a member cannot save has_injuries + injury_locations, or a
-      // Pregnancy / Postpartum medical condition — apply_parq_risk() is a BEFORE
-      // trigger on user_profiles, so the throw rejects the whole write.
+    test('[invariant] derive_parq_risk appends its narrative flags as typed text', () {
+      // F-J-17, REMEDIATED by migration 126.
       //
-      // REMEDIATION: cast all three literals to ::text.
-      final body = _fnBody(115, 'derive_parq_risk');
+      // Before it: a member could not save has_injuries + injury_locations, or a
+      // Pregnancy / Postpartum medical condition — apply_parq_risk() is a BEFORE
+      // trigger on user_profiles, so the 22P02 throw rejected the whole write.
+      //
+      // This reads the LAST migration that declares the function, not 115.
+      // Migration 115 is applied and must never be edited; the correction is a
+      // forward-only redeclaration, so the live definition is the last one.
+      final last = _lastMigrationDeclaring('derive_parq_risk');
+      expect(last, greaterThanOrEqualTo(126),
+          reason: 'no migration after 115 redeclares derive_parq_risk, so the '
+              'untyped append is still the live definition and F-J-17 is open');
+
+      final body = _fnBody(last, 'derive_parq_risk');
       for (final flag in const ['pregnancy', 'postpartum', 'active_injuries']) {
-        expect(body, contains("v_flags || '$flag'"),
-            reason: 'F-J-17 is fixed for $flag — invert this test');
+        expect(body, contains("v_flags || '$flag'::text"),
+            reason: '$flag must append as anyarray||anyelement');
+        expect(RegExp("v_flags \\|\\| '$flag'(?!::text)").hasMatch(body), isFalse,
+            reason: 'an untyped $flag append survives in the live declaration — '
+                "text[] || unknown resolves to anyarray||anyarray and throws 22P02");
       }
       expect(body, contains('v_flags := v_flags || v_labels[i]'),
           reason: 'the numbered PAR-Q flags append an array element and work');
+
+      // The correction must not quietly change anything else.
+      expect(body, contains("array_to_string(v_flags, ',')"),
+          reason: 'risk_flags stays the comma-joined TEXT contract of migration 013');
+      expect(body, contains('IMMUTABLE'));
+      expect(body, contains('SET search_path = public, pg_temp'),
+          reason: 'CREATE OR REPLACE drops proconfig unless it is restated '
+              '(I-MIG-03 / CRC-07)');
+    });
+
+    test('[invariant] the derived risk fields stay server-owned on every write', () {
+      // The classifier is the only writer of risk_score / risk_level /
+      // risk_flags: apply_parq_risk() overwrites NEW.* unconditionally, on
+      // INSERT and UPDATE, for every caller including service_role. A
+      // client-supplied classification is therefore discarded, not trusted.
+      final apply = _fnBody(115, 'apply_parq_risk');
+      for (final f in const ['risk_score', 'risk_level', 'risk_flags']) {
+        expect(apply, contains('NEW.$f :='),
+            reason: '$f must be recomputed in the write path, not accepted');
+      }
+      expect(_lastMigrationDeclaring('apply_parq_risk'), equals(115),
+          reason: 'the trigger body is unchanged by the F-J-17 correction');
     });
 
     test('[invariant] the trigger that runs the classifier is still BEFORE and server-owned', () {
