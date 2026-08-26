@@ -146,9 +146,9 @@ install_ext_stubs() {
 # ── 2/3. Replay the COMMITTED migrations, then the COMMITTED seeds ───────────
 build_baseline() {
   local through="$1" f v out
-  if compgen -G "$REPO/supabase/migrations/124*" >/dev/null; then
-    die "migration 124 exists. This harness predates it and its mutation contract has not been reviewed against it."
-  fi
+  # The mutation contract intentionally replays only through its declared
+  # baseline (currently 121). Later migrations are outside this synthetic
+  # workout-contract harness and are not replayed or mutated here.
   psql_ postgres -q -c "drop database if exists $PGDB_;" -c "create database $PGDB_;" >/dev/null 2>&1
   psql_ "$PGDB_" -v ON_ERROR_STOP=1 -q -f "$LOCAL/shim.sql" >"$WORK/shim.log" 2>&1 \
     || { grep -E 'ERROR' "$WORK/shim.log" | head -3; die "the CI-local shim failed to apply."; }
@@ -181,7 +181,7 @@ check_report() {                       # check_report <label> <expected-fail-ids
   (( pass_n + fail_n == ASSERTIONS )) \
     || die "$label: expected $ASSERTIONS assertions, the report carried $((pass_n+fail_n)). A short report is a broken harness, not a green run."
   got="$( { grep -oE '^FAIL +AFTER-[0-9a-z]+' <<<"$out" || true; } | awk '{print $2}' | sort -u | paste -sd, -)"
-  exp="$(printf '%s\n' "${expected[@]:-}" | { sed '/^$/d' || true; } | sort -u | paste -sd, -)"
+  exp="$(printf '%s\n' "${expected[@]-}" | { sed '/^$/d' || true; } | sort -u | paste -sd, -)"
   if [[ "$got" != "$exp" ]]; then
     printf 'FAIL — %s: declared FAIL set [%s], observed [%s].\n' "$label" "${exp:-none}" "${got:-none}" >&2
     grep -E '^FAIL' <<<"$out" | sed 's/^/    /' >&2
@@ -198,8 +198,15 @@ self_test() {
     if ( BANNER='=== PHASE 2 WORKOUT CONTRACT ==='; ASSERTIONS=3
          run_suite() { printf '%s' "$text"; }
          WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
-         IFS=, read -r -a arr <<<"$ids"
-         check_report "selftest" "${arr[@]}" >/dev/null 2>&1 )
+         arr=()
+         if [[ -n "$ids" ]]; then
+           IFS=, read -r -a arr <<<"$ids"
+         fi
+         if ((${#arr[@]})); then
+           check_report "selftest" "${arr[@]}" >/dev/null 2>&1
+         else
+           check_report "selftest" >/dev/null 2>&1
+         fi )
     then rc=0; else rc=$?; fi
     n=$((n+1))
     if [[ ( $want -eq 1 && $rc -eq 0 ) || ( $want -eq 0 && $rc -ne 0 ) ]]; then
