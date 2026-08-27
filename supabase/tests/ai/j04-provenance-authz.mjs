@@ -43,7 +43,18 @@ section('J-04A  who can read a decision trace');
   invariant('the probe coach has no client relationships to justify access',
     relCount === 0, `${relCount} relationship row(s) visible`);
 
-  const asCoach = await rest(coach, 'decision_traces?select=id,subject_id');
+  // Traces this coach AUTHORED are excluded, and only those. Under option (a)
+  // the `created_by` arm (M-1) grants the creator a permanent read of their own
+  // audit record — deliberately, and independently of any relationship — so a
+  // coach-authored trace appearing here would be the policy working, not a
+  // boundary failure. d05 §9 probe D creates exactly one such trace per run to
+  // prove that arm, which is what made the unfiltered form of this query stop
+  // testing the proposition its name states. Narrowing the QUERY keeps the
+  // assertion itself intact: an unrelated coach, reading traces they did not
+  // create, must still see nothing.
+  const coachId = subjectOf(coach);
+  const asCoach = await rest(coach,
+    `decision_traces?select=id,subject_id&created_by=neq.${coachId}`);
   const subjects = Array.isArray(asCoach.body)
     ? [...new Set(asCoach.body.map(r => r.subject_id))] : [];
   invariant('an unrelated coach cannot read another member\'s decision traces',
