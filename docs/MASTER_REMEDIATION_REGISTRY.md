@@ -1088,7 +1088,7 @@ parallel · wave · gate. P2/P3 rows carry: ID · root cause · statement · wav
 | ID | Alias | Sev | RC | Statement | Dep | Dec | ∥ | Wave |
 |---|---|---|---|---|---|---|---|---|
 | `I-MIG-03` | — | P1 | CRC-07 | `CREATE OR REPLACE` silently drops the `search_path` pin **and any authorization wrapper**. Correct today only because 122 sorts last. **The standing test for this is the class fix for §4.2** | ENV-1 | no | Y | 2 |
-| `F-J-12` | ENG-09, E-04 | P1 | CRC-08 | `decision_traces` SELECT granted an unscoped `role in (admin,content_manager,coach)` arm. Live BEFORE: a coach with **zero** relationship rows read all 9 traces across 2 unrelated subjects. *(Premise correction, 2026-08-27 (M-3): this row previously read "Every sibling table chose 'active coach or admin'". It does not — 093/095/096 use `admin + content_manager`, 091 and 089 add `coach`, and **no sibling uses `admin` alone**. Sibling policies are separate decisions and are NOT changed by this ruling.)* **Closure class: SECURITY / AUTHORIZATION** (owner ruling M-4, §2.1 four-state ladder). **PD-A05 ANSWERED 2026-08-27 — option (a):** subject + `created_by` + active coach + `admin`; `content_manager` excluded. **OPEN — the authorized policy is not implemented.** Applied migration **125** implements option **(b)**. Needs a forward migration narrowing the staff arm, plus the three missing probes. **Not promoted.** See §7.11 | — | ✅ **PD-A05 (a)** *(D-7 answered)* | Y | 2 |
+| `F-J-12` | ENG-09, E-04 | P1 | CRC-08 | ✅ **`VERIFIED_CLOSED` 2026-08-27** *(CI run **#32** at `ae5be13`)*. `decision_traces` SELECT granted an unscoped `role in (admin,content_manager,coach)` arm. **BEFORE:** a coach with **zero** relationship rows read all 9 traces across 2 unrelated subjects (Workstream J, live). **Remediation:** migration **128** — subject + `created_by` + `is_active_coach_of(subject_id)` + `is_admin()`, nothing else. **AFTER, live at run #32:** `content_manager` **0 rows** *(the same probe returned **90 rows** at run #30 `33038542118`, pre-128 — the required pre-fix failure)* · unrelated coach **0** · unrelated client **0** · subject **95/95** rows are their own · admin reads for audit · active coach and `created_by` arms both proved positively in `d05` §9. **Files:** `128_scope_decision_trace_reads_option_a.sql` (`f38841f`), `j04-provenance-authz.mjs` (`f38841f`, `ae5be13`), `d05-intelligence-substrate.mjs` §9 (`f38841f`), `expected_applied.json` (`fb36f18`). **Four required SECURITY / AUTHORIZATION states all present** — FIXED IN CODE · FIXED ON QA (ENV-3 live ledger 129=129 at run #32) · VERIFIED LIVE · VERIFIED IN CI. *(Premise correction, M-3, 2026-08-27: this row previously read "Every sibling table chose 'active coach or admin'". It does not — 093/095/096 use `admin + content_manager`, 091 and 089 add `coach`, and **no sibling uses `admin` alone**. Sibling policies are separate decisions and were NOT changed.)* **Closure class fixed by owner ruling M-4.** **Retained limitations:** (i) RLS policies are outside the I-MIG-03 durability guard, which tracks function properties only — this closure has **no standing guard** against silent replacement; (ii) J-04A's `created_by=neq` filter is NULL-rejecting, so a readable `created_by IS NULL` trace would be invisible to that negative control (none is readable under option (a) today). See §7.11 and §7.12 | — | ✅ **PD-A05 (a)** *(D-7 answered)* | Y | 2 |
 | `I-NOT-04` | H-19 | P1 | CRC-07 | `messages` UPDATE policy has no `WITH CHECK` and no column restriction — a participant rewrites the other party's message text | — | **Q-10** | Y | 2 |
 | `H-11` | H-15 | P1 | CRC-11 | Two "12 Circle Score" systems and two disagreeing leaderboards; `daily_scores` carries a `FOR ALL` policy and is **client-writable** | — | **Q-H4** | Y | 2/7 |
 | `E-05` | — | P1 | CRC-08 | `generate-communication` returns the coach's private clinical assessment — compliance, risk factors, churn framing — to the **client**, who can call it with their own `communication_id` | ENV-7 | no | Y | 5 |
@@ -1715,6 +1715,116 @@ read arm changes its exposure materially.
 contacted. No migration was applied, reverted or pushed to any environment. No QA write.
 No test was run, added, weakened or rewritten. This checkpoint changed governance
 documents only.
+
+---
+
+### 7.12 Run #32 evidence reconciliation — 2026-08-27 · evidence: CI run **#32** at `ae5be13`
+
+The first fully green run since the Wave 2 P0 work began. Verified independently
+against the GitHub API, not read off a dashboard: run **#32** `33040663330`,
+head `ae5be138`, conclusion **`success`**, all five jobs green — and **step 11,
+*Live SQL evidence*, executed for the first time since the QA frontier moved to
+128.** Runs #30 and #31 never reached it: the steps are sequential and the AI
+suite failed at step 9, so steps 10–11 were skipped. That is why this run
+supplies evidence the two before it could not.
+
+**This section changes the status of exactly one row.** A green run is not a
+closure; `live-evidence.sh` says so in its own footer, and §4 of the closure
+standard says it twice.
+
+#### What run #32 executed
+
+| Suite | Result |
+|---|---|
+| Live security (six suites, incl. `d05` §9) | pass |
+| Live AI — J-01 7/7 · J-02 15/15 · J-03 8/8 · **J-04 16/16** · J-05 3/3 | **49/49** |
+| Characterized defects still reproducing | **17/17** — none silently vanished |
+| Contract suite | pass (with the allowlist — it proves the recorded-defect state, not closure) |
+| FG-1 function search-path posture | 5/5 |
+| FG-2a phase-2 workout contract · FG-2b plan day titles | 20/20 · 15/15 |
+| F-J-17 PAR-Q contract · F-J-07 rule accumulator | 8/8 · 10/10 |
+| **ENV-3 live ledger** | **5/5 — 129 declared = 129 observed · 0 missing · 0 undeclared · 0 stale · 0 holes in 000–128 · pending: none** |
+
+No migration was applied by the run, nothing was written to `schema_migrations`,
+every SQL suite rolled itself back, and production was not contacted.
+
+#### Promoted to `VERIFIED_CLOSED` — 1 row
+
+| Row | From | Closing evidence at `ae5be13` |
+|---|---|---|
+| **`F-J-12`** · `decision_traces` readable by every coach | OPEN | All four **SECURITY / AUTHORIZATION** states now present — the class was fixed by owner ruling **M-4**, and §2.1 requires exactly these four. **FIXED IN CODE**: migration 128. **FIXED ON QA**: ENV-3's live ledger at this run reconciles 129 = 129 through 128 with no hole, which retires the one inference §7.11 left open — 128's `schema_migrations` row is now *observed*, not assumed. **VERIFIED LIVE**: `content_manager` reads **0** rows where the identical probe read **90** at run #30 pre-128; unrelated coach 0; unrelated client 0; the subject reads 95/95 of their own; the active-coach and `created_by` arms proved positively in `d05` §9. **VERIFIED IN CI**: the same run, against #30's recorded red on the same assertion. §5.2's redefinition clause is met by the post-application catalog read-back (one SELECT policy, zero write policies, four arms, no `content_manager`); §5.2's *"test the class, not the instance"* clause is satisfied by owner ruling **M-3**, which scoped sibling policies as separate decisions rather than leaving them unconsidered |
+
+**Retained limitations, recorded not waived.** (i) **RLS policies have no
+durability guard.** The I-MIG-03 guard tracks *function* properties —
+`auth-wrapper`, `search-path-pin`, `security-definer` — and Gate 0.14's wording
+does not name policies. Nothing in this repository would notice a later
+migration replacing this policy with a weaker one, which is F-J-01's exact
+mechanism. (ii) J-04A's `created_by=neq` filter is NULL-rejecting, so a readable
+`created_by IS NULL` trace would be invisible to that negative control; none is
+readable under option (a), and J-04B's *"every trace names a subject and a
+creator"* invariant holds, so there is no live weakening today.
+
+#### Gate movement
+
+- **Gate 2.6** — *"`decision_traces` reads are scoped to subject + active coach
+  (+ admin if PD-A05 so decides) · live, with a probe coach holding zero
+  relationships"* — **MET.** Run #32 satisfies the mechanism exactly: the probe
+  coach's zero-relationship state is itself asserted, and PD-A05 decided admin
+  **in** and `content_manager` **out**.
+- **Gate 1.7** — *"a member can write `has_injuries`, `injury_locations`, a
+  pregnancy and a postpartum state without error · live QA assertion"* —
+  **MET**, re-confirmed by F-J-17's 8/8 at this run.
+- No other gate row moved. **Gate 2 remains blocked** on 2.1 (Gate 1), 2.3 (the
+  §4.2 regressions), 2.5, and 2.7–2.13.
+
+#### Deliberately NOT promoted — the missing evidence, exactly
+
+- **`SEC-R2` / F-J-17** and **`SEC-R3` / F-J-07** — unchanged. Their live
+  evidence re-ran green (8/8, 10/10), which refreshes but does not extend it.
+  Both remain **one state short: VERIFIED END-TO-END**, required by §2.1's
+  *AI / safety input* class. Step 4 is not authorized, and §7.10's
+  status-vocabulary gap is still open.
+- **`ENV-3`** and **`SEC-11`** — **already `VERIFIED_CLOSED`** (2026-08-25,
+  §7.9). Run #32 re-confirms them; there is nothing to advance. ENV-3's live
+  ledger passing here is used as *evidence for F-J-12's FIXED ON QA rung*, not
+  as a fresh closure.
+- **`SEC-09`** — unchanged, `ALREADY_FIXED`. FG-1's 5/5 re-ran green, and under
+  the owner ruling of 2026-08-25 that evidence is **necessary but not
+  sufficient**: SEC-09 closes when **I-MIG-03** reaches `VERIFIED_CLOSED`.
+- **`I-MIG-03`** — unchanged, and **escalated as an authority question**, not
+  decided here. Its §4.2 mandate is a standing guard that no function carrying
+  an authorization wrapper, a `search_path` pin or a security trigger may be
+  redefined without carrying them forward. That guard now exists, is
+  **fail-closed**, has `KNOWN_OPEN = []`, self-tests green, and passed at run
+  #32 — so its *behaviour* is enforcing. But its `ci.yml` step is still titled
+  *"records mode"*, and **no document in this repository states I-MIG-03's
+  closure criterion**. Because closing it also closes SEC-09 by the standing
+  owner ruling, this reconciliation will not infer that criterion. See §M of
+  the accompanying report.
+- **`SEC-04`** — still a consequential promotion candidate from SEC-R1's
+  closure; outside the rows any ruling has named. Unchanged.
+- **`E-04`, `E-16`, `ENG-22`** — their `D-7` dependency is discharged by
+  PD-A05's answer; their rows are not edited here and await their own
+  reconciliation. `ENG-22` should be re-examined on its merits now that the read
+  arm is narrow: it reads under caller RLS and writes the explanation cache with
+  **service role**.
+- Every other row — not examined.
+
+#### Board effect
+
+`VERIFIED_CLOSED` **27 → 28**. **The status-count table on the progress board is
+NOT adjusted**, and that is deliberate: `F-J-12` is a §7 P1 row and the P1–P3
+register carries **no per-row status field**, so which bucket the count
+currently holds it in cannot be determined from this repository. Inventing a
+bucket to make an arithmetic line balance is exactly the failure this programme
+exists to prevent. The gap is reported, and it is the same gap that made
+`MASTER_PRODUCT_DECISIONS.md` §2 step 3 inexecutable in §7.11.
+
+**Production statement (closure standard §6):** production
+`nxdbooufqzkpslkcogxc` was not contacted. No migration was applied, reverted or
+pushed to any environment. No QA write was performed by this reconciliation. The
+evidence cited is CI run #32, which had already executed. This checkpoint
+changed governance documents only.
 
 ---
 
