@@ -1130,7 +1130,7 @@ parallel · wave · gate. P2/P3 rows carry: ID · root cause · statement · wav
 | `EC-07` | P1 | CRC-04 | A failed check-in read **fabricates a `pending` week**; re-submitting overwrites a *reviewed* check-in, resets `status`, hides the coach's feedback and re-notifies them | — | no | Y | 3B |
 | `EC-08` | P1 | CRC-03 (C-2) | `submitCoachFeedback` returns `true` on a zero-row update. **The verification is present — `.select('user_id')` — and the check on it is missing. Two lines** | — | no | Y | 3B |
 | `EC-09` | P1 | CRC-03 (C-2) | ~10 unverified writes reported as success, including `approveGlobalExercise`, `rejectGlobalExercise`, `platform_settings`, and **`addMemory('injury', …)` — a dropped safety input that silently never exists** | — | no | Y | 3B |
-| `EC-11` | P1 | CRC-03 | **§4.2 regression.** `WorkoutService`'s 13 swallows sit beneath the providers Phase 2 fixed; `getCompletionRate()` fabricates adherence | **H-01 first** | no | N | 3B |
+| `EC-11` | P1 | CRC-03 | **§4.2 regression.** `WorkoutService`'s 13 swallows sit beneath the providers Phase 2 fixed; `getCompletionRate()` fabricates adherence | **`I-WRK-01` + `I-COM-01` + `I-CHK-01`** *(owner ruling D-3, 2026-08-27 — §7.14. Was "H-01 first": under-scoped against Workstream H, and `H-01` is a retired alias, which §3 and §10.5 forbid as a tracking key)* | no | N | 3B |
 | `EC-12` | P1 | CRC-03 | Habit writes optimistic, swallow, **no rollback**, then score from unpersisted state — the score and the habit log disagree permanently | — | no | Y | 3B |
 | `EC-13` | P1 | CRC-03 | A failed message read renders as an empty conversation; `getUnreadCount() → 0` suppresses the badge that would prompt a second look | — | no | Y | 3B |
 | `EC-14` | P1 | CRC-04 | Stripe Connect failures render as a real £0.00 balance and a disconnected account — the highest-trust number in the product, fabricated from a network error | — | no | Y | 3B |
@@ -1243,6 +1243,7 @@ parallel · wave · gate. P2/P3 rows carry: ID · root cause · statement · wav
 | `I-MIG-02`,`I-TYP-01`,`I-TYP-02` | P2 | Both `ALTER`-added CHECKs are `NOT VALID`, and 119's `RAISE WARNING` naming un-canonicalisable rows was never acted on; nine column names carry different types in different tables; 92 enum-like text columns, 7 constrained | no | 3A |
 | `M-13` | P2 | The in-app QA Center is broken by migration 113 — it uses `select('*')` where the new policy narrows the row | no | 7 |
 | `N-06`,`N-08`,`N-09`,`N-10` | P1/P2/P3 | **259 tests (37% of the Flutter suite) execute no product code**; a live logic slip in the Phase-2 swap cursor path (`_currentSetId` is `''`, never null, so the null arm is dead); 19 Edge Functions with 0 tests and no Deno runtime installed; **three services bind `Supabase.instance.client` internally, so zero behavioural coverage is possible for any of them without a seam** — three P1 findings sit behind that one structural fact | no | 8 |
+| **`I-WRK-01`** *(= `H-01`, `M-07`, `M R-2` — retired aliases, §3; **`H-01` is not a tracking key**)* | P1/P2 ⚠ | **Tracking home established by owner ruling D-1, 2026-08-27 (§7.14). Evidence-only row: §7 carries no per-row status field, so this row is NOT status-countable** — the F-J-12 precedent (§7.12, `REMEDIATION_PROGRESS.md` §3). `workout_set_logs.created_at` does not exist; the column is `logged_at` (`001_full_ecosystem.sql:158–168`). Three references in `getExerciseProgression()` named the phantom column; every caller swallowed the 400, so a headline strength-progression screen was permanently and convincingly empty. **FIXED IN CODE:** `654b09c` — `workout_service.dart:237,243,246` `created_at`→`logged_at` (+3/−3; `catch (` count 14→14, EC-11 untouched; no migration). **FIXED ON QA:** the column has existed as `logged_at` since 001; run **#35** `33092528474` ran the *Contract suite* in the credentialed `live-qa` job against QA's live catalog with the allowlist entry removed. **VERIFIED IN CI:** run **#35** (head `654b09c`, all five jobs `success`) — `flutter analyze`, `flutter test` (H-G1 green) and `npm run test:contract` green with **both** allowlist halves removed: `known-violations.json`'s `I-WRK-01` entry and `product_contract_guard_test.dart`'s H-G1 `knownMissing` entry. Both are checked in both directions, so removing either alone fails. **⚠ VERIFIED LIVE: ABSENT.** Closure class is **Data contract / schema**, whose §2.1 ladder requires *"VERIFIED LIVE where a read path exists"*, and a read path exists (`getExerciseProgression()` → the strength-progression surface). Owner ruling **D-2** refuses to waive it; **D-2(c)** requires the actual read path to fail pre-fix and pass post-fix against the same QA fixture. **That probe cannot be executed by the current infrastructure** and is recorded as a capability blocker, not as a satisfied state: no CI job holds both a Flutter/Dart toolchain and a QA credential (`flutter` and `negative-control` have Flutter and no QA secret; `live-qa` holds all four QA secrets and has no Dart toolchain), `flutter test` in CI runs `test/` only and never `integration_test/`, and no local toolchain or credential exists. See §7.14. **Status: NOT `VERIFIED_CLOSED`** — three of four required states present. **No status count was moved** (§7.14). ⚠ **D-4 unresolved:** Workstream I rates this **P1** (`QA_WORKSTREAM_I_DATA_CONTRACT_REPORT.md:740`), Workstream H rates the same defect **P2** (`QA_WORKSTREAM_H_PRODUCT_INTEGRITY_REPORT.md:319`). §5 requires a departure from a source rating to be recorded in the row; the two source reports disagree with each other, so no rating is mechanically compelled and none is chosen here. ⚠ **D-5 unresolved:** Workstream I states the site count as both *"(Dart, 2 sites)"* (`:1132`) and *"(1 site)"* (`:1239`); `MASTER_REMEDIATION_WAVES.md:241` and the implementation both say **three** (`:237,243,246`). Waves and implementation agree; the workstream report is wrong in both of its statements — but correcting frozen A–N evidence is outside §10.2, so it is recorded, not rewritten. | no | 3A *(task 3A-5)* |
 
 ---
 
@@ -1960,6 +1961,142 @@ left uncounted rather than guessed at.
 **Production statement (closure standard §6):** production
 `nxdbooufqzkpslkcogxc` was not contacted. No migration was applied, reverted or
 pushed. No QA write. The evidence cited is CI runs #33 and #34, which had
+already executed. This checkpoint changed governance documents only.
+
+---
+
+### 7.14 `I-WRK-01` tracking home, `EC-11` dependency reconciliation, and the VERIFIED LIVE capability blocker — 2026-08-27 · governance only
+
+Owner rulings **D-1 · D-2 · D-2(b) · D-2(c) · D-3 · D-4 · D-5**, 2026-08-27. **Documentation
+only — no code, migration, test, policy, CI or acceptance criterion changed; no QA write;
+no QA read; production not contacted.** No status was promoted and **no count was moved**.
+
+#### D-1 · `I-WRK-01` now has a tracking home
+
+Before this checkpoint `I-WRK-01` appeared exactly **once** in this registry — §3 line 167,
+the alias map, which has no status column. It had no §6 row, no §7 row and no
+progress-board row, so there was no legitimate place to record its evidence.
+
+A **§7.6 row** is now established. Constraints applied:
+
+* **Canonical key is `I-WRK-01`.** `H-01`, `M-07` and `M R-2` remain retired aliases (§3).
+  **No `H-01` row was created and none may be**, per §3 (*"The alias must not be used as a
+  tracking key after this document"*) and §10.5.
+* **§6 was not used and could not be.** §6 is the **P0** register; this finding is P1/P2.
+* **The row is evidence-only and is NOT status-countable.** §7's tables carry no per-row
+  status field. This is the established position, not a new one: `REMEDIATION_PROGRESS.md`
+  §3 already records that `F-J-12` is `VERIFIED_CLOSED` and *"is NOT in this figure … a §7
+  P1 row and that register has no per-row status field, so its current bucket cannot be
+  determined from this repository. Left uncounted rather than guessed."* The same applies
+  here, and with more force: `I-WRK-01` is not closed at all.
+* **Arithmetic unchanged.** §5 counts *canonical findings*, not rows — `I-WRK-01` was
+  already inside the `Data Contract` domain's 33. Adding a row changes no total, and the
+  progress board's status counts (37 + 48 + 24 + 178 + 4 + 28 = 319) are untouched. Which
+  bucket currently holds `I-WRK-01` **cannot be determined from this repository and was not
+  guessed.**
+
+**Structural note, recorded because the ruling has wider reach than one finding.** Six
+canonical findings sit in §3 with no row anywhere else in this registry — `I-LEG-03`,
+**`I-WRK-01`**, `ENG-16`, `CON-06`, `CON-10`, `M-05`. (A seventh, `I-COM-03`, is covered by
+the range row `I-COM-02`…`I-COM-06`.) D-1 was ruled for `I-WRK-01`; **the other five are
+untouched and remain without a tracking home.**
+
+#### D-2 / D-2(b) / D-2(c) · VERIFIED LIVE is required, and cannot currently be obtained
+
+Closure class is **Data contract / schema**. `QA_CLOSURE_STANDARD.md` §2.1 requires
+FIXED IN CODE · FIXED ON QA · VERIFIED IN CI · **VERIFIED LIVE where a read path exists**.
+A read path exists (`getExerciseProgression()` → the strength-progression surface).
+**D-2 refuses to waive it.** The ERR-1 / EC-01 RELEASE-ENVIRONMENT ruling was **not**
+applied here; precedent forbids it anyway — SEC-R2 and SEC-R3 (§7.10) record that an owner
+ruling on an adjacent question *"does not waive the fifth state"*.
+
+**D-2(c)** requires the stronger comparison: the **actual read path** must fail against the
+pre-fix tree and succeed against the fixed tree, on the same QA fixture. It was not
+weakened, and no substitute was recorded as evidence.
+
+**The comparison cannot be performed with the infrastructure this repository has.** The
+architecture supports it; the capability does not. Established mechanically:
+
+| Requirement | State |
+|---|---|
+| A mechanism that executes the real Dart service against a live project | **EXISTS** — `apps/mobile/integration_test/service_logic_test.dart` drives real service classes after `Supabase.initialize`, and post-ENV-4 `AppEnv` has no production default. `WorkoutService`'s `Supabase.instance.client` binding resolves correctly under it |
+| A QA fixture for `workout_set_logs` | **REACHABLE IN PRINCIPLE** — `001:370` `"users manage own set logs" FOR ALL TO authenticated USING (user_id = auth.uid())`, so a fixture identity can insert and read its own rows. `supabase/tests/workout/phase2-contract.sql` already creates and rolls back `workout_set_logs` probe rows |
+| **A CI job holding both a Flutter/Dart toolchain and a QA credential** | **DOES NOT EXIST.** `flutter` and `negative-control` have Flutter and **no** QA secret; `live-qa` holds `QA_URL`, `QA_ANON`, `QA_SERVICE`, `QA_DB_URL` and has **no** Dart toolchain. The two capabilities are in disjoint jobs |
+| CI executing `integration_test/` | **DOES NOT** — the `flutter test` step runs with no path, which covers `test/` only; `integration_test/` additionally needs a device target |
+| A local toolchain | **ABSENT** — no `flutter`/`dart` on the device VM or in the cloud container; both SDK archives return HTTP 000 (egress refused), re-verified 2026-08-27 |
+| A local QA credential | **ABSENT** — `QA_URL`/`QA_ANON`/`QA_SERVICE`/`QA_DB_URL` all unset. Acquiring one was **not** attempted: D-2(b) authorizes a QA *write*, not credential acquisition |
+
+**Minimum missing capability, stated so it can be authorized or refused as one item:** a CI
+job that has a Flutter toolchain **and** a QA credential **and** a device target, running
+`integration_test/` twice — once at `654b09c` and once at `654b09c^` — against one
+rollback-scoped `workout_set_logs` fixture. Note that granting it widens QA credential
+scope beyond the single job `ci.yml` currently confines it to, which is a security-boundary
+change and was **not** made here.
+
+`VERIFIED LIVE` is therefore recorded as **ABSENT**, and `I-WRK-01` stays
+**NOT `VERIFIED_CLOSED`** with three of four required states present. §2.1 line 59 —
+*"There are no partial closures and no exceptions granted at implementation time."*
+
+#### D-3 · `EC-11`'s dependency reconciled
+
+**Before:** §7.2's `EC-11` row carried `Dep` = **`H-01 first`**.
+**After:** `Dep` = **`I-WRK-01` + `I-COM-01` + `I-CHK-01`**.
+
+Two defects were corrected in one edit:
+
+1. **Under-scoped.** `QA_WORKSTREAM_H_PRODUCT_INTEGRITY_REPORT.md:810` — *"closing EC-11's
+   swallows before **H-01, H-02 and EC-10** converts silent empty states into permanent
+   visible errors across the workout, event and check-in surfaces at once."* D-3 rules this
+   the authoritative sequencing constraint.
+2. **Retired alias used as a tracking key.** `H-01` is retired (§3:167); §10.5 closes the
+   alias map. The cell is now written in canonical keys. This translation is compelled by
+   §3, not chosen: `H-01` → `I-WRK-01`; `H-02` → `I-COM-01` (§3:168).
+
+**`EC-10` needs a note, because it does not resolve to one canonical finding.** §3 splits it
+across **`I-CHK-01`** (*checkins half*, §3:151) and **`I-LEG-03`** (*coach_tips half*,
+§3:154). Workstream H's sentence names *"check-in surfaces"*, which maps to the checkins
+half, so `I-CHK-01` is recorded. **Whether `I-LEG-03` also gates `EC-11` is NOT decided
+here** and remains open.
+
+**Two wider statements were left standing and not reconciled**, because D-3 authorized one
+resolution and choosing between the remainder is a further ruling:
+`QA_WORKSTREAM_H…:796` / `:868` gate `EC-11` on the whole **Wave H-A** batch (H-01, H-02,
+H-03, H-05, H-06 client half — a set that does **not** contain EC-10), and
+`MASTER_REMEDIATION_WAVES.md:260` states Wave 3B's prerequisite as **"3A complete (the H
+dependency)"**, the widest statement in the programme and the only wave-level one.
+
+**`EC-11` is not authorized to start.** `npm run test:contract` on this tree returns nine
+allowlist entries — `checkins` (`I-CHK-01`, 7 sites), `coach_tips` (`I-LEG-03`),
+`event_registrations.ticket_code` (`I-COM-01`), `custom_exercises.approved_by`,
+`user_profiles.goal`, `user_profiles.equipment` and three `nutrition_logs` columns. **EC-11
+was not started; `WorkoutService` was not touched.**
+
+#### D-4 · Severity discrepancy — PRESERVED, NOT RESOLVED
+
+Workstream I rates `I-WRK-01` **P1** (`…_I_DATA_CONTRACT_REPORT.md:740`); Workstream H rates
+the same defect **P2** (`…_H_PRODUCT_INTEGRITY_REPORT.md:319`). §5 requires a departure from
+a source rating to be recorded in the row — but here the two **source reports disagree with
+each other**, so no rating is mechanically compelled. The row carries `P1/P2 ⚠`. **Owner
+authority required.**
+
+#### D-5 · Site-count discrepancy — PRESERVED, NOT RESOLVED
+
+Workstream I states the count as both *"(Dart, 2 sites)"* (`:1132`) and *"(1 site)"*
+(`:1239`). `MASTER_REMEDIATION_WAVES.md:241` and the landed implementation both say
+**three** (`workout_service.dart:237,243,246`). Waves and implementation agree and the
+workstream report contradicts itself, so the *fact* is settled — but §10.2 makes the A–N
+reports frozen evidence (*"Update the row, not a report"*), so the report was **not
+rewritten**. Recorded here instead.
+
+*(Reconciling note: the guard-visible site count and the source-line count are different
+measurements. `run.mjs` and H-G1 both key on the `.from(` line, so one call site with a
+`select` and an `order` counts once to the guards and twice in source. This explains the
+shape of the disagreement; it does not tell us which number either report intended.)*
+
+**Production statement (closure standard §6):** production `nxdbooufqzkpslkcogxc` was not
+contacted. No migration was applied, reverted or pushed. **No QA write and no QA read were
+performed** — the D-2(b) fixture authorization was not exercised, because the probe it
+serves cannot be executed. The evidence cited is CI run **#35** `33092528474`, which had
 already executed. This checkpoint changed governance documents only.
 
 ---
