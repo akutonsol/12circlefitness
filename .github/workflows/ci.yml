@@ -307,6 +307,11 @@ jobs:
     timeout-minutes: 20
     needs: [static-guards]
     environment: qa
+    # Published so the I-WRK-01 live probe can skip cleanly when EB-1's secrets
+    # are absent, exactly as the steps below already do. This exposes whether a
+    # credential EXISTS, never the credential: no secret leaves this job.
+    outputs:
+      creds: ${{ steps.creds.outputs.present }}
     steps:
       - uses: actions/checkout@v4
 
@@ -414,3 +419,97 @@ jobs:
         env:
           QA_DB_URL: ${{ secrets.QA_DB_URL }}
         run: supabase/scripts/live-evidence.sh
+
+  # ── I-WRK-01 · VERIFIED LIVE ────────────────────────────────────────────────
+  #
+  #    The one rung `I-WRK-01` still lacks. `QA_CLOSURE_STANDARD.md` §2.1 puts it
+  #    in the Data contract / schema class, whose fourth state is "VERIFIED LIVE
+  #    where a read path exists", and §2 defines that as "a real request against
+  #    QA [that] reproduces the correct behaviour, and the same probe demonstrably
+  #    failed before the fix". No existing job could supply it: `flutter` and
+  #    `negative-control` have a toolchain and no QA target, `live-qa` has the
+  #    target and no toolchain, and the offline contract suite reaches neither.
+  #
+  #    CREDENTIAL POSTURE — this job takes NO GitHub secret, and none is needed.
+  #    The QA URL and anon key are committed in `apps/mobile/dart_defines/qa.json`
+  #    (the anon key ships in every client binary by design; the artifact scanner
+  #    bans only service-role material). The fixture identity's password is
+  #    committed in `supabase/tests/security/lib.mjs`. `secrets.QA_*` stays scoped
+  #    to `live-qa` exactly as before — this job adds no `secrets.` reference at
+  #    all, and `QA_SERVICE` is deliberately not used for the fixture.
+  #
+  #    FIXTURE — F-1, owner-authorized 2026-08-27. Rows are written by the fixture
+  #    identity's own RLS grant, keyed by a run-unique exercise name so concurrent
+  #    runs cannot collide, and removed twice over: the probe's own teardown, and
+  #    the if:always() step below which re-checks and fails if anything remains.
+  #
+  #    `needs: live-qa` is an ORDERING dependency, not a credential one — it is
+  #    what guarantees `setup-identities.mjs` has created the fixture identity.
+  wrk01-live:
+    name: I-WRK-01 — live progression read path (pre-fix / post-fix)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [live-qa]
+    if: needs.live-qa.outputs.creds == 'true'
+    env:
+      PROBE_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      # Full history: the pre-fix leg checks out the REAL parent 654b09c^.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # Linux desktop is the smallest viable device target: apps/mobile/linux/
+      # is real scaffolding, so this needs no macOS runner, no emulator and no
+      # chromedriver. xvfb gives the GTK shell a display on a headless runner.
+      - name: Linux desktop toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev xvfb
+
+      - name: flutter pub get
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      # Post-fix leg, pre-fix leg, and the discrimination that keeps an
+      # infrastructure failure from being read as pre-fix evidence.
+      - name: I-WRK-01 — post-fix and pre-fix legs against one live QA fixture
+        run: xvfb-run -a apps/mobile/tool/negative_control/wrk01_live_probe.sh
+
+      # Layer B. Independent of Flutter, so it still runs if the probe crashed
+      # before its own teardown. Scoped to this run's fixture by exercise name —
+      # never a broad delete — and hard-fails if any row survives.
+      - name: Fixture cleanup and proof of removal
+        if: always()
+        run: |
+          set -euo pipefail
+          URL="$(jq -r .SUPABASE_URL apps/mobile/dart_defines/qa.json)"
+          ANON="$(jq -r .SUPABASE_ANON_KEY apps/mobile/dart_defines/qa.json)"
+          EX="WRK01-PROBE-${PROBE_RUN_ID}"
+          # Committed QA-only is_demo fixture identity (supabase/tests/security/lib.mjs).
+          TOKEN="$(curl -sS -X POST "$URL/auth/v1/token?grant_type=password" \
+            -H "apikey: $ANON" -H 'Content-Type: application/json' \
+            -d '{"email":"p1-victim@qa.12circle.test","password":"P1-Probe-Victim-2026!"}' \
+            | jq -r '.access_token // empty')"
+          if [[ -z "$TOKEN" ]]; then
+            echo "FAIL — cleanup could not authenticate as the fixture identity."
+            exit 1
+          fi
+          curl -sS -o /dev/null -X DELETE \
+            "$URL/rest/v1/workout_set_logs?exercise_name=eq.$EX" \
+            -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN"
+          REMAIN="$(curl -sS "$URL/rest/v1/workout_set_logs?select=id&exercise_name=eq.$EX" \
+            -H "apikey: $ANON" -H "Authorization: Bearer $TOKEN" | jq 'length')"
+          echo "fixture $EX — rows remaining after cleanup: $REMAIN"
+          if [[ "$REMAIN" != "0" ]]; then
+            echo "FAIL — the probe left QA data behind."
+            exit 1
+          fi
+          echo "OK — no fixture rows remain."
