@@ -37,6 +37,10 @@ export const IDENT = {
   attacker: { email: 'p1-attacker@qa.12circle.test', pw: 'P1-Probe-Attacker-2026!' },
   coach:    { email: 'p1-coach@qa.12circle.test',    pw: 'P1-Probe-Coach-2026!'    },
   admin:    { email: 'p1-admin@qa.12circle.test',    pw: 'P1-Probe-Admin-2026!'    },
+  // Created by setup-identities.mjs alongside the other four. Carries role
+  // content_manager, which PD-A05 option (a) deliberately excludes from
+  // decision-trace reads (F-J-12).
+  contentmgr: { email: 'p1-content-manager@qa.12circle.test', pw: 'P1-Probe-ContentMgr-2026!' },
 };
 
 async function parse(res) {

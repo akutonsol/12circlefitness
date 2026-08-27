@@ -11,13 +11,33 @@ const victim   = await signIn('victim');
 const attacker = await signIn('attacker');
 const coach    = await signIn('coach');
 const admin    = await signIn('admin');
+const contentmgr = await signIn('contentmgr');
+
+/** The `sub` claim — who this JWT actually is, without a service key or ids.json. */
+const subjectOf = (jwt) =>
+  JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString('utf8')).sub;
 
 section('J-04A  who can read a decision trace');
 {
-  // The policy (089) is: subject, creator, OR any account whose role is
-  // admin / content_manager / coach. That last arm is not scoped to the coach's
-  // own clients — unlike every other engine-output table, which all check the
-  // owning program or an active relationship.
+  // The authorized policy is PD-A05 **option (a)**, ruled by the product owner
+  // on 2026-08-27 and enforced by migration 128:
+  //
+  //     subject  OR  created_by  OR  the subject's ACTIVE coach  OR  admin
+  //
+  // and nobody else. Two arms are deliberately absent. The `coach` role alone is
+  // never sufficient — that was F-J-12, migration 089's unscoped role arm, which
+  // let a self-registered coach read every member's traces. And `content_manager`
+  // is excluded even though every sibling engine-output table admits it
+  // (`predictions` 095, `program_versions` 093, `communications` 096), because a
+  // trace carries the member's decision context and per-candidate rejection
+  // reasons: access is granted by relationship, not by role class.
+  //
+  // Migration 125 removed the coach arm and kept `content_manager` — option (b).
+  // 128 is the narrowing to the authorized option (a).
+  //
+  // The two POSITIVE arms that need a service key to arrange their fixtures — the
+  // active coach, and `created_by` surviving the end of a relationship (M-1) —
+  // are proved in supabase/tests/security/d05-intelligence-substrate.mjs §9.
   const rel = await rest(coach, 'coach_client_relationships?select=coach_id,client_id,status');
   const relCount = Array.isArray(rel.body) ? rel.body.length : -1;
   invariant('the probe coach has no client relationships to justify access',
@@ -35,6 +55,28 @@ section('J-04A  who can read a decision trace');
   invariant('an unrelated CLIENT still reads nothing',
     Array.isArray(asClient.body) && asClient.body.length === 0,
     `${Array.isArray(asClient.body) ? asClient.body.length : asClient.status} row(s)`);
+
+  // F-J-12 / PD-A05(a) — the ONE arm that distinguishes option (a) from option
+  // (b). Everything above this line passes identically under both, so without
+  // this probe the ruling is unverifiable in either direction.
+  const asContentMgr = await rest(contentmgr, 'decision_traces?select=id,subject_id');
+  const cmRows = Array.isArray(asContentMgr.body) ? asContentMgr.body : null;
+  invariant('a content_manager cannot read another member\'s decision traces',
+    cmRows !== null && cmRows.length === 0,
+    `${cmRows === null ? `HTTP ${asContentMgr.status}` : `${cmRows.length} row(s)`} — PD-A05 ` +
+    'option (a) grants no staff arm below admin; migration 125 granted this role and 128 removes it');
+
+  // The subject arm, positively. A policy that refused EVERYONE would satisfy
+  // every negative assertion above and be a different defect, not a fix.
+  const victimId = subjectOf(victim);
+  const own = await rest(victim, 'decision_traces?select=id,subject_id,created_by');
+  const ownRows = Array.isArray(own.body) ? own.body : [];
+  const asSubject = ownRows.filter(r => r.subject_id === victimId);
+  const foreign = ownRows.filter(r => r.subject_id !== victimId && r.created_by !== victimId);
+  invariant('the SUBJECT reads their own decision traces, and only rows they are subject or creator of',
+    own.status < 300 && asSubject.length > 0 && foreign.length === 0,
+    `HTTP ${own.status} — ${asSubject.length} of ${ownRows.length} row(s) have the caller as subject, ` +
+    `${foreign.length} row(s) the caller is neither subject nor creator of`);
 }
 
 section('J-04B  what a decision trace actually records');

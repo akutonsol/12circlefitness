@@ -205,5 +205,57 @@ for (const [fn, args] of [['intelligence_review_queue', { p_limit: 5 }],
   check(`an admin can call ${fn}()`, ok.status < 300, `status=${ok.status}`);
 }
 
+// ═══ 9. decision_traces read scope — PD-A05 option (a) ═════════════════════
+//
+// F-J-12. Migration 089's SELECT policy admitted every account whose role was
+// coach / content_manager / admin, with no relationship or program check — a
+// self-registered coach read every member's traces. 125 removed the coach arm;
+// **128 removes content_manager**, leaving exactly the policy the product owner
+// authorized on 2026-08-27:
+//
+//     subject  OR  created_by  OR  the subject's ACTIVE coach  OR  admin
+//
+// The negative arms (unrelated coach, unrelated client, content_manager) and the
+// subject arm are read-only and are proved in
+// supabase/tests/ai/j04-provenance-authz.mjs §J-04A. The two POSITIVE arms below
+// have to arrange a relationship and author a trace, so they need the service
+// key and live here — the home Workstream J's own remediation field named.
+section('9. decision_traces read scope — PD-A05 option (a)');
+{
+  const linkCoach = () => svc(REL, { method: 'POST', body: { coach_id: ids.coach,
+    client_id: ids.victim, status: 'active', initiated_by: 'client', activated_at: now() } });
+
+  await clearRel();
+  await linkCoach();
+
+  // The active-coach arm, positively. Every negative assertion in J-04A would
+  // pass just as well against a policy that refused everyone — that would be a
+  // different defect, not a fix, and this is the probe that can tell them apart.
+  const asCoach = await rest(coach,
+    `decision_traces?select=id,subject_id,created_by&subject_id=eq.${ids.victim}`);
+  const coachRows = Array.isArray(asCoach.body) ? asCoach.body : [];
+  check('an ACTIVE coach CAN read their own client\'s decision traces',
+        asCoach.status < 300 && coachRows.length > 0,
+        `status=${asCoach.status} rows=${coachRows.length}`);
+
+  // The created_by arm (M-1). The owner ruled it retained because a coach must
+  // not lose the audit record of a decision they themselves made once the
+  // relationship ends — auditability is the reason traces exist. Author one as
+  // the coach while the relationship is active, END the relationship, and read
+  // it back: the only arm that can still be granting access is created_by.
+  const authoredGen = await rpc(coach, 'generate_workout',
+    { p_context: { size: 2 }, p_subject: ids.victim });
+  await clearRel();
+  const mine = await rest(coach,
+    `decision_traces?select=id,subject_id,created_by&created_by=eq.${ids.coach}`);
+  const mineRows = Array.isArray(mine.body) ? mine.body : [];
+  check('the CREATOR still reads the trace they authored after the relationship ends',
+        authoredGen.status < 300 && mine.status < 300 && mineRows.length > 0
+          && mineRows.every(r => r.created_by === ids.coach),
+        `generate=${authoredGen.status} read=${mine.status} rows=${mineRows.length} ` +
+        `(subject is ${mineRows[0]?.subject_id === ids.coach ? 'the coach' : 'the client'}, ` +
+        'so the subject arm cannot be what is granting this read)');
+}
+
 await clearRel();
 export default summary('Phase 1E intelligence substrate');

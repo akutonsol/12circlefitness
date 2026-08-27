@@ -35,6 +35,11 @@ export const IDENT = {
   attacker: { email: 'p1-attacker@qa.12circle.test', pw: 'P1-Probe-Attacker-2026!', role: 'client' },
   coach:    { email: 'p1-coach@qa.12circle.test',    pw: 'P1-Probe-Coach-2026!',    role: 'coach'  },
   admin:    { email: 'p1-admin@qa.12circle.test',    pw: 'P1-Probe-Admin-2026!',    role: 'admin'  },
+  // F-J-12 / PD-A05 option (a), 2026-08-27. `content_manager` is the one role
+  // the ruling deliberately does NOT grant decision-trace access to, and it is
+  // the arm that distinguishes option (a) from option (b). Without an identity
+  // carrying it, that arm is unassertable in either direction.
+  contentmgr: { email: 'p1-content-manager@qa.12circle.test', pw: 'P1-Probe-ContentMgr-2026!', role: 'content_manager' },
 };
 
 async function parse(res) {
