@@ -1088,7 +1088,7 @@ parallel · wave · gate. P2/P3 rows carry: ID · root cause · statement · wav
 | ID | Alias | Sev | RC | Statement | Dep | Dec | ∥ | Wave |
 |---|---|---|---|---|---|---|---|---|
 | `I-MIG-03` | — | P1 | CRC-07 | `CREATE OR REPLACE` silently drops the `search_path` pin **and any authorization wrapper**. Correct today only because 122 sorts last. **The standing test for this is the class fix for §4.2** | ENV-1 | no | Y | 2 |
-| `F-J-12` | ENG-09, E-04 | P1 | CRC-08 | `decision_traces` SELECT grants an unscoped `role in (admin,content_manager,coach)` arm. Live: a coach with **zero** relationship rows read all 9 traces across 2 unrelated subjects. Every sibling table chose "active coach or admin" | — | **D-7** | Y | 2 |
+| `F-J-12` | ENG-09, E-04 | P1 | CRC-08 | `decision_traces` SELECT granted an unscoped `role in (admin,content_manager,coach)` arm. Live BEFORE: a coach with **zero** relationship rows read all 9 traces across 2 unrelated subjects. *(Premise correction, 2026-08-27 (M-3): this row previously read "Every sibling table chose 'active coach or admin'". It does not — 093/095/096 use `admin + content_manager`, 091 and 089 add `coach`, and **no sibling uses `admin` alone**. Sibling policies are separate decisions and are NOT changed by this ruling.)* **Closure class: SECURITY / AUTHORIZATION** (owner ruling M-4, §2.1 four-state ladder). **PD-A05 ANSWERED 2026-08-27 — option (a):** subject + `created_by` + active coach + `admin`; `content_manager` excluded. **OPEN — the authorized policy is not implemented.** Applied migration **125** implements option **(b)**. Needs a forward migration narrowing the staff arm, plus the three missing probes. **Not promoted.** See §7.11 | — | ✅ **PD-A05 (a)** *(D-7 answered)* | Y | 2 |
 | `I-NOT-04` | H-19 | P1 | CRC-07 | `messages` UPDATE policy has no `WITH CHECK` and no column restriction — a participant rewrites the other party's message text | — | **Q-10** | Y | 2 |
 | `H-11` | H-15 | P1 | CRC-11 | Two "12 Circle Score" systems and two disagreeing leaderboards; `daily_scores` carries a `FOR ALL` policy and is **client-writable** | — | **Q-H4** | Y | 2/7 |
 | `E-05` | — | P1 | CRC-08 | `generate-communication` returns the coach's private clinical assessment — compliance, risk factors, churn framing — to the **client**, who can call it with their own `communication_id` | ENV-7 | no | Y | 5 |
@@ -1592,6 +1592,129 @@ was issued to it. No migration was applied, reverted or pushed to any
 environment. No QA write was performed by this reconciliation. The evidence
 cited is CI run #27, which had already executed. This checkpoint changed
 governance documents only.
+
+---
+
+### 7.11 PD-A05 ruling and F-J-12 reconciliation — 2026-08-27 · governance only
+
+Scope: **`F-J-12` only**, plus the PD-A05 row it depends on. No other row's status was
+examined or changed. No code, migration, test or environment was touched.
+
+#### The ruling, recorded as provided
+
+The product owner ruled on 2026-08-27:
+
+- **PD-A05: OPTION (A)** — `decision_traces` reads are scoped to **subject + the subject's
+  active coach + `admin`**. `content_manager` is **not** included.
+- **M-1: `created_by` is RETAINED.** The option text was silent on this arm; the silence
+  is resolved in favour of retention, on the auditability rationale — a coach must not
+  lose the audit record of a decision they themselves made when a relationship ends.
+- **M-3: correct the false sibling-policy premise in the governance record.** Sibling
+  policies remain **separate decisions**; they are **not** changed by this ruling.
+- **M-4: `F-J-12` is a SECURITY / AUTHORIZATION closure-class finding**, subject to the
+  authoritative closure standard.
+
+Recorded in `MASTER_PRODUCT_DECISIONS.md` (row `PD-A05` → `ANSWERED`, with the corrected
+premise) and in `decision-log.md` (the answer, the *why*, and the accepted trade-off) —
+the location `MASTER_PRODUCT_DECISIONS.md` §2 step 1 prescribes. This is the programme's
+**first** `ANSWERED` decision row; the document's "nothing here is decided" banner is
+qualified by a dated additive amendment rather than rewritten.
+
+#### The premise correction (M-3), measured from the migrations
+
+| Table | Migration | Subject arm | Coach arm | Staff arm |
+|---|---|---|---|---|
+| `predictions` | 095 | `subject_id = auth.uid()` | program ownership | `admin` + `content_manager` |
+| `program_versions` | 093 | — | program ownership | `admin` + `content_manager` |
+| `communications` | 096 | subject, `status='sent'` only | `coach_id = auth.uid()` | `admin` + `content_manager` |
+| `intelligence_attribute_reviews` | 091 | — | — | `admin` + `content_manager` + `coach` |
+| `decision_traces` | 089 *(the defect)* | subject + creator | none | `admin` + `content_manager` + `coach` |
+
+**No sibling table uses `admin` alone**, and no sibling coach arm uses
+`is_active_coach_of`. The claim to the contrary appeared in the PD-A05 row, in the
+`F-J-12` row of §7.1, and in `QA_WORKSTREAM_J_AI_DECISION_INTEGRITY_REPORT.md`. The two
+governance records are corrected in place. **Workstream J's report is frozen evidence and
+is not rewritten** — the same treatment §7.9 gave Workstream N's superseded count. Its
+premise is superseded by this section.
+
+#### Implementation vs authorized policy — they do not match
+
+| Read arm | 089 *(defect)* | **Option (a) — AUTHORIZED** | Applied migration **125** |
+|---|---|---|---|
+| subject | ✔ | ✔ | ✔ |
+| `created_by` | ✔ | ✔ *(M-1)* | ✔ |
+| active coach of subject | ✘ | ✔ | ✔ |
+| `admin` | ✔ | ✔ | ✔ |
+| **`content_manager`** | ✔ | **✘** | **✔ ← divergence** |
+| any `coach` | ✔ **← the defect** | ✘ | ✘ *(removed)* |
+
+**Migration 125 is option (b) plus the retained creator arm.** It is committed
+(`992dafe`), applied to QA, and its live assertion is green — but it is **not the
+authorized policy**. One arm too wide.
+
+**125 is left unchanged, deliberately.** Reverting it would re-open F-J-12 — a live,
+proven, health-adjacent disclosure hole on a project with self-serve coach signup — while
+the correction is prepared; editing it in place would create a sixteenth instance of
+`ENV-2`'s in-place-edit defect (`CRC-13`). 125 is a strict subset of 089 on every arm, so
+the interim posture is never wider than what QA carried before it. The correction is a
+**forward migration**, and it is **not authorized by this ruling** — see below.
+
+#### Evidence by closure rung — SECURITY / AUTHORIZATION class (§2.1: four states)
+
+Measured against the **authorized** policy, option (a):
+
+| State | Present? | Basis |
+|---|---|---|
+| FIXED IN CODE | ❌ | No migration implements option (a). 125 implements (b) |
+| FIXED ON QA | ❌ | QA carries (b) — ENV-3 ledger frontier 127, green |
+| VERIFIED LIVE | 🟨 partial | The non-distinguishing arms are proven; the (a)-distinguishing arm is not asserted at all |
+| VERIFIED IN CI | 🟨 partial | Same assertions, same gap |
+
+Probe-by-probe, against the checklist in the authorization:
+
+| Probe | Proven? | Where |
+|---|---|---|
+| Unrelated / non-authorized coach **cannot** read | ✅ | `j04`-04A invariant, with `relCount === 0` asserted as the control. CI run #27 |
+| Unrelated client **cannot** read | ✅ | `j04`-04A invariant. CI run #27 |
+| `anon` **cannot** read | ✅ | `d05` §1. CI run #27 |
+| `admin` **can** read | ✅ | `j04`-04B — `p1-admin` carries `role='admin'` (`lib.mjs` `IDENT`), so this probes the admin arm and not a staff arm generally. CI run #27 |
+| No client may write or delete a trace | ✅ | `d05` §3, incl. "not even an admin can hand-write a decision trace" |
+| **Subject can read their own traces** | ❌ **not asserted anywhere** | — |
+| **Active coach CAN read the subject's traces** *(positive leg)* | ❌ **not asserted anywhere** | — |
+| **`content_manager` CANNOT read** *(option (a)'s distinguishing arm)* | ❌ **not asserted, and would FAIL today** | No `content_manager` fixture exists — `IDENT` holds exactly four identities: victim, attacker, coach, admin |
+| **`created_by` can read** *(the M-1 arm)* | ❌ **not asserted anywhere** | — |
+| **Policy durability** | ❌ **no rung exists** | The I-MIG-03 durability guard tracks *function* properties only — `auth-wrapper`, `search-path-pin`, `security-definer`. **RLS policies are outside its coverage entirely**, and Gate 0.14's wording does not name them. 125 itself `DROP POLICY … CREATE POLICY` under a **new name**; nothing would have caught a weaker replacement |
+
+**The evidence that exists proves the defect is closed. It does not distinguish option (a)
+from option (b) in either direction.** Every assertion currently green holds identically
+under both.
+
+#### Governance state
+
+**`F-J-12` is NOT promoted and remains OPEN.** Two of four required states are absent and
+two are partial. Under §2.1 — *"`VERIFIED_CLOSED` requires every state its class demands.
+There are no partial closures and no exceptions granted at implementation time"* — and §3
+step 12, the ruling alone closes nothing. **The standing rule that implementation does not
+itself establish authorization is preserved and is now demonstrated in both directions:**
+migration 125 existing did not authorize option (b), and PD-A05 being answered does not
+close `F-J-12`.
+
+**Board counts are unchanged.** `F-J-12` is a §7 P1 row and the register carries no
+per-row status field; none is invented here. `MASTER_PRODUCT_DECISIONS.md` §2 step 3
+("move every finding it blocked from `BLOCKED_DECISION` to `READY_TO_REMEDIATE`") is
+**reported as not executable** for that reason, rather than approximated.
+
+**PD-A05's answer also releases the decision dependency recorded on `E-04`, `E-16` and
+`ENG-22`** (all cite D-7). Their rows are **deliberately not edited** — they are outside
+the row this ruling names, and a follow-up reconciliation is the correct place for them.
+`ENG-22` in particular should be re-examined once option (a) is implemented: it reads
+under caller RLS and writes the explanation cache with **service role**, so a narrower
+read arm changes its exposure materially.
+
+**Production statement (closure standard §6):** production `nxdbooufqzkpslkcogxc` was not
+contacted. No migration was applied, reverted or pushed to any environment. No QA write.
+No test was run, added, weakened or rewritten. This checkpoint changed governance
+documents only.
 
 ---
 
