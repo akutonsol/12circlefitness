@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/observability/app_failure.dart';
 
 class CheckinService {
   final _supabase = Supabase.instance.client;
@@ -26,7 +27,7 @@ class CheckinService {
       });
       return true;
     } catch (e) {
-      print('saveDailyCheckin error: \$e');
+      reportError('CheckinService.saveDailyCheckin', e);
       return false;
     }
   }
@@ -95,7 +96,7 @@ class CheckinService {
       });
       return true;
     } catch (e) {
-      print('saveWeeklyCheckin error: $e');
+      reportError('CheckinService.saveWeeklyCheckin', e);
       return false;
     }
   }

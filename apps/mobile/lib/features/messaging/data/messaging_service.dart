@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/observability/app_failure.dart';
 
 class MessagingService {
   final supabase = Supabase.instance.client;
@@ -52,7 +53,7 @@ class MessagingService {
         };
       }).toList();
     } catch (e) {
-      print('getConversations error: $e');
+      reportError('MessagingService.getConversations', e);
       return [];
     }
   }
@@ -76,7 +77,7 @@ class MessagingService {
       if (coachId == null) return null; // no accepted coach yet
       return getOrCreateConversationWith(coachId);
     } catch (e) {
-      print('getOrCreateClientCoachConversation error: $e');
+      reportError('MessagingService.getOrCreateClientCoachConversation', e);
       return null;
     }
   }
@@ -107,7 +108,7 @@ class MessagingService {
           .single();
       return result['id'] as String;
     } catch (e) {
-      print('getOrCreateConversationWith error: $e');
+      reportError('MessagingService.getOrCreateConversationWith', e);
       return null;
     }
   }
@@ -139,7 +140,7 @@ class MessagingService {
           .single();
       return result['id'] as String;
     } catch (e) {
-      print('getOrCreateCoachClientConversation error: $e');
+      reportError('MessagingService.getOrCreateCoachClientConversation', e);
       return null;
     }
   }
@@ -207,7 +208,7 @@ class MessagingService {
           .eq('conversation_id', conversationId)
           .neq('sender_id', userId);
     } catch (e) {
-      print('markAsRead error: $e');
+      reportError('MessagingService.markAsRead', e);
     }
   }
 
