@@ -9,26 +9,29 @@ const _from = mark();
 
 const victim = await signIn('victim');
 
-section('J-03A  build_workout raises whenever recovery is low');
+section('J-03A  build_workout applies the deload rule whenever recovery is low');
 {
-  // 089: `rules text[] := '{}'` then `rules := rules || 'RECOVERY_REDUCTION'`.
-  // An untyped literal makes Postgres resolve anyarray||anyarray and try to
-  // read the label as an array literal. Every other append in the function
-  // uses the declared `rule text` variable and is fine — the one that breaks is
-  // the deload rule, i.e. the only rule that protects an under-recovered member.
+  // 089 declared `rules text[] := '{}'` then `rules := rules || 'RECOVERY_REDUCTION'`.
+  // The untyped literal made Postgres resolve anyarray||anyarray and fail to read
+  // the label as an array literal (22P02), so the one rule that protects an
+  // under-recovered member was the only rule in the function that could not run.
+  // Migration 127 casts it to ::text. The two assertions below were F-J-07
+  // characterizations of that fault; they are inverted here to the post-fix
+  // contract, per RELEASE_GATES.md Gate 3.13.
   const low = await rpc(victim, 'build_workout', { p_context: { recovery: 59 } });
-  characterize('F-J-07  recovery below the deload threshold makes the engine throw',
-    low.status >= 400 && String(low.body?.message ?? '').includes('RECOVERY_REDUCTION'),
-    `HTTP ${low.status} ${low.body?.code ?? ''} ${low.body?.message ?? ''}`);
+  const lowRules = Array.isArray(low.body?.rules_triggered) ? low.body.rules_triggered : [];
+  invariant('F-J-07  recovery below the deload threshold triggers RECOVERY_REDUCTION',
+    low.status < 300 && lowRules.includes('RECOVERY_REDUCTION'),
+    `HTTP ${low.status} rules_triggered=${JSON.stringify(low.body?.rules_triggered ?? null)}`);
 
   const ok = await rpc(victim, 'build_workout', { p_context: { recovery: 60 } });
   invariant('the same call at the threshold succeeds, isolating the fault to the rule append',
     ok.status < 300, `HTTP ${ok.status}`);
 
-  // Same fault, reached through the persisting entry point.
+  // Same branch, a different context: the correction is deterministic.
   const gen = await rpc(victim, 'build_workout', { p_context: { recovery: 30, goal: 'strength', size: 4 } });
-  invariant('the fault is deterministic, not incidental to one context',
-    gen.status >= 400, `HTTP ${gen.status} ${gen.body?.code ?? ''}`);
+  invariant('F-J-07  the correction is deterministic, not incidental to one context',
+    gen.status < 300, `HTTP ${gen.status} ${gen.body?.code ?? ''}`);
 }
 
 section('J-03B  an unplannable request succeeds with nothing in it');
