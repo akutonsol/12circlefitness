@@ -61,14 +61,16 @@ cleanup_always() {
   local rc=$?
   hr; echo "  CLEANUP (always) — fixture ${PROBE_RUN_ID}"
   cd "$MOBILE" || return $rc
+  local crc
   flutter test "$PROBE" -d "$DEVICE" $DEFINES \
       --dart-define=PROBE_RUN_ID="$PROBE_RUN_ID" \
-      --dart-define=PROBE_MODE=cleanup > "$LOG_CLEAN" 2>&1
-  local crc=$?
+      --dart-define=PROBE_MODE=cleanup 2>&1 | tee "$LOG_CLEAN"
+  crc=${PIPESTATUS[0]}
   grep -E 'WRK01-MARK (CLEANUP|AUTH|BOOT)' "$LOG_CLEAN" || true
   if ! grep -qF 'WRK01-MARK CLEANUP verified remaining=0' "$LOG_CLEAN"; then
     echo "FAIL — cleanup did not prove zero remaining fixture rows (rc=$crc)."
-    sed -n '1,60p' "$LOG_CLEAN"
+    echo "       Its full output is above. Layer B (the workflow's if:always()"
+    echo "       step) is the independent backstop and still runs."
     rc=1
   else
     echo "  OK — fixture removed, remaining=0"
@@ -84,15 +86,37 @@ echo "  fixture id : $PROBE_RUN_ID"
 echo "  pre-fix ref: $PRE_FIX_REF -> $(git -C "$ROOT" rev-parse "$PRE_FIX_REF")"
 echo "  device     : $DEVICE"; hr
 
+# ── 0 · PREFLIGHT ───────────────────────────────────────────────────────────
+#
+# Run #37 failed here with `flutter test` exiting 1 after emitting nothing but
+# its pub-get lines, so the cause was not recoverable from the run. The probe
+# now states its environment and proves its device BEFORE it depends on either,
+# so a repeat cannot be silent. This asserts; it configures nothing.
+echo; echo "STEP 0 — PREFLIGHT"
+echo "  flutter: $(flutter --version 2>&1 | head -1)"
+echo "  command: flutter test $PROBE -d $DEVICE $DEFINES --dart-define=PROBE_RUN_ID=… --dart-define=PROBE_MODE=…"
+echo "  cwd    : $MOBILE"
+echo "  target : $MOBILE/$PROBE"
+[[ -f "$MOBILE/$PROBE" ]] || infra "the probe target does not exist at $MOBILE/$PROBE."
+echo "  --- flutter devices ---"
+DEVICES="$(cd "$MOBILE" && flutter devices 2>&1)"
+printf '%s\n' "$DEVICES"
+grep -qE "(^|[^a-z0-9_-])${DEVICE}([^a-z0-9_-]|$)" <<<"$DEVICES" \
+  || infra "no device matching '$DEVICE' is available to this runner. \
+Flutter cannot execute the probe, so nothing here is evidence either way."
+echo "  OK — a '$DEVICE' device is present."
+
 # ── 1 · POST-FIX ────────────────────────────────────────────────────────────
 echo; echo "STEP 1 — POST-FIX leg (current tree, seed-and-read)"
 cd "$MOBILE" || die "cannot enter $MOBILE"
+# tee, not a bare redirect: the output must reach the CI log even when the
+# command dies without a message, which is exactly how run #37 was lost.
 flutter test "$PROBE" -d "$DEVICE" $DEFINES \
     --dart-define=PROBE_RUN_ID="$PROBE_RUN_ID" \
-    --dart-define=PROBE_MODE=seed-and-read > "$LOG_POST" 2>&1
-POST_RC=$?
+    --dart-define=PROBE_MODE=seed-and-read 2>&1 | tee "$LOG_POST"
+POST_RC=${PIPESTATUS[0]}
 grep -E 'WRK01-MARK' "$LOG_POST" || true
-[[ "$POST_RC" -eq 0 ]] || { sed -n '1,80p' "$LOG_POST"; die "post-fix leg did not pass (rc=$POST_RC)."; }
+[[ "$POST_RC" -eq 0 ]] || die "post-fix leg did not pass (rc=$POST_RC). Its full output is above."
 grep -qF 'WRK01-MARK ASSERT-ALL PASS' "$LOG_POST" \
   || die "post-fix leg exited 0 without reaching ASSERT-ALL PASS."
 grep -qE 'WRK01-MARK FIXTURE (seeded|already-present) rows='"$EXPECT_ROWS" "$LOG_POST" \
@@ -117,8 +141,8 @@ cd "$WT/apps/mobile" || infra "cannot enter the pre-fix worktree."
 flutter pub get > /dev/null 2>&1 || infra "flutter pub get failed in the pre-fix worktree."
 flutter test "$PROBE" -d "$DEVICE" $DEFINES \
     --dart-define=PROBE_RUN_ID="$PROBE_RUN_ID" \
-    --dart-define=PROBE_MODE=read-only > "$LOG_PRE" 2>&1
-PRE_RC=$?
+    --dart-define=PROBE_MODE=read-only 2>&1 | tee "$LOG_PRE"
+PRE_RC=${PIPESTATUS[0]}
 grep -E 'WRK01-MARK' "$LOG_PRE" || true
 
 # Every discrimination gate, in order. Each failure is INFRASTRUCTURE, not evidence.
