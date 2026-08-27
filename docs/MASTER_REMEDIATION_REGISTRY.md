@@ -753,7 +753,7 @@ Dart-side notification was deliberately deleted in reliance on it. Blocked on Q-
 ---
 
 ### ERR-1 · There is no error-reporting sink anywhere
-`EC-01` (= REL-26, LRE-27/28) · **P0** · `READY_TO_REMEDIATE` · Wave 3 · **do this before any other error-contract work**
+`EC-01` (= REL-26, LRE-27/28, **EC-23**) · **P0** · ✅ `VERIFIED_CLOSED` 2026-08-27 *(Workstream B Phase **B0**. Closure class **RELEASE / ENVIRONMENT** by owner ruling 2026-08-27, so §2.1 requires **FIXED IN CODE · VERIFIED IN CI** and nothing more. **FIXED IN CODE:** `580932f` — `lib/core/observability/app_failure.dart` (`AppFailure`, `FailureSink`, `reportFailure`/`reportError`, vendor-free per PD-A24, which stays open and does not gate the interface). **VERIFIED IN CI, post-fix half:** run **#33** `33043897947` — `flutter analyze` and `flutter test` green, so the sink compiles in context and B0's gate holds: a deliberately-failed read reaches the installed sink, the error object keeps its identity, and a throwing sink cannot break its caller. **VERIFIED IN CI, pre-fix half:** run **#34** `33081949579` step 7 — the EC-23 guard demonstrably FAILS against a tree carrying the seven historical `print()` call sites and PASSES against the restored tree, in CI. **EC-23 closes with it as an alias (§3).**)* · Wave 3 · *(the "do this before any other error-contract work" sequencing note is retained below as the historical record of why B0 ran first)*
 
 No Sentry, no Crashlytics, no logging package, no `debugPrint`, no `developer.log` in
 `apps/mobile`. Seven `print()` calls, inert in release. **All 234 failure sites are
@@ -1825,6 +1825,142 @@ exists to prevent. The gap is reported, and it is the same gap that made
 pushed to any environment. No QA write was performed by this reconciliation. The
 evidence cited is CI run #32, which had already executed. This checkpoint
 changed governance documents only.
+
+---
+
+### 7.13 ERR-1 / EC-01 closure — 2026-08-27 · evidence: CI runs **#33** `580932f` and **#34** `80f248e`
+
+One row closes here. Nothing else was examined or changed.
+
+#### The governing rule, cited before the promotion
+
+- **Closure class.** Owner ruling 2026-08-27: EC-01 is **RELEASE / ENVIRONMENT** —
+  an internal platform observability capability with no user-facing success
+  state of its own. The ruling is explicitly confined to EC-01 and does **not**
+  extend to EC-05 or any other error-contract / false-success finding.
+- **`QA_CLOSURE_STANDARD.md` §2.1**, that class's row, verbatim:
+  *"FIXED IN CODE · **VERIFIED IN CI** — an environment guard that is not
+  mechanized is not a guard."* Two states, and no VERIFIED END-TO-END.
+- **§3 step 12:** *"Mark `VERIFIED_CLOSED` only when §2.1's required states all
+  exist."* §2.1 adds: *"There are no partial closures and no exceptions granted
+  at implementation time."*
+- **§2**, the definition this checkpoint had to satisfy: VERIFIED IN CI is
+  *"An automated check **fails against the pre-fix tree and passes against the
+  post-fix tree, in CI**."*
+
+**On the tension with §2 of this registry**, whose status table gives
+`VERIFIED_CLOSED`'s entry evidence as "VERIFIED LIVE **and** VERIFIED IN CI":
+§3 step 12 routes closure through §2.1's *class* ladder, and the programme has
+already applied that reading five times — **ENV-1, ENV-4, ENV-5, REL-3 and
+TST-1** were all promoted in §7.8 on CI evidence with no VERIFIED LIVE rung,
+because their class does not demand one. This closure follows that precedent
+rather than creating a criterion.
+
+#### Evidence, independently verified against the GitHub API
+
+| | Run #33 | Run #34 |
+|---|---|---|
+| id | `33043897947` | `33081949579` |
+| head | `580932fc1313…` | `80f248e5656d…` |
+| conclusion | `success` | `success` |
+| supplies | the **post-fix / behavioural** half | the **pre-fix / historical** half |
+
+**Post-fix half (run #33).** `flutter analyze` and `flutter test` both green, so
+the sink compiles in context and every assertion in `error_sink_test.dart`
+passed — B0's gate, *"suites green; a deliberately-failed read appears in the
+sink"*, together with the error object keeping its identity and a throwing sink
+being unable to break its caller.
+
+**Pre-fix half (run #34), which is what this checkpoint added.** The negative
+control at `apps/mobile/tool/negative_control/ec23_negative_control.sh`, wired
+as **step 7** of the negative-control job, and that step's conclusion is
+**`success`**. Its exit status is reachable only through the whole chain:
+baseline guard PASS → mutator inserts one `print()` beneath each of the seven
+`reportError()` call sites and **refuses to continue unless exactly seven
+anchors matched** → the harness independently recounts and requires exactly
+**seven** offenders in `lib/` → the guard run exits **non-zero**, required by
+`[[ "$RC" -ne 0 ]] || die` rather than tolerated → the output must contain the
+named assertion `no print() call site remains in lib/`, so an unrelated compile
+or test failure would `die` instead of passing → both files restored and
+verified **byte-identical** by `git diff --quiet … || die` → guard PASS again.
+Any link failing exits the step non-zero.
+
+**This is not G-3 synthetic evidence and must not be filed as such.** G-3 covers
+the case where *"no defective tree is recoverable from history"*. Here one is —
+the seven `print()` call sites live at `fabf495` and every commit before
+`580932f` — so this is a genuine pre-fix / post-fix demonstration of a guard.
+G-3 was not invoked. `ci.yml`'s job header was amended in `80f248e` to say so,
+precisely so this step is never later mis-filed alongside the WKT-204 and
+M-1/M-2/M-3 steps, which *are* of that class.
+
+**It also supersedes a weaker artefact.** §7.12's predecessor evidence for this
+guard was a **local algorithmic replay** — the guard's logic run by hand against
+`fabf495` (7 offenders) and the post-fix tree (0). That replay was honest but it
+was not "in CI", and §2 requires "in CI". Run #34 replaces it. The replay is
+recorded here as superseded, not deleted.
+
+#### On the two red annotations in run #34 — they are not failed CI
+
+The negative-control job carries two `failure`-level annotations, *"1 test
+passed, 1 failed."* (EC-23, step 7) and *"3 tests passed, 4 failed."*
+(WKT-204, step 6). **Every step of every job in run #34 is `success`**, and
+there is **no `continue-on-error` anywhere in the workflow** (0 occurrences at
+`80f248e`). These annotations are the runner's test-log parser reacting to
+Flutter's stdout while the mutation is installed; the step conclusion, not the
+annotation, is authoritative. The EC-23 figure is in fact a confirmed
+*prediction*: the EC-23 group holds exactly two tests, the mutation was designed
+to break exactly one of them and to leave `reportError` in place so the other
+still passes — **one passed, one failed** is the declared outcome, observed.
+
+**The real suite is independently clean.** The *Flutter — analyze, test, QA web
+build* job is a separate job, its `flutter analyze` and `flutter test` steps are
+`success`, and its annotation set contains **only** the Node-20 deprecation
+warning — no test-failure annotation at all. Nothing is masked.
+
+**Limitation, recorded.** Raw job logs return **HTTP 403** to an unauthenticated
+read, so the assertion-level log text was not read directly. The evidence used
+instead is stronger for this harness, not weaker: the step's exit status is
+reachable only if every assertion above held, and the harness source was read at
+the exact committed SHA that CI executed.
+
+#### Promoted to `VERIFIED_CLOSED` — 1 row
+
+| Row | From | Closing evidence |
+|---|---|---|
+| **`ERR-1` / `EC-01`** (= REL-26, LRE-27/28, **EC-23**) · P0 | `READY_TO_REMEDIATE` | Both states its RELEASE / ENVIRONMENT class demands: **FIXED IN CODE** (`580932f`) and **VERIFIED IN CI** in the strict §2 sense — fails against the pre-fix tree (#34 step 7) and passes against the post-fix tree (#33, and #34's baseline and restored runs) |
+
+**`EC-23` closes with it**: §3 records it as an alias of EC-01, so it carries no
+separate row and no separate count.
+
+#### What this closure does NOT do
+
+- **It does not touch `EC-05`.** The owner ruling is confined to EC-01 by its own
+  terms; EC-05 remains governed by its own class, which requires VERIFIED
+  END-TO-END for a user-facing success state.
+- Phase **B0**'s remaining scope is unchanged: the §5.1 categories beyond
+  category 1 are not wired, because classifying the ~234 swallow sites is
+  **Phase B4**.
+- No other row's status was examined. `I-MIG-03`/`SEC-09`, RLS-policy
+  durability, the status-vocabulary gap, `SEC-04`, `E-04`/`E-16`/`ENG-22` and
+  the CI step-ordering question are all untouched and remain open.
+
+#### Board effect — mechanically reconciled, and one divergence retained
+
+`ERR-1` is a **§6 P0 row that carries a status field**, so unlike `F-J-12` its
+movement is mechanically countable and the table is updated:
+`READY_TO_REMEDIATE` **179 → 178**, `VERIFIED_CLOSED` **27 → 28**, total
+**319** unchanged (37 + 48 + 24 + 178 + 4 + 28 = 319).
+
+**The narrative count is 29, and the table says 28. That divergence is exactly
+`F-J-12` and it is deliberate**, carried forward from §7.12: `F-J-12` is a §7
+P1 row and that register has **no per-row status field**, so which bucket the
+table currently holds it in cannot be determined from this repository. It is
+left uncounted rather than guessed at.
+
+**Production statement (closure standard §6):** production
+`nxdbooufqzkpslkcogxc` was not contacted. No migration was applied, reverted or
+pushed. No QA write. The evidence cited is CI runs #33 and #34, which had
+already executed. This checkpoint changed governance documents only.
 
 ---
 
