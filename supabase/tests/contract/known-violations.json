@@ -33,11 +33,6 @@
       "finding": "I-COM-03"
     },
     {
-      "table": "workout_set_logs",
-      "column": "created_at",
-      "finding": "I-WRK-01"
-    },
-    {
       "table": "user_profiles",
       "column": "goal",
       "finding": "I-INT-01"

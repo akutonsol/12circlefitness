@@ -309,9 +309,6 @@ void main() {
   // Remove an entry when the column is added or its caller is corrected.
   group('H-G1 every column the client names has a backing migration', () {
     const knownMissing = <String, String>{
-      // getExerciseProgression() selects and orders `created_at`; the column is
-      // `logged_at`. The strength-progression chart is permanently empty.
-      'workout_set_logs.created_at': 'H-01',
       // Event registration writes and reads `ticket_code`; the column is
       // `qr_code`. The ticket screen catches the 400 and fabricates a
       // "TKT-DEMO-…" ticket that was never persisted.

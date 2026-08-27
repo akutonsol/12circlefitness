@@ -234,16 +234,16 @@ class WorkoutService {
     try {
       final rows = await _supabase
           .from('workout_set_logs')
-          .select('weight_kg, reps, created_at')
+          .select('weight_kg, reps, logged_at')
           .eq('user_id', uid)
           .eq('exercise_name', exerciseName)
           // Explicit direction — the default is descending. The rows are
           // regrouped by date and re-sorted below, so this only makes the
           // stated "sorted by date asc" contract true of the query as well.
-          .order('created_at', ascending: true);
+          .order('logged_at', ascending: true);
       final grouped = <String, Map<String, dynamic>>{};
       for (final row in (rows as List)) {
-        final date = (row['created_at'] as String).substring(0, 10);
+        final date = (row['logged_at'] as String).substring(0, 10);
         final weight = (row['weight_kg'] as num?)?.toDouble() ?? 0.0;
         final reps = (row['reps'] as int?) ?? 0;
         if (!grouped.containsKey(date)) {
