@@ -265,6 +265,12 @@ jobs:
   #
   #    It is NOT historical pre-fix evidence and must never be recorded as such.
   #    The real QA BEFORE -> AFTER evidence is a separate rung (VERIFIED LIVE).
+  #
+  #    ONE step in this job is NOT of that class and must not be filed as if
+  #    it were: the EC-23 step below. Its defective tree IS recoverable from
+  #    history (the seven print() call sites live at fabf495 and every commit
+  #    before 580932f), so it is a genuine pre-fix / post-fix demonstration of
+  #    a guard, not a G-3 synthetic substitute. G-3 is not invoked for it.
   negative-control:
     name: Negative control — synthetic pre-fix-equivalent evidence
     runs-on: ubuntu-latest
@@ -288,6 +294,12 @@ jobs:
 
       - name: WKT-204 — WRK-02/WKA-02 synthetic pre-fix-equivalent evidence
         run: apps/mobile/tool/negative_control/wrk02_negative_control.sh
+
+      # ERR-1 / EC-23. The guard landed in the same commit that removed the
+      # defect, so no run has ever seen it fail. Reuses the Flutter set-up
+      # above; adds no job, no credential and no network access.
+      - name: EC-23 — ERR-1 failure-sink guard, pre-fix / post-fix evidence
+        run: apps/mobile/tool/negative_control/ec23_negative_control.sh
 
   live-qa:
     name: Live QA suites (security / AI / contract)
