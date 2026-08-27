@@ -35,14 +35,9 @@
     "qa": {
       "ref": "eyqtldjqpgpljlqvpowh",
       "name": "12Circle QA",
-      "applied_through": "127",
+      "applied_through": "128",
       "excluded": [],
-      "pending": {
-        "128": {
-          "reason": "Authored in this commit (F-J-12 / PD-A05 option (a), owner-ruled 2026-08-27): narrows the decision_traces SELECT policy installed by applied migration 125 from option (b) to the authorized option (a) by removing the content_manager arm. Statically validated only -- applied twice to a throwaway PostgreSQL 16 cluster against a stub schema, identical end state, catalog read-back confirming one SELECT-only policy for `authenticated` with no content_manager arm and no write policy. NOT applied to any environment.",
-          "gate": "Application of 128 to QA is a separate, explicitly authorized step. Until it lands, the new content_manager negative probe in supabase/tests/ai/j04-provenance-authz.mjs is EXPECTED to fail against QA -- that failing run is F-J-12's required pre-fix evidence under QA_CLOSURE_STANDARD.md section 3 step 2, not a regression. Its schema_migrations row must be created by the actual migration application, never inserted ahead of it to make this declaration check pass."
-        }
-      }
+      "pending": []
     }
   }
 }
