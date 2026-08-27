@@ -39,14 +39,14 @@ class _EventTicketScreenState extends State<EventTicketScreen> {
     try {
       final reg = await _db
           .from('event_registrations')
-          .select('ticket_code')
+          .select('qr_code')
           .eq('event_id', widget.event['id'] as String)
           .eq('user_id', uid)
           .maybeSingle();
       if (reg != null) {
         setState(() {
           _registered = true;
-          _ticketCode = reg['ticket_code'] as String?;
+          _ticketCode = reg['qr_code'] as String?;
         });
       }
     } catch (_) {}
@@ -61,7 +61,7 @@ class _EventTicketScreenState extends State<EventTicketScreen> {
       await _db.from('event_registrations').insert({
         'event_id': widget.event['id'],
         'user_id': uid,
-        'ticket_code': code,
+        'qr_code': code,
         'status': 'confirmed',
       });
       setState(() { _registered = true; _ticketCode = code; });
