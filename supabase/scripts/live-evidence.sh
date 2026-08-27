@@ -51,6 +51,7 @@ FG2A='supabase/tests/workout/phase2-contract.sql'
 FG2B='supabase/tests/workout/plan-day-titles.sql'
 ENV3_GEN='supabase/scripts/env3-live-check.mjs'
 FJ17='supabase/tests/ai/fj17-parq-risk-contract.sql'
+FJ07='supabase/tests/ai/fj07-rule-accumulator-contract.sql'
 
 hr() { printf '%s\n' "──────────────────────────────────────────────────────────────────────────"; }
 
@@ -154,6 +155,7 @@ run_suite "FG-1 · function search_path posture (SEC-09 live half)" "$FG1" '=== 
 run_suite "FG-2a · Phase 2 workout contract (SEC-11 / Phase 2 live half)" "$FG2A" '=== '
 run_suite "FG-2b · generated plan day titles (OBS-4 / migration 121)" "$FG2B" '=== '
 run_suite "F-J-17 · PAR-Q safety-declaration contract (migration 126)" "$FJ17" '=== F-J-17 PAR-Q RISK CONTRACT ==='
+run_suite "F-J-07 · rule-accumulator contract (migration 127)" "$FJ07" '=== F-J-07 RULE ACCUMULATOR CONTRACT ==='
 
 # ── ENV-3 live half ─────────────────────────────────────────────────────────
 hr; echo "  ENV-3 · live ledger comparison"; hr
@@ -173,6 +175,6 @@ if (( fail )); then
 fi
 echo "  LIVE EVIDENCE: all suites passed against QA ${QA_REF}."
 echo "  No migration was applied, no schema_migrations row was written, and every"
-echo "  suite rolled back. Promotion of SEC-09 / SEC-11 / ENV-3 / F-J-17 is a separate,"
+echo "  suite rolled back. Promotion of SEC-09 / SEC-11 / ENV-3 / F-J-17 / F-J-07 is a separate,"
 echo "  evidence-reconciled decision — a green run here does not close them."
 hr

@@ -25,7 +25,8 @@
 //
 // Findings guarded — see docs/QA_WORKSTREAM_J_AI_DECISION_INTEGRITY_REPORT.md
 //   F-J-01  migration 119 replaced a 116 authorization wrapper and dropped it
-//   F-J-07  build_workout's deload rule appends an untyped literal to a text[]
+//   F-J-07  build_workout's deload rule appended an untyped literal to a text[] —
+//           REMEDIATED by migration 127, with evaluate_week and predict_client
 //   F-J-17  derive_parq_risk did the same in the PAR-Q classifier trigger —
 //           REMEDIATED by migration 126; the guard is now an invariant
 //   F-J-10  the AI generator names the engine as load authority, never calls it
@@ -238,7 +239,7 @@ void main() {
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // AI-J-002 — the untyped array append, twice, both on safety paths
+  // AI-J-002 — the untyped array append, as a CLASS, all on safety paths
   // ══════════════════════════════════════════════════════════════════════════
   group('AI-J-002 text[] rule accumulators', () {
     // `v text[] := '{}'` then `v := v || 'LABEL'` is ambiguous: Postgres
@@ -246,21 +247,93 @@ void main() {
     // literal (22P02). Appending a DECLARED text variable is unambiguous and
     // works — which is why the fault hides: in both functions the loop-driven
     // appends are fine and only the hand-written literals throw.
-    final literalAppend = RegExp(r"""(\w+)\s*:=\s*\1\s*\|\|\s*'[A-Za-z_]+'""");
+    // An append of a BARE literal: `v := v || 'LABEL'` with no ::text cast.
+    // The negative lookahead is what makes this mean "untyped" — without it the
+    // corrected form matches too, and the guard can never go green.
+    final literalAppend =
+        RegExp(r"""(\w+)\s*:=\s*\1\s*\|\|\s*'[A-Za-z_]+'(?!\s*::\s*text)""");
 
-    test('[characterizes F-J-07] build_workout appends RECOVERY_REDUCTION as a bare literal', () {
-      // Live: build_workout(recovery < 60) → 400 22P02. The one rule that
-      // protects an under-recovered member is the one that cannot run.
+    test('[invariant] every rule accumulator appends typed text — the whole class', () {
+      // F-J-07 (registry SEC-R3), REMEDIATED by migration 127, together with the
+      // two further instances F-J-07's own remediation note required a sweep for.
       //
-      // REMEDIATION: `rules := rules || 'RECOVERY_REDUCTION'::text;`
-      final body = _fnBody(89, 'build_workout');
-      expect(body, contains("rules || 'RECOVERY_REDUCTION'"));
-      expect(literalAppend.hasMatch(body), isTrue,
-          reason: 'F-J-07 is fixed — invert this test');
+      // Eleven sites across three functions had the bare-literal shape:
+      //   build_workout          089:55   RECOVERY_REDUCTION
+      //   evaluate_week          094:52,55,60,65
+      //   predict_client         095:125,127,128,129,130,131
+      //
+      // 116 renamed evaluate_week and predict_client to *_engine and published
+      // authorization wrappers under the public names, so the LIVE definitions
+      // of the defective bodies are the engines. This reads the last migration
+      // declaring each — an applied migration is never edited, so a forward-only
+      // correction is the last declaration.
+      const accumulators = {
+        'build_workout': 127,
+        'evaluate_week_engine': 127,
+        'predict_client_engine': 127,
+        'derive_parq_risk': 126,          // F-J-17, closed earlier
+      };
+      accumulators.forEach((fn, expected) {
+        final last = _lastMigrationDeclaring(fn);
+        expect(last, greaterThanOrEqualTo(expected),
+            reason: '$fn is last declared in $last; the untyped append is only '
+                'corrected from migration $expected onward');
+        final body = _fnBody(last, fn);
+        expect(literalAppend.hasMatch(body), isFalse,
+            reason: 'a bare-literal append survives in the live declaration of '
+                '$fn — text[] || unknown resolves to anyarray||anyarray and '
+                'throws 22P02 the moment that branch is taken');
+        expect(body.toLowerCase(), contains('set search_path = public, pg_temp'),
+            reason: 'CREATE OR REPLACE drops proconfig unless restated '
+                '(I-MIG-03 / CRC-07); 118 and 122 pinned every function in public');
+      });
+    });
 
-      // The typed append in the same function is the shape the fix should take.
+    test('[invariant] no migration after 126 reintroduces the bare-literal append', () {
+      // Forward-looking half: the class must not come back in NEW work. The
+      // historical originals (089, 094, 095, 115) are applied and immutable, so
+      // they are excluded by number, not by exception — their live definitions
+      // are already asserted clean above.
+      final dir = Directory('${_repoRoot().path}/supabase/migrations');
+      final offenders = <String>[];
+      for (final f in dir.listSync().whereType<File>()) {
+        final name = f.uri.pathSegments.last;
+        if (!name.endsWith('.sql')) continue;
+        final n = int.tryParse(name.split('_').first);
+        if (n == null || n <= 126) continue;
+        final sql = _flat(_stripSqlComments(f.readAsStringSync()));
+        if (literalAppend.hasMatch(sql)) offenders.add(name);
+      }
+      expect(offenders, isEmpty,
+          reason: 'these migrations append a bare literal to an accumulator: '
+              '${offenders.join(', ')} — cast it to ::text');
+    });
+
+    test('[invariant] build_workout keeps the RECOVERY_REDUCTION threshold contract', () {
+      // The correction must not have moved the threshold or the volume factor.
+      final body = _fnBody(_lastMigrationDeclaring('build_workout'), 'build_workout');
+      expect(body, contains("v_recovery < 60 then rules := rules || 'RECOVERY_REDUCTION'::text"));
+      expect(body, contains('case when v_recovery < 60 then 0.8 else 1.0 end'));
       expect(body, contains('rules := rules || rule'),
-          reason: 'the rejection rules append a declared text variable and work');
+          reason: 'the rejection rules append a declared text variable and always worked');
+    });
+
+    test('[invariant] 127 corrects the ENGINES, never 116\'s authorization wrappers', () {
+      // Redeclaring the PUBLIC names with the engine bodies would delete 116's
+      // can_act_for / can_act_on_program wrappers — the exact F-J-01 / SEC-R1
+      // regression 119 caused and 124 had to repair.
+      final m127 = _migration(127);
+      for (final engine in const ['evaluate_week_engine', 'predict_client_engine']) {
+        expect(m127.toUpperCase(),
+            contains('CREATE OR REPLACE FUNCTION PUBLIC.${engine.toUpperCase()}('));
+      }
+      for (final wrapper in const ['evaluate_week', 'predict_client']) {
+        expect(m127.toUpperCase(),
+            isNot(contains('CREATE OR REPLACE FUNCTION PUBLIC.${wrapper.toUpperCase()}(')),
+            reason: '127 must not redeclare the public $wrapper — that is the wrapper');
+        expect(_lastMigrationDeclaring(wrapper), equals(116),
+            reason: '$wrapper\'s authorization wrapper must still be 116\'s');
+      }
     });
 
     test('[invariant] derive_parq_risk appends its narrative flags as typed text', () {

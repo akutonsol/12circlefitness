@@ -31,29 +31,35 @@ section('J-02A  the safety substrate is present and server-owned');
   invariant('derive_parq_risk classifies a declared heart condition as high risk',
     row?.risk_level === 'high', `risk_level=${row?.risk_level} flags=${row?.risk_flags}`);
 
-  // The numbered PAR-Q flags append a declared `text` variable and work. The
-  // three narrative flags — pregnancy, postpartum, active_injuries — append an
-  // untyped literal to a text[], which Postgres resolves as anyarray||anyarray
-  // and then fails to read as an array literal. Same fault as F-J-07, in the
-  // authoritative safety classifier.
-  for (const [label, args] of [
-    ['pregnancy',       { p_parq: {}, p_medical_conditions: 'Pregnancy',  p_has_injuries: false, p_injury_locations: '' }],
-    ['postpartum',      { p_parq: {}, p_medical_conditions: 'Postpartum', p_has_injuries: false, p_injury_locations: '' }],
-    ['active_injuries', { p_parq: {}, p_medical_conditions: '',           p_has_injuries: true,  p_injury_locations: 'left knee' }],
+  // The authoritative classifier returns the narrative safety flags as
+  // typed text[] values. F-J-17 previously exposed an untyped-array-literal
+  // failure for pregnancy, postpartum, and active_injuries; migration 126
+  // remediated that defect without changing the flag vocabulary or order.
+  for (const [label, args, expected] of [
+    ['pregnancy',
+      { p_parq: {}, p_medical_conditions: 'Pregnancy', p_has_injuries: false, p_injury_locations: '' },
+      'pregnancy'],
+    ['postpartum',
+      { p_parq: {}, p_medical_conditions: 'Postpartum', p_has_injuries: false, p_injury_locations: '' },
+      'postpartum'],
+    ['active_injuries',
+      { p_parq: {}, p_medical_conditions: '', p_has_injuries: true, p_injury_locations: 'left knee' },
+      'active_injuries'],
   ]) {
     const r = await rpc(victim, 'derive_parq_risk', args);
-    characterize(`F-J-17  derive_parq_risk throws instead of raising the ${label} flag`,
-      r.status >= 400 && r.body?.code === '22P02',
-      `HTTP ${r.status} ${r.body?.code ?? ''} ${r.body?.message ?? ''}`);
+    const row = Array.isArray(r.body) ? r.body[0] : r.body;
+    const flags = row?.risk_flags ?? '';
+    characterize(`F-J-17  derive_parq_risk raises the ${label} flag`,
+      r.status < 400 && flags.split(',').includes(expected),
+      `HTTP ${r.status} flags=${flags} level=${row?.risk_level ?? ''}`);
   }
 }
 
-section('J-02A2  and the classifier is a BEFORE trigger, so the member cannot declare');
+section('J-02A2  and the classifier is a BEFORE trigger, so the member can declare');
 {
   // apply_parq_risk() runs BEFORE INSERT OR UPDATE on user_profiles and calls
-  // derive_parq_risk. A throw there rejects the whole write. The probe is
-  // self-restoring: if it were to succeed the value is put back; when it fails
-  // — which is the finding — nothing changed.
+  // derive_parq_risk. The F-J-17 remediation makes this write path operational.
+  // The probe is self-restoring so the fixture is returned to its prior state.
   const me = (await rest(victim, 'user_profiles?select=id,has_injuries,injury_locations&limit=1')).body?.[0];
   invariant('the member can read their own profile', !!me?.id, me?.id ?? 'none');
 
@@ -66,11 +72,10 @@ section('J-02A2  and the classifier is a BEFORE trigger, so the member cannot de
       body: JSON.stringify({ has_injuries: true, injury_locations: 'left knee' }),
     });
     const wb = await w.json().catch(() => null);
-    characterize('F-J-17  a member cannot save an injury declaration at all',
-      w.status >= 400 && wb?.code === '22P02',
-      `PATCH → HTTP ${w.status} ${wb?.code ?? ''} "${wb?.message ?? ''}" — the single most ` +
-      'important safety input for a training AI cannot be entered. Onboarding intake ' +
-      '(intake_data.toProfileMap) writes exactly these columns.');
+    characterize('F-J-17  a member can save an injury declaration',
+      w.status < 300,
+      `PATCH → HTTP ${w.status} ${wb?.code ?? ''} "${wb?.message ?? ''}" — injury declaration write path is operational. ` +
+      'Onboarding intake (intake_data.toProfileMap) writes exactly these columns.');
 
     if (w.status < 300) {
       // Only reachable once remediated; put the fixture back the way it was.
