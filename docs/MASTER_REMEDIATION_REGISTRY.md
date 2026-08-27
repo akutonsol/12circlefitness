@@ -357,7 +357,7 @@ programme brief. **These are the findings that gate the plan.**
 ---
 
 ### SEC-R1 · `materialize_program_week` lost its authorization guard
-`F-J-01` · **P0** · `READY_TO_REMEDIATE` · Wave 2
+`F-J-01` · **P0** · ✅ `VERIFIED_CLOSED` 2026-08-27 *(migration 124 restored the wrapper; `d04` §8 asserts the 116 class read from migration source with `KNOWN_OPEN` empty — `materialize_program_week` probed, not exempted; `j04`-04C 403s an unrelated caller against a **real** foreign-owned program; FG-1 SP-4/SP-5 prove the redefinition preserved the `search_path` pin and the grant posture. CI run #27 at `388b5c1` — see §7.10. **Owner ruling 2026-08-27: §5.1 does not apply to F-J-01; it is governed as an authorization/security finding under SEC-R1.**)* · Wave 2
 
 | Field | Value |
 |---|---|
@@ -377,6 +377,7 @@ programme brief. **These are the findings that gate the plan.**
 | **Live QA** | An unrelated authenticated client → 403 on a program they do not own; the owning coach → 200; `service_role` → 200 |
 | **Gate** | Gate 2 |
 | **Evidence** | BEFORE: J's live probe, unrelated client reaches the body while 4 siblings 403. Re-derived from source this session |
+| **Evidence AFTER** | 2026-08-27, CI run **#27** (`33032108346`, head `388b5c16`, conclusion `success`). *Live security suite* green — `d04` §8: the class has five members, every member has a probe, `materialize_program_week()` **refuses an unauthorized caller**, and `materialize_program_week_engine()` is unreachable by a client. *Live AI suite* green — `j04`-04C: HTTP 403 / `42501` against a real program owned by another coach. *Live SQL evidence* green — FG-1 SP-4 2/2 re-pinned, SP-5 zero EXECUTE to PUBLIC/anon. *Static guards* green — I-MIG-03 durability guard (records mode). **Retained limitation:** the row's *Live QA* field also names the positive legs (owning coach → 200, `service_role` → 200); no suite asserts them, so an over-refusing wrapper would look identical to a correct one. Registered as evidence gap **FG-3** (§7.10), not silently closed |
 
 ---
 
@@ -401,6 +402,7 @@ programme brief. **These are the findings that gate the plan.**
 | **Live QA** | The three writes succeed and produce the expected `risk_flags` |
 | **Gate** | Gate 1 |
 | **Evidence** | BEFORE: `22P02 malformed array literal: "active_injuries"`, J live |
+| **Evidence AFTER** | 2026-08-27, CI run **#27** at `388b5c1`. FIXED IN CODE (migration 126) · FIXED ON QA (ENV-3 ledger L-1…L-5 green, frontier 127) · VERIFIED LIVE (`fj17-parq-risk-contract.sql` **8 PASS / 0 FAIL** in *Live SQL evidence*) · VERIFIED IN CI (`ai_decision_integrity_test.dart` class invariant; fails against the pre-fix shape). **VERIFIED END-TO-END is absent.** **NOT promoted** — §2.1 requires all five states for an AI/safety-input finding and Step 4 is not authorized. Owner ruling 2026-08-27 settles §5.1's test shape only (FJ17-7 is the negative test); it does not waive the fifth state. See §7.10 |
 
 ---
 
@@ -423,6 +425,7 @@ programme brief. **These are the findings that gate the plan.**
 | **Tests** | `supabase/tests/ai/` assertion at recovery 59, 60, 61 |
 | **Live QA** | `build_workout({recovery:59})` returns 200 with `RECOVERY_REDUCTION` in `rules` |
 | **Gate** | Gate 2 |
+| **Evidence AFTER** | 2026-08-27, CI run **#27** at `388b5c1`. FIXED IN CODE (migration 127 — the whole untyped-`text[]`-append class: `build_workout`, `evaluate_week_engine`, `predict_client_engine`) · FIXED ON QA (ENV-3 ledger green, frontier 127) · VERIFIED LIVE (`fj07-rule-accumulator-contract.sql` **10 PASS / 0 FAIL**; FJ07-1 recovery 59 → no `22P02` and `RECOVERY_REDUCTION` present, FJ07-2/3 recovery 60/61 → threshold not crossed) · VERIFIED IN CI (`j03-engine-boundary.mjs` rule-presence invariant, inverted from characterization at `388b5c1`; `ai_decision_integrity_test.dart` class invariant). **VERIFIED END-TO-END is absent.** **NOT promoted** — §2.1 requires all five states for an AI/safety-input finding and Step 4 is not authorized. Owner ruling 2026-08-27 settles §5.1's test shape only (59/60/61 is the negative/positive pair); it does not waive the fifth state. See §7.10 |
 
 ---
 
@@ -1461,6 +1464,134 @@ paraphrase never appeared in a committed revision; it is corrected here.
   live half is done and recorded; the row waits on I-MIG-03's own closure.
 - **I-MIG-03** — unchanged: CI-verified in records mode, enforcement deferred to 2A.
   Under the ruling above it is now also SEC-09's remaining gate.
+
+---
+
+### 7.10 Wave 2 P0 safety/authorization closure reconciliation — 2026-08-27 · evidence: CI run **#27** at `388b5c1`
+
+Scope: the three Wave 2 P0 rows only — **SEC-R1 / F-J-01**, **SEC-R2 / F-J-17**,
+**SEC-R3 / F-J-07**. No other row's status was examined or changed. This
+reconciliation changed governance documents only.
+
+#### The human-authority rulings, recorded as provided
+
+The product owner ruled on 2026-08-27, in response to the `BLOCKED — AUTHORITY
+REQUIRED` report raised at the preceding checkpoint. Recorded verbatim; not
+reinterpreted.
+
+1. **F-J-17 / SEC-R2 ruling: YES.** FJ17-7 satisfies the required §5.1 negative
+   test.
+2. **F-J-07 / SEC-R3 ruling: YES.** The 59/60/61 recovery threshold pair
+   satisfies the required §5.1 negative/positive safety test.
+3. **F-J-01 / SEC-R1 ruling: NO.** §5.1 does **not** apply to F-J-01. F-J-01 is
+   governed as an authorization/security finding under SEC-R1.
+
+**Where this ruling is recorded, and the gap.** It is recorded here, following
+the in-repository precedent set by *"Owner ruling, 2026-08-25 — SEC-09's closure
+criterion"* (§7.9) — the only established location for an owner ruling on
+closure criteria. The repository has **no dedicated register for §5.1 / evidence
+-sufficiency authority decisions**: `decision-log.md` is scoped to product and
+architecture decisions ("why is it built this way?"), and
+`MASTER_PRODUCT_DECISIONS.md` §2's discipline attaches to rows that exist in
+that document — these rulings have none. **No new location was invented.** The
+gap is reported for owner assignment.
+
+#### The evidence — CI run #27
+
+`33032108346` · head `388b5c16` · event `push` · conclusion **`success`** ·
+2026-08-27T02:04:05Z. Every job and every step green: *Static guards* (incl.
+I-MIG-03 durability guard, records mode; ENV-3 static contract), *API*,
+*Flutter* (analyze + test + QA bundle scans), *Negative control* (harness
+self-test; M-1/M-2/M-3 mutate → declared FAIL set → restore → 20/20; WKT-204),
+and *Live QA suites* — **Live security suite**, **Live AI suite**, **Contract
+suite**, **Live SQL evidence** (FG-1, FG-2a, FG-2b, **F-J-17**, **F-J-07**,
+ENV-3 ledger). `live-evidence.sh` fails the step on any `FAIL` line and on a
+missing report banner, so a green step means 0 FAIL with the report actually
+produced — a connection error cannot read as a pass.
+
+| Row | FIXED IN CODE | FIXED ON QA | VERIFIED LIVE | VERIFIED IN CI | VERIFIED END-TO-END | §2.1 class → required |
+|---|---|---|---|---|---|---|
+| **SEC-R1** | ✅ 124 | ✅ ledger 127 | ✅ d04 §8 + j04-04C | ✅ same run | n/a | Security / authorization → **4 of 4 present** |
+| **SEC-R2** | ✅ 126 | ✅ ledger 127 | ✅ FJ17 8/8 | ✅ Dart class invariant | ❌ **absent** | AI / safety input → **4 of 5 present** |
+| **SEC-R3** | ✅ 127 | ✅ ledger 127 | ✅ FJ07 10/10 | ✅ j03 inversion + Dart | ❌ **absent** | AI / safety input → **4 of 5 present** |
+
+#### Promoted to `VERIFIED_CLOSED` — 1 row
+
+| Row | From | Closing evidence at `388b5c1` |
+|---|---|---|
+| **SEC-R1** · `materialize_program_week` lost its authorization guard | `READY_TO_REMEDIATE` | Migration **124** restored the `can_act_on_program` wrapper over `materialize_program_week_engine`, re-`REVOKE`d from `PUBLIC, anon` and re-pinned `search_path`. The row's own *Tests* field is satisfied in both halves: `d04` §8 asserts the **class** — the five 116 wrappers read from the migration source at run time, not hand-copied — and with `KNOWN_OPEN = []` the exemption map is empty, so `materialize_program_week` is **probed and refuses**, the precise blind spot that let F-J-01 exist; the I-MIG-03 standing source guard runs in *Static guards*. `j04`-04C independently 403s an unrelated caller against a **real** foreign-owned program (week 99, non-destructive). §5.2's redefinition clause is met by FG-1 SP-4 (2/2 re-pinned) and SP-5 (0 EXECUTE to PUBLIC/anon). Owner ruling 3 above places the row in the **Security / authorization** class, whose four required states are all present |
+
+**Retained limitation, recorded not waived.** SEC-R1's *Live QA* field names
+three probes; two run. The positive legs — owning coach → 200, `service_role`
+→ 200 — are asserted nowhere, so a wrapper that refuses *everyone* would be
+indistinguishable from a correct one by the current evidence. §2.1's four
+security states do not require the positive leg and §5.1's negative+positive
+requirement was ruled inapplicable to this row, so this is a probe-completeness
+limitation rather than a missing state — registered as **FG-3** below, in the
+same form §7.8 used for SEC-05's retained limitation.
+
+#### Deliberately NOT promoted — the missing evidence, exactly
+
+- **SEC-R2 / F-J-17** and **SEC-R3 / F-J-07** — **one state short: VERIFIED
+  END-TO-END.** Both are safety findings under §5.1 (PAR-Q risk and flags;
+  recovery state), which places them in §2.1's **AI / safety input** class:
+  *"all five. A safety input is never closed on source review"*. §2.1 closes
+  with *"`VERIFIED_CLOSED` requires every state its class demands. There are no
+  partial closures and no exceptions granted at implementation time"*, and §3
+  step 12 repeats it. The owner's rulings 1 and 2 resolve the **shape of the
+  §5.1 test** — the question that was escalated — and are honoured in full; they
+  do not speak to the fifth state, and this reconciliation will not read a
+  waiver into them. VERIFIED END-TO-END is Step 4 (End-to-End Product
+  Verification), which is not authorized to begin. The consequence is
+  structural, not incidental: **no safety finding in this programme can reach
+  `VERIFIED_CLOSED` before Step 4 runs.**
+- **SEC-04** — untouched. §7.8 held it on the F-J-01 blind spot, which SEC-R1's
+  closure now resolves, so it is a **consequential promotion candidate**; it is
+  outside the three rows this ruling authorizes and is **not** promoted here.
+  Assigned to the next checkpoint.
+- **I-MIG-03** — unchanged, open, records mode. The guard ran green in CI #27 but
+  its own closure criterion is enforcement, Wave 2 task 2A. Under the
+  2026-08-25 owner ruling it also remains SEC-09's gate; **SEC-09 unchanged**.
+- Every other row — not examined.
+
+#### Status-vocabulary gap — owner ruling required
+
+SEC-R2 and SEC-R3 hold **four of five** states, and §2's status table has no
+term for that position: `REMEDIATED` means *"not yet retested"* and
+`RETEST_REQUIRED` means *"live assertion outstanding"*, and **both statements
+are now false** for these two rows, while `VERIFIED_CLOSED` requires the fifth
+state. Moving them to either would put a false evidence claim on the board, and
+§2 of `QA_CLOSURE_STANDARD.md` forbids using the five states loosely in any
+report or status board. Inventing a sixth status would be a governance decision
+this session has no authority to take. **The rows therefore stay at
+`READY_TO_REMEDIATE`** — an understatement, whose entry evidence (a wave ID)
+remains true — with their full evidence recorded in the row and here. The owner
+is asked to choose: (i) add a status to §2 for *"every state but END-TO-END"*,
+or (ii) leave the rows understated until Step 4 closes them.
+
+Note that §5 of this registry's summary table and the progress board's severity
+table were **not** adjusted: neither was adjusted by the 23-row promotion at
+`6d42b10` or the 3-row promotion at `2a8d0b6`, and changing the counting rule
+here would be an invention. The discrepancy is pre-existing and is reported, not
+silently fixed.
+
+#### Follow-up evidence gap — recorded, NOT implemented
+
+| ID | Gap | Covers | Suggested home |
+|---|---|---|---|
+| **FG-3** | Assert the **positive** legs of the 116 wrapper class: the owning coach → 200 and `service_role` → 200 for each of the five wrappers, so over-refusal is distinguishable from correct refusal | SEC-R1's *Live QA* field, third and second legs · the same limitation on the other four wrappers | Wave 2 (2A/2B), with the d04 §8 class work |
+
+#### Board effect
+
+`VERIFIED_CLOSED` **26 → 27** · `READY_TO_REMEDIATE` **180 → 179** · canonical
+total **319** unchanged (37 + 48 + 24 + 179 + 4 + 27 = 319).
+
+**Production statement (closure standard §6):** production `nxdbooufqzkpslkcogxc`
+was not contacted. No REST, RPC, Auth, Storage, Realtime or Edge Function request
+was issued to it. No migration was applied, reverted or pushed to any
+environment. No QA write was performed by this reconciliation. The evidence
+cited is CI run #27, which had already executed. This checkpoint changed
+governance documents only.
 
 ---
 
