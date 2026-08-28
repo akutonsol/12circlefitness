@@ -328,6 +328,17 @@ jobs:
       - name: UIX-1 — embed/FK contract guard, pre-fix / post-fix evidence
         run: apps/mobile/tool/negative_control/uix1_negative_control.sh
 
+      # I-NUT-01 / Wave 3A task 3A-1. The column guard passes on the fixed tree,
+      # but the pre-fix tree carried nutrition_logs.protein_g/carbs_g/fat_g
+      # INSIDE known-violations.json, so on its own the guard never demonstrates
+      # the failure §2 requires. This step installs the pre-fix Edge Function
+      # against the POST-FIX allowlist and requires the three named failures.
+      # 2ad8c6c is a REAL recoverable defective tree, so this is genuine pre-fix
+      # evidence and G-3 is NOT invoked. Needs no credential, no network and no
+      # toolchain; reuses the fetch-depth: 0 checkout above.
+      - name: I-NUT-01 — nutrition column guard, pre-fix / post-fix evidence
+        run: supabase/tests/contract/nut01_negative_control.sh
+
   live-qa:
     name: Live QA suites (security / AI / contract)
     runs-on: ubuntu-latest
