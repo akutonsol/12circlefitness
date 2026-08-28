@@ -15,6 +15,15 @@
 > chosen. The standing record of the answer and its rationale is
 > [`decision-log.md`](decision-log.md), per §2 below.
 
+> **Amendment, 2026-08-28 — additive, nothing above rewritten.** A second row is now
+> qualified: **`PD-A23` is `ANSWERED`** by the product owner on 2026-08-28 (option
+> **(b)** — drop the PostgREST embed, read coach profiles in a second query against
+> `public_profiles`, no migration). It is an **engineering-owned** decision; the
+> preceding amendment's statement that no clinical, business, monetization or PAR-Q
+> policy has been chosen is **unchanged and still true**. Every row other than
+> `PD-A05` and `PD-A23` remains undecided. Rationale recorded in
+> [`decision-log.md`](decision-log.md), per §2 below.
+
 ---
 
 ## 0. How to read this
@@ -125,7 +134,7 @@ recorded rationale rather than an implementer's choice.*
 | **PD-A20** | **Retire `public.workouts`?** 0 rows, no readers, now a read-only catalog. `workout_logs.workout_id` still carries an FK | `SEC-08`, `I-LEG-02` | (a) drop in a forward migration; (b) keep as an inert catalog | **(a)**, but it is a data-model decision because of the FK, and it is not urgent now that the surface is closed | **Yes** — it is inert and safe | Julia | 7 |
 | **PD-A21** | **Set logs recorded against a swapped-out exercise.** They are completed history and must not be deleted. Open: do they remain visible in the session summary as work performed, or are they excluded from *program adherence* because the prescribed movement changed | Q-C | (a) retain, attribute to the exercise actually performed, count toward volume, exclude from "prescribed sets completed"; (b) exclude entirely | **(a)** — the client did that work | **Yes** — the current behaviour matches (a) | Julia | 4 |
 | **PD-A22** | **Production's `dietary_restrictions` column type.** QA is `text`; the in-code comment asserts `text[]`, implying an out-of-band production change. **This is a fact-finding action requiring explicit authorization to read production** | `CON-03`, `Q-6`, `ENV-11` | (a) authorize a **read-only** production schema inspection; (b) write the forward migration to converge from either starting type without inspecting | **(b) now, (a) before rollout.** (b) is required regardless; (a) is a prerequisite for the production rollout plan, not for QA work | **Yes** — via (b) | Julia | 4 / 8 |
-| **PD-A23** | **The booking coach embed.** `/appointments` and `/book-call` use a PostgREST embed with no backing FK, so the query fails for every client | UIX-1 / `M-03` | (a) add the FK to `user_profiles`; (b) drop the embed and do a second query against `public_profiles` | **(b)** — no migration, and it matches the pattern `coach_relationship_service.dart` already uses | **Yes** — recommendation is unambiguous | engineering | 3A |
+| **PD-A23** ✅ **`ANSWERED` 2026-08-28 · option (b) · owner: engineering** *(record: [`decision-log.md`](decision-log.md); registry §7.16)* | **The booking coach embed.** `/appointments` and `/book-call` use a PostgREST embed with no backing FK, so the query fails for every client | UIX-1 / `M-03` | (a) add the FK to `user_profiles`; (b) drop the embed and do a second query against `public_profiles` | **(b)** — no migration, and it matches the pattern `coach_relationship_service.dart` already uses | **Yes** — recommendation is unambiguous | engineering | 3A |
 | **PD-A24** | **Observability vendor, cost, and data-residency posture.** No crash reporting, analytics, APM, structured logging, uptime monitoring or alerting exists in any tier | `EC-01`, `REL-26`, `LRE-27`, `LRE-28` | vendor choice | **Health and fitness data implies a privacy review of anything that leaves the device.** The sink abstraction (`reportFailure`) can and should be built **before** the vendor is chosen — it is one interface | **Partly** — the sink is unconditional and is Wave 3B-0 | Julia + privacy | 3B/8 |
 | **PD-A25** | **What is beta?** A third Supabase project with its own data, or production data behind a flagged build? Testers today must run either a fixture-laden QA build or an **unpatched production** build. Neither is a beta | EB-11, `LRE-17` | (a) a third project; (b) production behind a flag; (c) QA promoted to beta with the seeds removed | **(a) or (c).** (b) is rejected while `ENV-11` stands — it points beta testers at the unpatched security surface. The choice is about who sees whose data | **No** | Julia | 8 |
 | **PD-A26** | **Forward-only, or pay for PITR?** Zero down migrations across 123 files; free tier implies no PITR; the security rollout is a one-way door | `ENV-9`, `LRE-08` | (a) pay for PITR; (b) accept forward-only with rehearsed reverse scripts | Determines the acceptable blast radius of every production migration, starting with the security rollout. **Reverse scripts for 113–128, rehearsed on a QA clone, are required under either option** | **Partly** — write the reverse scripts now | Julia | 1/8 |

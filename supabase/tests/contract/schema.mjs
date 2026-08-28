@@ -79,3 +79,51 @@ export function deriveSchema(dir = MIGRATIONS) {
   }
   return tables;
 }
+
+// ── Foreign keys ─────────────────────────────────────────────────────────────
+//
+// PostgREST resolves an embedded resource through a foreign key. A FK whose
+// target lives outside the `public` schema is invisible to it: the request is
+// rejected with PGRST200 ("no matches were found") before any row is read, and
+// every caller in this repository swallows that failure. UIX-1 / M-03 was
+// exactly this — `coach_client_relationships.coach_id` references
+// `auth.users`, so the booking screen's embed could never resolve.
+//
+// Returns `"<table>.<column>" -> { schema, table }` for the referenced side.
+export function deriveForeignKeys(dir = MIGRATIONS) {
+  const fks = new Map();
+  const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+
+  for (const f of files) {
+    const sql = stripComments(readFileSync(join(dir, f), 'utf8'));
+
+    // ALTER TABLE <t> ADD CONSTRAINT ... FOREIGN KEY (<c>) REFERENCES <s>.<r>
+    const alterRe =
+      /alter\s+table\s+(?:only\s+)?(?:if\s+exists\s+)?(?:public\.)?"?([a-z0-9_]+)"?[\s\S]{0,400}?foreign\s+key\s*\(\s*"?([a-z0-9_]+)"?\s*\)\s*references\s+(?:"?([a-z0-9_]+)"?\.)?"?([a-z0-9_]+)"?/gi;
+    for (const m of sql.matchAll(alterRe)) {
+      fks.set(`${m[1].toLowerCase()}.${m[2].toLowerCase()}`, {
+        schema: (m[3] ?? 'public').toLowerCase(),
+        table: m[4].toLowerCase(),
+      });
+    }
+
+    // Column-level REFERENCES inside CREATE TABLE. First definition wins; a
+    // later ALTER above overwrites it, which matches replay order.
+    const createRe =
+      /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?"?([a-z0-9_]+)"?\s*\(([\s\S]*?)\n\)\s*;/gi;
+    for (const m of sql.matchAll(createRe)) {
+      const t = m[1].toLowerCase();
+      const inlineRe =
+        /^\s*"?([a-z0-9_]+)"?\s+[^,]*?references\s+(?:"?([a-z0-9_]+)"?\.)?"?([a-z0-9_]+)"?/gim;
+      for (const c of m[2].matchAll(inlineRe)) {
+        const key = `${t}.${c[1].toLowerCase()}`;
+        if (fks.has(key)) continue;
+        fks.set(key, {
+          schema: (c[2] ?? 'public').toLowerCase(),
+          table: c[3].toLowerCase(),
+        });
+      }
+    }
+  }
+  return fks;
+}

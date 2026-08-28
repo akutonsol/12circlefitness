@@ -956,12 +956,59 @@ lock, plus the policy narrowing.
 ---
 
 ### UIX-1 · The booking screen is dead for every client
-`M-03` · **P0** · `READY_TO_REMEDIATE` · Wave 3
+`M-03` · **P0** · `REMEDIATED` *(2026-08-28, Wave 3A task 3A-8 — see §7.16)* · Wave 3
 
 `/appointments` and `/book-call` issue a PostgREST embed (`coach:coach_id(...)`) with no
 backing FK, so the query fails for every client. *Recommendation: drop the embed and read
 coach profiles from `public_profiles`* — no migration, and it matches the pattern
 `coach_relationship_service.dart` already uses.
+
+**Closure class fixed by owner ruling 2026-08-28: PRODUCT INTEGRITY / UI REACHABILITY.**
+`QA_CLOSURE_STANDARD.md` §2.1, that class's row verbatim — *"FIXED IN CODE · VERIFIED IN
+CI · VERIFIED END-TO-END (a human or a driver reached the surface)"*. **Three states. The
+ruling explicitly does not add `FIXED ON QA` or `VERIFIED LIVE` to this class**, and none
+is claimed here. **PD-A23 answered 2026-08-28, option (b)** — engineering owner; recorded
+in [`decision-log.md`](decision-log.md); option (a) was not implemented and no migration
+was created.
+
+**BEFORE (live, Workstream M §M-03, frozen evidence):**
+`GET /rest/v1/coach_client_relationships?select=coach_id,status,pending_at,activated_at,coach:coach_id(...)`
+→ `PGRST200` *"Searched for a foreign key relationship between 'coach_client_relationships'
+and 'coach_id' in the schema 'public', but no matches were found."* The identical query
+**without** the embed returned the client's real active relationship. Root cause read from
+the migrations, not inferred: `000_baseline_preexisting_tables.sql:237` —
+`coach_client_relationships_coach_id_fkey FOREIGN KEY (coach_id) REFERENCES auth.users(id)`.
+PostgREST cannot traverse a foreign key whose target is outside `public`.
+
+**FIXED IN CODE:** `booking_screen.dart` only — the embed is dropped, the relationship
+query is unchanged apart from the embed, coach display fields are read in a second query
+against `public_profiles` (`.inFilter('id', coachIds)`, migration 110 projects every field
+this screen renders), and the two are joined in Dart, the pattern
+`coach_relationship_service.dart:60–77` already uses. **No migration, no schema, no RLS.**
+
+**Two corrections inside that file, both required for the remediation to function, both
+recorded rather than silent.** (i) `user_profiles.specialties` is `text[]` (`001:42`) and
+this screen renders it as a comma-separated `String?` it splits itself (`:512`). The embed
+never returned, so the `as String?` cast had never executed; it would throw the moment the
+read worked. Normalised once at the join. (ii) The `catch` set `_BookingState.noSlots` — a
+failed read presented as a confident statement about the coach's availability, which is
+**invariant I-1** (*"No user-facing success state … unless authoritative evidence confirms
+the underlying operation succeeded"*) and **I-5** (*"An empty value is an answer. It must
+never be a symptom"*). A failed load now renders a distinct honest state. Everything else —
+state semantics, the pending/active/no-coach branches, the multi-coach picker, booking and
+cancellation — is unchanged.
+
+**VERIFIED IN CI: PENDING.** The guard exists and its pre-fix/post-fix behaviour is
+demonstrated (§7.16), but **it has not yet run in CI on this tree** — `QA_CLOSURE_STANDARD.md`
+§4: *"A passing suite that has never run in CI"* is not a closure. It runs inside
+`npm run test:contract`, already wired to the `static-guards` job, so no CI change is
+needed; the rung opens on the next run.
+
+**⚠ VERIFIED END-TO-END: ABSENT.** The class terminates there — *"a human or a driver
+reached the surface"* — and Step 4 (End-to-End Product Verification) **is not authorized to
+begin** (§7.10). No substitute was recorded and no waiver was sought. **Status: NOT
+`VERIFIED_CLOSED`** — one of three required states present, one pending CI. **No status
+count was moved** (§7.16).
 
 ---
 
@@ -2262,6 +2309,149 @@ linked project remained `eyqtldjqpgpljlqvpowh` throughout. The QA writes cited a
 run #41's own fixture lifecycle under the D-2(b) authorization, which had already executed
 and which proved its own teardown; **this checkpoint performed no QA write and no QA read**
 and changed governance documents only.
+
+---
+
+### 7.16 `PD-A23` answered and `UIX-1` / `M-03` remediated — 2026-08-28 · owner rulings + Wave 3A task 3A-8
+
+Two owner rulings and one implementation. **No migration, schema, RLS, Edge Function,
+credential, secret or CI change; production not contacted; no QA write and no QA read.**
+No status count was moved and **nothing is promoted to `VERIFIED_CLOSED`.**
+
+#### The two rulings, recorded before anything was built
+
+- **`PD-A23` = option (b)**, product owner, 2026-08-28, owner column **engineering**.
+  Drop the PostgREST embed; read coach profiles in a second query against
+  `public_profiles`; join in Dart; **no migration**; option (a) not implemented.
+  Recorded in [`decision-log.md`](decision-log.md) and the register row marked
+  `ANSWERED`, per `MASTER_PRODUCT_DECISIONS.md` §2 steps 1 and 2. Step 3 is a no-op —
+  `UIX-1` was already `READY_TO_REMEDIATE`, never `BLOCKED_DECISION` — and step 4 is the
+  progress-board entry accompanying this subsection.
+- **`UIX-1` / `M-03` closure class = PRODUCT INTEGRITY / UI REACHABILITY**, product
+  owner, 2026-08-28. §2.1's row verbatim: *"FIXED IN CODE · VERIFIED IN CI · VERIFIED
+  END-TO-END (a human or a driver reached the surface)"*. The ruling states that
+  `FIXED ON QA` and `VERIFIED LIVE` are **not** part of this class, and neither is
+  claimed. **This is the first closure class this programme has assigned to a row before
+  its remediation rather than after**, and it was requested precisely because the
+  §7.15 experience showed the rung question is owner-reserved.
+
+**Why the class was not inferred.** The prior gate established that no document assigned
+one: every explicit assignment in this repository — `EC-01` (RELEASE / ENVIRONMENT),
+`F-J-12` (SECURITY / AUTHORIZATION, ruling M-4), `I-WRK-01` (Data contract / schema,
+ruling D-2) — came from an owner ruling, never from a domain heading. §5's fourteen
+*domains* and §2.1's eight *classes* are different taxonomies and no rule maps one to the
+other; `EC-01` sits in the Error Contract domain and was ruled RELEASE / ENVIRONMENT.
+
+#### Root cause, read from the migrations
+
+`000_baseline_preexisting_tables.sql:237` —
+`coach_client_relationships_coach_id_fkey FOREIGN KEY (coach_id) REFERENCES auth.users(id)`.
+PostgREST resolves an embedded resource through a foreign key and **cannot traverse one
+whose target is outside the `public` schema**, so `coach:coach_id(...)` was answered
+`PGRST200` before any row was read. Workstream M recorded the live error and the
+embed-free control returning the client's real active relationship (`…_M_…REPORT.md`
+§M-03) — that is the BEFORE state, and it is frozen evidence under §10.2.
+
+**The FK is the only one of its kind that the client embeds.** Derived from the migration
+set: **134** foreign-key pairs; every other embedded column in `apps/mobile/lib`,
+`apps/api/src` and `supabase/functions` resolves into `public` — `coaching_calls.coach_id`,
+`classes.coach_id`, `community_posts.user_id`, `post_comments.user_id`,
+`accountability_pods.coach_id`, `coach_reviews.client_id`, `weekly_checkins.user_id` and
+`coach_team_members.member_id` all reference `public.user_profiles`. **`checkin_screen.dart:118`
+carries the identical `coach:coach_id(...)` spelling and is NOT a defect** — its FK lands in
+`public` — so it was not touched, and no allowlist entry was needed for it.
+
+#### The guard — built because the existing one is blind by construction
+
+Workstream M's own §10 recorded the gap: *"there is no test asserting that a screen's query
+shape matches the live schema, which is exactly the class of bug M-02/M-03/M-04/M-07/M-09
+belong to."* Two structural reasons the schema-contract guard could not see this one:
+
+1. `run.mjs`'s `selectColumns()` drops bracketed spans whole, because they are an embedded
+   resource's own column list — so the embed head was never examined.
+2. Its select matcher reads **one string literal**. Dart concatenates adjacent literals, and
+   this defect was written across three of them, so only `'coach_id, status, pending_at,
+   activated_at, '` was ever parsed.
+
+The guard added closes both, and closes them for the **class**, not the instance:
+
+| Piece | Where |
+|---|---|
+| `deriveForeignKeys()` — replays `ALTER TABLE … FOREIGN KEY` and column-level `REFERENCES` in file order, returning the referenced schema and table | `supabase/tests/contract/schema.mjs` |
+| `selectSpecJoined()` — joins adjacent string literals across the whole `.select(…)` argument. **Used only by the embed check**; the column check's input is deliberately unchanged, so no existing verdict moves | `supabase/tests/contract/run.mjs` |
+| `embedHeads()` + the check — every head spelled `alias:column` or a bare column must resolve through a FK whose target schema is `public`. A head spelled `relation!hint` names the relation and is covered by the existing relation pass | `supabase/tests/contract/run.mjs` |
+| Self-test — two anchors read from the migrations (`coach_client_relationships.coach_id` must be `auth`, `coaching_calls.coach_id` must be `public`). A guard that silently parsed nothing would otherwise pass forever (§4) | `supabase/tests/contract/run.mjs` |
+
+It is **offline and deterministic**: it contacts no environment, reads no credential, and
+derives everything from `supabase/migrations` and the source tree. It runs inside
+`npm run test:contract`, which the `static-guards` job already executes, so **no CI change
+was made or needed**.
+
+#### Pre-fix / post-fix evidence — the guard's own demonstration
+
+Both legs run the **same** guard; only `booking_screen.dart` differs. The pre-fix leg used
+the file exactly as committed at `f109f19`, restored byte-identically afterwards
+(`bd57f50092d8e5af` before and after).
+
+**PRE-FIX — `f109f19`'s `booking_screen.dart`, exit status 1:**
+
+```
+  FAIL   embed    coach_client_relationships.coach_id is embedded but no foreign key reaches the public schema
+           at apps/mobile/lib/features/booking/presentation/booking_screen.dart:55 (embed 'coach:coach_id' -> auth.users)
+
+FAIL  1 contract violation(s)
+```
+
+**POST-FIX — the remediated file, exit status 0:**
+
+```
+Schema contract guard — 91 tables + 5 views + 134 foreign keys derived from supabase/migrations
+…
+PASS  no unknown relation or column outside the 9-entry known-violations allowlist
+```
+
+**The nine allowlist lines are byte-identical in both legs** — `checkins`, `coach_tips`,
+`custom_exercises.approved_by`, `event_registrations.ticket_code`, `user_profiles.goal`,
+three `nutrition_logs` columns and `user_profiles.equipment`. No other finding's evidence
+moved, and `known-violations.json` was not edited.
+
+**Observed versus concluded, stated separately.** *Observed:* the two guard runs above and
+their exit statuses; the 134 FK pairs and the two anchor targets; the nine unchanged
+allowlist lines. *Concluded:* that the remediated screen will now resolve coach profiles
+live — which is a conclusion, not an observation, and is exactly what the class's
+VERIFIED END-TO-END rung exists to test.
+
+**Limitation, recorded and not worked around.** This is a **local** run. §4 is explicit
+that *"a passing suite that has never run in CI"* is not a closure, so **VERIFIED IN CI is
+recorded as PENDING, not satisfied**, until `static-guards` executes on this tree. There
+is also **no Dart or Flutter toolchain** on the device or in the cloud container (SDK
+archives return HTTP 000, re-verified 2026-08-28), so `flutter analyze` and `flutter test`
+could not run and **the Dart edit has not been compiled**. Brace, paren and bracket balance
+was checked mechanically as a floor, which is not a substitute for the analyzer.
+
+#### What this checkpoint does NOT do
+
+- **`VERIFIED END-TO-END` is absent and `UIX-1` is NOT `VERIFIED_CLOSED`.** Step 4 is not
+  authorized to begin (§7.10), and the structural consequence recorded there for SEC-R2 and
+  SEC-R3 applies here too: a row in a class that terminates END-TO-END cannot close before
+  Step 4 runs. No waiver was sought and no substitute was recorded.
+- **No status count was moved.** `UIX-1` is a §6 P0 row and therefore *is* mechanically
+  countable — unlike `F-J-12` and `I-WRK-01` — but it moved from `READY_TO_REMEDIATE` to
+  `REMEDIATED`, and §2's table counts neither transition as a closure. `VERIFIED_CLOSED`
+  stays **28** and the canonical total stays **319**.
+- **`EC-11` not started; `H-02` / `I-COM-01` not continued; `I-WRK-01` not reopened.**
+  `workout_service.dart` untouched, `catch (` count **14**.
+- **`checkin_screen.dart` not touched.** Its embed resolves and is not a defect.
+- **`D-4` and `D-5` unchanged.** The remaining Wave 3A tasks — 3A-1/2/3 (`I-NUT-01`,
+  `I-INT-01`, `F-J-04`), 3A-4, 3A-6, 3A-7, 3A-9/10/11 — were not examined or started.
+- **No other row's status was examined.**
+
+**Production statement (closure standard §6):** production `nxdbooufqzkpslkcogxc` was not
+contacted. No REST, RPC, Auth, Storage, Realtime or Edge Function request was issued to it.
+No migration was applied, reverted or pushed to it. No Edge Function was deployed to it —
+`ENV-7` remains `BLOCKED_ENVIRONMENT` and deliberately undeployed. The linked project
+remained `eyqtldjqpgpljlqvpowh` throughout. **No QA write and no QA read were performed by
+this checkpoint**; every run cited above is offline.
 
 ---
 
