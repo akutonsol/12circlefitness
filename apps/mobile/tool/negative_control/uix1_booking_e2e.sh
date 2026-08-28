@@ -23,22 +23,14 @@ infra() { echo "INFRASTRUCTURE FAILURE: $*" >&2; exit 1; }
 
 cd "$ROOT/apps/mobile"
 
-echo "── STEP 0 · PREFLIGHT ──────────────────────────────────────────────────"
-flutter --version
-echo "cwd:    $(pwd)"
-echo "target: $PROBE"
-echo "device: $DEVICE"
-echo "run id: $RUN_ID"
-[[ -f "$PROBE" ]] || infra "the probe target $PROBE does not exist."
-flutter devices || true
-flutter devices | grep -qi "$DEVICE" || infra "no '$DEVICE' device is available."
-
 LOG_E2E="$(mktemp)"
 LOG_CLEAN="$(mktemp)"
 
-# Layer A2. Runs whatever happens to the e2e leg, so a crash before the driver's
-# own finally-block still retires the fixture. Layer B (the workflow's
-# if:always() step) sits behind this one.
+# Layer A2, installed BEFORE the preflight. Run #46 exited inside the preflight
+# while this trap was still further down the file, so harness-level cleanup was
+# bypassed entirely and only the workflow's if:always() step stood behind it.
+# Installing it here means no abort path — preflight included — can skip it.
+# Layer B (the workflow's if:always() step) sits behind this one regardless.
 cleanup_always() {
   local crc
   echo
@@ -55,6 +47,29 @@ cleanup_always() {
   fi
 }
 trap cleanup_always EXIT
+
+echo "── STEP 0 · PREFLIGHT ──────────────────────────────────────────────────"
+flutter --version
+echo "cwd:    $(pwd)"
+echo "target: $PROBE"
+echo "device: $DEVICE"
+echo "run id: $RUN_ID"
+[[ -f "$PROBE" ]] || infra "the probe target $PROBE does not exist."
+# Device discovery. Captured to a variable and matched with a herestring — NOT
+# piped. Run #46 failed here with `flutter devices | grep -qi "$DEVICE"`: under
+# `set -o pipefail`, `grep -q` exits at the first match and closes the pipe, the
+# upstream `flutter devices` dies of SIGPIPE (141), and pipefail propagates that
+# as the pipeline's status — so the gate reported "no device" precisely BECAUSE
+# the device was found. The same-run wrk01-live job ran `flutter test -d linux`
+# to success, so linux was available throughout. This is the construction
+# wrk01_live_probe.sh:102-104 has always used, and the reason it never hit this.
+echo "  --- flutter devices ---"
+DEVICES="$(flutter devices 2>&1)"
+printf '%s\n' "$DEVICES"
+grep -qE "(^|[^a-z0-9_-])${DEVICE}([^a-z0-9_-]|$)" <<<"$DEVICES" \
+  || infra "no device matching '$DEVICE' is available to this runner. \
+Flutter cannot execute the probe, so nothing here is evidence either way."
+echo "  OK — a '$DEVICE' device is present."
 
 echo
 echo "── STEP 1 · END-TO-END LEG ─────────────────────────────────────────────"
