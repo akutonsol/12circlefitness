@@ -113,6 +113,21 @@ jobs:
           # schema_migrations to make a check green.
           node supabase/scripts/check-migration-manifest.mjs
 
+      - name: Schema contract guard (relations, columns, embedded resources)
+        run: |
+          set -euo pipefail
+          # Moved here from `live-qa` by owner ruling 2026-08-28 (B-2), where it
+          # sat behind `if: steps.creds.outputs.present == 'true'`. The suite is
+          # offline — `run.mjs` opens no connection and reads no environment
+          # variable at all — so the credential gate protected nothing and only
+          # narrowed when the guard ran. `known-violations.json` is the
+          # both-directions record for I-WRK-01, I-INT-01, I-INT-02, I-COM-01,
+          # I-COM-03, I-CHK-01, I-LEG-03 and I-NUT-01; behind the old gate none
+          # of them was checked on a run without QA secrets, and nothing went
+          # red to say so. Node is preinstalled on the runner image, so this
+          # keeps the job's no-toolchain property.
+          npm run test:contract
+
       - name: Edge Function JWT posture is declared (E-09)
         run: .github/scripts/check-edge-function-config.sh
 
@@ -277,7 +292,11 @@ jobs:
     timeout-minutes: 15
     needs: [static-guards]
     steps:
+      # Full history: the UIX-1 harness below checks out the REAL pre-fix
+      # booking_screen.dart from f109f19.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Harness self-test (the parser must be able to fail)
         run: supabase/scripts/negative-control.sh --self-test
@@ -300,6 +319,14 @@ jobs:
       # above; adds no job, no credential and no network access.
       - name: EC-23 — ERR-1 failure-sink guard, pre-fix / post-fix evidence
         run: apps/mobile/tool/negative_control/ec23_negative_control.sh
+
+      # UIX-1 / M-03. The embed guard landed in 527438a, the same commit that
+      # removed the defect, so run #43 met it only on the fixed tree and §2's
+      # pre-fix half was missing. This step supplies it from f109f19, a REAL
+      # recoverable defective tree — so this is genuine pre-fix evidence and
+      # G-3 is NOT invoked. Needs no credential, no network and no toolchain.
+      - name: UIX-1 — embed/FK contract guard, pre-fix / post-fix evidence
+        run: apps/mobile/tool/negative_control/uix1_negative_control.sh
 
   live-qa:
     name: Live QA suites (security / AI / contract)
@@ -390,13 +417,14 @@ jobs:
           QA_SERVICE: ${{ secrets.QA_SERVICE }}
         run: npm run test:ai
 
-      - name: Contract suite
-        if: steps.creds.outputs.present == 'true'
-        env:
-          QA_URL: ${{ secrets.QA_URL }}
-          QA_ANON: ${{ secrets.QA_ANON }}
-          QA_SERVICE: ${{ secrets.QA_SERVICE }}
-        run: npm run test:contract
+      # The schema-contract suite used to run here, credential-gated. It reads
+      # no environment variable and contacts nothing, so the gate bought
+      # nothing and cost coverage: absent QA secrets, the step skipped while
+      # this job stayed green, and the both-directions allowlist guard for
+      # eight findings silently did not run. Owner ruling 2026-08-28 (B-2)
+      # moved it to `static-guards`, where it is unconditional. It is NOT
+      # duplicated here. Evidence produced by the old placement stays valid as
+      # historical, conditional evidence and is not reinterpreted.
       # ── Live SQL evidence: FG-1, FG-2 and the ENV-3 live ledger check.
       #
       #    One phase, one credential. These three are SQL-level assertions that
