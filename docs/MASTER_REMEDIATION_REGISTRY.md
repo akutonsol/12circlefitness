@@ -1243,7 +1243,7 @@ parallel · wave · gate. P2/P3 rows carry: ID · root cause · statement · wav
 | `I-MIG-02`,`I-TYP-01`,`I-TYP-02` | P2 | Both `ALTER`-added CHECKs are `NOT VALID`, and 119's `RAISE WARNING` naming un-canonicalisable rows was never acted on; nine column names carry different types in different tables; 92 enum-like text columns, 7 constrained | no | 3A |
 | `M-13` | P2 | The in-app QA Center is broken by migration 113 — it uses `select('*')` where the new policy narrows the row | no | 7 |
 | `N-06`,`N-08`,`N-09`,`N-10` | P1/P2/P3 | **259 tests (37% of the Flutter suite) execute no product code**; a live logic slip in the Phase-2 swap cursor path (`_currentSetId` is `''`, never null, so the null arm is dead); 19 Edge Functions with 0 tests and no Deno runtime installed; **three services bind `Supabase.instance.client` internally, so zero behavioural coverage is possible for any of them without a seam** — three P1 findings sit behind that one structural fact | no | 8 |
-| **`I-WRK-01`** *(= `H-01`, `M-07`, `M R-2` — retired aliases, §3; **`H-01` is not a tracking key**)* | P1/P2 ⚠ | **Tracking home established by owner ruling D-1, 2026-08-27 (§7.14). Evidence-only row: §7 carries no per-row status field, so this row is NOT status-countable** — the F-J-12 precedent (§7.12, `REMEDIATION_PROGRESS.md` §3). `workout_set_logs.created_at` does not exist; the column is `logged_at` (`001_full_ecosystem.sql:158–168`). Three references in `getExerciseProgression()` named the phantom column; every caller swallowed the 400, so a headline strength-progression screen was permanently and convincingly empty. **FIXED IN CODE:** `654b09c` — `workout_service.dart:237,243,246` `created_at`→`logged_at` (+3/−3; `catch (` count 14→14, EC-11 untouched; no migration). **FIXED ON QA:** the column has existed as `logged_at` since 001, and its presence in the **live catalog** is evidenced by real read-only requests against QA — `QA_WORKSTREAM_H_PRODUCT_INTEGRITY_REPORT.md` §120–123, 2026-08-24: `workout_set_logs?select=logged_at` → **401 `42501`** *(permission denied — PostgREST resolves the column before it checks the grant, so this is a positive existence oracle)* and `workout_set_logs?select=created_at` → **400 `42703`** *(column does not exist)*. Corroborated by run **#35** `33092528474` step 11 *Live SQL evidence*, whose ENV-3 live ledger proves migrations **000–128** are applied to QA. *(Evidence correction, 2026-08-27, owner-authorized: this sentence previously credited the *Contract suite* with reading "QA's live catalog". It cannot — `supabase/tests/contract/run.mjs:5` states "Offline. Contacts no environment", and the file contains no network call and reads no credential. That evidence belongs to **VERIFIED IN CI**, where it is retained below. No state, count, class or dependency changed.)* **VERIFIED IN CI:** run **#35** (head `654b09c`, all five jobs `success`) — `flutter analyze`, `flutter test` (H-G1 green) and `npm run test:contract` green with **both** allowlist halves removed: `known-violations.json`'s `I-WRK-01` entry and `product_contract_guard_test.dart`'s H-G1 `knownMissing` entry. Both are checked in both directions, so removing either alone fails. **⚠ VERIFIED LIVE: ABSENT.** Closure class is **Data contract / schema**, whose §2.1 ladder requires *"VERIFIED LIVE where a read path exists"*, and a read path exists (`getExerciseProgression()` → the strength-progression surface). Owner ruling **D-2** refuses to waive it; **D-2(c)** requires the actual read path to fail pre-fix and pass post-fix against the same QA fixture. **That probe cannot be executed by the current infrastructure** and is recorded as a capability blocker, not as a satisfied state: no CI job holds both a Flutter/Dart toolchain and a QA credential (`flutter` and `negative-control` have Flutter and no QA secret; `live-qa` holds all four QA secrets and has no Dart toolchain), `flutter test` in CI runs `test/` only and never `integration_test/`, and no local toolchain or credential exists. See §7.14. **Status: NOT `VERIFIED_CLOSED`** — three of four required states present. **No status count was moved** (§7.14). ⚠ **D-4 unresolved:** Workstream I rates this **P1** (`QA_WORKSTREAM_I_DATA_CONTRACT_REPORT.md:740`), Workstream H rates the same defect **P2** (`QA_WORKSTREAM_H_PRODUCT_INTEGRITY_REPORT.md:319`). §5 requires a departure from a source rating to be recorded in the row; the two source reports disagree with each other, so no rating is mechanically compelled and none is chosen here. ⚠ **D-5 unresolved:** Workstream I states the site count as both *"(Dart, 2 sites)"* (`:1132`) and *"(1 site)"* (`:1239`); `MASTER_REMEDIATION_WAVES.md:241` and the implementation both say **three** (`:237,243,246`). Waves and implementation agree; the workstream report is wrong in both of its statements — but correcting frozen A–N evidence is outside §10.2, so it is recorded, not rewritten. | no | 3A *(task 3A-5)* |
+| **`I-WRK-01`** *(= `H-01`, `M-07`, `M R-2` — retired aliases, §3; **`H-01` is not a tracking key**)* | P1/P2 ⚠ | **Tracking home established by owner ruling D-1, 2026-08-27 (§7.14). Evidence-only row: §7 carries no per-row status field, so this row is NOT status-countable** — the F-J-12 precedent (§7.12, `REMEDIATION_PROGRESS.md` §3). `workout_set_logs.created_at` does not exist; the column is `logged_at` (`001_full_ecosystem.sql:158–168`). Three references in `getExerciseProgression()` named the phantom column; every caller swallowed the 400, so a headline strength-progression screen was permanently and convincingly empty. **FIXED IN CODE:** `654b09c` — `workout_service.dart:237,243,246` `created_at`→`logged_at` (+3/−3; `catch (` count 14→14, EC-11 untouched; no migration). **FIXED ON QA:** the column has existed as `logged_at` since 001, and its presence in the **live catalog** is evidenced by real read-only requests against QA — `QA_WORKSTREAM_H_PRODUCT_INTEGRITY_REPORT.md` §120–123, 2026-08-24: `workout_set_logs?select=logged_at` → **401 `42501`** *(permission denied — PostgREST resolves the column before it checks the grant, so this is a positive existence oracle)* and `workout_set_logs?select=created_at` → **400 `42703`** *(column does not exist)*. Corroborated by run **#35** `33092528474` step 11 *Live SQL evidence*, whose ENV-3 live ledger proves migrations **000–128** are applied to QA. *(Evidence correction, 2026-08-27, owner-authorized: this sentence previously credited the *Contract suite* with reading "QA's live catalog". It cannot — `supabase/tests/contract/run.mjs:5` states "Offline. Contacts no environment", and the file contains no network call and reads no credential. That evidence belongs to **VERIFIED IN CI**, where it is retained below. No state, count, class or dependency changed.)* **VERIFIED IN CI:** run **#35** (head `654b09c`, all five jobs `success`) — `flutter analyze`, `flutter test` (H-G1 green) and `npm run test:contract` green with **both** allowlist halves removed: `known-violations.json`'s `I-WRK-01` entry and `product_contract_guard_test.dart`'s H-G1 `knownMissing` entry. Both are checked in both directions, so removing either alone fails. **VERIFIED LIVE: PRESENT** — CI run **#41** `33129000361`, job `wrk01-live` `98714155399`, head `8843c33`, 2026-08-28. Closure class is **Data contract / schema**, whose §2.1 ladder requires *"VERIFIED LIVE where a read path exists"*, and a read path exists (`getExerciseProgression()` → the strength-progression surface). Owner ruling **D-2** refused to waive it and **D-2(c)** required the **actual read path** to fail against the pre-fix tree and pass against the fixed tree **on the same QA fixture**; the comparison was not weakened and no substitute was recorded. The capability blocker §7.14 recorded is now closed by the `wrk01-live` job (`ci.yml:448`), which runs the real `WorkoutService().getExerciseProgression()` from `integration_test/wrk01_progression_live_test.dart` on a Linux desktop target under `xvfb`, twice against one live QA fixture — once at the run head and once at the **real parent** `654b09c^` = `acd2cc5`, whose `workout_service.dart:237,243,246` still name `created_at`. **PRE-FIX (`acd2cc5`), observed in the run log:** `WRK01-MARK FIXTURE present rows=4` · `WRK01-MARK SERVICE-CALLED getExerciseProgression` · `WRK01-MARK RESULT len=0` · `WRK01-MARK ASSERT-NONEMPTY FAIL` — the same fixture, the real service, an empty result, and the non-empty expectation is the assertion that failed. **POST-FIX (`8843c33`, carrying `654b09c`), same fixture, same probe:** `WRK01-MARK FIXTURE seeded rows=4` · `WRK01-MARK SERVICE-CALLED getExerciseProgression` · `WRK01-MARK RESULT len=3` · `WRK01-MARK ASSERT-NONEMPTY PASS` · `WRK01-MARK ASSERT-ALL PASS`. **QA hygiene (closure standard §7):** `WRK01-MARK CLEANUP verified remaining=0` — every fixture row is enumerated and removed and the removal is proved **by a read**, not assumed from a `204`. All six jobs `success`; `wrk01-live` steps 1–7 all `success`. See §7.15. **Status: `VERIFIED_CLOSED` 2026-08-28** — all four states the **Data contract / schema** class demands are present, with no waiver and no exception. **The row remains evidence-only and is NOT status-countable, and no status count was moved** — §7 carries no per-row status field (D-1, §7.14; the `F-J-12` precedent, §7.12 and `REMEDIATION_PROGRESS.md` §3). Which bucket the status table currently holds `I-WRK-01` in still **cannot be determined from this repository and was not guessed**. **§10 one-line test — if this defect were reintroduced tomorrow by a plausible, well-intentioned change, what exactly goes red, and where does someone see it:** three mechanized guards, all standing. **(i)** `npm run test:contract` in `static-guards` — `known-violations.json` carries **no** `workout_set_logs.created_at` entry and is checked in **both** directions, so re-naming the phantom column fails the job and there is no allowlist route back. **(ii)** H-G1 in `product_contract_guard_test.dart` — the `knownMissing` map no longer holds the entry, so *"no phantom column outside the recorded allowlist"* fails in the `flutter` job. **(iii)** `wrk01-live` step 6 — the post-fix leg asserts `RESULT len=3` against a live QA fixture through the real service, so a regression both static guards missed still turns the job red. None of the three is "someone would notice". ⚠ **D-4 unresolved:** Workstream I rates this **P1** (`QA_WORKSTREAM_I_DATA_CONTRACT_REPORT.md:740`), Workstream H rates the same defect **P2** (`QA_WORKSTREAM_H_PRODUCT_INTEGRITY_REPORT.md:319`). §5 requires a departure from a source rating to be recorded in the row; the two source reports disagree with each other, so no rating is mechanically compelled and none is chosen here. ⚠ **D-5 unresolved:** Workstream I states the site count as both *"(Dart, 2 sites)"* (`:1132`) and *"(1 site)"* (`:1239`); `MASTER_REMEDIATION_WAVES.md:241` and the implementation both say **three** (`:237,243,246`). Waves and implementation agree; the workstream report is wrong in both of its statements — but correcting frozen A–N evidence is outside §10.2, so it is recorded, not rewritten. | no | 3A *(task 3A-5)* |
 
 ---
 
@@ -2098,6 +2098,170 @@ contacted. No migration was applied, reverted or pushed. **No QA write and no QA
 performed** — the D-2(b) fixture authorization was not exercised, because the probe it
 serves cannot be executed. The evidence cited is CI run **#35** `33092528474`, which had
 already executed. This checkpoint changed governance documents only.
+
+---
+
+### 7.15 `I-WRK-01` VERIFIED LIVE closure — 2026-08-28 · evidence: CI run **#41** `33129000361` at `8843c33`
+
+One row closes here. Nothing else was examined or changed. **Documentation only — no
+application, SQL, migration, RLS, CI, fixture, probe or infrastructure file was touched; no
+QA write and no QA read were performed by this checkpoint; production was not contacted.**
+
+#### What this checkpoint supplies, and what §7.14 was missing
+
+§7.14 (D-2 / D-2(c)) required the **actual read path** to fail against the pre-fix tree and
+pass against the fixed tree **on the same QA fixture**, refused to waive it, and recorded
+`VERIFIED LIVE` as **ABSENT** for one reason only: *"no CI job holds both a Flutter/Dart
+toolchain and a QA credential"*, so the comparison **could not be executed**. Nothing about
+the criterion is changed here. **The missing capability was built and run**, and run #41
+supplies the one thing every prior checkpoint lacked — **the literal PRE-FIX runtime
+observation**.
+
+The closure class is unchanged: **Data contract / schema**, whose §2.1 ladder is
+FIXED IN CODE · FIXED ON QA · VERIFIED IN CI · **VERIFIED LIVE where a read path exists**.
+`getExerciseProgression()` is a read path, so the fourth rung was owed. **No waiver was
+introduced, no exception was granted, and no closure criterion was modified.** The
+`ERR-1`/`EC-01` RELEASE-ENVIRONMENT ruling was again **not** carried across, and the
+SEC-R2 / SEC-R3 precedent (§7.10) — *an owner ruling on an adjacent question "does not
+waive the fifth state"* — was again respected.
+
+#### The mechanism, read at the committed SHA that CI executed
+
+| Component | At `8843c33` |
+|---|---|
+| Job | `wrk01-live` · `ci.yml:448` · *"I-WRK-01 — live progression read path (pre-fix / post-fix)"* · `needs: [live-qa]` · `if: needs.live-qa.outputs.creds == 'true'` |
+| Probe | `apps/mobile/integration_test/wrk01_progression_live_test.dart` — calls the **real** `WorkoutService().getExerciseProgression()`, not a replica |
+| Driver | `apps/mobile/tool/negative_control/wrk01_live_probe.sh` under `xvfb-run`, Linux desktop target |
+| Pre-fix tree | `PRE_FIX_REF=654b09c^` = **`acd2cc5`**, whose `workout_service.dart:237,243,246` still name `created_at`. A real defective tree exists in history, so **`G-3` was not invoked and this is not synthetic evidence** |
+| Fixture | One `workout_set_logs` fixture keyed `WRK01-PROBE-$PROBE_RUN_ID`, written by the committed QA-only `is_demo` identity `p1-victim@qa.12circle.test` under `001:370` (*"users manage own set logs"*) |
+| Credential posture | `wrk01-live` references **zero** `secrets.*`. All **18** `secrets.QA_*` references in the workflow remain confined to `live-qa` (`ci.yml:321`–`:437`, inside `live-qa`'s `304`–`447` span). **No `QA_SERVICE` and no direct database access were added to `wrk01-live`, and no new secret was introduced** |
+| `continue-on-error` | **0 occurrences** in the workflow, so no step conclusion is masked |
+
+#### Observed evidence — the literal marker lines
+
+**PRE-FIX leg, at `acd2cc5`:**
+
+```
+WRK01-MARK FIXTURE present rows=4
+WRK01-MARK SERVICE-CALLED getExerciseProgression
+WRK01-MARK RESULT len=0
+WRK01-MARK ASSERT-NONEMPTY FAIL
+```
+
+**POST-FIX leg, same fixture, same probe, at `8843c33`:**
+
+```
+WRK01-MARK FIXTURE seeded rows=4
+WRK01-MARK SERVICE-CALLED getExerciseProgression
+WRK01-MARK RESULT len=3
+WRK01-MARK ASSERT-NONEMPTY PASS
+WRK01-MARK ASSERT-ALL PASS
+```
+
+**Cleanup:**
+
+```
+WRK01-MARK CLEANUP verified remaining=0
+```
+
+Run-level: all six jobs `success`; `wrk01-live` steps 1–7 all `success`.
+
+#### Observed evidence versus conclusion — stated separately, because §2 turns on it
+
+**Observed** (the marker lines above and the run/job/step outcomes): the same four fixture
+rows were present to both legs · both legs reached the real `getExerciseProgression()` ·
+the pre-fix call **returned** `[]` rather than throwing · the non-empty expectation is the
+assertion that **failed** pre-fix · the post-fix call returned **3** progression points and
+every assertion passed · **0** fixture rows survived teardown.
+
+**Concluded from it** — and labelled as conclusion, not as observation: the defect was in
+the column name the service read and nothing else, because only the tree changed between
+the two legs; and policies, grants, triggers and PostgREST **compose** as §2 says VERIFIED
+LIVE proves, because a real request against QA reproduced the correct behaviour where the
+identical request against the pre-fix tree did not.
+
+**Not claimed.** §2 is explicit that VERIFIED LIVE *"does not prove … that the user-facing
+path reaches it, or that no collateral regression occurred."* **`VERIFIED END-TO-END` is
+NOT claimed for `I-WRK-01`** — no human or driver reached the strength-progression surface,
+and its class does not require one.
+
+#### Evidence provenance, recorded
+
+The **repository-side** facts in this subsection — the job definition, the probe source,
+the pre-fix ref and its `created_at` references, the discrimination gates, the guard state,
+the credential posture and the absence of `continue-on-error` — were read directly at
+`8843c33` when this subsection was written.
+
+The **run-side** facts — the run and job ids, the step outcomes and the literal marker
+lines — were **transcribed by the product owner from the raw job log** retrieved with
+repository admin credentials (`gh run view 33129000361 --job 98714155399 --log`). Raw job
+logs return **HTTP 403** to this programme's unauthenticated read, exactly as recorded in
+§7.13's limitation note. The owner supplied them as authoritative runtime evidence. **They
+were not inferred**, and the alternatives that *would* have been inference were explicitly
+refused at the gate: the job conclusion, the green run summary, the
+*"2 tests passed, 1 failed"* check-run annotation, the harness's fail-closed control flow,
+source inspection of the probe, and the post-fix result were each rejected as substitutes
+for the PRE-FIX observation before it was supplied.
+
+#### The discrimination that makes the pre-fix leg evidence rather than noise
+
+`wrk01_live_probe.sh:149–163` gates the pre-fix leg with eight assertions, each of which
+aborts the job. Recorded because it is what separates *"the fix works"* from *"the runner
+was broken"*: the pre-fix run must have initialised Supabase (`BOOT ok`) and authenticated
+(`AUTH ok`); it must have seen the **same** fixture (`FIXTURE present rows=4`); it must have
+reached the real service (`SERVICE-CALLED getExerciseProgression`); it must have **returned**
+rather than thrown (`RESULT len=`), because a throw is not the historical signature; it must
+have returned **empty** (`RESULT len=0`), or the harness `die`s on the grounds that a pre-fix
+tree returning data is not evidence; the failing assertion must be the **non-empty** one
+(`ASSERT-NONEMPTY FAIL`); and `PRE_RC` must be non-zero, because *"a pre-fix tree that passes
+is not evidence."* This is context for the observed lines, **not a substitute for them**.
+
+#### Promoted to `VERIFIED_CLOSED` — 1 row, uncounted
+
+| Row | From | Closing evidence |
+|---|---|---|
+| **`I-WRK-01`** (= `H-01`, `M-07`, `M R-2` — retired aliases, §3) · §7.6 · P1/P2 ⚠ | NOT `VERIFIED_CLOSED`, three of four states | All four **Data contract / schema** states: **FIXED IN CODE** (`654b09c`) · **FIXED ON QA** (`logged_at` present in QA's live catalog, §7.6) · **VERIFIED IN CI** (run #35, both allowlist halves removed and checked in both directions) · **VERIFIED LIVE** (run #41 — pre-fix `RESULT len=0` / `ASSERT-NONEMPTY FAIL`, post-fix `RESULT len=3` / `ASSERT-ALL PASS`, one fixture, real service, `CLEANUP verified remaining=0`) |
+
+#### Board effect — no count moved, and the divergence widens by one
+
+**`I-WRK-01` is a §7 P1 row and the P1–P3 register carries no per-row status field**, so its
+movement is **not** mechanically countable. This is the `F-J-12` position (§7.12,
+`REMEDIATION_PROGRESS.md` §3) and D-1 already applied it to this row. The status table is
+therefore **deliberately NOT adjusted**: `37 + 48 + 24 + 178 + 4 + 28 = 319`, unchanged. §5
+counts canonical findings rather than rows, and `I-WRK-01` was already inside the Data
+Contract domain's 33, so no domain total changes either. Which bucket the table currently
+holds `I-WRK-01` in **cannot be determined from this repository and was not guessed.**
+
+The narrative `VERIFIED_CLOSED` figure moves **29 → 30**, and the table still says **28**.
+**The divergence is now exactly two rows — `F-J-12` and `I-WRK-01` — and it is deliberate**,
+for the same reason in both cases. It is disclosed on the progress board rather than
+resolved by a guess.
+
+#### What this closure does NOT do
+
+- **`EC-11` is not started and `WorkoutService` was not touched** — `catch (` count remains
+  **14**. `EC-11`'s `Dep` cell is unchanged and still reads `I-WRK-01` + `I-COM-01` +
+  `I-CHK-01` (D-3); **two of its three dependencies remain open**, so satisfying one does
+  not release it.
+- **`H-02` / `I-COM-01` is not continued and not closed.** Its closure class has never been
+  ruled and remains an open authority question.
+- **`D-4` and `D-5` remain unresolved** and are carried forward unchanged. The severity
+  disagreement (Workstream I **P1** / Workstream H **P2**) and the self-contradictory site
+  count are preserved, not resolved: closure on the evidence ladder does not settle either,
+  and §10.2 keeps the A–N reports frozen.
+- **No closure criterion, status vocabulary, tracking model or acceptance criterion was
+  modified**, and **no waiver was introduced**.
+- No other row's status was examined. `I-COM-02`, `I-CHK-01`, `I-LEG-03`, `EC-10`, `SEC-04`,
+  `I-MIG-03`/`SEC-09` and the remaining five findings without a tracking home (§7.14) are
+  untouched and remain open.
+
+**Production statement (closure standard §6):** production `nxdbooufqzkpslkcogxc` was not
+contacted. No REST, RPC, Auth, Storage, Realtime or Edge Function request was issued to it.
+No migration was applied, reverted or pushed to it. No Edge Function was deployed to it. The
+linked project remained `eyqtldjqpgpljlqvpowh` throughout. The QA writes cited are those of
+run #41's own fixture lifecycle under the D-2(b) authorization, which had already executed
+and which proved its own teardown; **this checkpoint performed no QA write and no QA read**
+and changed governance documents only.
 
 ---
 
