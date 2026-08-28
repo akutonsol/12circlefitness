@@ -240,7 +240,31 @@ Future<bool> _pumpUntil(
 }) async {
   final deadline = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(deadline)) {
-    await tester.pump(const Duration(milliseconds: 250));
+    // OBSERVABILITY ONLY (run #48 gate). A rendering exception escaping this
+    // pump aborted run #47 before the finder, the marker and the expect could
+    // run, and the raw CI job log is not retrievable from this environment.
+    // The catch below READS the exception and re-throws it UNCHANGED: nothing
+    // is swallowed, nothing becomes a boolean, no pump is added, no retry is
+    // introduced, and the loop's timeout, interval, finder evaluation and
+    // return behaviour are byte-for-byte the behaviour they were before.
+    // `rethrow` preserves both the original exception object and its original
+    // stack trace. `FlutterError.toString()` renders its full diagnostics tree,
+    // so printing the caught object captures FlutterError detail without
+    // assuming the exception is one.
+    try {
+      await tester.pump(const Duration(milliseconds: 250));
+    } catch (error, stack) {
+      print('UIX1-DIAG pump-exception-begin');
+      print('UIX1-DIAG type=${error.runtimeType}');
+      print('UIX1-DIAG detail-begin');
+      print(error);
+      print('UIX1-DIAG detail-end');
+      print('UIX1-DIAG stack-begin');
+      print(stack);
+      print('UIX1-DIAG stack-end');
+      print('UIX1-DIAG pump-exception-end');
+      rethrow;
+    }
     if (finder.evaluate().isNotEmpty) return true;
   }
   return false;
