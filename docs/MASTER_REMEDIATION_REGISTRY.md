@@ -956,7 +956,7 @@ lock, plus the policy narrowing.
 ---
 
 ### UIX-1 · The booking screen is dead for every client
-`M-03` · **P0** · `REMEDIATED` *(2026-08-28, Wave 3A task 3A-8 — see §7.16)* · Wave 3
+`M-03` · **P0** · `REMEDIATED` *(2026-08-28, Wave 3A task 3A-8 — see §7.16; VERIFIED IN CI added at run #44, §7.17. Understated: two of three class states present — see the status note below)* · Wave 3
 
 `/appointments` and `/book-call` issue a PostgREST embed (`coach:coach_id(...)`) with no
 backing FK, so the query fails for every client. *Recommendation: drop the embed and read
@@ -998,30 +998,66 @@ never be a symptom"*). A failed load now renders a distinct honest state. Everyt
 state semantics, the pending/active/no-coach branches, the multi-coach picker, booking and
 cancellation — is unchanged.
 
-**VERIFIED IN CI: PENDING.** §2 requires a check that *"**fails against the pre-fix tree**
-and passes against the post-fix tree, **in CI**"*. **CI run #43 at `527438a` supplies the
-post-fix leg only** — the `live-qa` job is green and the guard found no unresolvable embed
-on the fixed tree — while the **pre-fix leg was demonstrated locally, not in CI** (§7.16).
-That is one half of the definition, and §7.13 has already ruled on this exact shape: a
-local replay *"was honest but it was not 'in CI', and §2 requires 'in CI'."* The rung
-therefore stays PENDING until a CI leg fails against the pre-fix tree.
+**VERIFIED IN CI: PRESENT** — CI run **#44** `33172886167` at `b1a19ae`, terminal
+`success`, 2026-08-28. §2 requires a check that *"**fails against the pre-fix tree** and
+passes against the post-fix tree, **in CI**"*. Both legs are now in CI, in one run:
 
-*(Provenance correction, 2026-08-28, owner-authorized — §7.16 "Correction". This paragraph
-previously read that the guard *"runs inside `npm run test:contract`, already wired to the
-`static-guards` job, so no CI change is needed; the rung opens on the next run."* **Two
-things in that sentence were wrong.** `npm run test:contract` is invoked at `ci.yml:399`
-inside the **`live-qa`** job, not `static-guards`, which contains no contract step; and
-that invocation is **credential-gated** by `if: steps.creds.outputs.present == 'true'`, so
-when `QA_URL`/`QA_ANON`/`QA_SERVICE` are absent the step **skips** and the job can still be
-green. The record described an unconditional static gate; the guard is a conditional one.
-No state, count, class, decision or dependency changed — the rung was PENDING before this
-correction and is PENDING after it.)*
+* **Post-fix leg — directly observed.** `static-guards` step 7 *"Schema contract guard
+  (relations, columns, embedded resources)"* → `success`. The step is **unconditional**:
+  parsed from `ci.yml` at `b1a19ae` its keys are exactly `name` and `run`, with **no `if`**,
+  and the job carries no job-level `if`. A skipped step reports `skipped`; this reported
+  `success`, so it executed and passed and **cannot have been credential-skipped**.
+* **Pre-fix leg — entailed, not directly read.** `negative-control` step 8 *"UIX-1 —
+  embed/FK contract guard, pre-fix / post-fix evidence"* → `success`, running
+  `apps/mobile/tool/negative_control/uix1_negative_control.sh`. Raw job logs return
+  **HTTP 403 "Must have admin rights to Repository"**, so the harness's own output was
+  **not read**. Under `set -euo pipefail` with a `die` on every branch, exit 0 is reachable
+  only if all of the following held: the tree was clean; `git cat-file -e f109f19:<path>`
+  succeeded, so `fetch-depth: 0` worked and the blob was reachable; the baseline run
+  passed; the installed file carried `coach:coach_id(` **and** differed from the committed
+  one, so the real pre-fix screen was installed; the pre-fix run exited **non-zero**; its
+  output contained the literal assertion *"coach_client_relationships.coach_id is embedded
+  but no foreign key reaches the public schema"*; **no other `FAIL` line was present**; the
+  restore passed `git diff --quiet`, so it was byte-identical; and the post-fix run exited
+  0.
+
+**Owner ruling 2026-08-28: the §7.13 entailment standard governs this rung.** §7.13 closed
+`ERR-1` on the same shape and recorded the position verbatim — the step's exit status *"is
+reachable only if every assertion above held, and the harness source was read at the exact
+committed SHA that CI executed"*, which it called **stronger for this harness, not weaker**.
+Run #44 matches it on every axis and adds a directly-observed post-fix half that §7.13 did
+not have. **The literal-log requirement applied to `I-WRK-01`'s VERIFIED LIVE rung (§7.15)
+was NOT carried across, and this ruling does not disturb it.** See §7.17.
+
+*(Provenance correction, 2026-08-28, owner-authorized — §7.16 "Correction". The paragraph
+this replaces previously read that the guard *"runs inside `npm run test:contract`, already
+wired to the `static-guards` job, so no CI change is needed; the rung opens on the next
+run."* **Two things in that sentence were wrong.** At the time, `npm run test:contract` was
+invoked at `ci.yml:399` inside the **`live-qa`** job, not `static-guards`, which contained
+no contract step; and that invocation was **credential-gated** by
+`if: steps.creds.outputs.present == 'true'`, so when `QA_URL`/`QA_ANON`/`QA_SERVICE` were
+absent the step **skipped** while the job stayed green. The record described an
+unconditional static gate; the guard was a conditional one. That correction stands as
+written and is not rewritten by this update — the condition it described was **removed** by
+owner ruling B-2 in `b1a19ae`, which moved the step to `static-guards` unconditionally, and
+run #44 is the first run in which it was unconditional.)*
 
 **⚠ VERIFIED END-TO-END: ABSENT.** The class terminates there — *"a human or a driver
 reached the surface"* — and Step 4 (End-to-End Product Verification) **is not authorized to
 begin** (§7.10). No substitute was recorded and no waiver was sought. **Status: NOT
-`VERIFIED_CLOSED`** — one of three required states present, one pending CI. **No status
-count was moved** (§7.16).
+`VERIFIED_CLOSED`** — **two of three** required states present (FIXED IN CODE · VERIFIED IN
+CI), the third absent. **No status count was moved** (§7.16, §7.17).
+
+**The row stays `REMEDIATED`, and that is now an understatement — deliberately.** §2 has no
+status for *"every state its class demands except END-TO-END"*: `REMEDIATED` means *"not yet
+retested"* and `RETEST_REQUIRED` means *"live assertion outstanding"*, and neither is true
+of this row any more, while `VERIFIED_CLOSED` requires the third state. Moving it to either
+would put a false evidence claim on the board, and inventing a sixth status is a governance
+decision no checkpoint may take at implementation time. **This is the second instance of the
+status-vocabulary gap §7.10 escalated for `SEC-R2`/`SEC-R3`**, which sit at four of five for
+the same structural reason; those rows were left at `READY_TO_REMEDIATE` on the identical
+argument. The owner ruling requested there — add a status, or leave such rows understated —
+now governs two findings rather than one. **Nothing is waived and no count moves.**
 
 ---
 
@@ -2560,6 +2596,143 @@ No migration was applied, reverted or pushed to it. No Edge Function was deploye
 `ENV-7` remains `BLOCKED_ENVIRONMENT` and deliberately undeployed. The linked project
 remained `eyqtldjqpgpljlqvpowh` throughout. **No QA write and no QA read were performed by
 this checkpoint**; every run cited above is offline.
+
+---
+
+### 7.17 `UIX-1` / `M-03` VERIFIED IN CI — 2026-08-28 · evidence: CI run **#44** `33172886167` at `b1a19ae`
+
+One rung opens here. **Nothing is promoted to `VERIFIED_CLOSED`, no count moves, and no
+governance rule is reinterpreted.** Gates B-1 and B-2 landed in `b1a19ae`
+(`ci(UIX-1): add pre-fix negative control and unconditional contract guard`); this
+subsection records what the first run of that tree established.
+
+#### The owner ruling this rung turned on
+
+§7.16 recorded `VERIFIED IN CI` as **PENDING** because run #43 met the embed guard only on
+the fixed tree, and §2 requires a check that *"**fails against the pre-fix tree** and passes
+against the post-fix tree, **in CI**"*. Raw job logs return **HTTP 403 "Must have admin
+rights to Repository"**, so the question was which evidence standard governs a harness whose
+output cannot be read.
+
+**Owner ruling, 2026-08-28: §7.13's entailment standard governs.** §7.13 closed `ERR-1` on
+exactly this shape and stated the position verbatim — the step's exit status *"is reachable
+only if every assertion above held, and the harness source was read at the exact committed
+SHA that CI executed"*, which it called **stronger for this harness, not weaker**. The
+ruling is confined to this rung. **It does NOT disturb §7.15**, where the literal marker
+lines were required for `I-WRK-01`'s VERIFIED LIVE and the fail-closed control flow was
+explicitly refused as a substitute; that refusal stands, and the two rungs are not the same
+question.
+
+#### B-2 · the contract guard is now unconditional
+
+`npm run test:contract` moved out of `live-qa`, where it sat behind
+`if: steps.creds.outputs.present == 'true'`, into `static-guards`, where it has no `if` at
+all. **Not duplicated** — `live-qa` at `b1a19ae` contains **0** occurrences of
+`test:contract`, and a comment there records the move. The suite is offline: it imports only
+node builtins and `./schema.mjs`, reads **no** environment variable, and ran in
+`static-guards` with no `npm ci`.
+
+Why it mattered, recorded because it bounded the guard's reach: `known-violations.json` is
+the both-directions record for **`I-WRK-01`, `I-INT-01`, `I-INT-02`, `I-COM-01`, `I-COM-03`,
+`I-CHK-01`, `I-LEG-03` and `I-NUT-01`**, and behind the old gate none of them was checked on
+a run without QA secrets, with nothing going red to say so — `QA_CLOSURE_STANDARD.md` §4,
+*"A guard nobody runs protects nobody."* **`secrets.QA_*` references fall 18 → 15**: the step
+no longer receives credentials it never read. That is a narrowing of credential exposure; no
+secret was added, rescoped or widened.
+
+**Evidence produced under the old placement is preserved as historical and conditional and
+is NOT retroactively reinterpreted.**
+
+#### B-1 · the pre-fix harness
+
+`apps/mobile/tool/negative_control/uix1_negative_control.sh`, wired as **step 8** of the
+`negative-control` job, whose checkout gained `fetch-depth: 0` so the pre-fix blob is
+reachable. It follows `ec23_negative_control.sh`: install the pre-fix file, require the
+declared failure, restore byte-identically, require the pass again.
+
+#### Observed versus entailed — stated separately, because the ruling turns on it
+
+**Directly observed** (GitHub API, job and **step** level):
+
+| | |
+|---|---|
+| Run | **#44** `33172886167`, attempt 1, head `b1a19ae9`, **`completed` / `success`** |
+| Jobs | all **six** `success` — Static guards · Flutter · API · Negative control · Live QA suites · I-WRK-01 live probe |
+| Post-fix leg | `static-guards` **step 7** *"Schema contract guard (relations, columns, embedded resources)"* → `success` |
+| Pre-fix leg | `negative-control` **step 8** *"UIX-1 — embed/FK contract guard, pre-fix / post-fix evidence"* → `success` |
+| Masking | **0** non-success steps, **0** skipped steps, **0** `continue-on-error` occurrences in the workflow |
+| Unconditionality | the `static-guards` step's YAML keys at `b1a19ae` are exactly `name` and `run` — **no `if`** — and the job carries no job-level `if`. A skipped step reports `skipped`; this reported `success` |
+| `f109f19` | `git merge-base --is-ancestor f109f19 b1a19ae` is true, and that tree's `booking_screen.dart` carries the `coach:coach_id(` embed |
+
+**Entailed from the step's exit status and the harness source read at the executed SHA — a
+conclusion, not an observation.** Under `set -euo pipefail` with a `die` on every branch,
+exit 0 is reachable only if: the tree was clean; `git cat-file -e f109f19:<path>` succeeded,
+so `fetch-depth: 0` worked; the baseline run passed; the installed file carried
+`coach:coach_id(` **and** differed from the committed one, so the real pre-fix screen was
+installed; the pre-fix run exited **non-zero**; its output contained the literal assertion
+*"coach_client_relationships.coach_id is embedded but no foreign key reaches the public
+schema"*; **no other `FAIL` line was present**, so an unrelated defect could not be laundered
+into UIX-1 evidence; the restore passed `git diff --quiet`; and the post-fix run exited 0.
+
+**Limitation, recorded not waived: the harness's own output was never read.** Raw job logs
+return HTTP 403 to this programme, exactly as §7.13 recorded for run #34.
+
+#### `G-3` is NOT invoked
+
+`f109f19` is a real commit in this branch's history carrying the actual defect, so a
+defective tree is **recoverable** and this is genuine pre-fix evidence. G-3 covers the case
+where no defective tree is recoverable. The harness header and the `ci.yml` step comment both
+say so, so this step is never mis-filed beside the **WKT-204** and **M-1/M-2/M-3** steps,
+which *are* of that synthetic class.
+
+#### The red annotations under the green jobs are not failed CI
+
+`negative-control` carries `[failure] 1 test passed, 1 failed.` (**EC-23**) and
+`[failure] 3 tests passed, 4 failed.` (**WKT-204**); the `I-WRK-01` job carries
+`[failure] 2 tests passed, 1 failed.` — its probe's own expected pre-fix shape. These are the
+runner's Flutter test-log parser reacting to those harnesses' installed mutations, the same
+reading §7.13 established for run #34. **Every step of every job in #44 is `success` and the
+workflow contains no `continue-on-error`.** **None of them relates to UIX-1**: its guard is a
+node script, whose output is never parsed into a test annotation. The remaining annotations
+are the Node-20 deprecation warning.
+
+#### Rung movement — one rung, no promotion, no count
+
+| Row | Rung | From | To |
+|---|---|---|---|
+| **`UIX-1`** / `M-03` · §6 · P0 · class **PRODUCT INTEGRITY / UI REACHABILITY** | VERIFIED IN CI | PENDING | **PRESENT** (run #44) |
+
+**`VERIFIED END-TO-END` remains ABSENT.** It is not a CI state — §2.1 requires *"a human or a
+driver reached the surface"* — and Step 4 is not authorized to begin (§7.10). No CI result
+can supply it, none was substituted, and no waiver was created. **`UIX-1` is NOT
+`VERIFIED_CLOSED`**: two of three class states present.
+
+**No count moves.** `VERIFIED_CLOSED` stays **28** and the canonical total stays **319**
+(37 + 48 + 24 + 178 + 4 + 28). `M-03` was `REMEDIATED` before this checkpoint and is
+`REMEDIATED` after it: §2's status table has no term for *"every state but END-TO-END"*, so
+the row is left **understated** rather than moved to a status whose entry evidence would be
+false. **That is the second instance of the status-vocabulary gap §7.10 escalated for
+`SEC-R2`/`SEC-R3`**, and the owner ruling requested there is now outstanding for two
+findings, not one.
+
+#### What this checkpoint does NOT do
+
+- **No implementation, CI, test, migration, schema, RLS, Edge Function, fixture, probe,
+  credential or secret change.** Governance documents only.
+- **Step 4 / end-to-end verification not begun** and not inferred.
+- **`I-WRK-01` untouched** — §7.15's literal-log requirement is unchanged, and run #44's
+  `wrk01-live` job is that finding's own probe, not evidence for this one.
+- **`EC-11` not started; `H-02`/`I-COM-01` not continued; `checkin_screen.dart` and
+  `workout_service.dart` untouched (`catch (` count **14**); `D-4`/`D-5` unchanged.**
+- No other row's status was examined. The remaining Wave 3A tasks — 3A-1/2/3, 3A-4, 3A-6,
+  3A-7, 3A-9/10/11 — are unstarted.
+
+**Production statement (closure standard §6):** production `nxdbooufqzkpslkcogxc` was not
+contacted. No REST, RPC, Auth, Storage, Realtime or Edge Function request was issued to it.
+No migration was applied, reverted or pushed to it. No Edge Function was deployed to it.
+The linked project remained `eyqtldjqpgpljlqvpowh` throughout. The evidence cited is CI run
+**#44**, which had already executed. **No QA write and no QA read were performed by this
+checkpoint**, and it changed governance documents only.
 
 ---
 
