@@ -956,7 +956,7 @@ lock, plus the policy narrowing.
 ---
 
 ### UIX-1 · The booking screen is dead for every client
-`M-03` · **P0** · `REMEDIATED` *(2026-08-28, Wave 3A task 3A-8 — see §7.16; VERIFIED IN CI added at run #44, §7.17. Understated: two of three class states present — see the status note below)* · Wave 3
+`M-03` · **P0** · ✅ `VERIFIED_CLOSED` 2026-08-28 *(Wave 3A task 3A-8 — see §7.16; VERIFIED IN CI at run #44, §7.17; **VERIFIED END-TO-END at run #49** `33200559221` at `7b944aa`, §7.18. All three PRODUCT INTEGRITY / UI REACHABILITY states present)* · Wave 3
 
 `/appointments` and `/book-call` issue a PostgREST embed (`coach:coach_id(...)`) with no
 backing FK, so the query fails for every client. *Recommendation: drop the embed and read
@@ -1042,22 +1042,81 @@ written and is not rewritten by this update — the condition it described was *
 owner ruling B-2 in `b1a19ae`, which moved the step to `static-guards` unconditionally, and
 run #44 is the first run in which it was unconditional.)*
 
-**⚠ VERIFIED END-TO-END: ABSENT.** The class terminates there — *"a human or a driver
-reached the surface"* — and Step 4 (End-to-End Product Verification) **is not authorized to
-begin** (§7.10). No substitute was recorded and no waiver was sought. **Status: NOT
-`VERIFIED_CLOSED`** — **two of three** required states present (FIXED IN CODE · VERIFIED IN
-CI), the third absent. **No status count was moved** (§7.16, §7.17).
+**VERIFIED END-TO-END: PRESENT** — CI run **#49** `33200559221` at `7b944aa`, terminal
+`success`, all **7** jobs `success`, 2026-08-28. The class's third rung reads *"a human or a
+driver reached the surface"*; the driver is `apps/mobile/integration_test/uix1_booking_e2e_test.dart`,
+run by the `uix1-e2e` job (`98949037130`), steps 1–7 all `success`.
 
-**The row stays `REMEDIATED`, and that is now an understatement — deliberately.** §2 has no
-status for *"every state its class demands except END-TO-END"*: `REMEDIATED` means *"not yet
-retested"* and `RETEST_REQUIRED` means *"live assertion outstanding"*, and neither is true
-of this row any more, while `VERIFIED_CLOSED` requires the third state. Moving it to either
-would put a false evidence claim on the board, and inventing a sixth status is a governance
-decision no checkpoint may take at implementation time. **This is the second instance of the
-status-vocabulary gap §7.10 escalated for `SEC-R2`/`SEC-R3`**, which sit at four of five for
-the same structural reason; those rows were left at `READY_TO_REMEDIATE` on the identical
-argument. The owner ruling requested there — add a status, or leave such rows understated —
-now governs two findings rather than one. **Nothing is waived and no count moves.**
+**The route is the real one and no substitution was made.** The driver pumps the real
+`CircleFitnessApp` inside an `UncontrolledProviderScope`, reads the real `routerProvider`,
+and navigates `router.go('/appointments')` — so `MaterialApp.router` → the real redirect →
+`PaywallGate(required: ClientPlan.coachGuided)` → `BookingScreen` is the path actually
+exercised. BookingScreen was **not** mounted directly; no mock, fake, stub, Chrome/web,
+Android or iOS substitute was used; the entitlement is the real `client_plan()` reading the
+same `coach_client_relationships` row the surface needs, and the fixture is created under
+existing RLS with the committed `p1-victim` / `p1-coach` QA identities and **no
+service-role credential**.
+
+**What step 6 entails.** `apps/mobile/tool/negative_control/uix1_booking_e2e.sh` runs under
+`set -euo pipefail` with a `die` on every branch, and it requires each acceptance marker as
+a literal (`:88–120`). Exit 0 is reachable only if **all** of the following were present:
+`BOOT ok` · `FIXTURE collision-check clean prior-active=0` · `FIXTURE relationship
+active=1` · `FIXTURE availability rows=[1-9]` · `ROUTE navigated=/appointments` ·
+**`A1 surface-reached=true`** · **`A1 paywall-locked=false`** · **`A2
+coach-rendered=true`** · **`A3 ready-state=true`** · `A3 not-No Coach Selected Yet=true` ·
+`A3 not-Couldn't load your bookings=true` · `A3 not-No Slots Available=true` ·
+`ASSERT-ALL PASS` — **and** the Flutter run's own exit code `0`, checked separately
+(`:120`), so a green exit alone would not have sufficed. `A2` is the coach identity
+`Coach P1 coach`, read through `public_profiles` — the exact read the PGRST200 embed
+defect made impossible. **Step 7** `success` supplies closure-standard §7 hygiene: the
+harness requires the literal `CLEANUP verified availability=0 active-relationships=0`
+(`:44`), so removal is proved **by a read**, not assumed from a `204`.
+
+**Owner ruling 2026-08-28: the §7.13 entailment standard extends to this rung for this
+row.** Raw job logs still return **HTTP 403 "Must have admin rights to Repository"**, so the
+marker lines above were **not literally read by this programme** — they are entailed from
+the step's exit status plus the harness source read at the executed SHA. That is the same
+standard §7.13 applied to `ERR-1` and §7.17 applied to this row's VERIFIED IN CI rung, and
+the owner has now extended it to VERIFIED END-TO-END for `UIX-1`. **Two boundaries are
+preserved and are not disturbed by this extension:** §7.15's literal-log requirement for
+`I-WRK-01`'s VERIFIED LIVE rung stands unchanged, and this ruling is confined to `UIX-1` —
+it does not reach `SEC-R2`/`SEC-R3`, whose outstanding rung is also END-TO-END and whose
+status remains exactly as §7.10 left it.
+
+**Two rendering defects were exposed by this rung and repaired before it passed**, both
+latent behind the original embed failure, which had made `_BookingState.ready` unreachable
+so `_SlotCard` had never rendered at all:
+
+* **The pump loop could not see a rendering exception.** `_pumpUntil` had no exception
+  handling, so an exception thrown by `tester.pump()` propagated out before the finder, the
+  marker and the `expect`, and run #47's A2 could not be adjudicated. `aaa23c6` wrapped the
+  pump in an untyped `catch (error, stack)` that prints the type, the exception and the
+  stack under a `UIX1-DIAG` prefix and **`rethrow`s unchanged** — observability only:
+  timeout, interval, finder evaluation, return behaviour, A1/A2/A3 and teardown are
+  byte-for-byte as before, nothing is swallowed and no assertion was weakened.
+* **The slot card's Book button forced an infinite width.** The app's `ElevatedButton`
+  theme is the full-width CTA style (`helix_theme_builder.dart:44` —
+  `minimumSize: Size(double.infinity, 54)`, reached via `main.dart:115` →
+  `TwelveCircleTheme.theme` → `HelixThemeBuilder.dark` `:69`), and an unset property in a
+  local `styleFrom` falls through to it. In a bounded column that infinite `minWidth`
+  clamps harmlessly to the parent's `maxWidth`; as a **non-flex child of `_SlotCard`'s
+  `Row`** it does not, because `RenderFlex` lays inflexible children out with an unbounded
+  main axis. The applied constraint was therefore `BoxConstraints(minWidth: Infinity)` and
+  layout threw **`BoxConstraints forces an infinite width.`** — with the later
+  `child.hasSize` / `RenderSliverMultiBoxAdaptor` assertion its downstream consequence, not
+  its cause. `7b944aa` adds one property to the existing `styleFrom`,
+  `minimumSize: const Size(0, 54)`, overriding **only** the fatal width component: the
+  themed 54px height is preserved, the button hugs its content as the design intends, no
+  fixed width was introduced, and the change matches the design system's own
+  non-full-width idiom (`helix_theme_builder.dart:76`). **The assertion was not suppressed
+  or caught; the invalid constraint no longer exists.**
+
+**Status: `VERIFIED_CLOSED` 2026-08-28** — all three states the **PRODUCT INTEGRITY / UI
+REACHABILITY** class demands are present, with no waiver, no exception, no substituted
+target and no weakened assertion. **The status-vocabulary gap this row illustrated is
+resolved for `UIX-1` by closure, not by ruling** — the gap itself remains open and still
+governs `SEC-R2` and `SEC-R3`, and the owner ruling requested at §7.10 is still
+outstanding for them. See §7.18.
 
 ---
 
@@ -2773,6 +2832,82 @@ so the rollout plan has an input; **nothing here is authorization to act.**
 | 8 | The production Stripe slot holds a `pk_test_` publishable key. Either real money has never moved, or the constant is wrong. **D-1(L)** determines whether existing subscription records are real | SRC |
 | 9 | Production's `supabase_migrations.schema_migrations` has never been dumped or reconciled against source | UNVERIFIABLE |
 | 10 | The daily keep-alive GitHub workflow is the **only** automation that contacts production, and it is the only workflow in the repository | SRC-V |
+
+---
+
+### 7.18 `UIX-1` / `M-03` VERIFIED END-TO-END and `VERIFIED_CLOSED` — 2026-08-28 · evidence: CI run **#49** `33200559221` at `7b944aa`
+
+The last rung of the **PRODUCT INTEGRITY / UI REACHABILITY** class opens here and the row
+closes. **One count moves. Nothing else is promoted, no other row is examined, and no
+governance rule is reinterpreted beyond the single owner ruling recorded below.**
+
+#### The run
+
+| Field | Value |
+|---|---|
+| Run | **#49** · `33200559221` · event `push` · branch `chore/qa-environments-secure-ai-backend` |
+| Head | `7b944aaa5c4e37bcddaeb70940e79a2991b97232` |
+| Conclusion | `success` · **7 of 7 jobs `success`** |
+| Jobs | Static guards · API — unit + e2e · Flutter — analyze, test, QA web build · Negative control — synthetic pre-fix-equivalent evidence · Live QA suites (security / AI / contract) · **UIX-1 — booking surface end-to-end (real route, real paywall)** · I-WRK-01 — live progression read path (pre-fix / post-fix) |
+| UIX-1 job | `98949037130` · `success` · steps 1–7 all `success` |
+
+Verified against the GitHub REST API read-only (`runs/33200559221` and its `jobs`, both
+HTTP 200); the run's `head_sha` was checked to equal the repository's HEAD rather than
+taken from the badge.
+
+#### Rung movement
+
+| Row | Rung | From | To |
+|---|---|---|---|
+| **`UIX-1`** / `M-03` · §6 · P0 · class **PRODUCT INTEGRITY / UI REACHABILITY** | VERIFIED END-TO-END | ABSENT | **PRESENT** (run #49) |
+| **`UIX-1`** / `M-03` | Status | `REMEDIATED` (understated) | **`VERIFIED_CLOSED`** |
+
+The evidence, the entailment basis, the owner ruling that extends §7.13's standard to this
+rung for this row, and the two rendering defects repaired along the way are recorded in
+full in the §6 row and are not duplicated here.
+
+#### Counts
+
+`UIX-1` is a **§6 P0 row with a status field**, so unlike `F-J-12` (§7.12) and `I-WRK-01`
+(§7.15) it **is** mechanically countable, and this transition **is** a closure — which the
+`REMEDIATED` transition recorded at §7.16 was not. The source bucket is
+`READY_TO_REMEDIATE`, because §7.16 and §7.17 both deliberately left the table unmoved when
+the row went `READY_TO_REMEDIATE` → `REMEDIATED`; the row's status text moved, the count did
+not, so the figure of 178 has been carrying it since.
+
+| | Before | After |
+|---|---:|---:|
+| `READY_TO_REMEDIATE` | 178 | **177** |
+| `VERIFIED_CLOSED` | 28 | **29** |
+| Canonical total | 319 | **319** |
+
+`37 + 48 + 24 + 177 + 4 + 29 = 319` ✓. The narrative figure moves **30 → 31**; the
+divergence from the table is still exactly `F-J-12` and `I-WRK-01`, both uncounted for the
+reason §7.12 and §7.15 record.
+
+#### What this checkpoint does NOT do
+
+- **It does not extend the entailment ruling beyond `UIX-1`.** §7.15's literal-log
+  requirement for `I-WRK-01`'s VERIFIED LIVE rung is untouched, and `SEC-R2`/`SEC-R3` keep
+  their §7.10 position: four of five states, END-TO-END outstanding, understated at
+  `READY_TO_REMEDIATE`, owner ruling still requested.
+- **It does not resolve the status-vocabulary gap.** `UIX-1` left that position by closing,
+  not by a ruling. The gap still governs two findings.
+- **It does not promote `SEC-04`, `ENV-6`, `SEC-09` or `I-MIG-03`,** and does not touch the
+  `I-MIG-03` / `SEC-09` authority question, `ENV-2`'s apply-123-to-QA gate, `DAT-3` /
+  `I-INT-01`'s open closure-class and `PD-A09` questions, or `D-4` / `D-5` — all carried
+  forward unchanged.
+- **No other row's status was examined.** The remaining Wave 3A tasks — 3A-1/2/3
+  (`I-NUT-01`, `I-INT-01`, `F-J-04`), 3A-4, 3A-6, 3A-7, 3A-9/10/11 — were not started.
+- **`known-violations.json` was not modified**, no allowlist entry was added or removed, no
+  assertion was weakened, and the workflow still contains **zero** `continue-on-error`.
+
+**Production statement (closure standard §6):** production `nxdbooufqzkpslkcogxc` was not
+contacted. No REST, RPC, Auth, Storage, Realtime or Edge Function request was issued to it;
+no migration was applied, reverted or pushed to it; no Edge Function was deployed to it.
+The linked project remained `eyqtldjqpgpljlqvpowh`. The QA writes in this closure are the
+`uix1-e2e` job's own run-scoped fixture, created and retired inside CI under existing RLS
+with no service-role credential, and proved removed by a read.
 
 ---
 
