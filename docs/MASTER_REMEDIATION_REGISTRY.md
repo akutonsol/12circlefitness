@@ -1333,7 +1333,7 @@ parallel · wave · gate. P2/P3 rows carry: ID · root cause · statement · wav
 | `F-J-27` | P2 | CRC-04 | A photo-derived calorie estimate is indistinguishable from a measured value | **D-5** | 5 |
 | `F-J-29`/`F-J-30`/`F-J-31` | P2/P3 | — | Enrichment targeting; insight de-duplication by date; two smaller defects | no | 5 |
 | `E-12`→`F-J-04` | P1 | CRC-05 | `recent()` orders five of nine context tables by a `created_at` they do not have, so the AI sees **nothing** for `workout_sessions`, `workout_set_logs`, `habit_logs` and `user_scores`. `progress_insight` is grounded on nothing, and the confidence score's `+28` and `+9` can never fire — **the flagship safety signal is wired to a constant** | no | 3A/5 |
-| `E-13`→`I-NUT-01` | P1 | CRC-01 | `meal_suggestion` reads `protein_g`/`carbs_g`/`fat_g` on `nutrition_logs`; the columns are `protein`/`carbs`/`fat`. `remaining_*` equals the full day's target no matter how much was eaten, so the AI recommends three more full meals to someone who has hit their macros | no | 3A |
+| `E-13`→`I-NUT-01` | P1 | CRC-01 | `meal_suggestion` reads `protein_g`/`carbs_g`/`fat_g` on `nutrition_logs`; the columns are `protein`/`carbs`/`fat`. `remaining_*` equals the full day's target no matter how much was eaten, so the AI recommends three more full meals to someone who has hit their macros. **FIXED IN CODE:** `8b1fba3` (Wave 3A task 3A-1) — `ai-coaching-engine/index.ts:168` now selects `calories, protein, carbs, fat` and the three `sum()` keys follow it. Schema truth read from the migrations: `006_nutrition_logs.sql:10-15` names the columns `calories/protein/carbs/fat/amount_g/logged_at`, and **006 creates the table first, so 012's richer `CREATE TABLE IF NOT EXISTS` for the same name never executes**. The plan targets really are `*_g` (`client_nutrition_plans`, `001:5-8`) and were deliberately left alone; the prompt-facing `remaining_*_g` response keys are unchanged. The three `nutrition_logs` entries were removed from `known-violations.json` as the last step of the fix, per that file's own both-directions contract (allowlist 8 → 6). **VERIFIED IN CI: PRESENT** — CI run **#51** `33205917510` at `adc43a4`, `success`, 7/7 jobs. Post-fix half directly bounded by `static-guards` **step 7** (unconditional); pre-fix half by `negative-control` **step 9** *"I-NUT-01 — nutrition column guard, pre-fix / post-fix evidence"*, wired in `adc43a4` and green on its first run. **G-3 NOT invoked** — the pre-fix tree `2ad8c6c` is real recoverable history. See §7.19. **NOT `VERIFIED_CLOSED`** — the class is **Data contract / schema**, whose §2.1 ladder also requires FIXED ON QA and VERIFIED LIVE where a read path exists, and `ENV-7` holds every Edge Function undeployed until Wave 5. **No status count moved** — this is a §7 row and that register has no per-row status field (the `F-J-12` precedent, §7.12) | no | 3A |
 | `E-17`…`E-20` | P3 | — | Enrichment writers record no actor; query-builder reuse; no timeout/retry/partial-progress contract on batch enrichers (25 serial Sonnet calls in one request); `ai-coach` drops its own audit row on failure | no | 5 |
 | `A-3`/`B-1` | P2 | CRC-11 | `ai-coaching-engine`'s daily insight emits `focus` and `intensity_delta` from a Claude call, and both reach the active-workout load cue and `generate_client_plan`'s structure. Read strictly against product bible §6, **that is an LLM altering training** | **D-9** | 5 |
 
@@ -2908,6 +2908,115 @@ no migration was applied, reverted or pushed to it; no Edge Function was deploye
 The linked project remained `eyqtldjqpgpljlqvpowh`. The QA writes in this closure are the
 `uix1-e2e` job's own run-scoped fixture, created and retired inside CI under existing RLS
 with no service-role credential, and proved removed by a read.
+
+---
+
+### 7.19 `I-NUT-01` VERIFIED IN CI — 2026-08-28 · evidence: CI run **#51** `33205917510` at `adc43a4`
+
+One rung opens for **one** row. **Nothing is promoted to `VERIFIED_CLOSED`, no count moves,
+`I-INT-01` and `F-J-04` are explicitly NOT closed, and no governance rule is reinterpreted.**
+
+#### The run
+
+| Field | Value |
+|---|---|
+| Run | **#51** · `33205917510` · event `push` · attempt 1 · branch `chore/qa-environments-secure-ai-backend` |
+| Head | `adc43a42ed682d29eb43c30396e0c00c21388455` |
+| Conclusion | `success` · **7 of 7 jobs `success`**, every step `success` |
+| New step | `negative-control` **step 9** — *"I-NUT-01 — nutrition column guard, pre-fix / post-fix evidence"* → `success` on its first run |
+
+Verified read-only against the GitHub REST API (`runs/33205917510` and its `jobs`, both
+HTTP 200); `head_sha` was checked to equal the repository HEAD rather than taken from a badge.
+
+#### Both halves of §2, in one run
+
+* **Post-fix half — directly bounded.** `static-guards` **step 7** *"Schema contract guard
+  (relations, columns, embedded resources)"* → `success`. The step is **unconditional** (owner
+  ruling B-2, `b1a19ae`): a skipped step reports `skipped`, this reported `success`, so it
+  executed and passed and cannot have been credential-skipped.
+* **Pre-fix half — `negative-control` step 9.** `supabase/tests/contract/nut01_negative_control.sh`
+  installs `ai-coaching-engine/index.ts` from `2ad8c6c` against the **post-fix** allowlist and
+  requires the guard to fail. Under `set -euo pipefail` with a `die` on every branch, exit 0 is
+  reachable only if: the tree was clean and nothing staged; `git cat-file -e 2ad8c6c:<path>`
+  succeeded, so `fetch-depth: 0` worked; the baseline guard passed; the installed file carried
+  the literal `protein_g, carbs_g, fat_g').eq('user_id'` **and** differed from the committed one;
+  the pre-fix run exited **non-zero**; its output contained all three of
+  `column   nutrition_logs.protein_g is referenced but does not exist` and the `carbs_g` /
+  `fat_g` equivalents; **no other `FAIL` line was present**; the restore passed
+  `git diff --quiet`, so it was byte-identical; and the post-fix run exited 0.
+
+**`G-3` is NOT invoked.** `2ad8c6c` is a real ancestor carrying the actual defect, so this is
+genuine pre-fix evidence and must never be filed alongside the WKT-204 and M-1/M-2/M-3 steps.
+
+**Entailment, not literal log text.** Raw job logs still return **HTTP 403 "Must have admin
+rights to Repository"** (job- and run-level, re-attempted at this checkpoint), so the harness's
+own output was **not read**. The step's exit status plus the harness source read at the executed
+SHA is the §7.13 standard, unchanged and confined to VERIFIED IN CI — §7.15's literal-log
+requirement for `I-WRK-01`'s VERIFIED LIVE rung remains untouched, and §7.18's extension to the
+END-TO-END rung remains confined to `UIX-1`.
+
+#### Regression, same run
+
+| Job | Result |
+|---|---|
+| `UIX-1` — booking surface end-to-end (real route, real paywall) | `success`, steps 6 and 7 |
+| `I-WRK-01` — live progression read path (pre-fix / post-fix) | `success`, steps 6 and 7 |
+| Static guards · API unit+e2e · Flutter analyze/test/QA web build · Live QA suites | all `success`, every step |
+
+Both previously-closed rows still hold on the new tree; neither was re-opened, re-verified nor
+re-counted.
+
+#### Rung movement
+
+| Row | Rung | From | To |
+|---|---|---|---|
+| **`I-NUT-01`** *(= E-13, E-NUT-04, F-J-03)* · §7 · P1 · CRC-01 · class **Data contract / schema** | VERIFIED IN CI | ABSENT | **PRESENT** (run #51) |
+
+**Not `VERIFIED_CLOSED`.** §2.1's Data contract / schema ladder also requires **FIXED ON QA**
+and **VERIFIED LIVE where a read path exists**. `ENV-7` holds all 19 Edge Functions undeployed
+to QA — deliberately, until Wave 5 — so neither state is reachable today, and no waiver was
+sought. **Two of four states present.**
+
+#### Counts
+
+**None moved.** `I-NUT-01` is a §7 table row and that register carries **no per-row status
+field**, so like `F-J-12` (§7.12) and `I-WRK-01` (§7.15) it is not mechanically countable.
+`VERIFIED_CLOSED` stays **29**; the canonical total stays **319** (37 + 48 + 24 + 177 + 4 + 29).
+
+#### Explicitly NOT closed by this checkpoint
+
+- **`I-INT-01`** — `8b1fba3` corrected `ai-coaching-engine`'s read to `fitness_goal` (`000`
+  defines `fitness_goal`; 001's `user_profiles` block is a shadow `CREATE TABLE IF NOT EXISTS`
+  that never executes). But its allowlist entry `user_profiles.goal` **still reproduces** at
+  `ai-generate-workout/index.ts:63`, which belongs to `I-INT-02` / `DAT-2` — **task 3A-4**. The
+  negative control shows it directly: `(2 sites)` pre-fix, `(1 site)` post-fix. The entry was
+  therefore **kept**, correctly, and **`I-INT-01` has no discriminating CI guard until 3A-4
+  lands.** Newly recorded dependency; it was not in the wave plan.
+- **`F-J-04`** — `8b1fba3` gave `recent()` per-table ordering keys (`user_scores`→`updated_at`,
+  `workout_sessions`→`started_at`, `nutrition_logs`/`habit_logs`/`workout_set_logs`→`logged_at`),
+  each key confirmed present and `created_at` confirmed absent in the first `CREATE TABLE` for
+  that name, and repaired the two projections that read the same phantom column. **`nutrition_logs`
+  is the fifth of the "five of nine" this row never named** — hidden because 012's definition is a
+  no-op. But `run.mjs` checks `select` columns and `insert/update/upsert` payload keys and **does
+  not check filter columns** (`.order`, `.eq`, `.gte`), so **no guard in CI can see this defect or
+  its regression.** `F-J-04` is FIXED IN CODE only.
+- **`EC-02` / rule S was not touched.** `recent()`'s `{ data } ?? []` / `catch { return [] }`
+  degradation is unchanged: that is ERR-2, whose fail-closed behaviour is `BLOCKED_DECISION` on
+  **Q-5** (`DAT-2`'s row). Task 3A-3's phrasing overlaps it; only the ordering half was
+  implemented and the response-policy half was left to its own blocked row.
+- **No allowlist change, no assertion weakened, zero `continue-on-error`, `secrets.QA_*`
+  unchanged at 15.** `adc43a4` adds one step to an existing job — no new job, no credential, no
+  network, no toolchain — and reuses the `fetch-depth: 0` checkout already there.
+- **No other row's status was examined**; `PD-A09`, the status-vocabulary ruling for
+  `SEC-R2`/`SEC-R3`, `SEC-04`, `ENV-6`, `SEC-09`/`I-MIG-03`, `ENV-2`, `D-4`/`D-5` are carried
+  forward unchanged.
+
+**Production statement (closure standard §6):** production `nxdbooufqzkpslkcogxc` was not
+contacted. No REST, RPC, Auth, Storage, Realtime or Edge Function request was issued to it; no
+migration was applied, reverted or pushed to it; no Edge Function was deployed to it. The linked
+project remained `eyqtldjqpgpljlqvpowh`. This checkpoint performed no QA read and no QA write;
+`nut01_negative_control.sh` is offline — `node supabase/tests/contract/run.mjs` imports only node
+builtins and reads no environment variable.
 
 ---
 
