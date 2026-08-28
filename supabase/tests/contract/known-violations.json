@@ -41,21 +41,6 @@
       "table": "user_profiles",
       "column": "equipment",
       "finding": "I-INT-02"
-    },
-    {
-      "table": "nutrition_logs",
-      "column": "protein_g",
-      "finding": "I-NUT-01"
-    },
-    {
-      "table": "nutrition_logs",
-      "column": "carbs_g",
-      "finding": "I-NUT-01"
-    },
-    {
-      "table": "nutrition_logs",
-      "column": "fat_g",
-      "finding": "I-NUT-01"
     }
   ]
 }
