@@ -542,3 +542,104 @@ jobs:
             exit 1
           fi
           echo "OK — no fixture rows remain."
+
+  # ── UIX-1 / M-03 · VERIFIED END-TO-END ──────────────────────────────────────
+  #
+  #  A SEPARATE JOB, DELIBERATELY. `wrk01-live` already carries the Flutter
+  #  toolchain, the Linux desktop target and this same credential gate, so
+  #  reusing it would be one step rather than a job. It is not reused because
+  #  registry §7.15 and §7.17 cite that job's NAME and CONCLUSION as I-WRK-01's
+  #  evidence: hanging a second finding's acceptance off it would let a UIX-1
+  #  regression turn I-WRK-01's evidence job red, and couple two findings'
+  #  provenance permanently. The pattern is reused; the job is not.
+  #
+  #  CREDENTIAL POSTURE — unchanged. Zero `secrets.*` here, exactly as
+  #  `wrk01-live`. The probe reads apps/mobile/dart_defines/qa.json (URL +
+  #  publishable anon key, RLS-protected per docs/qa-environments.md) and gates
+  #  on live-qa's `creds` output, which reports whether a credential EXISTS and
+  #  never its value. No service-role key: every fixture write is performed by a
+  #  committed QA-only is_demo identity under the RLS that already governs it.
+  uix1-e2e:
+    name: UIX-1 — booking surface end-to-end (real route, real paywall)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [live-qa]
+    if: needs.live-qa.outputs.creds == 'true'
+    env:
+      PROBE_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      # No fetch-depth: 0 — this probe reads no historical tree.
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Linux desktop toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev xvfb \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libsecret-1-dev
+
+      - name: flutter pub get
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      # Seeds the fixture, drives /appointments through PaywallGate, asserts
+      # A1/A2/A3, and refuses to pass unless each assertion is observed.
+      - name: UIX-1 — end-to-end leg against the real booking surface
+        run: xvfb-run -a apps/mobile/tool/negative_control/uix1_booking_e2e.sh
+
+      # Layer B. Independent of Flutter, so it still runs if the probe crashed
+      # before its own teardown. The relationship is CANCELLED, never deleted —
+      # 113:306-308 keeps hard deletion with service_role, and this job holds no
+      # service-role key. Availability is scoped to this run's tag, never a broad
+      # delete. Hard-fails if any fixture state survives.
+      - name: Fixture retirement and proof of removal
+        if: always()
+        run: |
+          set -euo pipefail
+          URL="$(jq -r .SUPABASE_URL apps/mobile/dart_defines/qa.json)"
+          ANON="$(jq -r .SUPABASE_ANON_KEY apps/mobile/dart_defines/qa.json)"
+          # Committed QA-only is_demo fixture identities (supabase/tests/security/lib.mjs).
+          tok() {
+            curl -sS -X POST "$URL/auth/v1/token?grant_type=password" \
+              -H "apikey: $ANON" -H 'Content-Type: application/json' \
+              -d "{\"email\":\"$1\",\"password\":\"$2\"}" \
+              | jq -r '.access_token // empty'
+          }
+          CT="$(tok 'p1-coach@qa.12circle.test' 'P1-Probe-Coach-2026!')"
+          VT="$(tok 'p1-victim@qa.12circle.test' 'P1-Probe-Victim-2026!')"
+          if [[ -z "$CT" || -z "$VT" ]]; then
+            echo "FAIL — cleanup could not authenticate as the fixture identities."
+            exit 1
+          fi
+          CID="$(curl -sS "$URL/auth/v1/user" -H "apikey: $ANON" \
+                   -H "Authorization: Bearer $CT" | jq -r .id)"
+          VID="$(curl -sS "$URL/auth/v1/user" -H "apikey: $ANON" \
+                   -H "Authorization: Bearer $VT" | jq -r .id)"
+
+          # 1 · availability — removed by the coach that owns the rows.
+          curl -sS -o /dev/null -X DELETE \
+            "$URL/rest/v1/coach_availability?coach_id=eq.$CID&duration_minutes=gte.600&duration_minutes=lte.699" \
+            -H "apikey: $ANON" -H "Authorization: Bearer $CT"
+          SLOTS="$(curl -sS "$URL/rest/v1/coach_availability?select=id&coach_id=eq.$CID&duration_minutes=gte.600&duration_minutes=lte.699" \
+            -H "apikey: $ANON" -H "Authorization: Bearer $CT" | jq 'length')"
+
+          # 2 · the relationship is CANCELLED by the client, never hard-deleted.
+          curl -sS -o /dev/null -X PATCH \
+            "$URL/rest/v1/coach_client_relationships?client_id=eq.$VID&coach_id=eq.$CID&status=eq.active" \
+            -H "apikey: $ANON" -H "Authorization: Bearer $VT" \
+            -H 'Content-Type: application/json' -d '{"status":"cancelled"}'
+          ACTIVE="$(curl -sS "$URL/rest/v1/coach_client_relationships?select=id&client_id=eq.$VID&coach_id=eq.$CID&status=eq.active" \
+            -H "apikey: $ANON" -H "Authorization: Bearer $VT" | jq 'length')"
+
+          echo "fixture — run-tagged availability remaining: $SLOTS ; active relationships remaining: $ACTIVE"
+          if [[ "$SLOTS" != "0" || "$ACTIVE" != "0" ]]; then
+            echo "FAIL — the probe left QA fixture state behind."
+            exit 1
+          fi
+          echo "OK — no fixture availability remains and no active relationship remains."
