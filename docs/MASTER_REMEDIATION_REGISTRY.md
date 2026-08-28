@@ -998,11 +998,24 @@ never be a symptom"*). A failed load now renders a distinct honest state. Everyt
 state semantics, the pending/active/no-coach branches, the multi-coach picker, booking and
 cancellation — is unchanged.
 
-**VERIFIED IN CI: PENDING.** The guard exists and its pre-fix/post-fix behaviour is
-demonstrated (§7.16), but **it has not yet run in CI on this tree** — `QA_CLOSURE_STANDARD.md`
-§4: *"A passing suite that has never run in CI"* is not a closure. It runs inside
-`npm run test:contract`, already wired to the `static-guards` job, so no CI change is
-needed; the rung opens on the next run.
+**VERIFIED IN CI: PENDING.** §2 requires a check that *"**fails against the pre-fix tree**
+and passes against the post-fix tree, **in CI**"*. **CI run #43 at `527438a` supplies the
+post-fix leg only** — the `live-qa` job is green and the guard found no unresolvable embed
+on the fixed tree — while the **pre-fix leg was demonstrated locally, not in CI** (§7.16).
+That is one half of the definition, and §7.13 has already ruled on this exact shape: a
+local replay *"was honest but it was not 'in CI', and §2 requires 'in CI'."* The rung
+therefore stays PENDING until a CI leg fails against the pre-fix tree.
+
+*(Provenance correction, 2026-08-28, owner-authorized — §7.16 "Correction". This paragraph
+previously read that the guard *"runs inside `npm run test:contract`, already wired to the
+`static-guards` job, so no CI change is needed; the rung opens on the next run."* **Two
+things in that sentence were wrong.** `npm run test:contract` is invoked at `ci.yml:399`
+inside the **`live-qa`** job, not `static-guards`, which contains no contract step; and
+that invocation is **credential-gated** by `if: steps.creds.outputs.present == 'true'`, so
+when `QA_URL`/`QA_ANON`/`QA_SERVICE` are absent the step **skips** and the job can still be
+green. The record described an unconditional static gate; the guard is a conditional one.
+No state, count, class, decision or dependency changed — the rung was PENDING before this
+correction and is PENDING after it.)*
 
 **⚠ VERIFIED END-TO-END: ABSENT.** The class terminates there — *"a human or a driver
 reached the surface"* — and Step 4 (End-to-End Product Verification) **is not authorized to
@@ -2383,9 +2396,13 @@ The guard added closes both, and closes them for the **class**, not the instance
 | Self-test — two anchors read from the migrations (`coach_client_relationships.coach_id` must be `auth`, `coaching_calls.coach_id` must be `public`). A guard that silently parsed nothing would otherwise pass forever (§4) | `supabase/tests/contract/run.mjs` |
 
 It is **offline and deterministic**: it contacts no environment, reads no credential, and
-derives everything from `supabase/migrations` and the source tree. It runs inside
-`npm run test:contract`, which the `static-guards` job already executes, so **no CI change
-was made or needed**.
+derives everything from `supabase/migrations` and the source tree. It is implemented inside
+the existing contract suite, so **no CI change was made**; its CI invocation is
+`npm run test:contract` at **`ci.yml:399`, inside the `live-qa` job**, and that step is
+**credential-gated** — `if: steps.creds.outputs.present == 'true'`. The suite being offline
+and its invocation being credential-gated are separate facts, and both are stated here
+because the second one bounds when the guard actually runs. Whether it should remain so
+gated is a **Gate B** design question and is **not decided here**.
 
 #### Pre-fix / post-fix evidence — the guard's own demonstration
 
@@ -2421,13 +2438,104 @@ allowlist lines. *Concluded:* that the remediated screen will now resolve coach 
 live — which is a conclusion, not an observation, and is exactly what the class's
 VERIFIED END-TO-END rung exists to test.
 
-**Limitation, recorded and not worked around.** This is a **local** run. §4 is explicit
-that *"a passing suite that has never run in CI"* is not a closure, so **VERIFIED IN CI is
-recorded as PENDING, not satisfied**, until `static-guards` executes on this tree. There
+**Limitation, recorded and not worked around.** Both legs above are **local** runs. §4 is
+explicit that *"a passing suite that has never run in CI"* is not a closure, so
+**VERIFIED IN CI is recorded as PENDING, not satisfied**. CI run **#43** has since supplied
+the **post-fix leg** and nothing more; the **pre-fix leg has never executed in CI** and is
+outstanding. See the Correction below. There
 is also **no Dart or Flutter toolchain** on the device or in the cloud container (SDK
 archives return HTTP 000, re-verified 2026-08-28), so `flutter analyze` and `flutter test`
 could not run and **the Dart edit has not been compiled**. Brace, paren and bracket balance
 was checked mechanically as a floor, which is not a substitute for the analyzer.
+
+#### Correction, 2026-08-28 — where the guard actually runs, and run #43's scope
+
+**Additive. Nothing above is rewritten as though it had always read this way**; the three
+affected sentences carry their own inline correction markers, and this block is the record
+of what changed and why.
+
+**What the prior record said.** Three statements introduced by this checkpoint claimed the
+new embed guard *"runs inside `npm run test:contract`, already wired to the `static-guards`
+job, so no CI change is needed"*, and that VERIFIED IN CI stayed PENDING only *"until
+`static-guards` executes on this tree"*. The progress-board row carried the same claim.
+
+**What the repository actually shows, read at `527438a`.**
+
+| | |
+|---|---|
+| Invocation | `npm run test:contract` at **`ci.yml:399`** |
+| Owning job | **`live-qa`** — *"Live QA suites (security / AI / contract)"*, `needs: [static-guards]`, `environment: qa` |
+| Step condition | **`if: steps.creds.outputs.present == 'true'`** |
+| `static-guards` | contains **no** contract step — its steps are the production-ref guard, migration hygiene, the I-MIG-03 records-mode guard, the ENV-3 declaration, the Edge-Function JWT posture check and the ENV-4 check |
+
+**Why the distinction matters, stated plainly.** `creds` is computed from `QA_URL`,
+`QA_ANON` and `QA_SERVICE`. When they are absent the step **skips**, and a skipped step
+leaves its job green — the workflow already emits a `::notice` saying the live suites were
+skipped. The prior wording described an unconditional static gate that runs on every push;
+the guard is in fact **conditional on QA credentials being provisioned**. That is the §4
+concern — *"A guard nobody runs protects nobody"* — and recording a conditional guard as an
+unconditional one overstates the standing protection behind `UIX-1`. The same class of
+mis-attribution was corrected once before in this registry, in `I-WRK-01`'s FIXED ON QA
+clause (§7.6, 2026-08-27), and is corrected the same way here.
+
+**What is NOT changed by this correction.** The guard's code, its offline character, its
+pre-fix/post-fix behaviour, `PD-A23` option (b), the PRODUCT INTEGRITY / UI REACHABILITY
+closure-class ruling, the observed-versus-concluded split, the §6 production statement, and
+every count. **`UIX-1` remains `REMEDIATED`, not `VERIFIED_CLOSED`**; `VERIFIED_CLOSED`
+stays **28** and the canonical total stays **319**. No unrelated row was examined.
+
+#### CI run **#43** at `527438a` — what it establishes, and what it does not
+
+Owner-supplied: run **#43**, *"fix(UIX-1): read booking coach profiles from public_profiles
+(PD-A23 b)"*, **Success**, with all six jobs green — *Static guards*, *Flutter — analyze,
+test, QA web build*, *API — unit + e2e*, *Negative control*, *Live QA suites*, and
+*I-WRK-01 — live progression read path*. Repository-side facts below were read at
+`527438a`; the run outcomes were transcribed by the product owner, as in §7.15.
+
+**Established.**
+
+- **The Dart edit compiles in context.** The `flutter` job's steps are sequential and the
+  workflow carries **0 `continue-on-error`** at `527438a`, so a green job means
+  `flutter analyze`, `flutter test` and `flutter build web` all succeeded. Precision worth
+  keeping: the step is `flutter analyze --no-fatal-infos --no-fatal-warnings`
+  (`ci.yml:22`), so this is *no analyzer **errors***, not *no lints*.
+- **The post-fix CI leg of the guard.** `live-qa` green with the Contract-suite step
+  reached — inferred, and labelled as inference, from `wrk01-live` being green rather than
+  skipped, since that job's own `if: needs.live-qa.outputs.creds == 'true'` can only be
+  true when the same `creds` gate the Contract step uses is true. A **step-level**
+  conclusion would settle it directly and was not obtainable: raw job logs and the run API
+  both return **HTTP 403** to this programme's read.
+- **No unrelated scope moved.** `527438a` changed **0** files under `.github`,
+  `supabase/migrations`, `supabase/functions`, `config.toml`, `apps/api` and
+  `dart_defines`, and `known-violations.json` is untouched — the nine allowlist entries are
+  unmoved.
+
+**NOT established — and this is the reason the rung stays shut.** §2 defines VERIFIED IN CI
+as a check that *"**fails against the pre-fix tree** and passes against the post-fix tree,
+**in CI**."* Run #43 exercised the guard against the **post-fix** tree only, where there is
+no embed defect to find. **The guard's discrimination was not exercised in CI**; what ran
+were its two self-test anchors — `coach_client_relationships.coach_id` must resolve to
+`auth`, `coaching_calls.coach_id` to `public` — which prove the parser is not silently
+parsing nothing (the §4 floor) but are not a pre-fix failure. The pre-fix leg exists only
+as a local run, and §7.13 has already ruled on precisely that: a local replay *"was honest
+but it was not 'in CI', and §2 requires 'in CI'."*
+
+**Consequently: run #43 is valid post-fix evidence and is retained as such. The pre-fix CI
+leg is outstanding.** Supplying it is **Gate B** — a `ci.yml` change and a negative-control
+harness of the `ec23_negative_control.sh` shape, against a real recoverable defective tree
+(`f109f19`'s `booking_screen.dart`, so **`G-3` would not be invoked**) — and **Gate B was
+not started, designed or authorized here.**
+
+**`VERIFIED END-TO-END` is unaffected.** It is not a CI state and no run can supply it: the
+class requires *"a human or a driver reached the surface"*, and Step 4 is not authorized to
+begin (§7.10). It remains **ABSENT**, with no waiver and no substitute.
+
+**Production statement (closure standard §6):** production `nxdbooufqzkpslkcogxc` was not
+contacted. No REST, RPC, Auth, Storage, Realtime or Edge Function request was issued to it.
+No migration was applied, reverted or pushed to it. No Edge Function was deployed to it.
+The linked project remained `eyqtldjqpgpljlqvpowh` throughout. The evidence cited is CI run
+#43, which had already executed. **No QA write and no QA read were performed by this
+correction**, and it changed governance documents only.
 
 #### What this checkpoint does NOT do
 
