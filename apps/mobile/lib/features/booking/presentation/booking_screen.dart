@@ -894,6 +894,20 @@ class _SlotCardState extends State<_SlotCard> {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _brand, foregroundColor: _wht,
+                  // The app's ElevatedButton theme is the full-width CTA style
+                  // (helix_theme_builder.dart:44 — minimumSize
+                  // Size(double.infinity, 54)), and an unset property here
+                  // falls through to it. In a bounded column that infinite
+                  // minWidth clamps harmlessly to the parent's maxWidth; as a
+                  // non-flex child of this Row it does not, because RenderFlex
+                  // lays inflexible children out with an unbounded main axis —
+                  // so the button is asked for BoxConstraints(minWidth:
+                  // Infinity) and layout throws "BoxConstraints forces an
+                  // infinite width." Overriding only the width component keeps
+                  // the themed 54px height and the intended hug-content width,
+                  // matching the design system's own non-full-width idiom
+                  // (helix_theme_builder.dart:76).
+                  minimumSize: const Size(0, 54),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 child: const Text('Book', style: TextStyle(fontWeight: FontWeight.w700))),
