@@ -339,6 +339,16 @@ jobs:
       - name: I-NUT-01 — nutrition column guard, pre-fix / post-fix evidence
         run: supabase/tests/contract/nut01_negative_control.sh
 
+      # DAT-2 / I-INT-02, Wave 3A task 3A-4 — and the I-INT-01 half that shared
+      # the same `user_profiles.goal` allowlist entry. Same shape as the step
+      # above: the pre-fix Edge Function from c678102 is installed against the
+      # POST-FIX allowlist and both named failures are required. c678102 is a
+      # REAL recoverable defective tree, so G-3 is NOT invoked. Needs no
+      # credential, no network and no toolchain; reuses the fetch-depth: 0
+      # checkout above.
+      - name: I-INT-02 — profile column guard, pre-fix / post-fix evidence
+        run: supabase/tests/contract/int02_negative_control.sh
+
   live-qa:
     name: Live QA suites (security / AI / contract)
     runs-on: ubuntu-latest
