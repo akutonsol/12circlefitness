@@ -31,16 +31,6 @@
       "table": "custom_exercises",
       "column": "approved_by",
       "finding": "I-COM-03"
-    },
-    {
-      "table": "user_profiles",
-      "column": "goal",
-      "finding": "I-INT-01"
-    },
-    {
-      "table": "user_profiles",
-      "column": "equipment",
-      "finding": "I-INT-02"
     }
   ]
 }

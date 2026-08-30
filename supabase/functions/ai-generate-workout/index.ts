@@ -60,7 +60,15 @@ Deno.serve(async (req: Request) => {
     const uid = user.id;
 
     const [{ data: profile }, { data: aiProfile }, { data: todayInsight }, memRes, libRes, fbRes] = await Promise.all([
-      db.from('user_profiles').select('fitness_goal, goal, equipment, experience_level, training_location, has_injuries, injury_locations').eq('id', uid).maybeSingle(),
+      // DAT-2 / I-INT-02. `user_profiles` has neither `goal` nor `equipment`
+      // (000 baseline + every ADD COLUMN since; the authoritative goal column is
+      // `fitness_goal`, 000, and 001's `user_profiles` block is a shadow
+      // `CREATE TABLE IF NOT EXISTS` that never executes). PostgREST resolves
+      // the whole select before reading, so ONE phantom column 400'd the entire
+      // request and `{ data: null }` came back without throwing — taking
+      // `experience_level`, `training_location`, `has_injuries` and
+      // `injury_locations` (013) down with it, whoever the member actually was.
+      db.from('user_profiles').select('fitness_goal, experience_level, training_location, has_injuries, injury_locations').eq('id', uid).maybeSingle(),
       db.from('ai_profiles').select('goals, preferences').eq('user_id', uid).maybeSingle(),
       db.from('ai_insights').select('data').eq('user_id', uid).eq('type', 'daily_insight').order('for_date', { ascending: false }).limit(1).maybeSingle(),
       db.from('ai_memories').select('kind, content').eq('user_id', uid),
@@ -83,9 +91,16 @@ Deno.serve(async (req: Request) => {
         (e.contraindications?.length ? ' | avoid: ' + e.contraindications.join(',') : '')}]`).join('\n');
 
     const ctx = {
-      goal: profile?.fitness_goal ?? profile?.goal ?? 'general',
+      goal: profile?.fitness_goal ?? 'general',
       experience: profile?.experience_level ?? 'intermediate',
-      equipment: profile?.equipment ?? 'Bodyweight',
+      // The user's available equipment is declared on `ai_profiles.preferences`
+      // (074_ai_coaching_layer.sql:13 — "{favorite_exercises,
+      // disliked_exercises, available_equipment, training_days}"), which this
+      // handler already fetches in the same Promise.all. Read it there rather
+      // than from a `user_profiles.equipment` column that has never existed.
+      // The `?? 'Bodyweight'` default is UNCHANGED: whether a missing input may
+      // be defaulted at all is ERR-2 / rule S, blocked on Q-5.
+      equipment: (aiProfile?.preferences?.available_equipment as string | undefined) ?? 'Bodyweight',
       location: profile?.training_location ?? 'gym',
       duration_minutes: duration_minutes ?? 45,
       focus, intensity_delta: intensityDelta,

@@ -98,12 +98,24 @@ for COL in protein_g carbs_g fat_g; do
     || die "expected I-NUT-01 failure not observed: nutrition_logs.$COL"
 done
 
-# The pre-fix run must fail for these three reasons ALONE. Any other FAIL line
+# I-INT-01, co-resident in the same pre-fix blob. Until Wave 3A task 3A-4 the
+# `user_profiles.goal` allowlist entry still reproduced at
+# ai-generate-workout/index.ts:63, so this file's own `goal` reference reported
+# as `known` and was invisible here. 3A-4 removed that last site and the entry
+# left the allowlist, so the same real pre-fix tree now demonstrates I-INT-01's
+# defect as well. It is REQUIRED rather than merely tolerated — this harness
+# gets stricter, not looser.
+printf '%s\n' "$OUTPUT" \
+  | grep -Fq "column   user_profiles.goal is referenced but does not exist" \
+  || die "expected I-INT-01 failure not observed: user_profiles.goal"
+
+# The pre-fix run must fail for these four reasons ALONE. Any other FAIL line
 # means an unrelated defect is in play and this run is not clean evidence.
 OTHER="$(printf '%s\n' "$OUTPUT" | grep -F 'FAIL   ' \
   | grep -Fv 'nutrition_logs.protein_g' \
   | grep -Fv 'nutrition_logs.carbs_g' \
-  | grep -Fv 'nutrition_logs.fat_g' || true)"
+  | grep -Fv 'nutrition_logs.fat_g' \
+  | grep -Fv 'user_profiles.goal' || true)"
 [[ -z "$OTHER" ]] || die "the pre-fix run carries unrelated failures:"$'\n'"$OTHER"
 
 echo
@@ -117,4 +129,4 @@ npm run --silent test:contract
 
 echo
 echo "RESULT: PASS"
-echo "Evidence class: I-NUT-01 PRE-FIX / POST-FIX GUARD EVIDENCE, IN CI (G-3 not invoked)"
+echo "Evidence class: I-NUT-01 + I-INT-01 PRE-FIX / POST-FIX GUARD EVIDENCE, IN CI (G-3 not invoked)"
