@@ -34,11 +34,18 @@ die() {
   exit 1
 }
 
+# `flutter test` must run from the package root, so this script does not sit
+# at the repository root. Git pathspecs are CWD-relative, so every `git diff`
+# below is given the ABSOLUTE $SCREEN — the convention ec23/wrk02 already use
+# from this same directory. `<rev>:<path>` is root-relative by definition and
+# keeps $REL. Run #54 step 11 failed because the mutation check was handed the
+# root-relative path from here: it matched nothing, git reported "no
+# differences", and the harness concluded nothing had been reinstated.
 cd "$ROOT/apps/mobile"
 
 # A dirty tree can never be mistaken for evidence.
-git diff --quiet -- "$REL" || die "$REL already modified"
-git diff --cached --quiet -- "$REL" || die "$REL already staged"
+git diff --quiet -- "$SCREEN" || die "$REL already modified"
+git diff --cached --quiet -- "$SCREEN" || die "$REL already staged"
 
 # The pre-fix blob must be reachable. A shallow checkout would silently turn
 # this harness into a no-op, so it is asserted rather than assumed.
@@ -70,7 +77,7 @@ grep -Fq 'TKT-DEMO-' "$SCREEN" \
   || die "$PRE_FIX_REF's screen generates no demo ticket code — not the pre-fix condition"
 grep -Fq 'Demo fallback' "$SCREEN" \
   || die "$PRE_FIX_REF's screen carries no 'Demo fallback' catch — not the pre-fix condition"
-git diff --quiet -- "$REL" \
+git diff --quiet -- "$SCREEN" \
   && die "the pre-fix screen is identical to the committed one — nothing was reinstated"
 echo "pre-fix tree fabricates a demo ticket after a failed write — the pre-remediation condition"
 
@@ -107,7 +114,7 @@ printf '%s\n' "$OUTPUT" | grep -Fq "the guard would be asserting against the wro
 echo
 echo "restore: committed implementation"
 cp "$TMP_SCREEN" "$SCREEN"
-git diff --quiet -- "$REL" || die "$REL was not restored exactly"
+git diff --quiet -- "$SCREEN" || die "$REL was not restored exactly"
 
 echo
 echo "restored: the I-COM-01 guard must pass"
