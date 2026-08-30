@@ -706,7 +706,7 @@ contacted; every statement here is **UNVERIFIABLE** and derived from source.
 ---
 
 ### DAT-2 · `ai-generate-workout` loses the user's injury data
-`I-INT-02` (= F-J-02, EC-02) · **P0** · `READY_TO_REMEDIATE` (column half) / `BLOCKED_DECISION` (fail-closed half) · Wave 3/5
+`I-INT-02` (= F-J-02, EC-02) · **P0** · `REMEDIATED` (column half — 2026-08-30, Wave 3A task 3A-4, `0a4b14d`; **VERIFIED IN CI** at run #53, §7.20. Understated: two of four class states present, see the status note in §7.20) / `BLOCKED_DECISION` (fail-closed half — **Q-5**, untouched) · Wave 3/5
 
 Selects `user_profiles.goal, equipment` — **neither column exists** — so the whole query
 400s and the generator loses `has_injuries`, `injury_locations`, `experience_level` and
@@ -722,11 +722,24 @@ Column fix: one line, no decision. **Fail-closed behaviour is Q-5 / rule S.**
 ---
 
 ### DAT-3 · `ai-coaching-engine`'s profile query 400s entirely
-`I-INT-01` (= F-J-02) · **P0** · `READY_TO_REMEDIATE` · Wave 3
+`I-INT-01` (= F-J-02) · **P0** · `REMEDIATED` *(2026-08-30 — code half in `8b1fba3`, Wave 3A task 3A-2; allowlist half in `0a4b14d`, task 3A-4; **VERIFIED IN CI** at run #53, §7.20. Understated: two of four class states present)* · Wave 3
 
 Same mechanism, `user_profiles.goal`. One-line fix (`fitness_goal`). Already recorded in
 `known-violations.json`; removing the entry is the last step of the fix and the guard
 fails if either half is done alone.
+
+**FIXED IN CODE:** `8b1fba3` — `ai-coaching-engine/index.ts:143` now selects `fitness_goal`.
+Schema truth read from the migrations: `000_baseline` defines `"fitness_goal" "text"`, no
+`ADD COLUMN` since adds `goal`, and 001's `user_profiles` block is a shadow
+`CREATE TABLE IF NOT EXISTS` that never executes (001:74's `goal text` belongs to
+`workout_programs`). **The allowlist half could not be completed by that commit** — the same
+`user_profiles.goal` entry still reproduced at `ai-generate-workout/index.ts:63`, which is
+`I-INT-02`'s file. Task **3A-4** (`0a4b14d`) removed that last site, and the entry was then
+removed; the guard is checked in both directions, so neither half stands alone.
+**VERIFIED IN CI: PRESENT** — run **#53** `33326163269` at `5dfc59f`, §7.20. **NOT
+`VERIFIED_CLOSED`** — class **Data contract / schema** also requires FIXED ON QA and
+VERIFIED LIVE where a read path exists, and `ENV-7` holds every Edge Function undeployed
+until Wave 5.
 
 ---
 
@@ -3017,6 +3030,195 @@ migration was applied, reverted or pushed to it; no Edge Function was deployed t
 project remained `eyqtldjqpgpljlqvpowh`. This checkpoint performed no QA read and no QA write;
 `nut01_negative_control.sh` is offline — `node supabase/tests/contract/run.mjs` imports only node
 builtins and reads no environment variable.
+
+---
+
+### 7.20 `I-INT-02` / `DAT-2` and `I-INT-01` / `DAT-3` VERIFIED IN CI — 2026-08-30 · evidence: CI run **#53** `33326163269` at `5dfc59f`
+
+One rung opens for **two** rows. **Nothing is promoted to `VERIFIED_CLOSED`, no count moves,
+`F-J-04` is not advanced, `Q-5` is untouched, and no governance rule is reinterpreted.**
+
+#### The run — independently verified, not accepted from a summary
+
+| Field | Value |
+|---|---|
+| Run | **#53** · `33326163269` · event `push` · attempt **1** · created 2026-08-30T17:45:55Z |
+| Head | `5dfc59f3c43a079a7a232921c8e3b93d9a33a5f9` — equal to the repository HEAD **and** to `refs/heads/chore/qa-environments-secure-ai-backend` |
+| Conclusion | `success` · **7 of 7 jobs `success`**, every enumerated step `success` |
+| New step | `negative-control` **step 10** — *"I-INT-02 — profile column guard, pre-fix / post-fix evidence"* → `success` on its first run |
+
+Read read-only from the GitHub REST API (`runs/33326163269` and its `jobs`, both HTTP 200).
+Every one of the seven jobs carries `head_sha 5dfc59f3c43a`, so the run corresponds to this
+tree and not to an earlier one.
+
+#### The workflow was verified at the executed SHA, not in the working tree
+
+`git show 5dfc59f:.github/workflows/ci.yml`:
+
+* `static-guards` carries **no job-level `if`**, and its *Schema contract guard (relations,
+  columns, embedded resources)* step has keys `name` and `run` only — **no `if`**. A skipped
+  step reports `skipped`; this reported `success`, so it executed and cannot have been
+  credential-skipped.
+* `negative-control` carries no job-level `if`, checks out with **`fetch-depth: 0`**, and
+  wires `uix1_negative_control.sh` (329), `nut01_negative_control.sh` (340) and
+  `int02_negative_control.sh` (350).
+* The workflow contains **zero** `continue-on-error`.
+
+#### `I-INT-02` / `DAT-2` — both halves of §2
+
+**The defect.** `ai-generate-workout/index.ts:63` selected `fitness_goal, goal, equipment,
+experience_level, training_location, has_injuries, injury_locations` from `user_profiles`.
+Neither `goal` nor `equipment` exists there: `000_baseline` defines `fitness_goal`; none of
+the 26 `ADD COLUMN` migrations adds either name; 001's `user_profiles` block is a shadow
+`CREATE TABLE IF NOT EXISTS` that never executes. PostgREST resolves the whole select before
+reading, so one phantom column 400'd the entire request and took `experience_level`,
+`training_location`, `has_injuries` and `injury_locations` — all real, migration **013**'s
+multi-column ALTER — down with it.
+
+**The fix (`0a4b14d`).** Both phantom names dropped. `goal` needed no replacement:
+`fitness_goal` is authoritative and was already selected and already first in the coalesce,
+so `?? profile?.goal` was a fallback to a column that never existed. `equipment` was
+**repointed, not removed** — `074_ai_coaching_layer.sql:13` declares `ai_profiles.preferences`
+as `{favorite_exercises, disliked_exercises, available_equipment, training_days}`, and this
+handler already fetches `ai_profiles.select('goals, preferences')` in the same `Promise.all`,
+so it now reads `preferences.available_equipment`, the jsonb drill the file already uses for
+`goals.secondary_goal`. **The `?? 'Bodyweight'` and `?? 'general'` defaults are unchanged** —
+whether a missing input may be defaulted at all is ERR-2 / rule S, blocked on **Q-5**.
+
+**Post-fix half — directly bounded.** `static-guards` step 7 → `success`, unconditional (above).
+§2.1 names this class's mechanism verbatim: *"VERIFIED IN CI (`test:contract` with the
+allowlist entry removed)"*. The `user_profiles.equipment` entry **was** removed in `0a4b14d`;
+`known-violations.json` fell 6 → 4.
+
+**Pre-fix half — `negative-control` step 10.** `int02_negative_control.sh`, read at the
+executed SHA, runs under `set -euo pipefail` with a `die` on every branch. Exit 0 is reachable
+only if: the tree was clean and nothing staged; `git cat-file -e c678102:<path>` succeeded, so
+`fetch-depth: 0` worked; the baseline guard passed; the installed file carried the literal
+`select('fitness_goal, goal, equipment,` **and** differed from the committed one; the pre-fix
+run exited **non-zero**; its output contained **both** `column   user_profiles.goal is
+referenced but does not exist` and the `equipment` equivalent; **no other `FAIL` line was
+present**; the restore passed `git diff --quiet`; and the post-fix run exited 0.
+
+#### `I-INT-01` / `DAT-3` — the shared-evidence question, answered from the standard
+
+The governing text was checked rather than assumed. **§2.1 states this class's VERIFIED IN CI
+mechanism explicitly — *"`test:contract` with the allowlist entry removed"* — and §2 defines
+the state generally as *"An automated check fails against the pre-fix tree and passes against
+the post-fix tree, in CI"*. Neither §2, §2.1 nor §4 requires a finding to own a dedicated
+harness, and no rule anywhere in `QA_CLOSURE_STANDARD.md` speaks of per-finding or standalone
+controls.** What §4 does prohibit was checked one by one and none applies:
+
+| §4 prohibition | Why it does not apply |
+|---|---|
+| *"A guard that does not read the file where the defect lives."* | The harness installs the actual `ai-coaching-engine/index.ts`, the file where `I-INT-01`'s defect lived, and the guard names the site `:123` |
+| *"A ratchet that cannot see the defect's shape."* | The guard resolves `table.column` against migration-derived schema and names `user_profiles.goal` exactly |
+| *"An allowlist entry."* | The entry was **removed**, and the list is checked in both directions — a removal without the fix fails as loudly as a fix without the removal |
+| *"A passing suite that has never run in CI."* | It ran, in CI, at run #53 |
+| *"A green build after weakening a test."* | The harness was **strengthened**: a fourth required literal was added, not a tolerance |
+
+**The chain.** `8b1fba3` (task 3A-2) corrected `ai-coaching-engine/index.ts:143` to
+`fitness_goal`. That commit could **not** complete the allowlist half, because the same
+`user_profiles.goal` entry still reproduced at `ai-generate-workout/index.ts:63` — the guard
+reported it as `known (2 sites)` pre-3A-4 and `(1 site)` after. Task **3A-4** removed that last
+site, so the entry left the list. That removal made the co-resident defect visible inside the
+existing I-NUT-01 harness, whose pre-fix blob is `2ad8c6c` — **the real parent of `8b1fba3`,
+so it is `I-INT-01`'s genuine pre-fix tree and `G-3` is NOT invoked.** Rather than tolerate the
+new failure, `nut01_negative_control.sh` now **requires** it (line 109): `grep -Fq "column
+user_profiles.goal is referenced but does not exist" || die`. `negative-control` **step 9** →
+`success` at run #53, so that literal was present against the pre-fix tree; `static-guards`
+step 7 → `success` supplies the post-fix half with the entry gone.
+
+**Determination: `I-INT-01` satisfies §2's VERIFIED IN CI.** The evidence is shared with
+`I-NUT-01`'s harness, and the standard permits that: it specifies *what must be demonstrated*,
+not *how many scripts must demonstrate it*. A separate harness was **not** created, because
+§10.4's discipline is to add mechanism only where the standard requires it and none does here.
+
+#### Rung movement
+
+| Row | Register | Rung | From | To |
+|---|---|---|---|---|
+| **`I-INT-02`** / `DAT-2` · §6 · P0 · class **Data contract / schema** | §6 | VERIFIED IN CI | ABSENT | **PRESENT** (run #53) |
+| **`I-INT-01`** / `DAT-3` · §6 · P0 · class **Data contract / schema** | §6 | VERIFIED IN CI | ABSENT | **PRESENT** (run #53) |
+
+Both rows move `READY_TO_REMEDIATE` → `REMEDIATED`, which is now **understated for both** —
+they carry FIXED IN CODE *and* VERIFIED IN CI, and §2's status table has no term for that
+position. This is the **third and fourth instance of the status-vocabulary gap §7.10 escalated
+for `SEC-R2`/`SEC-R3`** and §7.16 recorded for `UIX-1`; the owner ruling requested there is now
+outstanding for four findings. Nothing is waived.
+
+#### Counts
+
+**None moved.** §7.16 settled the precedent for exactly this transition: a §6 row moving
+`READY_TO_REMEDIATE` → `REMEDIATED` is not a closure, and §2's status table counts neither
+transition. `VERIFIED_CLOSED` stays **29**; the canonical total stays **319**
+(37 + 48 + 24 + 177 + 4 + 29). The `READY_TO_REMEDIATE` figure of 177 continues to carry both
+rows, exactly as it carried `UIX-1` between §7.16 and §7.18.
+
+#### `VERIFIED_CLOSED` is unavailable for both, and why
+
+§2.1's **Data contract / schema** ladder is *"FIXED IN CODE · FIXED ON QA · VERIFIED IN CI ·
+VERIFIED LIVE where a read path exists"*, and §2.1 closes with *"`VERIFIED_CLOSED` requires
+every state its class demands. There are no partial closures and no exceptions granted at
+implementation time."* **Two of four are present for each row.**
+
+* **FIXED ON QA: ABSENT.** §2 defines it as *"The migration, function or configuration is
+  **applied to QA** and the object exists in the live catalog."* The changed artifacts are
+  Edge Functions, and **`ENV-7`** — *"Zero Edge Functions are deployed to QA"*, all 19
+  returning `404 NOT_FOUND` — holds them undeployed **deliberately until Wave 5**: its row
+  states that deploying earlier *"converts a visibly dead system into an invisibly wrong one"*.
+  The columns these functions read do exist in QA (ENV-3's live ledger), but the **fix** has
+  not reached the environment.
+* **VERIFIED LIVE: ABSENT, and blocked by the same cause.** §2 requires *"A real request
+  against QA [that] reproduces the secure/correct behaviour, and the same probe demonstrably
+  failed before the fix"*. A request to an undeployed function cannot be made. No substitute
+  was recorded and no waiver was sought.
+
+#### Evidence classes — what was and was not observed
+
+**Directly observed:** the run, job and step conclusions, and the head SHA of every job, via
+the REST API. **Source-derived:** the workflow, both harnesses and the schema, all read at the
+executed SHA `5dfc59f` or in the migrations. **NOT observed:** the harnesses' literal output.
+Raw job logs and the run-level archive both return **HTTP 403 "Must have admin rights to
+Repository"** — re-attempted at this checkpoint for the `static-guards` and `negative-control`
+jobs and for the run zip — and `gh` is not installed in this environment. The marker lines
+above are **entailed** from each step's exit status plus the harness source at the executed
+SHA, which is the §7.13 standard, unchanged and still confined to VERIFIED IN CI. §7.15's
+literal-log requirement for `I-WRK-01`'s VERIFIED LIVE rung is untouched, and §7.18's extension
+to the END-TO-END rung remains confined to `UIX-1`. **No QA runtime and no production runtime
+behaviour is claimed by this checkpoint.**
+
+#### Regression, same run
+
+| Job | Result |
+|---|---|
+| `UIX-1` — booking surface end-to-end (real route, real paywall) | `success`, steps 6 and 7 |
+| `I-WRK-01` — live progression read path (pre-fix / post-fix) | `success`, steps 6 and 7 |
+| Static guards (7 steps) · API — unit + e2e · Flutter — analyze, test, QA web build (6 steps) · Live QA suites (6 steps) | all `success` |
+
+Both previously-closed rows still hold on this tree. Neither was re-opened, re-verified nor
+re-counted, and nothing beyond "these suites were green at `5dfc59f`" is inferred from them.
+
+#### What this checkpoint does NOT do
+
+- **`F-J-04` is not advanced.** It remains **FIXED IN CODE only**: `run.mjs` checks `select`
+  columns and `insert`/`update`/`upsert` payload keys and **does not inspect filter columns**
+  (`.order`, `.eq`, `.gte`), so no CI guard can see that defect or its regression. No
+  filter-column guard was built.
+- **`Q-5` is untouched.** `recent()`'s `{ data } ?? []` / `catch { return [] }` degradation is
+  unchanged, and `DAT-2`'s fail-closed half stays `BLOCKED_DECISION`.
+- **The `available_equipment` write-path gap stays open and unchanged.** `074:13` declares the
+  key; **nothing in the tree writes it**. The read is schema-correct and points at the declared
+  store, but that store has no writer. Recorded for owner triage — §10.4 requires an ID, a
+  root cause from §1 and a wave, and none was invented here.
+- **No implementation file, migration, guard, harness, workflow or allowlist was modified by
+  this checkpoint**, and no other row's status was examined.
+
+**Production statement (closure standard §6):** production `nxdbooufqzkpslkcogxc` was not
+contacted. No REST, RPC, Auth, Storage, Realtime or Edge Function request was issued to it; no
+migration was applied, reverted or pushed to it; no Edge Function was deployed to it. The
+linked project remained `eyqtldjqpgpljlqvpowh`. This checkpoint performed **no QA read and no
+QA write**; both contract harnesses are offline — `node supabase/tests/contract/run.mjs`
+imports only node builtins and reads no environment variable.
 
 ---
 
