@@ -349,6 +349,16 @@ jobs:
       - name: I-INT-02 — profile column guard, pre-fix / post-fix evidence
         run: supabase/tests/contract/int02_negative_control.sh
 
+      # I-COM-01 / DAT-4, Wave 3A task 3A-6. The event-registration guard
+      # (apps/mobile/test/unit/event_registration_contract_test.dart) landed in
+      # the same commit that removed the fabricating catch, so no run has ever
+      # seen it fail. This step supplies §2's pre-fix half from the
+      # implementation commit's own PARENT, which carries the real defect —
+      # G-3 is NOT invoked. Reuses the Flutter set-up above and the
+      # fetch-depth: 0 checkout; adds no job, no credential, no network.
+      - name: I-COM-01 — event registration guard, pre-fix / post-fix evidence
+        run: apps/mobile/tool/negative_control/icom01_negative_control.sh
+
   live-qa:
     name: Live QA suites (security / AI / contract)
     runs-on: ubuntu-latest

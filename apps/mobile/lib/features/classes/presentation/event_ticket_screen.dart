@@ -66,9 +66,22 @@ class _EventTicketScreenState extends State<EventTicketScreen> {
       });
       setState(() { _registered = true; _ticketCode = code; });
     } catch (_) {
-      // Demo fallback
-      final code = 'TKT-DEMO-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-      setState(() { _registered = true; _ticketCode = code; });
+      // I-COM-01 / DAT-4. This block used to invent a demo ticket code and set
+      // `_registered = true`, so a failed write rendered the same _TicketView as
+      // a real registration. QA_CLOSURE_STANDARD §9 invariant I-1 names that
+      // exactly — "Not 'You're registered' on a failed registration" and "never
+      // demo data presented as the user's own" — and PD-B27 requires the
+      // fabricating catch deleted "regardless of the answer".
+      //
+      // The failure is now surfaced through the mechanism this screen already
+      // uses for the paid path (_buyTicket, below): no state is invented, so
+      // `_registered` stays false and the build falls through to the register
+      // affordance. What becomes of the error object is ERR-1/EC-11 territory
+      // and is deliberately NOT changed here.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Could not complete your registration. Try again.')));
+      }
     } finally {
       setState(() => _loading = false);
     }
