@@ -443,8 +443,6 @@ void main() {
   // not moved. Recorded as a shrinking allowlist.
   group('H-G4 the coach-facing profile reads still go to the base table', () {
     const sites = <String, String>{
-      'apps/mobile/lib/features/coach/domain/coach_provider.dart':
-          'assignedCoachProvider / pendingCoachProvider / coachReviewsProvider',
       'apps/mobile/lib/features/coach/data/coach_relationship_service.dart':
           'getPendingRequests / getMyActiveCoaches',
     };
@@ -475,7 +473,6 @@ void main() {
         }
       }
       expect(readers, {
-        'lib/features/coach/domain/coach_provider.dart',
         'lib/features/coach/data/coach_relationship_service.dart',
         'lib/features/coach/data/package_service.dart',
         'lib/features/coach/data/score_service.dart',

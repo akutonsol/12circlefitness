@@ -23,9 +23,10 @@ final assignedCoachProvider = FutureProvider<Map<String, dynamic>?>((ref) async 
         .maybeSingle();
     final coachId = rel?['coach_id'] as String?;
     if (coachId == null) return null;
+    // H-06 / 3A-7: repointed at public_profiles, which never carries email.
     return await _db
-        .from('user_profiles')
-        .select('id, first_name, last_name, email, avatar_url, coach_title, coach_bio, specialties, certifications, pricing_monthly, years_experience, rating_avg')
+        .from('public_profiles')
+        .select('id, first_name, last_name, avatar_url, coach_title, coach_bio, specialties, certifications, pricing_monthly, years_experience, rating_avg')
         .eq('id', coachId)
         .maybeSingle();
   } catch (_) { return null; }
@@ -44,8 +45,9 @@ final pendingCoachProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
         .maybeSingle();
     final coachId = rel?['coach_id'] as String?;
     if (coachId == null) return null;
+    // H-06 / 3A-7: repointed at public_profiles.
     final coach = await _db
-        .from('user_profiles')
+        .from('public_profiles')
         .select('id, first_name, last_name, avatar_url, coach_title')
         .eq('id', coachId)
         .maybeSingle();
@@ -90,8 +92,9 @@ final coachReviewsProvider =
     final list = List<Map<String, dynamic>>.from(rows);
     if (list.isEmpty) return list;
     final ids = list.map((r) => r['client_id'] as String).toSet().toList();
+    // H-06 / 3A-7: repointed at public_profiles.
     final profiles = await _db
-        .from('user_profiles')
+        .from('public_profiles')
         .select('id, first_name, last_name, avatar_url')
         .inFilter('id', ids);
     final byId = {for (final p in profiles as List) p['id'] as String: p};
