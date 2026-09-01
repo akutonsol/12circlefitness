@@ -3222,6 +3222,82 @@ imports only node builtins and reads no environment variable.
 
 ---
 
+### 7.22 Wave 3A migration renumbering (B1) and `I-COM-03`(a) scope (B3) — 2026-08-31 · governance only
+
+Recorded at the 3A-9 implementation gate, which stopped before writing code because both
+questions below had to be settled first. **Governance only. No code, migration, test, CI,
+`known-violations.json` or Edge Function file was touched. No count moved —
+`VERIFIED_CLOSED` stays 29, canonical total stays 319. No closure class was ruled and no
+finding changed status.** §7.21 is reserved for the `I-COM-01` / `DAT-4` VERIFIED IN CI
+record authored 2026-08-31 against CI run #55, which exists but has not yet reached this
+branch; it keeps its number and is not renumbered here.
+
+**B1 — migration numbering.** `MASTER_REMEDIATION_WAVES.md` §0.2 assigned **126/127/128 to
+Wave 3A** (tasks 3A-9/3A-10/3A-11) and reserved **129+ for Wave 4+**, under the rule that
+numbers *"are assigned in this document and are not negotiable at implementation time"*.
+**Wave 2 consumed all three:** `126_parq_risk_flag_typed_append.sql` (`F-J-17`, `c7c1058`),
+`127_typed_rule_accumulator_appends.sql` (`F-J-07`/SEC-R3, `e909f9a`),
+`128_scope_decision_trace_reads_option_a.sql` (`F-J-12`/PD-A05 option (a), `f38841f`).
+Each took the next contiguous number at authoring time — the same practice already applied
+when §0.2's 125 assignment was spent and option (a) landed at 128 (§7.11). The practice was
+never written back into §0.2, which is why the next task read a table that was false.
+
+The correction is **not a renumbering**. Gate 0.9 (`RELEASE_GATES.md` row 0.9, enforced by
+`.github/scripts/check-migration-hygiene.sh`) fails on duplicate prefixes *and* on gaps, and
+states in terms: *"Do not renumber an existing migration to close a gap."* §0.2's 126/127/128
+rows are therefore **corrected to describe what the tree contains**, and Wave 3A's three
+migrations are reassigned to **129 → 130 → 131**, with Wave 4+'s floor moved to **132+**.
+
+**The numbers were derived, not chosen.** The QA frontier is 128 (`expected_applied.json`:
+`applied_through: "128"`, `excluded: []`, `pending: []`; ENV-3 live ledger 129 declared =
+129 observed, 0 holes in 000–128) and Gate 0.9 requires a contiguous authored sequence.
+129/130/131 are the only values that satisfy both constraints simultaneously; no other
+assignment exists.
+
+**Unchanged by this amendment:** authoring a migration does not apply it. Each of 129/130/131
+must be declared in `expected_applied.json` as `pending`, with a reason and the gate that
+releases it, at the moment it is authored — *"every authored version must appear in exactly
+one of those three states. Silence is not a state."* Applying any of them to QA remains a
+separate authorization gate, so **FIXED ON QA is not reachable for 3A-9/3A-10/3A-11 by
+authoring alone**, and the §2.1 classes those findings will eventually be ruled into
+(Data contract / schema; Security / authorization for `may_notify()` and the two private
+body-photography buckets) each require it.
+
+**B3 — `I-COM-03`(a) scope.** §0.2's 126 row and the 3A-9 task row both read
+*"`custom_exercises.approved_by`"*, which reads as an instruction to ADD that column. The
+authoritative source contradicts it. `QA_WORKSTREAM_I_DATA_CONTRACT_REPORT.md` §I-COM-03
+records the live DDL as *"`submission_status`, `submitted_at`, `approved_at`,
+`last_reviewed_at`, `last_reviewed_by` — no `approved_by`"* and gives the remediation as
+**"(a) `approved_by` → `last_reviewed_by`"**; its dependency graph adds *"Q-9 → I-COM-03
+(moderated?) ── (a) approved_by→last_reviewed_by **can land now**; (b)+(c) must land
+together"*. `last_reviewed_by uuid references user_profiles(id)` has existed since
+`083_exercise_content_pipeline.sql:36`. The only site naming the phantom column is
+`custom_exercise_service.dart:772` (`'approved_by': _uid`), inside `approveGlobalExercise()`.
+
+**Ruling: 3A-9 repoints the client write to `last_reviewed_by`. No `approved_by` column is
+added, by migration or otherwise.** Adding one would create a second reviewer column beside
+`last_reviewed_by`, leave the actual `I-COM-03` defect — unmoderated global publishing —
+untouched, and still permit `known-violations.json` and the H-G1 allowlist entry to be
+cleared: a change that clears the ledger while closing nothing. Both routes clear the same
+two ledger entries, because H-G1 asserts on the *client reference*, not on the column.
+
+**Explicitly not settled here.** `I-COM-03` parts **(b)** (`submitForGlobalLibrary()` writing
+`'pending'`) and **(c)** (the CHECK plus the visibility trigger) remain **Q-9-gated** and
+**Wave 7D**; Workstream I records them as non-parallelizable with each other. `I-COM-03`'s
+closure class has never been ruled and is **not** ruled here — **CLOSURE CLASS — OWNER
+RULING REQUIRED**. Nothing in this section advances any finding's status.
+
+**Still open, deliberately untouched by this gate:** B2 (`I-WRK-02` is filed Wave 4 / Q-7 at
+registry §7.6 though Workstream I lists it as independent, no-decision, mechanical, and Q-7's
+own dependents are `I-USR-01` and `I-WRK-03`) · B4 (`I-WMH-01` is named in
+`MASTER_REMEDIATION_WAVES.md` and in Workstream I but has **no row in this registry**) ·
+B5 (retiring guard H-G2 when `messages.metadata` lands would also retire its second test,
+which pins a Wave 3B error-contract defect unrelated to `I-NOT-01`) · B6 (no negative-control
+harness exists for any remaining Wave 3A item, so the reachable ceiling is FIXED IN CODE +
+static CI verification unless one is built).
+
+---
+
 ## 10. How to use this registry
 
 1. **Never mark `VERIFIED_CLOSED` from a code diff.** The evidence ladder in

@@ -73,10 +73,25 @@ migration changes a contract another fix consumes.
 | **123** | 1 | Forward-delta carrying the semantic changes of the 15 in-place-edited migrations (ENV-2) | database — **one owner, do not split** |
 | **124** | 2 | Security regression closure: SEC-R1 guard restore, SEC-R2 + SEC-R3 casts, `ai_adjust_nutrition` REVOKE + `search_path`, `messages` UPDATE `WITH CHECK` | database/security |
 | **125** | 2 | `decision_traces` policy scoping (**blocked on D-7**) | database/security |
-| **126** | 3A | Missing columns and objects: `custom_exercises.approved_by`, `messages.metadata`, `may_notify()` extension, duplicate completion trigger drop, `trg_detect_pr` timing | database |
-| **127** | 3A | Storage buckets — **private** `progress-photos` and `chat-media` | database |
-| **128** | 3A | Identity constraints: UNIQUE on the active nutrition plan, `cycle_logs`, the conversation participant pair, `payment_id` | database |
-| **129+** | 4+ | Assigned at wave entry, never before |
+| **126** | **2** | PAR-Q risk-flag typed append (`F-J-17`) — **as authored**, `c7c1058` | database/security |
+| **127** | **2** | Typed rule-accumulator appends (`F-J-07` / SEC-R3) — **as authored**, `e909f9a` | database/security |
+| **128** | **2** | `decision_traces` scope, PD-A05 option (a) (`F-J-12`) — **as authored**, `f38841f` | database/security |
+| **129** | 3A | Task **3A-9** — missing objects: `messages.metadata`, `may_notify()` extension, duplicate completion trigger drop, `trg_detect_pr` timing. **`custom_exercises.approved_by` is NOT added — see B3 below** | database |
+| **130** | 3A | Task **3A-10** — storage buckets: **private** `progress-photos` and `chat-media` | database |
+| **131** | 3A | Task **3A-11** — identity constraints: UNIQUE on the active nutrition plan, `cycle_logs`, the conversation participant pair, `payment_id` | database |
+| **132+** | 4+ | Assigned at wave entry, never before |
+
+**Amendment 2026-08-31 — B1, migration renumbering (registry §7.22).** Rows 126/127/128
+previously assigned those numbers to Wave 3A. **Wave 2 consumed all three** — `c7c1058`,
+`e909f9a`, `f38841f` — each taking the next contiguous number at the time, which is the
+same practice already applied when 125 was spent and PD-A05 option (a) landed at 128. The
+three rows above are **corrected to what the tree contains; nothing is renumbered**, which
+Gate 0.9 forbids in terms (`check-migration-hygiene.sh`: *"Do not renumber an existing
+migration to close a gap"*). Wave 3A's three migrations move to **129 → 130 → 131** and
+Wave 4+'s floor moves to **132+**. The numbers are not chosen: the QA frontier is 128 and
+Gate 0.9 requires a contiguous authored sequence, so 129/130/131 are the only values
+possible. **Each remains subject to `expected_applied.json` declaration as `pending` at
+authoring time — silence is not a state.**
 
 ---
 
@@ -242,11 +257,11 @@ Three sub-waves, strictly ordered. **3A → 3B → 3C.**
 | 3A-6 | `DAT-4` | `event_ticket_screen.dart` | `ticket_code`→`qr_code`; **delete the fabricating `catch`.** Pair with BIL-3 |
 | 3A-7 | `H-06` client half | four client surfaces | repoint at `public_profiles`, drop `email` |
 | 3A-8 | `UIX-1` | `booking_screen.dart:55-58` | drop the `coach:coach_id(...)` embed; read from `public_profiles` |
-| 3A-9 | migration **126** | — | `custom_exercises.approved_by`; `messages.metadata jsonb`; extend `may_notify()`; drop the duplicate completion trigger; `trg_detect_pr` → `AFTER INSERT OR UPDATE` |
-| 3A-10 | migration **127** | — | **private** `progress-photos` and `chat-media` buckets. **Neither may be public — both hold body photography** |
-| 3A-11 | migration **128** | — | identity constraints (CRC-06): partial UNIQUE on the active nutrition plan, UNIQUE+CHECK on `cycle_logs`, UNIQUE on the conversation pair, UNIQUE on `payment_id` |
+| 3A-9 | migration **129** | `custom_exercise_service.dart` | `messages.metadata jsonb`; extend `may_notify()`; drop the duplicate completion trigger; `trg_detect_pr` → `AFTER INSERT OR UPDATE`. **`I-COM-03`(a): repoint the client write to the existing `last_reviewed_by` — do NOT add an `approved_by` column** (B3, registry §7.22) |
+| 3A-10 | migration **130** | — | **private** `progress-photos` and `chat-media` buckets. **Neither may be public — both hold body photography** |
+| 3A-11 | migration **131** | — | identity constraints (CRC-06): partial UNIQUE on the active nutrition plan, UNIQUE+CHECK on `cycle_logs`, UNIQUE on the conversation pair, UNIQUE on `payment_id` |
 
-**Sequential inside 3A:** 126 → 127 → 128 (migration numbers). 3A-5 → *(Wave 3B EC-11)*.
+**Sequential inside 3A:** 129 → 130 → 131 (migration numbers; renumbered 2026-08-31, §0.2 amendment / registry §7.22). 3A-5 → *(Wave 3B EC-11)*.
 `I-WRK-03` (populate `program_workout_id`) **must not land** — blocked on Q-7, because the
 FK is `NO ACTION` and populating it makes `generate_client_plan()`'s delete fail with
 23503 for any client who has trained.
