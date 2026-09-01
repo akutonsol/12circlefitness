@@ -35,14 +35,9 @@
     "qa": {
       "ref": "eyqtldjqpgpljlqvpowh",
       "name": "12Circle QA",
-      "applied_through": "128",
+      "applied_through": "129",
       "excluded": [],
-      "pending": {
-        "129": {
-          "reason": "Authored for Wave 3A task 3A-9 (I-NOT-01 messages.metadata, I-NOT-02 may_notify() community/class arms, I-NOT-03 duplicate completion-trigger drop, I-WRK-02 trg_detect_pr timing). Migration number assigned by the 2026-08-31 amendment to MASTER_REMEDIATION_WAVES.md section 0.2 after Wave 2 consumed 126-128; governance record is registry section 7.22. Statically verified only -- no database has executed this file and no psql/Supabase client was available to the authoring session.",
-          "gate": "Application of 129 to QA is a separate, explicitly authorized step with its own pre-application QA-state check. Its schema_migrations row is created by that application -- never inserted ahead of it to make a check pass. Until then FIXED ON QA is not claimable for any finding in 3A-9."
-        }
-      }
+      "pending": {}
     }
   }
 }
