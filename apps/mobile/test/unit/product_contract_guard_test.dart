@@ -313,9 +313,6 @@ void main() {
       // `qr_code`. The ticket screen catches the 400 and fabricates a
       // "TKT-DEMO-…" ticket that was never persisted.
       'event_registrations.ticket_code': 'H-02',
-      // Admin approval of a submitted exercise writes `approved_by`; only
-      // `approved_at` exists. Approve always fails; reject always works.
-      'custom_exercises.approved_by': 'H-03',
     };
 
     test('the migration parser found a plausible schema', () {
@@ -353,19 +350,26 @@ void main() {
   //
   // H-G1 cannot see this one: `sendMessage` assembles a `row` variable and only
   // then does `row['metadata'] = metadata`, so there is no literal map key to
-  // parse. Pinned explicitly because the consequence is silent — the photo is
-  // uploaded, the message insert 400s, `sendMessage` returns false, and
-  // `_sendPhoto` never checks the return value, so nothing is shown to anyone.
-  group('H-G2 the chat photo path still names a column that does not exist',
-      () {
-    test('messaging_service sets a `metadata` key that messages has no column for',
+  // parse. It was pinned here because the consequence was silent — the photo was
+  // uploaded, the message insert 400d, `sendMessage` returned false, and
+  // `_sendPhoto` never checks the return value, so nothing was shown to anyone.
+  //
+  // I-NOT-01 closed by migration 129 (Wave 3A task 3A-9): `messages.metadata`
+  // now exists, so the first test is inverted from "the column is missing" to
+  // "the column is present and the writer still names it" — the pairing is what
+  // the photo path depends on, in either direction. The second test is NOT
+  // retired: it pins a Wave 3B error-contract defect (`_sendPhoto` ignoring the
+  // boolean) that I-NOT-01 does not fix and 3A-9 has no authority to close.
+  group('H-G2 the chat photo path and its backing column agree', () {
+    test('messaging_service sets a `metadata` key and messages has the column',
         () {
       final service =
           _read('apps/mobile/lib/features/messaging/data/messaging_service.dart');
       expect(service, contains("row['metadata'] = metadata"));
       expect(schema.columns['messages'], isNotNull);
-      expect(schema.columns['messages'], isNot(contains('metadata')),
-          reason: 'H-04: if the column has been added, delete this guard.');
+      expect(schema.columns['messages'], contains('metadata'),
+          reason: 'I-NOT-01: migration 129 added messages.metadata. Removing it '
+              'again silently discards every chat image message.');
     });
 
     test('_sendPhoto does not check sendMessage\'s boolean result', () {

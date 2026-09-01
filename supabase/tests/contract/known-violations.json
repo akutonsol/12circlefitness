@@ -26,11 +26,6 @@
       "table": "event_registrations",
       "column": "ticket_code",
       "finding": "I-COM-01"
-    },
-    {
-      "table": "custom_exercises",
-      "column": "approved_by",
-      "finding": "I-COM-03"
     }
   ]
 }
