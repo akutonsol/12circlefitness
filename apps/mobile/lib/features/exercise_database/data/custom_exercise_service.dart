@@ -766,10 +766,12 @@ class CustomExerciseService {
   /// Admin approves a submission → it becomes globally visible.
   Future<bool> approveGlobalExercise(String exerciseId) async {
     try {
+      // I-COM-03(a) / 3A-9: the reviewer column is `last_reviewed_by` (083);
+      // `approved_by` never existed, so this update always 400'd.
       await _db.from('custom_exercises').update({
         'submission_status': 'approved',
         'visibility': 'global',
-        'approved_by': _uid,
+        'last_reviewed_by': _uid,
         'approved_at': DateTime.now().toIso8601String(),
       }).eq('id', exerciseId);
       return true;
