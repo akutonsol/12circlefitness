@@ -127,13 +127,28 @@ Deno.serve(async (req: Request) => {
           }
           const sessions = Number(meta.sessions ?? 0);
           if (sessions > 0 && meta.coach_id) {
-            await db.from('client_session_credits').insert({
+            // I-PAY-01. Stripe delivers at least once and retries every
+            // non-2xx, so a redelivery used to grant the sessions again — the
+            // one write in this handler without a conflict target, while
+            // payments, subscriptions, coach_client_relationships and
+            // event_registrations were all already idempotent.
+            //
+            // ignoreDuplicates (ON CONFLICT DO NOTHING) rather than a merge:
+            // this grant is money the client has already been given, and
+            // sessions_used may have advanced since. A redelivery must be a
+            // complete no-op, not a rewrite of a block that is being consumed.
+            //
+            // The conflict target is the unique index migration 131 adds on
+            // payment_id. It is only reachable when payment_id is present —
+            // Postgres treats NULLs as distinct — so a manual grant with no
+            // payment still inserts, and two of them do not collide.
+            await db.from('client_session_credits').upsert({
               client_id: meta.user_id,
               coach_id: meta.coach_id,
               package_id: meta.package_id || null,
               payment_id: meta.payment_id || null,
               sessions_total: sessions,
-            });
+            }, { onConflict: 'payment_id', ignoreDuplicates: true });
           }
         }
         break;

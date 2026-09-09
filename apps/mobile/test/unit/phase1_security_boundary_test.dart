@@ -374,7 +374,34 @@ void main() {
           .map((m) => m.group(1)!)
           .toSet();
 
-      final missing = called.difference(allowed).toList()..sort();
+      // 116's allowlist is not the only source of an EXECUTE grant, and reading
+      // it alone made this guard model the posture as of 116 rather than as of
+      // the tree. 116 revokes ALL FUNCTIONS from PUBLIC/anon/authenticated and
+      // sets DEFAULT PRIVILEGES revoking future functions from PUBLIC and anon
+      // — so a function CREATED by a later migration is born unreachable and
+      // must carry its own `GRANT EXECUTE ... TO authenticated`. Migrations 129
+      // (`may_notify`) and 130 (`is_conversation_participant`) already do
+      // exactly that; 3A-11's two RPCs are the first such functions the client
+      // calls through `.rpc()`, which is why the gap surfaces only now.
+      //
+      // THE ASSERTION IS UNCHANGED: an RPC the app calls that holds no EXECUTE
+      // grant ANYWHERE still fails. Only the set of places a grant may come
+      // from is corrected.
+      final grantedLater = <String>{};
+      for (final f in Directory('${_repoRoot().path}/supabase/migrations')
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.sql'))) {
+        final sql = f.readAsStringSync();
+        for (final m in RegExp(
+                r'GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.([a-z_0-9]+)\s*\([^)]*\)\s*\n?\s*TO\s+authenticated',
+                caseSensitive: false, dotAll: true)
+            .allMatches(sql)) {
+          grantedLater.add(m.group(1)!);
+        }
+      }
+
+      final missing = called.difference(allowed).difference(grantedLater).toList()..sort();
       expect(missing, isEmpty,
           reason: 'these RPCs are called from lib/ but hold no EXECUTE grant after '
               'migration 116, so they will fail at runtime: ${missing.join(', ')}');

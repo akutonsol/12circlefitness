@@ -84,63 +84,52 @@ class MessagingService {
 
   /// Finds (or creates) the 1:1 conversation between the current user and a
   /// specific other participant (e.g. a chosen coach).
+  ///
+  /// One RPC, not a check-then-insert. The read and the insert used to be two
+  /// round trips with no arbiter between them, so two devices — or this method
+  /// and [getOrCreateCoachClientConversation], which is the same operation
+  /// entered from the coach's side — could each create a thread for one pair
+  /// and split the message history in half with no error anywhere (I-NOT-05).
+  /// `get_or_create_conversation` (migration 131) does both under the unique
+  /// participant-pair index, so a race resolves to one id instead of two rows.
   Future<String?> getOrCreateConversationWith(String otherUserId) async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return null;
-    try {
-      // Only a conversation between exactly these two participants.
-      final existing = await supabase
-          .from('conversations')
-          .select('id')
-          .or('and(participant_1.eq.$userId,participant_2.eq.$otherUserId),'
-              'and(participant_1.eq.$otherUserId,participant_2.eq.$userId)')
-          .limit(1);
-      if ((existing as List).isNotEmpty) return existing.first['id'] as String;
-
-      final result = await supabase
-          .from('conversations')
-          .insert({
-            'participant_1': userId,
-            'participant_2': otherUserId,
-            'last_message_at': DateTime.now().toIso8601String(),
-          })
-          .select('id')
-          .single();
-      return result['id'] as String;
-    } catch (e) {
-      reportError('MessagingService.getOrCreateConversationWith', e);
-      return null;
-    }
+    return _getOrCreateConversation(
+        otherUserId, 'MessagingService.getOrCreateConversationWith');
   }
 
   /// For a COACH: finds or creates a conversation with a specific client.
+  ///
+  /// The same operation as [getOrCreateConversationWith], entered from the
+  /// other side. Both now go through the one RPC, which is what I-NOT-05's
+  /// fix means by "collapse both Dart paths": the participant pair is
+  /// unordered, so which party is `participant_1` must not decide whether a
+  /// second thread gets created.
   Future<String?> getOrCreateCoachClientConversation(String clientId) async {
     final coachId = supabase.auth.currentUser?.id;
     if (coachId == null) return null;
-    try {
-      // Check both orderings since the table has no role constraint
-      final existing = await supabase
-          .from('conversations')
-          .select('id')
-          .or(
-            'and(participant_1.eq.$coachId,participant_2.eq.$clientId),'
-            'and(participant_1.eq.$clientId,participant_2.eq.$coachId)'
-          )
-          .limit(1);
-      if ((existing as List).isNotEmpty) return existing.first['id'] as String;
+    return _getOrCreateConversation(
+        clientId, 'MessagingService.getOrCreateCoachClientConversation');
+  }
 
-      final result = await supabase
-          .from('conversations')
-          .insert({
-            'participant_1': coachId,
-            'participant_2': clientId,
-            'last_message_at': DateTime.now().toIso8601String(),
-          })
-          .select('id')
-          .single();
-      return result['id'] as String;
+  /// The single arbiter for "the conversation between me and [otherUserId]".
+  ///
+  /// Returns the conversation id, or `null` when it could not be resolved —
+  /// the same contract both callers had before, so no caller starts treating a
+  /// failure as success. `participant_1` is `auth.uid()` inside the RPC and is
+  /// not a parameter, so this cannot open a conversation on someone else's
+  /// behalf.
+  Future<String?> _getOrCreateConversation(
+      String otherUserId, String context) async {
+    try {
+      final id = await supabase.rpc(
+        'get_or_create_conversation',
+        params: {'other_user': otherUserId},
+      );
+      return id as String?;
     } catch (e) {
-      reportError('MessagingService.getOrCreateCoachClientConversation', e);
+      reportError(context, e);
       return null;
     }
   }

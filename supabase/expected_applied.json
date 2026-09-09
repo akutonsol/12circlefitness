@@ -37,7 +37,12 @@
       "name": "12Circle QA",
       "applied_through": "130",
       "excluded": [],
-      "pending": {}
+      "pending": {
+        "131": {
+          "reason": "Authored for Wave 3A task 3A-11 (CRC-06 identity constraints): partial UNIQUE on the active nutrition plan, UNIQUE + CHECK on cycle_logs, UNIQUE on the unordered conversation participant pair, UNIQUE on client_session_credits.payment_id, plus the two atomic SECURITY DEFINER writers (assign_nutrition_plan, get_or_create_conversation) the I-NUT-04 and I-NOT-05 fixes name.",
+          "gate": "Application of 131 to QA is a separate explicitly authorized step with its own pre-application QA-state check. Its schema_migrations row must be created by migration application; it must never be inserted ahead of application to satisfy the manifest. Until then FIXED ON QA is not claimable for 3A-11, and supabase/tests/security/d08-identity-constraints.mjs cannot pass."
+        }
+      }
     }
   }
 }

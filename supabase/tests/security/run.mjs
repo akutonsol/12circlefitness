@@ -16,6 +16,11 @@ const SUITES = [
   ['1E    intelligence substrate',     './d05-intelligence-substrate.mjs'],
   ['1F    sweep posture',              './d06-sweep-posture.mjs'],
   ['3A-10 chat-media storage',         './d07-chat-media-storage.mjs'],
+  // 3A-11. Every assertion in this suite requires migration 131, which is
+  // authored and NOT applied — application is a separate authorization gate.
+  // Until it runs, this suite fails by design; that is the pre-fix reading,
+  // not a defect. Do not remove it to make the runner green.
+  ['3A-11 identity constraints',       './d08-identity-constraints.mjs'],
 ];
 
 let totalFailures = 0;

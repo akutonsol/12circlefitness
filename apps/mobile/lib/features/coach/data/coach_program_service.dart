@@ -260,20 +260,21 @@ class CoachProgramService {
   }) async {
     final coachId = _db.auth.currentUser?.id;
     if (coachId == null) return;
-    await _db.from('client_nutrition_plans')
-        .update({'is_active': false})
-        .eq('client_id', clientId)
-        .eq('is_active', true);
-    await _db.from('client_nutrition_plans').insert({
-      'client_id': clientId,
-      'coach_id': coachId,
-      'calories_target': calories,
-      'protein_g': protein,
-      'carbs_g': carbs,
-      'fat_g': fat,
-      'water_target_oz': waterOz,
-      'notes': notes,
-      'is_active': true,
+    // One RPC, not deactivate-then-insert. The two statements used to run
+    // independently, so a failure between them left the client with NO active
+    // plan — and every reader answers that with the hard-coded default macros
+    // rather than an error (I-NUT-04). `assign_nutrition_plan` (migration 131)
+    // supersedes and inserts in one transaction, under the partial unique
+    // index that makes two active rows impossible. coach_id is taken from
+    // auth.uid() inside the function, so it is not passed here.
+    await _db.rpc('assign_nutrition_plan', params: {
+      'p_client_id': clientId,
+      'p_calories_target': calories,
+      'p_protein_g': protein,
+      'p_carbs_g': carbs,
+      'p_fat_g': fat,
+      'p_water_target_oz': waterOz,
+      'p_notes': notes,
     });
     await _db.from('notifications').insert({
       'recipient_id': clientId,
