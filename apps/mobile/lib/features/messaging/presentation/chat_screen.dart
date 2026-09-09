@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/observability/app_failure.dart';
+import '../data/chat_media_path.dart';
 import '../data/messaging_service.dart';
 import '../domain/messaging_provider.dart';
 import '../../scoring/data/score_engine.dart';
@@ -34,6 +36,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _sending  = false;
   bool _hasText  = false;
   bool _loading  = true;
+
+  // chat-media is a PRIVATE bucket (migration 130 / DEC-3A-10): a message row
+  // stores the object path, and display signs it here, once per path, so a
+  // list rebuild does not re-sign every image. TTL matches progress_screen.
+  final _signedUrls = <String, Future<String>>{};
+  Future<String> _signedUrlFor(String path) => _signedUrls.putIfAbsent(
+      path,
+      () => Supabase.instance.client.storage
+          .from(ChatMediaPath.bucket)
+          .createSignedUrl(path, 3600));
 
   @override
   void initState() {
@@ -132,38 +144,75 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  // Photo send, in the order the storage contract requires (DEC-3A-10 §6):
+  //   1. upload — authorization needs only the conversation, which exists;
+  //   2. send the message carrying the object PATH (the bucket is private,
+  //      so no URL is ever stored);
+  //   3. if the row did not land, remove exactly the object just uploaded
+  //      and report — never claim success.
   Future<void> _sendPhoto() async {
-    if (_conversationId == null || _sending) return;
+    final conversationId = _conversationId;
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (conversationId == null || uid == null || _sending) return;
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (picked == null || !mounted) return;
     setState(() => _sending = true);
+    final storage = Supabase.instance.client.storage.from(ChatMediaPath.bucket);
+    String? uploadedPath;
     try {
-      final uid = Supabase.instance.client.auth.currentUser?.id ?? 'me';
       final bytes = await picked.readAsBytes();
       final ext = picked.path.split('.').last.toLowerCase();
-      final ts = DateTime.now().millisecondsSinceEpoch;
-      final storagePath = 'messages/$uid/${ts}.$ext';
-      await Supabase.instance.client.storage
-          .from('chat-media')
-          .uploadBinary(storagePath, bytes,
-            fileOptions: FileOptions(contentType: 'image/$ext', upsert: false));
-      final publicUrl = Supabase.instance.client.storage
-          .from('chat-media')
-          .getPublicUrl(storagePath);
-      await _service.sendMessage(
-        conversationId: _conversationId!,
+      // messages/<conversation_id>/<uploader_uid>/<epoch>.<ext> — the
+      // conversation is the authorization identity, never the uploader.
+      final storagePath = ChatMediaPath.build(
+        conversationId: conversationId,
+        uploaderId: uid,
+        epochMillis: DateTime.now().millisecondsSinceEpoch,
+        extension: ext,
+      );
+      // upsert stays false: chat-media has no UPDATE policy. Media is immutable.
+      await storage.uploadBinary(storagePath, bytes,
+          fileOptions: FileOptions(contentType: 'image/$ext', upsert: false));
+      uploadedPath = storagePath;
+      final ok = await _service.sendMessage(
+        conversationId: conversationId,
         content: '[photo]',
-        metadata: {'image_url': publicUrl});
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to send photo'),
-            backgroundColor: Colors.red));
+        metadata: {
+          ChatMediaPath.typeKey: ChatMediaPath.imageType,
+          ChatMediaPath.mediaPathKey: storagePath,
+        });
+      if (!ok) {
+        await _removeOrphan(storage, storagePath);
+        _showPhotoFailure();
       }
+    } catch (e) {
+      // Upload itself failed, or something after it threw. If the object got
+      // as far as storage, it has no message row and must not be left behind.
+      if (uploadedPath != null) await _removeOrphan(storage, uploadedPath);
+      _showPhotoFailure();
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  /// Removes exactly [path] — the object this send just uploaded — because its
+  /// message row never landed. The DELETE policy admits only the uploader, so
+  /// this can never touch anyone else's media. A cleanup failure is reported,
+  /// not hidden, and it never turns the send into a success.
+  Future<void> _removeOrphan(StorageFileApi storage, String path) async {
+    try {
+      await storage.remove([path]);
+    } catch (e) {
+      reportError('ChatScreen._sendPhoto.cleanup', e);
+    }
+  }
+
+  void _showPhotoFailure() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Failed to send photo'),
+        backgroundColor: Colors.red));
   }
 
   bool _isMe(Map<String, dynamic> msg) {
@@ -252,7 +301,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     final meta = msg['metadata'] as Map<String, dynamic>?;
                     return _MessageBubble(
                       content: msg['content'] ?? '',
-                      imageUrl: meta?['image_url'] as String?,
+                      mediaPath: meta?[ChatMediaPath.mediaPathKey] as String?,
+                      resolveMediaUrl: _signedUrlFor,
                       isMe: isMe,
                       time: _formatTime(msg['sent_at'] ?? DateTime.now().toIso8601String()),
                       showAvatar: showAvatar,
@@ -321,7 +371,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 // ── Message Bubble ────────────────────────────────────────────────────────────
 class _MessageBubble extends StatelessWidget {
   final String content, time;
-  final String? imageUrl;
+  /// Storage object path of an image message (`metadata.media_path`). The
+  /// bucket is private, so it is resolved through [resolveMediaUrl] at render
+  /// time — a signed URL, never a public one, and never one stored in the row.
+  final String? mediaPath;
+  final Future<String> Function(String path)? resolveMediaUrl;
   final String participantInitial;
   final bool isMe, showAvatar;
   const _MessageBubble({
@@ -330,7 +384,8 @@ class _MessageBubble extends StatelessWidget {
     required this.time,
     required this.showAvatar,
     required this.participantInitial,
-    this.imageUrl,
+    this.mediaPath,
+    this.resolveMediaUrl,
   });
 
   @override
@@ -375,19 +430,11 @@ class _MessageBubble extends StatelessWidget {
                     boxShadow: isMe
                       ? [BoxShadow(color: _brand.withValues(alpha: 0.25), blurRadius: 8)]
                       : null),
-                  child: imageUrl != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(imageUrl!,
-                          width: MediaQuery.of(context).size.width * 0.60,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (_, child, progress) => progress == null
-                            ? child
-                            : const SizedBox(height: 120,
-                                child: Center(child: CircularProgressIndicator(
-                                  color: _brand, strokeWidth: 2))),
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.broken_image_outlined, color: _muted, size: 40)))
+                  child: mediaPath != null && resolveMediaUrl != null
+                    ? _PrivateImage(
+                        path: mediaPath!,
+                        resolve: resolveMediaUrl!,
+                        width: MediaQuery.of(context).size.width * 0.60)
                     : Text(content,
                         style: const TextStyle(color: _white, fontSize: 14, height: 1.4))),
                 const SizedBox(height: 3),
@@ -396,5 +443,39 @@ class _MessageBubble extends StatelessWidget {
               ])),
           if (isMe) const SizedBox(width: 4),
         ]));
+  }
+}
+
+// ── Private image ─────────────────────────────────────────────────────────────
+// Resolves a chat-media object path to a short-lived signed URL and renders it.
+// Every state is explicit: signing, signed-and-loading, loaded, and failed. A
+// failure shows a broken-image mark — never a placeholder that could pass for
+// the real photo (closure-standard invariant I-1).
+class _PrivateImage extends StatelessWidget {
+  final String path;
+  final Future<String> Function(String path) resolve;
+  final double width;
+  const _PrivateImage({required this.path, required this.resolve, required this.width});
+
+  static const _spinner = SizedBox(height: 120,
+    child: Center(child: CircularProgressIndicator(color: _brand, strokeWidth: 2)));
+  static const _broken = Icon(Icons.broken_image_outlined, color: _muted, size: 40);
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: resolve(path),
+      builder: (_, snap) {
+        if (snap.connectionState != ConnectionState.done) return _spinner;
+        final url = snap.data;
+        if (snap.hasError || url == null || url.isEmpty) return _broken;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(url,
+            width: width,
+            fit: BoxFit.cover,
+            loadingBuilder: (_, child, progress) => progress == null ? child : _spinner,
+            errorBuilder: (_, __, ___) => _broken));
+      });
   }
 }

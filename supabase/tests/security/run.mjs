@@ -15,6 +15,7 @@ const SUITES = [
   ['1D    RPC execution security',     './d04-rpc-execution.mjs'],
   ['1E    intelligence substrate',     './d05-intelligence-substrate.mjs'],
   ['1F    sweep posture',              './d06-sweep-posture.mjs'],
+  ['3A-10 chat-media storage',         './d07-chat-media-storage.mjs'],
 ];
 
 let totalFailures = 0;
