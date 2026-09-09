@@ -95,8 +95,12 @@ class MessagingService {
   Future<String?> getOrCreateConversationWith(String otherUserId) async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return null;
-    return _getOrCreateConversation(
-        otherUserId, 'MessagingService.getOrCreateConversationWith');
+    try {
+      return await _getOrCreateConversation(otherUserId);
+    } catch (e) {
+      reportError('MessagingService.getOrCreateConversationWith', e);
+      return null;
+    }
   }
 
   /// For a COACH: finds or creates a conversation with a specific client.
@@ -109,29 +113,35 @@ class MessagingService {
   Future<String?> getOrCreateCoachClientConversation(String clientId) async {
     final coachId = supabase.auth.currentUser?.id;
     if (coachId == null) return null;
-    return _getOrCreateConversation(
-        clientId, 'MessagingService.getOrCreateCoachClientConversation');
+    try {
+      return await _getOrCreateConversation(clientId);
+    } catch (e) {
+      reportError('MessagingService.getOrCreateCoachClientConversation', e);
+      return null;
+    }
   }
 
   /// The single arbiter for "the conversation between me and [otherUserId]".
   ///
-  /// Returns the conversation id, or `null` when it could not be resolved —
-  /// the same contract both callers had before, so no caller starts treating a
-  /// failure as success. `participant_1` is `auth.uid()` inside the RPC and is
-  /// not a parameter, so this cannot open a conversation on someone else's
-  /// behalf.
-  Future<String?> _getOrCreateConversation(
-      String otherUserId, String context) async {
-    try {
-      final id = await supabase.rpc(
-        'get_or_create_conversation',
-        params: {'other_user': otherUserId},
-      );
-      return id as String?;
-    } catch (e) {
-      reportError(context, e);
-      return null;
-    }
+  /// **Propagates.** Each caller catches under its own name, which is what
+  /// keeps the two entry points distinguishable in the failure sink — and what
+  /// keeps them anchorable. `ec23_negative_control.sh` reproduces the seven
+  /// pre-ERR-1 `print()` offenders by matching `reportError('<literal>', e);`
+  /// in this file and `checkin_service.dart`; a single reporter taking the
+  /// origin as a *parameter* is invisible to that regex, and collapsing these
+  /// two catches into one is what took the harness's anchor set from 7 to 5.
+  /// The RPC consolidation I-NOT-05 requires is unaffected: there is still
+  /// exactly one path to `get_or_create_conversation` and no check-then-insert
+  /// anywhere.
+  ///
+  /// `participant_1` is `auth.uid()` inside the RPC and is not a parameter, so
+  /// this cannot open a conversation on someone else's behalf.
+  Future<String?> _getOrCreateConversation(String otherUserId) async {
+    final id = await supabase.rpc(
+      'get_or_create_conversation',
+      params: {'other_user': otherUserId},
+    );
+    return id as String?;
   }
 
   // ── Messages ──────────────────────────────────────────────────────────────

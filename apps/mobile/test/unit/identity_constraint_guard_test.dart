@@ -228,7 +228,17 @@ void main() {
             reason: 'a check-then-insert on conversations is the race the '
                 'unique pair index exists to arbitrate — it must not come back');
       }
-      expect(messaging, contains("supabase.rpc(\n        'get_or_create_conversation'"));
+      // Whitespace-independent on purpose. The first version of this line
+      // pinned the call's exact indentation, so re-nesting the call — which
+      // the EC-23 anchor restoration required — failed a guard that was never
+      // about formatting. The contract is "this file reaches the arbiter RPC",
+      // and that is what is asserted.
+      expect(
+          messaging,
+          contains(RegExp(
+              r"supabase\.rpc\(\s*'get_or_create_conversation'",
+              dotAll: true)),
+          reason: 'the conversation path must go through the arbiter RPC');
     });
 
     test('I-NOT-05 · both entry points collapse onto the one arbiter', () {
@@ -243,8 +253,25 @@ void main() {
           reason: 'the helper plus both call sites');
     });
 
-    test('I-NOT-05 · a failure is still null, never a fabricated id', () {
-      expect(messaging, contains('reportError(context, e)'));
+    test('I-NOT-05 · a failure is still null, and each entry point reports '
+        'under its own name', () {
+      // Named reporters, not one shared reporter taking the origin as a
+      // parameter. Two reasons, and the second is why this assertion is
+      // written by name rather than by shape:
+      //   * the failure sink keeps the two entry points distinguishable; and
+      //   * ec23_negative_control.sh anchors its mutation on
+      //     `reportError('<literal>', e);` in this file, so a parameterised
+      //     reporter is invisible to it. Collapsing these two catches into one
+      //     took that harness's anchor set from 7 to 5 and made it refuse.
+      for (final origin in const [
+        'MessagingService.getOrCreateConversationWith',
+        'MessagingService.getOrCreateCoachClientConversation',
+      ]) {
+        expect(messaging, contains("reportError('$origin', e);"),
+            reason: '$origin must report under its own name');
+      }
+      expect(messaging, isNot(contains('reportError(context, e)')),
+          reason: 'a parameterised reporter is not anchorable by EC-23');
       expect(messaging, contains('return null;'));
     });
 
