@@ -30,19 +30,31 @@
 //   export QA_URL=https://<ref>.supabase.co QA_ANON=...   [QA_SERVICE=...]
 //   node supabase/tests/security/d08-identity-constraints.mjs
 //
-// Registered in run.mjs.  QA only; refuses the production ref.
+// Registered in run.mjs.  QA only: it refuses any target it cannot positively
+// identify as the 12 Circle QA project.
 
 const URL_ = process.env.QA_URL;
 const ANON = process.env.QA_ANON;
 const SERVICE = process.env.QA_SERVICE || null;
-const PROD_REF = 'nxdbooufqzkpslkcogxc';
+// The 12 Circle QA project — the only remote project this suite may touch.
+// Matches supabase/config.toml's project_id and dart_defines/qa.json.
+//
+// Refusal is by ALLOWLIST, not by blocklist. This suite used to hold its own
+// copy of the production ref and refuse that one string, which is a weaker
+// claim in two ways: "is not production" is not "is QA", so a third project
+// sailed through; and a second copy of the production ref is a second chance
+// to drift — the exact argument apps/mobile/tool/qa_target.dart makes for
+// keeping one shared constant, and the reason ENV-5 flagged this file.
+const QA_REF = 'eyqtldjqpgpljlqvpowh';
 
 if (!URL_ || !ANON) {
   console.error('QA_URL and QA_ANON must be set (QA_SERVICE is optional for this suite).');
   process.exit(2);
 }
-if (URL_.includes(PROD_REF)) {
-  console.error(`REFUSING TO RUN: ${PROD_REF} is the production project.`);
+if (!URL_.includes(QA_REF)) {
+  console.error(`REFUSING TO RUN: "${URL_}" is not the 12 Circle QA project (${QA_REF}).`);
+  console.error('This suite writes. A target is QA because its ref says so —');
+  console.error('never because a variable or a filename is called "qa".');
   process.exit(2);
 }
 
