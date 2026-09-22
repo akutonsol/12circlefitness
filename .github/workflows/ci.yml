@@ -359,6 +359,18 @@ jobs:
       - name: I-COM-01 — event registration guard, pre-fix / post-fix evidence
         run: apps/mobile/tool/negative_control/icom01_negative_control.sh
 
+      # CRC-06 / I-G1…I-G5, Wave 3A task 3A-11. Same shape as the step above:
+      # identity_constraint_guard_test.dart landed in the same commit as
+      # migration 131 and the three writer changes, so no run has ever seen it
+      # fail. The pre-fix state this harness restores is REAL, not synthetic —
+      # the absent uniqueness it pins predates the task by many migrations —
+      # so G-3 is NOT invoked. Reuses the Flutter set-up above and the
+      # fetch-depth: 0 checkout; adds no job, no credential, no network.
+      # The harness has existed since 3A-11 but was never wired here, leaving
+      # it the only one of the seven negative controls CI does not execute.
+      - name: 3A-11 — identity constraint guards, pre-fix / post-fix evidence
+        run: apps/mobile/tool/negative_control/i3a11_negative_control.sh
+
   live-qa:
     name: Live QA suites (security / AI / contract)
     runs-on: ubuntu-latest

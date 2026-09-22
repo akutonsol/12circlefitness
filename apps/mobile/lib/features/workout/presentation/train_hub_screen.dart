@@ -701,14 +701,21 @@ class _IconBtn extends StatelessWidget {
   final String tooltip;
   const _IconBtn({required this.icon, required this.onTap, required this.tooltip});
 
+  /// `tooltip` is required, and until now it was accepted and discarded: the
+  /// build returned a bare GestureDetector, so the string reached neither a
+  /// Tooltip nor the semantics tree and both call sites were unlabelled
+  /// controls. Tooltip carries the message into semantics as well, so wiring
+  /// the existing parameter labels them without inventing any copy.
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      width: 40, height: 40,
-      decoration: BoxDecoration(
-        color: _C.glassCard,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08))),
-      child: Icon(icon, color: _C.onSurfaceVar, size: 20)));
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    child: GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40, height: 40,
+        decoration: BoxDecoration(
+          color: _C.glassCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08))),
+        child: Icon(icon, color: _C.onSurfaceVar, size: 20))));
 }
