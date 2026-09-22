@@ -643,3 +643,76 @@ installed) and `chrome` (needs chromedriver — not installed). Installing eithe
 system-level toolchain change outside QA authority.
 
 **Status: NOT_RUN — blocked on commit authorization, and environment-blocked locally.**
+
+---
+
+## 17. D-4 authorized — committed, pushed, CI fully green
+
+Recorded retrospectively, following the `1b2fe57` precedent: a run's result cannot be
+named by the commit that causes it.
+
+### 17.1 Commits
+
+| | |
+|---|---|
+| `ea1c6dd` | `chore(ENV-3): reconcile QA migration frontier to 131` — **one file**, `supabase/expected_applied.json`, +2/−7 |
+| `55ae5f0` | `test(QA): wire the dormant 3A-11 negative control, fix a dead tooltip, add drift guards` — 4 files, +831/−9 |
+
+Split along the repository's own precedent (`352ee68` / `fb36f18` / `de20ea7`): a frontier
+move after application is its own commit. Pushed to
+`origin/chore/qa-environments-secure-ai-backend`; remote HEAD `55ae5f01`.
+
+Deliberately **not** included: `docs/WAVE_3A_11_EXECUTION_EVIDENCE.md` and the three
+untracked audit documents, per the authorization's file list.
+
+### 17.2 CI run `35799461932` — ALL SEVEN JOBS SUCCESS
+
+| Job | Result |
+|---|---|
+| Static guards | **success** |
+| API — unit + e2e | **success** |
+| Flutter — analyze, test, QA web build | **success** |
+| Negative control | **success** |
+| Live QA suites (security / AI / contract) | **success** |
+| **I-WRK-01 — live progression read path** | **success** ← never executed before |
+| **UIX-1 — booking surface end-to-end** | **success** ← never executed before |
+
+This is the **first fully green run this branch has ever produced.**
+
+### 17.3 ENV-3, confirmed in CI
+
+`live-qa` step 10, *"Live SQL evidence — FG-1, FG-2, ENV-3 ledger"* — **success**. That is
+the exact step that failed in run `35794428054` with `L-2`/`L-5`. CI independently
+confirms §16.3's local result.
+
+### 17.4 The newly-wired negative control, confirmed in CI
+
+`negative-control` step 12, *"3A-11 — identity constraint guards, pre-fix / post-fix
+evidence"* — **success**. All seven harnesses now execute in CI: `M-1/2/3`, `WKT-204`,
+`EC-23`, `UIX-1`, `I-NUT-01`, `I-INT-02`, `I-COM-01`, `3A-11`.
+
+### 17.5 The two first-ever jobs — results verified, not assumed
+
+Job conclusions were not taken as evidence; the step output was read.
+
+**I-WRK-01** — `🎉 3 tests passed` · `RESULT: PASS — I-WRK-01 VERIFIED LIVE legs both
+established.` The `❌ pre-fix leg … (failed)` line in the log is the **required** pre-fix
+failure of a negative control, followed by `✅` on the restored tree. Fixture hygiene:
+`WRK01-MARK CLEANUP verified remaining=0`, and CI's own independent re-check
+`fixture WRK01-PROBE-35799461932-1 — rows remaining after cleanup: 0`.
+
+**UIX-1** — `UIX1-MARK ASSERT-ALL PASS` · `🎉 2 tests passed` · `RESULT: PASS` ·
+**`Evidence class: UIX-1 VERIFIED END-TO-END — real route, real PaywallGate, real
+surface`**. The booking surface was reached through the real `/appointments` route, passed
+the real paywall, and rendered the real coach. Fixture retirement proven:
+`run-tagged availability remaining: 0 ; active relationships remaining: 0`.
+
+**Carried forward honestly — UIX-1's own self-declared gap:**
+> `NOT ESTABLISHED: the failure path (A4). See the probe header — _load() returns at
+> uid == null before its try/catch, so _LoadFailedState cannot [be reached]`
+
+The harness says one path is not established. That is **not** a green result for A4 and is
+not counted as one.
+
+**No fixture leaked in either job** — the failure mode that blocked migration 131 in §13
+did not recur.
