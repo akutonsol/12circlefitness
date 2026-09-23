@@ -198,6 +198,54 @@ void main() {
     });
   });
 
+  group('A-G5 a failed load must not be rendered as a real figure', () {
+    /// `train_hub_screen.dart` rendered `error: (_, __) => '0'` for STREAK,
+    /// THIS WEEK and TOTAL. A member whose stats failed to load was told their
+    /// streak was zero — a specific, wrong, and discouraging claim about their
+    /// own training, produced by the app failing to ask.
+    ///
+    /// The same widget's DONE RATE tile already used `'—'` for that case, so
+    /// the repair reused the file's own placeholder rather than inventing copy.
+    ///
+    /// Deliberately narrow: this guards the numeric-stat shape only. The wider
+    /// error→empty collapse across eight screens (F-15) needs product copy that
+    /// the design package does not supply, and is an owner decision — a guard
+    /// that tried to cover it would have to be weakened to pass.
+    test('no AsyncValue error branch returns a bare numeral', () {
+      final offenders = <String>[];
+      // `error: (_, __) => '0'` / `=> '0%'` / `=> 0` — a figure invented from a
+      // failure. Whitespace-tolerant.
+      final fabricated = RegExp(
+        r"""error\s*:\s*\([^)]*\)\s*=>\s*'?-?\d+%?'?\s*[,)]""",
+      );
+      for (final file in presentationFiles) {
+        for (final (i, line) in file.readAsLinesSync().indexed) {
+          final code = line.split('//').first;
+          if (fabricated.hasMatch(code)) offenders.add('${file.path}:${i + 1}');
+        }
+      }
+      expect(
+        offenders,
+        isEmpty,
+        reason: 'A failed request is being displayed as a real measurement. '
+            "Use the screen's own no-figure placeholder instead:\n  "
+            '${offenders.join('\n  ')}',
+      );
+    });
+
+    test('train_hub keeps its four stat tiles on the placeholder', () {
+      final src = File(
+        'lib/features/workout/presentation/train_hub_screen.dart',
+      ).readAsStringSync();
+      expect(
+        RegExp(r"error: \(_, __\) => '—'").allMatches(src).length,
+        4,
+        reason: 'STREAK, THIS WEEK, TOTAL and DONE RATE must all show "—" when '
+            'their load fails.',
+      );
+    });
+  });
+
   group('A-G3 the app ships under its product name, on both platforms', () {
     /// Found at runtime: the first thing Android showed a new user was
     /// "Allow circle_fitness to send you notifications?" — the Flutter project

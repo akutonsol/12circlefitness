@@ -220,22 +220,27 @@ class _TrainHubScreenState extends ConsumerState<TrainHubScreen> {
                   label: 'STREAK',
                   icon: Icons.local_fire_department_rounded,
                   iconColor: _C.amber,
+                  // A failed load is NOT a streak of zero. '—' is this
+                  // widget's own established "no figure" placeholder — DONE
+                  // RATE already uses it for exactly this case — so nothing is
+                  // invented here. Showing '0' told the member their streak was
+                  // broken when the app had simply failed to ask.
                   value: streakAsync.when(
-                    data: (v) => '$v', loading: () => '—', error: (_, __) => '0')),
+                    data: (v) => '$v', loading: () => '—', error: (_, __) => '—')),
                 const SizedBox(width: 10),
                 _StatCard(
                   label: 'THIS WEEK',
                   icon: Icons.calendar_today_outlined,
                   iconColor: _C.tertiary,
                   value: weeklyAsync.when(
-                    data: (v) => '$v', loading: () => '—', error: (_, __) => '0')),
+                    data: (v) => '$v', loading: () => '—', error: (_, __) => '—')),
                 const SizedBox(width: 10),
                 _StatCard(
                   label: 'TOTAL',
                   icon: Icons.fitness_center_rounded,
                   iconColor: _C.primary,
                   value: totalAsync.when(
-                    data: (v) => '$v', loading: () => '—', error: (_, __) => '0')),
+                    data: (v) => '$v', loading: () => '—', error: (_, __) => '—')),
                 const SizedBox(width: 10),
                 _StatCard(
                   label: 'DONE RATE',
