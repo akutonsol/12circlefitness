@@ -1420,3 +1420,63 @@ was not. The `uiautomator` dump places the only candidate node, *"Don't have an 
 Sign Up"*, at `[252,2248][828,2300]` — the bottom of the screen. The apparent artifact was
 my misreading of the image. Recorded because a QA document that only keeps its confirmed
 suspicions is not an honest instrument.
+
+### 23.7 Authenticated runtime reached — and the intake flow has a semantics defect
+
+Signed in on-device with the committed QA fixture identity `p1-victim@qa.12circle.test`
+(`supabase/tests/security/setup-identities.mjs`, the same identity `uix1_booking_e2e_test`
+uses). Authentication succeeded against QA, proven by the persisted session key:
+
+```
+shared_prefs/FlutterSharedPreferences.xml
+  <string name="flutter.sb-eyqtldjqpgpljlqvpowh-auth-token"
+```
+
+The ref matches the QA project declared in `expected_applied.json`. No `E/flutter`, no
+`AppFailure`, no crash across the whole authenticated pass. The router sent this user to
+`intake_flow_screen.dart`, which is correct: the fixture has no completed intake.
+
+**The intake welcome page is a single accessibility node.**
+
+```
+[0,0][1080,2400]  411.4 x 914.3 dp  clickable=true
+  'MOVE\nBETTER\nFEEL\nSTRONGER\nLIVE\nHEALTHIER\nGet Started'
+```
+
+The entire screen — headline and button alike — collapses into one merged, clickable node.
+"Get Started" is therefore not separately focusable, and a screen reader announces the
+whole page as one run-on string.
+
+**This was checked against two false explanations before being recorded.** A single dump
+proves nothing here, because Flutter builds its semantics tree lazily and the preceding
+`am force-stop` reset the process. (a) A second dump after settling returned the identical
+single node, so it is not a warm-up artifact. (b) Advancing one page returned **11 discrete
+nodes**, so semantics is live and working on this screen — the merge is specific to the
+page, not to the session.
+
+**A whole-screen clickable node is present on intake pages generally**, absorbing static
+text. On page 2 it appears as:
+
+```
+[0,0][1080,2400]  411.4 x 914.3 dp  clickable=true  'Your Profile\nTell us a little about yourself.'
+```
+
+Page 1 has no other interactive child carrying its own semantics, which is why everything
+collapses into it there. The login screen shows no such node, so this is specific to
+`intake_flow_screen.dart`. `_WelcomePage` itself is a plain `Stack` and "Get Started" is a
+bare `GestureDetector` (`:928`) with no `Semantics(button: true)`; the `PageView` uses
+`NeverScrollableScrollPhysics`. **The precise origin of the full-screen clickable node is
+not yet isolated, and is recorded as unresolved rather than guessed at.**
+
+Intake page 2 (`Your Profile`) measured clean otherwise — every interactive target
+≥ 44 dp (inputs 363.4 × 51.0 dp, Male/Female 175.6 × 51.0 dp, date 363.4 × 54.9 dp).
+
+Two observations held back deliberately:
+
+- **"Continue" reports `clickable=false`** (`[53,2159][1028,2295]`). Gender and Date of
+  Birth were unset at the time, so a disabled Continue is very likely *correct* behaviour.
+  Not recorded as a defect without testing the enabled state.
+- **Text inputs again expose their value as their name** — the nodes read `'P1'` and
+  `'victim'`, while `'First Name'` and `'Last Name'` are separate non-clickable labels.
+  Same pattern as §23.4; consistent, and consistent with the inputs having no accessible
+  name of their own.
