@@ -36,6 +36,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _sending  = false;
   bool _hasText  = false;
   bool _loading  = true;
+  /// Distinct from "no messages". A thread that could not be reached is not an
+  /// empty thread, and showing the empty state for it tells the user something
+  /// false about their own conversation.
+  bool _loadFailed = false;
 
   // chat-media is a PRIVATE bucket (migration 130 / DEC-3A-10): a message row
   // stores the object path, and display signs it here, once per path, so a
@@ -84,8 +88,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       setState(() => _conversationId = convId);
       final msgs = await _service.getMessages(convId);
       if (mounted) {
+        // An empty conversation is EMPTY. It previously fell back to
+        // `getSampleMessages()`, which put four hardcoded messages on screen as
+        // if they were this user's real coach thread — including one attributed
+        // to the user ("A bit sore but in a good way!..."). A messaging surface
+        // must never invent its own contents. The screen already renders the
+        // correct "Start the conversation!" empty state; that fallback was the
+        // only thing making it unreachable.
         setState(() {
-          _messages = msgs.isNotEmpty ? msgs : _service.getSampleMessages();
+          _messages = msgs;
           _loading = false;
         });
       }
@@ -95,8 +106,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _scrollToBottom();
       });
     } else if (mounted) {
+      // No conversation could be found or created. That is a failure, not an
+      // empty thread, and it is emphatically not four invented messages.
+      reportError('ChatScreen._init', StateError('no conversation for participant'));
       setState(() {
-        _messages = _service.getSampleMessages();
+        _messages = const [];
+        _loadFailed = true;
         _loading = false;
       });
     }
@@ -283,6 +298,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         Expanded(
           child: _loading
             ? const Center(child: CircularProgressIndicator(color: _brand))
+            : _loadFailed
+              ? Center(child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.wifi_off_rounded, color: _muted.withValues(alpha: 0.5), size: 48),
+                    const SizedBox(height: 12),
+                    const Text("Couldn't open this conversation",
+                      style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 6),
+                    Text('This is a connection problem, not an empty thread.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: _muted.withValues(alpha: 0.8), fontSize: 13)),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () { setState(() { _loading = true; _loadFailed = false; }); _init(); },
+                      child: const Text('Try again'),
+                    ),
+                  ]),
+                ))
             : _messages.isEmpty
               ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.chat_bubble_outline, color: _brand.withValues(alpha: 0.3), size: 48),
