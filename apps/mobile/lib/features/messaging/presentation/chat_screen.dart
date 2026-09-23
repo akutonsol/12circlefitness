@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/observability/app_failure.dart';
+import '../../../core/widgets/named_icon_button.dart';
 import '../data/chat_media_path.dart';
 import '../data/messaging_service.dart';
 import '../domain/messaging_provider.dart';
@@ -16,7 +17,24 @@ const _border  = Color(0xFF1A1020);
 const _brand  = Color(0xFFA855F7);
 const _white  = Colors.white;
 const _muted  = Color(0xFFCFC2D6);
-const _green  = Color(0xFF22C55E);
+
+/// F-28 · the chat header's subtitle.
+///
+/// It was the constant **"Online now"**, beside a green presence dot. Nothing
+/// in this repository tracks presence — no `is_online`, no `last_seen`, no
+/// realtime channel for it — so **every conversation claimed the other person
+/// was online, always**. A client could message their coach at midnight
+/// believing they were there.
+///
+/// FIT-026's header reads "Nadia Rahman / Your coach": the **relationship**,
+/// which is real data on the conversation the caller already carries. Where the
+/// role is unknown the subtitle is omitted rather than guessed — an empty line
+/// says nothing, and nothing is what the screen knows.
+String? chatSubtitle(String? role) => switch (role?.trim().toLowerCase()) {
+      'coach' => 'Your coach',
+      'client' => 'Your client',
+      _ => null,
+    };
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -31,6 +49,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   String? _conversationId;
   String  _participantName = 'Coach';
+  /// F-28: the header subtitle. It used to be the constant "Online now" beside
+  /// a green dot — see [chatSubtitle].
+  String? _participantRole;
   List<Map<String, dynamic>> _messages = [];
   StreamSubscription? _sub;
   bool _sending  = false;
@@ -71,7 +92,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final name = '$fn $ln'.trim();
 
     if (mounted) {
-      setState(() => _participantName = name.isNotEmpty ? name : 'Coach');
+      setState(() {
+        _participantName = name.isNotEmpty ? name : 'Coach';
+        _participantRole = participant?['role'] as String?;
+      });
     }
 
     // If no conversation was pre-selected, find/create one. Prefer the exact
@@ -282,13 +306,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 child: Text(
                   _participantName.isNotEmpty ? _participantName[0].toUpperCase() : '?',
                   style: const TextStyle(color: _brand, fontSize: 16, fontWeight: FontWeight.w800))),
-              Positioned(bottom: 0, right: 0,
-                child: Container(
-                  width: 11, height: 11,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _green,
-                    border: Border.all(color: _card, width: 1.5)))),
+              // F-28: a green presence dot sat here, beside a hardcoded
+              // "Online now". Nothing in this repository tracks presence, so
+              // every conversation claimed the other person was online, always.
+              // Removed rather than restyled — the fix for a fabricated fact is
+              // not a quieter fabrication.
             ]),
             const SizedBox(width: 10),
             Expanded(child: Column(
@@ -296,9 +318,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               children: [
                 Text(_participantName,
                   style: const TextStyle(color: _white, fontSize: 15, fontWeight: FontWeight.w700)),
-                const Text("Online now",
-                  style: TextStyle(color: _green, fontSize: 11)),
+                // FIT-026's header reads "Nadia Rahman / Your coach" — the
+                // RELATIONSHIP, not a presence claim.
+                if (chatSubtitle(_participantRole) != null)
+                  Text(chatSubtitle(_participantRole)!,
+                    style: TextStyle(color: _muted.withValues(alpha: 0.75), fontSize: 11)),
               ])),
+            // FIT-026 · "Booking sits in the header, because 'can we talk' is
+            // the second thing you want in a coach thread."
+            NamedIconButton(
+              label: 'Book a call',
+              onTap: () => context.push('/book-call'),
+              child: Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06), shape: BoxShape.circle),
+                child: const Icon(Icons.videocam_outlined, color: _white, size: 18)),
+            ),
           ])),
 
         // ── Messages ──
@@ -358,8 +394,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             color: _card,
             border: Border(top: BorderSide(color: _border))),
           child: Row(children: [
-            // Photo attachment button
-            GestureDetector(
+            // FIT-026 names this "Attach" and draws it at 44x44.
+            NamedIconButton(
+              label: 'Attach',
               onTap: _sendPhoto,
               child: Container(
                 width: 40, height: 40,
@@ -374,7 +411,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   color: Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: _border)),
-                child: TextField(
+                // FIT-026 names the composer "Message". A `TextField` with
+                // only a hint reports its VALUE and no name, so an empty
+                // composer announced nothing at all.
+                child: Semantics(
+                  textField: true,
+                  label: 'Message',
+                  child: TextField(
                   controller: _msgCtrl,
                   style: const TextStyle(color: _white, fontSize: 14),
                   maxLines: null,
@@ -385,9 +428,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     hintStyle: TextStyle(color: _muted.withValues(alpha: 0.35), fontSize: 13),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
-                  onTapOutside: (_) => FocusScope.of(context).unfocus()))),
+                  onTapOutside: (_) => FocusScope.of(context).unfocus())))),
             const SizedBox(width: 8),
-            GestureDetector(
+            // FIT-026 names this "Send".
+            Semantics(
+              button: true,
+              label: 'Send',
+              excludeSemantics: true,
+              onTap: _send,
+              child: GestureDetector(
               onTap: _send,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -402,7 +451,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ? const Padding(
                       padding: EdgeInsets.all(12),
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Icon(Icons.send_rounded, color: _white, size: 20))),
+                  : const Icon(Icons.send_rounded, color: _white, size: 20)))),
           ])),
 
       ])));

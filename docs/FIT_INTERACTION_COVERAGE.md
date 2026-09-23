@@ -24,9 +24,9 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 298 (50%) |
-| **Label absent** | **302** |
-| Locked anchors | 93/179 (52%) |
+| Label present | 299 (50%) |
+| **Label absent** | **301** |
+| Locked anchors | 94/179 (53%) |
 
 **FIT-025 scored 1/1 against a 23-line stub** reading "Check-in details coming soon". Its
 one declared interaction is `Back`, which the stub's `AppBar` supplied automatically. The
@@ -130,7 +130,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-006 ✅ | Welcome | `/onboarding` | **2** | 2 | `onboarding_screen.dart` |
 | FIT-017 | Rest & completion | `/active-workout` | 2 | 2 | `active_workout_screen.dart` + `widgets/rest_timer_widget.dart` |
 | FIT-018 | Session complete | `/active-workout` | 2 | 4 | `active_workout_screen.dart` |
-| FIT-026 | Conversation | `/chat` | 3 | 5 | `chat_screen.dart` |
+| FIT-026 | Conversation | `/chat` | 4 | 5 | `chat_screen.dart` — fifth is a **video feature gap** |
 | FIT-009 ✅ | Intake complete | `/intake` | **1** | 1 | `widgets/intake_complete_page.dart` |
 | FIT-022 ✅ | Loading & failure | `cross-cutting pattern` | **1** | 1 | `widgets/nutrition_load_failed.dart` |
 | FIT-024 | Check-in detail | `/checkin-detail` | 1 | 2 | `checkin_detail_screen.dart` — the second is a composed label |
@@ -355,7 +355,7 @@ without fabricating content the brief forbids.
 | FIT-023 | Check-in hub | `/checkins` | 4/10 | `checkin_screen.dart` + `checkin_hub_sections.dart` + `domain/checkin_hub.dart` |
 | FIT-024 | Check-in detail | `/checkin-detail` | 1/2 | `checkin_detail_screen.dart` |
 | FIT-025 | Awaiting reply | `/checkin-detail` | 1/1 | `checkin_detail_screen.dart` |
-| FIT-026 | Conversation | `/chat` | 3/5 | `chat_screen.dart` |
+| FIT-026 | Conversation | `/chat` | 4/5 | `chat_screen.dart` — fifth is a **video feature gap** |
 | FIT-027 | What's on | `/classes` | 5/10 | `classes_screen.dart` + `whats_on_view.dart` + `domain/whats_on.dart` |
 | FIT-028 | Connect — no coach | `/messages` | 4/10 | `messaging_screen.dart` |
 | FIT-029 | Profile | `/profile` | 4/6 | `profile_screen.dart` |

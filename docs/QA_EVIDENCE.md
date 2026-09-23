@@ -403,7 +403,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1121 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1128 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -1654,6 +1654,59 @@ counting its own comments and resolving FIT-019 to a 23-line redirect stub.
 **Three defects in one metric is itself the finding.** Every number it produces has been
 reported here as a worklist and never as a score; this is the evidence for that caution
 rather than a restatement of it.
+
+## 3ac · F-28 · the chat header claimed presence it never had **FOUND AND FIXED**
+
+Found while integrating FIT-026, not by a test.
+
+`/chat`'s header subtitle was the **constant** `"Online now"`, beside a green presence dot.
+**Nothing in this repository tracks presence** — no `is_online`, no `last_seen`, no
+realtime channel for it. So every conversation claimed the other person was online, always.
+
+A client could message their coach at midnight believing they were there; a coach could
+believe the same of a client. It is a fabricated fact about a **third party**, presented
+with the one UI element that exists specifically to be trusted.
+
+**FIT-026's header reads "Nadia Rahman / Your coach"** — the relationship, which is real
+data on the conversation the caller already carries. Where the role is unknown the subtitle
+is **omitted**: an empty line says nothing, and nothing is what the screen knows. The green
+dot is gone rather than restyled — the fix for a fabricated fact is not a quieter
+fabrication.
+
+## 3ad · FIT-026 · Conversation — 3/5 → 4/5
+
+Every label is an `aria-label` read verbatim off the board's Conversation frame.
+
+| Declared | Status |
+|---|---|
+| `Back` | already named |
+| `Book a call` | **added to the header** — the board: *"Booking sits in the header, because 'can we talk' is the second thing you want in a coach thread."* |
+| `Attach` | was an unnamed 40 dp circle |
+| `Message` | the composer. A `TextField` with only a hint reports its **value** and no name, so an empty composer announced nothing at all |
+| `Send` | was unnamed |
+| `Play video from Nadia, 1 minute 48 seconds, form review` | **absent — a real gap, see below** |
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Behaviour | `test/unit/chat_subtitle_test.dart` — 7 tests | **PASS** |
+| Guard strength | 3 mutations killed: **restore the presence claim**, guess a subtitle for an unknown role, change a board label | **PASS** |
+| Suite | 1128 pass / 9 skipped | **PASS** |
+| Runtime | not device-verified — `ChatScreen` reads Supabase in `_init`. Two **source-level** guards hold the wiring instead. **FIXED IN CODE**. | **OPEN** |
+
+### The fifth interaction is a feature gap, not a label gap
+
+The board draws a **video bubble** — *"Video is a first-class bubble — coach video is how
+form gets fixed"* — with the composed label
+`Play video from Nadia, 1 minute 48 seconds, form review`.
+
+`MessageType.video` and a `duration` field exist on the message model, but **nothing sends
+or renders a video message**: `_MessageBubble` handles text and images only, and the
+composer's one attachment path is `_sendPhoto`. Building it needs a capture/upload path, a
+player, duration metadata and the "form review" classification — a feature, not an
+integration.
+
+Recorded as a gap. The label is also composed from the coach's name and the clip's length,
+so it is a **seventh composed-label ceiling** even once the feature exists.
 
 ## 4 · Design package
 
