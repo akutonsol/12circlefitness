@@ -298,7 +298,7 @@ address it. Recorded rather than papered over.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **919 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **929 tests pass, 9 skipped** | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
 ## 3b · FIT-028 · Connect — no coach — **VERIFIED LIVE**
@@ -520,6 +520,51 @@ it. The window was **not** widened backwards to make the number fall — a backw
 would also swallow an unrelated `Semantics` above a genuinely unnamed control, and a
 ratchet that under-counts hides regressions while one that over-counts only overstates the
 work left. The discrepancy is recorded in the guard rather than tuned away.
+
+## 3f · F-15 · `/home` told clients they had done nothing when the read failed **FIXED**
+
+`weeklyActivityProvider` ended `catch (_) { return List.filled(7, 0.0); }`. A failed read
+arrived at "This Week's Progress" as a real week containing nothing, and that card does
+not merely look empty — **it answers**. A client who had logged six meals was shown:
+
+* **"0%"**, in 28 pt brand colour;
+* "Log meals or workouts to see progress" underneath; and
+* seven flat bars with today's lit at 15%.
+
+A failure presented as a confident wrong number, with a nudge blaming the client for it.
+
+**Fixed with no new copy, which is why it could be fixed at all.** The error now
+propagates — the same change `assignedWorkoutsProvider` already carries — and the card
+reports what it knows:
+
+| | Before a failure | After |
+|---|---|---|
+| headline | `0%` in brand colour | `—`, dimmed |
+| nudge | "Log meals or workouts to see progress" | **omitted** |
+| bars | flat, today's highlighted | flat unknown track, nothing highlighted |
+
+A lit "today" bar over a failed read reads as *"you did nothing today"*, which is exactly
+the claim the screen cannot make.
+
+**A genuinely empty week still answers `0%` with the nudge.** The fix must not collapse
+the two in the other direction — an empty week is a real result, and a test pins it.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Derivation | `test/unit/week_progress_test.dart` — 10 tests | **PASS** |
+| Guard strength | 4 mutations, all killed: never take the error branch (the original behaviour), keep the nudge on failure, go by the value instead of the state so stale data answers, treat an empty week as a failure | **PASS** |
+| Suite | 929 pass / 9 skipped; EC-G8 unchanged at 134 — `weekProgressFrom` holds the single `.valueOrNull` the card already had | **PASS** |
+| Runtime | **not verified** — reproducing it needs the read to fail against QA, i.e. inducing a network or policy failure for a signed-in fixture. Classified **FIXED IN CODE**. | **OPEN** |
+
+`weekProgressFrom` is extracted because `home_screen.dart` reaches `Supabase.instance` at
+the top level, so the card cannot be mounted in a widget test — the same reason
+`plan_summary.dart`, `extendRest()` and `ZoneAction` were extracted. The pattern by now is
+settled: **a thing worth asserting gets moved somewhere it can be.**
+
+**This does not close F-15.** Seven collapses remain, and each needs user-facing error
+copy the design package does not supply for those frames. A full error state with a retry
+— the `booking_screen.dart:612` pattern — is still OD-8. What changed is that the two
+cases needing *no words at all* are done.
 
 ## 4 · Design package
 
@@ -988,15 +1033,23 @@ state for that screen.
 | `profile_screen.dart:830` | `/profile` | `valueOrNull` → null | "No coach assigned yet" | **NO** | coach provider | none | FIT-029 | copy |
 | `classes_screen.dart:39` | `/classes` | `valueOrNull ?? []` | Schedule tab renders **nothing at all** (`itemCount: 0`) | **NO** | class providers | none | FIT-027/080/084 | copy + an empty state for Schedule |
 | `challenges_screen.dart:36-39` | `/challenges` | `AsyncError` never consumed | "🏁 No challenges here" | **NO** | challenge StateNotifier | none | FIT-075/078/079 | copy |
-| `home_screen.dart:80` | `/home` | `catch` → all-zero bars | zero bars | **NO** | weekly activity | none | FIT-001 (locked) | copy |
-| `train_hub_screen.dart:224-246` | `/train` | **`error: (_, __) => '0'`** — shows **"0 workouts" as a real answer** | `'—'` placeholders | **NO** | 4 stat providers | none | FIT-014/015 (locked) | copy |
+| ~~`home_screen.dart:80`~~ | `/home` | ~~`catch` → all-zero bars~~ → **error propagates**; headline `'—'`, nudge omitted, bars drawn as the unknown track | zero bars + "Log meals or workouts…" | **YES** | weekly activity | partial — see §3f | FIT-001 (locked) | **none for this leg**; a full error state with retry still needs OD-8 |
+| ~~`train_hub_screen.dart:224-246`~~ | `/train` | ~~`error: (_, __) => '0'`~~ → **`'—'`** | `'—'` placeholders | **YES** | 4 stat providers | `_PlanUnavailable` | FIT-014/015 (locked) | **none for this leg** |
 
 **Reference implementation already in-repo:** `booking_screen.dart:612-643` (`_LoadFailedState`)
 — *"Couldn't load your bookings / We could not reach your coach and availability data just
 now. **This is a connection problem, not an empty schedule.**"* with a Try-again action, and
 a comment at `:609-611` naming the collapse as the bug. `chat_screen.dart` now follows it.
 
-**Why these are not fixed in this pass:** the pattern is unambiguous but each needs
+**Two of the nine are now closed, and they are the two that needed no copy.** Both were
+the worst kind: not a failure shown as emptiness, but a failure shown as a **confident
+wrong number**. `/train` answered "0 workouts"; `/home` answered "0%" and then told the
+client to start logging. In both, a number the screen could not support became `'—'` and
+the accusation was dropped. Nothing was written to do it.
+
+The remaining seven need **user-facing error copy**, and that is still OD-8.
+
+**Why the rest are not fixed in this pass:** the pattern is unambiguous but each needs
 **user-facing error copy**, and the authoritative package declares `empty`/`loading` states
 for these frames without declaring error copy for them. Writing nine new error strings is
 inventing product copy, which the brief forbids. **The mechanism is free; the words are

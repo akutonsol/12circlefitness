@@ -33,10 +33,22 @@ class _C {
 // 7-day activity bars: each value 0.0–1.0 representing relative activity that day.
 // Pulls from nutrition_logs (meal count) + coaching_calls (scheduled calls).
 // Returns List<double> length 7, index 0 = Monday of current week.
+//
+// F-15 · ERRORS PROPAGATE. This used to end `catch (_) { return List.filled(7,
+// 0.0); }`, so a failed read was indistinguishable from a week with nothing in
+// it — and the card does not merely look empty, it answers. A client who had
+// logged six meals was shown **"0%"** over seven flat bars and the line "Log
+// meals or workouts to see progress". A failure presented as a confident wrong
+// number, with a nudge blaming the client for it.
+//
+// `assignedWorkoutsProvider` in the workout feature carries the same note for
+// the same reason; `train_hub_screen`'s three `error: (_, __) => '0'` stats were
+// corrected to '—' on the same grounds.
 final weeklyActivityProvider = FutureProvider<List<double>>((ref) async {
   final uid = Supabase.instance.client.auth.currentUser?.id;
+  // Signed out is not a failure — there is genuinely nothing to show.
   if (uid == null) return List.filled(7, 0.0);
-  try {
+  {
     final now    = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
     final weekStart = DateTime(monday.year, monday.month, monday.day);
@@ -77,10 +89,51 @@ final weeklyActivityProvider = FutureProvider<List<double>>((ref) async {
     final maxCount = counts.reduce((a, b) => a > b ? a : b);
     if (maxCount == 0) return List.filled(7, 0.0);
     return counts.map((c) => (c / maxCount).clamp(0.05, 1.0)).toList();
-  } catch (_) {
-    return List.filled(7, 0.0);
   }
 });
+
+/// What "This Week's Progress" should say, derived from the read's state rather
+/// than from a value the read never produced.
+///
+/// Extracted because `home_screen.dart` reaches `Supabase.instance` at the top
+/// level, so the card cannot be mounted in a widget test. Same reason
+/// `plan_summary.dart` and `extendRest()` were extracted.
+typedef WeekProgress = ({
+  /// What goes where the percentage goes. `'—'` when the read failed: the
+  /// screen does not know, and a number would be a claim it cannot support.
+  String headline,
+
+  /// The nudge under the title, or null when there is nothing honest to say.
+  /// **Null on failure is the point** — "Log meals or workouts to see progress"
+  /// told a client who had logged meals that they had not.
+  String? nudge,
+
+  /// Bar heights, 0.0–1.0.
+  List<double> bars,
+
+  /// True when the read failed, so the card can render the bars as unknown
+  /// rather than as zero.
+  bool failed,
+});
+
+WeekProgress weekProgressFrom(AsyncValue<List<double>> activity) {
+  final bars = activity.valueOrNull ?? List.filled(7, 0.0);
+  if (activity.hasError) {
+    return (headline: '—', nudge: null, bars: List.filled(7, 0.0), failed: true);
+  }
+  final activeDays = bars.where((v) => v > 0.05).length;
+  final pct = (activeDays / 7 * 100).round();
+  return (
+    headline: '$pct%',
+    nudge: pct == 0
+        ? 'Log meals or workouts to see progress'
+        : pct >= 70
+            ? 'Excellent consistency!'
+            : 'Keep building your streak',
+    bars: bars,
+    failed: false,
+  );
+}
 
 // ── Home Screen ───────────────────────────────────────────────────────────────
 class HomeScreen extends ConsumerStatefulWidget {
@@ -639,12 +692,9 @@ class _PanelWeekProgress extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final barsAsync = ref.watch(weeklyActivityProvider);
-    final bars      = barsAsync.valueOrNull ?? List.filled(7, 0.0);
+    final week      = weekProgressFrom(barsAsync);
+    final bars      = week.bars;
     final todayIdx  = (DateTime.now().weekday - 1).clamp(0, 6);
-
-    // % of days this week with any activity
-    final activeDays = bars.where((v) => v > 0.05).length;
-    final pct = (activeDays / 7 * 100).round();
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -659,18 +709,22 @@ class _PanelWeekProgress extends ConsumerWidget {
             Text("This Week's Progress",
               style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.8),
                 fontSize: 13, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 2),
-            Text(pct == 0
-                ? 'Log meals or workouts to see progress'
-                : pct >= 70 ? 'Excellent consistency!' : 'Keep building your streak',
-              style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.35), fontSize: 11)),
+            if (week.nudge != null) ...[
+              const SizedBox(height: 2),
+              Text(week.nudge!,
+                style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.35), fontSize: 11)),
+            ],
           ]),
           if (barsAsync.isLoading)
             const SizedBox(width: 20, height: 20,
               child: CircularProgressIndicator(strokeWidth: 2, color: _C.primary))
           else
-            Text('$pct%',
-              style: const TextStyle(color: _C.primary, fontSize: 28,
+            Text(week.headline,
+              style: TextStyle(
+                color: week.failed
+                    ? _C.onSurfVar.withValues(alpha: 0.5)
+                    : _C.primary,
+                fontSize: 28,
                 fontWeight: FontWeight.w900, letterSpacing: -1, height: 1)),
         ]),
         const SizedBox(height: 16),
@@ -678,7 +732,11 @@ class _PanelWeekProgress extends ConsumerWidget {
           height: 72,
           child: Row(crossAxisAlignment: CrossAxisAlignment.end,
             children: List.generate(7, (i) {
-              final isToday  = i == todayIdx;
+              // On failure every bar is the flat unknown track and nothing is
+              // highlighted — a lit "today" bar over a failed read reads as
+              // "you did nothing today", which is exactly the claim the screen
+              // cannot make.
+              final isToday  = !week.failed && i == todayIdx;
               final isPast   = i < todayIdx;
               final height   = 72 * (bars[i] > 0 ? bars[i] : (isToday ? 0.15 : 0.04));
               return Expanded(child: Padding(
