@@ -95,6 +95,20 @@ String stripComments(String src) {
   return out.toString();
 }
 
+/// The manifest stores labels **HTML-escaped** — `Cycle &amp; wellbeing`,
+/// `Smaller &lt; larger`. Matching the raw string against Dart source means an
+/// implemented label containing `&` can never be found, which reported
+/// FIT-029's "Cycle & wellbeing" as absent when it was on screen. Third defect
+/// found in this measurement, after counting comments and resolving a route to
+/// a redirect stub.
+String unescapeHtml(String s) => s
+    .replaceAll('&amp;', '&')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
+    .replaceAll('&nbsp;', ' ');
+
 Map<String, dynamic>? _find(Object? node, String id) {
   if (node is Map) {
     if (node['id'] == id) return node.cast<String, dynamic>();
@@ -133,7 +147,7 @@ void main(List<String> args) {
   var have = 0;
   final interactions = (screen['interactions'] as List).cast<Map>();
   for (final i in interactions) {
-    final label = (i['label'] as String).trim();
+    final label = unescapeHtml(i['label'] as String).trim();
     final key = label.split(RegExp(r'\s+')).take(3).join(' ').toLowerCase();
     final present = src.contains(key);
     if (present) have++;

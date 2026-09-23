@@ -1626,6 +1626,35 @@ Check-In". A client tapping a **pending** check-in card (`checkin_card.dart:25`)
 there and had to press again to reach the form they had already asked for. It is now a
 redirect, matching the two sibling routes that already resolve that way.
 
+## 3ab · FIT-029 · Profile — 2/6 → 4/6, and a third defect in the metric
+
+| Declared | Status |
+|---|---|
+| `Settings` · `Goals` | already present |
+| `Personal information` | was `Personal Info` — the locked screen writes it out |
+| `Cycle & wellbeing` | added: a second entry point to a screen **every** client already reaches from Home (the tile there is shown to everyone; only its subtitle changes with `gender`), so no new exposure |
+| `Connected apps 2` | label aligned from `Integrations`; **the count is not added** |
+| `Coach-guided £79 monthly · renews 1 October` | **OD-18** |
+
+**The count was deliberately left off.** The board draws "Connected apps 2". Nothing in this
+app knows how many integrations a client has connected, and a badge reading `2` for
+everyone would be a fabricated fact on their own profile. The row measures absent because
+of the missing digit, which is the right answer.
+
+### The metric's third defect: HTML entities
+
+The manifest stores labels escaped. `Cycle &amp; wellbeing` was compared against source
+containing `Cycle & wellbeing`, so **a label with an ampersand could never match**, however
+well implemented. The row was on screen and measured absent.
+
+`tool/fit_coverage.dart` now unescapes first. Two labels in the package are affected, so
+the correction is small — but it is the third defect in this one measurement, after
+counting its own comments and resolving FIT-019 to a 23-line redirect stub.
+
+**Three defects in one metric is itself the finding.** Every number it produces has been
+reported here as a worklist and never as a score; this is the evidence for that caution
+rather than a restatement of it.
+
 ## 4 · Design package
 
 | Check | Status |

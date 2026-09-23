@@ -362,9 +362,11 @@ class ProfileScreen extends ConsumerWidget {
             _GlassCard(
               padding: EdgeInsets.zero,
               child: Column(children: [
+                // FIT-029's wording. "Personal Info" was an abbreviation the
+                // locked screen writes out in full.
                 _ProfileRow(
                   icon: Icons.person_outline,
-                  label: 'Personal Info',
+                  label: 'Personal information',
                   hasBorder: true,
                   onTap: () => context.push('/personal-info'),
                 ),
@@ -438,12 +440,28 @@ class ProfileScreen extends ConsumerWidget {
                   hasBorder: true,
                   onTap: () => context.go('/settings'),
                 ),
+                // FIT-029 calls this "Connected apps". It draws a count beside
+                // it ("Connected apps 2") — that number is NOT added, because
+                // nothing in this app knows how many integrations a client has
+                // connected. A badge reading 2 for everyone would be a
+                // fabricated fact on their own profile.
                 _ProfileRow(
                   icon: Icons.integration_instructions_outlined,
-                  label: 'Integrations',
+                  label: 'Connected apps',
+                  iconColor: _C.secondary,
+                  hasBorder: true,
+                  onTap: () => context.push('/integrations'),
+                ),
+                // FIT-029 declares "Cycle & wellbeing" on this screen. It is a
+                // second entry point to a screen every client can already reach
+                // from Home — the tile there is shown to everyone; only its
+                // subtitle changes — so no new exposure is introduced.
+                _ProfileRow(
+                  icon: Icons.favorite_outline,
+                  label: 'Cycle & wellbeing',
                   iconColor: _C.secondary,
                   hasBorder: false,
-                  onTap: () => context.push('/integrations'),
+                  onTap: () => context.push('/womens-health'),
                 ),
               ]),
             ),

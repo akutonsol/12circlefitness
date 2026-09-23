@@ -24,9 +24,9 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 292 (49%) |
-| **Label absent** | **308** |
-| Locked anchors | 87/179 (49%) |
+| Label present | 298 (50%) |
+| **Label absent** | **302** |
+| Locked anchors | 93/179 (52%) |
 
 **FIT-025 scored 1/1 against a 23-line stub** reading "Check-in details coming soon". Its
 one declared interaction is `Back`, which the stub's `AppBar` supplied automatically. The
@@ -123,7 +123,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-002 ✅ | Active Workout | `/active-workout` | **5** | 5 | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
 | FIT-015 | Workouts — no plan yet | `/train` | 5 | 9 | `train_hub_screen.dart` |
 | FIT-016 | Workout detail | `/workout-detail` | 3 | 7 | `workout_detail_screen.dart` |
-| FIT-029 | Profile | `/profile` | 2 | 6 | `profile_screen.dart` |
+| FIT-029 | Profile | `/profile` | 4 | 6 | `profile_screen.dart` |
 | FIT-030 | Settings | `/settings` | 5 | 6 | `settings_screen.dart` — sixth blocked on OD-19 |
 | FIT-033 | Check-in review | `/coach-checkin-review` | 1 | 5 | `coach_checkin_review_screen.dart` |
 | FIT-021 ✅ | Entitlement gate | `PaywallGate wrapper (12 routes)` | **3** | 3 | `paywall_gate.dart` |
@@ -133,7 +133,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-026 | Conversation | `/chat` | 3 | 5 | `chat_screen.dart` |
 | FIT-009 ✅ | Intake complete | `/intake` | **1** | 1 | `widgets/intake_complete_page.dart` |
 | FIT-022 ✅ | Loading & failure | `cross-cutting pattern` | **1** | 1 | `widgets/nutrition_load_failed.dart` |
-| FIT-024 | Check-in detail | `/checkin-detail` | 1 | 2 | `checkin_detail_screen.dart` |
+| FIT-024 | Check-in detail | `/checkin-detail` | 1 | 2 | `checkin_detail_screen.dart` — the second is a composed label |
 | FIT-007 | Sign in | `/login` | 1 | 1 | `login_screen.dart` |
 | FIT-025 | Awaiting reply | `/checkin-detail` | 1 | 1 | `checkin_detail_screen.dart` |
 
@@ -160,6 +160,25 @@ Stating a value and interpreting it are different acts, and a test asserts the r
 produces the anchor's three words while the decision is outstanding.
 
 
+
+
+### A third defect in the measurement: HTML entities
+
+The manifest stores labels **HTML-escaped**. `Cycle &amp; wellbeing` was compared
+character-for-character against Dart source containing `Cycle & wellbeing`, so a label with
+an ampersand in it **could never be found**, however well implemented. FIT-029's row was on
+screen and measured absent.
+
+`tool/fit_coverage.dart` now unescapes before matching. Only two labels in the package are
+affected, so the correction is small — but it is the **third** defect found in this one
+metric, after:
+
+1. counting its own comments (reported numbers fell by four), and
+2. resolving FIT-019 to a **23-line redirect stub** rather than the sheet that implements it.
+
+Three defects in one measurement is itself the finding. The numbers in this document are
+useful as a worklist and are not a score, which is what the header has said throughout —
+this is the evidence for saying it.
 
 ### FIT-020 — and the number the anchor did not give
 
@@ -339,7 +358,7 @@ without fabricating content the brief forbids.
 | FIT-026 | Conversation | `/chat` | 3/5 | `chat_screen.dart` |
 | FIT-027 | What's on | `/classes` | 5/10 | `classes_screen.dart` + `whats_on_view.dart` + `domain/whats_on.dart` |
 | FIT-028 | Connect — no coach | `/messages` | 4/10 | `messaging_screen.dart` |
-| FIT-029 | Profile | `/profile` | 2/6 | `profile_screen.dart` |
+| FIT-029 | Profile | `/profile` | 4/6 | `profile_screen.dart` |
 | FIT-030 | Settings | `/settings` | 5/6 | `settings_screen.dart` — sixth blocked on OD-19 |
 | FIT-031 🔒 | Plans | `/upgrade` | 1/5 | `upgrade_screen.dart` — **remaining 4 blocked on OD-18** |
 | FIT-032 | Coach dashboard | `/coach-dashboard` | 5/11 | `coach_dashboard_screen.dart` |
