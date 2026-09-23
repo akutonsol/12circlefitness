@@ -403,7 +403,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1057 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1060 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -1153,6 +1153,71 @@ second, and the test now says so.
 (`'Message $name'`), so the literal string never appears in source. Making the metric count
 it would mean hard-coding "Nadia" — naming every client's coach after the design board's
 example. The same ceiling as FIT-027's and FIT-005's sample rows.
+
+## 3q · F-25 · two live assertions that could not observe what they asserted
+
+Found by running the **whole** `integration_test/` directory rather than the files added
+this cycle — which is the only reason it surfaced.
+
+`service_logic_test.dart` counted the **recipient's** notifications from the **sender's**
+session. `notifications` carries
+`recipients read own notifications … USING (recipient_id = auth.uid())` (migrations 003 and
+004), so both reads return 0 for any sender, forever.
+
+| Test | Asserted | Result |
+|---|---|---|
+| `MessagingService.sendMessage notifies recipient exactly once` | `after - before == 1` | `0 == 1` — **red forever**, and it said nothing about the trigger |
+| `WeeklyCheckinService.submitWeeklyCheckin scores + notifies coach` | `after - before <= 1` | `0 <= 1` — **green forever, whatever the app did** |
+
+One root cause, opposite symptoms. **The green one is the more dangerous**, because nobody
+looks at a passing test: it had been sitting in the suite reporting that the coach is not
+double-notified, while being structurally incapable of detecting it either way. That is the
+"green whatever the app does" shape `QA_CLOSURE_STANDARD` §4 warns about, in a file that
+runs against the live database.
+
+And the red one is worse than useless: **the only way it could ever have passed is if
+`notifications` leaked rows across users.** A test whose passing condition is a privacy
+defect is not a weaker test, it is a wrong one. RLS was verified working during this
+analysis — the same query run as the client returns 0, run as the recipient returns their
+own rows.
+
+### What replaced them
+
+Each test now asserts what its own session can observe, and nothing else:
+
+* the sender is **not** notified of their own message; the message row exists;
+* the client is **not** notified of their own check-in; the points were awarded.
+
+The recipient-side half — *did the coach actually get one?* — needs the **recipient's
+session**, which this file does not have: it signs in as `test@12circle.app` and does not
+hold that client's coach's credentials. **It is recorded as open rather than asserted from a
+session that cannot see it.** Closing it needs either a coach fixture paired to this client
+or a `SECURITY DEFINER` counting RPC; both are changes to the test estate, not to a policy.
+
+`test/unit/message_notification_guard_test.dart` holds the half that *can* be held in the
+fast suite: no Dart-side notification insert in `sendMessage` (the duplicate the test was
+originally written for), the trigger and its `AFTER INSERT ON messages` are still installed,
+and the cross-RLS count does not come back. 3 mutations, all killed.
+
+**A correction of record, again about comments.** The first version of that guard failed on
+the very file it protects, because that file's header *explains* the defect and quotes the
+expression it forbids. The FIT coverage metric had the identical fault the same day. Both
+now strip comments before matching: **writing down what went wrong must not register as the
+thing going wrong.**
+
+### An environment note, so the next run is not misread
+
+`flutter test integration_test/` runs files in parallel and they race on the single
+`build/app/outputs/flutter-apk/app-debug.apk`, producing
+`Error opening archive … Invalid file` and *"No application found for
+TargetPlatform.android_arm64"*. Those are **loading** failures of the harness, not test
+results. Run device tests with `--concurrency=1`, or as an explicit file list.
+
+With a fresh APK and `--concurrency=1`: **16 pass**, and the only failures are
+`wrk01_progression_live_test` and `uix1_booking_e2e_test`, which fail their own
+`setUpAll` guard — `Bad state: PROBE_RUN_ID is required — the fixture must be run-scoped`.
+They are driven by `tool/negative_control/wrk01_live_probe.sh` and are expected to refuse a
+bare run.
 
 ## 4 · Design package
 
