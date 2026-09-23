@@ -18,22 +18,24 @@ class WeeklyCheckinService {
     );
   }
 
+  /// The client's weekly check-in history.
+  ///
+  /// **F-15/F-16: the error propagates.** This ended `catch (e) { return []; }`,
+  /// so a failed read arrived as an empty list and FIT-023's history section
+  /// would have said the client had never checked in. Signed out is still an
+  /// empty list — that is a real answer, not a failure.
   Future<List<WeeklyCheckin>> getWeeklyCheckins({int limit = 10}) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
-    try {
-      final data = await _supabase
-          .from('weekly_checkins')
-          .select()
-          .eq('user_id', userId)
-          .order('week_start_date', ascending: false)
-          .limit(limit);
-      return (data as List)
-          .map((row) => _fromRow(row as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      return [];
-    }
+    final data = await _supabase
+        .from('weekly_checkins')
+        .select()
+        .eq('user_id', userId)
+        .order('week_start_date', ascending: false)
+        .limit(limit);
+    return (data as List)
+        .map((row) => _fromRow(row as Map<String, dynamic>))
+        .toList();
   }
 
   Future<WeeklyCheckin> getCurrentWeekCheckin() async {

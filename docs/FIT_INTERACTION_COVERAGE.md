@@ -24,12 +24,12 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 273 (46%) |
-| **Label absent** | **327** |
-| Locked anchors | 68/179 (38%) |
+| Label present | 276 (46%) |
+| **Label absent** | **324** |
+| Locked anchors | 71/179 (40%) |
 
-Baseline measured 2026-09-23 was 258 / 342 / 53. Fifteen points have moved since, in five
-anchors: FIT-028 (+3), FIT-017 (+2, complete), FIT-002 (+4, complete) FIT-027 (+2, structurally complete) and FIT-005 (+4). FIT-017's and FIT-002's are
+Baseline measured 2026-09-23 was 258 / 342 / 53. Eighteen points have moved since, in six
+anchors: FIT-028 (+3), FIT-017 (+2, complete), FIT-002 (+4, complete) FIT-027 (+2, structurally complete), FIT-005 (+4) and FIT-023 (+3). FIT-017's and FIT-002's are
 **hand-corrected** — see the notes below; the generator reads only the file the router
 builds, and both anchors' controls live in sibling widget files. FIT-028's three-point move
 (`/messages`, no-coach state) and is itemised in the note under that row — **two of the
@@ -51,7 +51,7 @@ everything else. Where anything disagrees, they win."*
 |---|---|---|--:|--:|---|
 | FIT-005 | Connect | `/messages` | 5 | 12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
 | FIT-004 | Check-In | `/daily-checkin` | 3 | 11 | `daily_checkin_screen.dart` |
-| FIT-023 | Check-in hub | `/checkins` | 2 | 10 | `checkin_screen.dart` |
+| FIT-023 | Check-in hub | `/checkins` | 5 | 10 | `checkin_screen.dart` + `checkin_hub_sections.dart` + `domain/checkin_hub.dart` |
 | FIT-003 | Nutrition | `/meals-dashboard` | 5 | 12 | `meals_dashboard_screen.dart` |
 | FIT-014 | Workouts hub | `/train` | 5 | 12 | `train_hub_screen.dart` |
 | FIT-027 | What's on | `/classes` | 5 | 10 | `classes_screen.dart` + `whats_on_view.dart` + `domain/whats_on.dart` |
@@ -82,6 +82,24 @@ everything else. Where anything disagrees, they win."*
 
 
 
+
+
+### FIT-023, itemised — and the part that was deliberately not built
+
+| Declared | Status | Note |
+|---|---|---|
+| `Measurements` | **present** | Goes to `/progress`, which is where this app keeps them. No screen was invented to satisfy a label. |
+| `Start check-in` | **present** | Goes to `/daily-checkin`. |
+| `Week 13 Energy steady · Nadia replied` | **artifact** | Counted, but it matches a **doc comment** quoting the anchor's row. The row *shape* is real and live — `Week 13 · Energy 3 of 5 · Nadia replied` — see below. Same class as FIT-005's `Priya…` and FIT-028's `Connect`. |
+| the other two week rows | absent | The board's demo data. |
+| bottom nav ×5 | 2 counted, 3 not | Shell items; the two that count are substring collisions. |
+
+**"Energy steady" was not built, on purpose.** The stored value is 1–5. Turning it into
+Low / Steady / Strong means choosing thresholds on a number a coach reads — the same
+decision FIT-004's difficulty mapping is blocked on, recorded as **OD-16**. The row states
+`Energy 3 of 5`, which is the phrasing already used for those controls' accessible names.
+Stating a value and interpreting it are different acts, and a test asserts the row never
+produces the anchor's three words while the decision is outstanding.
 
 ### FIT-005, itemised — the relationship layer
 
@@ -211,7 +229,7 @@ without fabricating content the brief forbids.
 | FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 0/5 | `—` |
 | FIT-021 | Entitlement gate | `PaywallGate wrapper (12 routes)` | 0/3 | `—` |
 | FIT-022 | Loading & failure | `cross-cutting pattern` | 0/1 | `—` |
-| FIT-023 | Check-in hub | `/checkins` | 2/10 | `checkin_screen.dart` |
+| FIT-023 | Check-in hub | `/checkins` | 5/10 | `checkin_screen.dart` + `checkin_hub_sections.dart` + `domain/checkin_hub.dart` |
 | FIT-024 | Check-in detail | `/checkin-detail` | 1/2 | `checkin_detail_screen.dart` |
 | FIT-025 | Awaiting reply | `/checkin-detail` | 1/1 | `checkin_detail_screen.dart` |
 | FIT-026 | Conversation | `/chat` | 3/5 | `chat_screen.dart` |

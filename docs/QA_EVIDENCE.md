@@ -373,7 +373,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1017 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1038 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -934,6 +934,57 @@ policy "twice", from reading the migration. SEC-G2 measured it: they are two *di
 policies with different names, one added later. Five, not four. A correction that fixed one
 and left the other would have looked complete against the guess.
 
+## 3m · FIT-023 · Check-in hub — "status and history"
+
+`/checkins` had a calendar strip and an upcoming-sessions list. FIT-023 declares two
+controls and a history, and the screen had neither.
+
+| Declared | Built |
+|---|---|
+| `Measurements` | → `/progress`, which is where this app keeps them. No screen was invented to satisfy a label. |
+| `Start check-in` | → `/daily-checkin` |
+| a week history | real weeks from `weekly_checkins`, rendered `Week 13 · Energy 3 of 5 · Nadia replied` |
+
+### Two F-15 collapses closed here
+
+| Where | Was | Now |
+|---|---|---|
+| `_loadCalls()` | `catch (_) { _loading = false; }` → **"No upcoming sessions. Book a call with your coach."** on any failure | `Could not load sessions` with a `Try again`, distinct from the empty state |
+| `WeeklyCheckinService.getWeeklyCheckins()` | `catch (e) { return []; }` | propagates — without it the new history section would have told a client who has checked in for thirteen weeks that they never had |
+
+The first is the sharper of the two: it did not merely hide a failure, it **instructed the
+client to book a call they may already have booked**.
+
+### "Energy steady" was not built, and that is the point
+
+The anchor draws `Week 13 · Energy steady · Nadia replied`. Two of those three come
+straight from the data. The third does not: the stored value is **1–5**, and turning it
+into Low / Steady / Strong means choosing thresholds on a number a coach reads. That is the
+same decision FIT-004's difficulty mapping is blocked on — recorded together as **OD-16**.
+
+The row states `Energy 3 of 5` instead, which is the phrasing already used for those
+controls' accessible names. **A test asserts the row never produces the anchor's three
+words**, so the decision cannot be made silently by a later edit — the mutation that makes
+it fails.
+
+`Awaiting reply` is FIT-025's own screen name, so the no-reply half is not invented either.
+A **pending** week reports neither: nothing has been sent, so nobody is awaiting anything,
+and merging the two would misreport the client's own state back to them.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/checkin_hub_test.dart` — 15 tests | **PASS** |
+| Wiring | `test/widget/checkin_hub_sections_test.dart` — 7 tests over the real sections | **PASS** |
+| Guard strength | 6 mutations, all killed — including *"interpret energy into the anchor's words"*, which is OD-16 made silently | **PASS** |
+| Suite | 1038 pass / 9 skipped; A-G8 47, EC-G8 134, both unchanged | **PASS** |
+| Runtime | not device-verified — the sections are leaves and the host semantics tree is the same tree. **FIXED IN CODE**. | **OPEN** |
+
+**BLOCKED-BY-F21 note.** `/checkins`' *upcoming sessions* read `coaching_calls`, which
+carries the two-party policy (`F21_BLAST_RADIUS.md` §3b) — a forged row appears there as a
+session the client never booked. **The work done here is structure, accessibility and error
+honesty, none of which rests on those rows being authentic.** The integrity of what the
+sessions list displays remains blocked on OD-14, and is not claimed.
+
 ## 4 · Design package
 
 | Check | Status |
@@ -1395,7 +1446,7 @@ state for that screen.
 | Screen | Route | Failure behaviour | Empty behaviour | Distinguishable | Data source | Existing error state | Design state | Decision needed |
 |---|---|---|---|---|---|---|---|---|
 | `progress_screen.dart:139` | `/progress` | `catch (_) { _loading = false }` — whole-screen load | "Log your first weight…", "No entries yet", "No check-ins yet" — **all at once** | **NO** | direct Supabase, 6 fetches | none | FIT-052…057 declare `empty`; no error state declared | copy for an error state |
-| `checkin_screen.dart:146` | `/checkins` | `catch (_)` on `_loadCalls()` | "No upcoming sessions. Book a call with your coach." | **NO** | `coaching_calls` | none | FIT-023 | copy |
+| ~~`checkin_screen.dart:146`~~ | `/checkins` | ~~`catch (_)` → "No upcoming sessions. Book a call with your coach."~~ → **`Could not load sessions` + Try again** | "No upcoming sessions…" | **YES** | `coaching_calls` | yes — see §3m | FIT-023 | **none for this leg** |
 | `coach_dashboard_screen.dart:68` | `/coach-dashboard` | provider `catch` → `[]` | "No clients found — Clients will appear here when they sign up" | **NO** | clients query | none | FIT-032 | copy |
 | `coach_dashboard_screen.dart:98/114/133` | `/coach-dashboard` | `catch` → `[]` ×3 | empty tabs | **NO** | check-ins, workouts, aggregate | none | FIT-032/033 | copy |
 | ~~`profile_screen.dart:830`~~ | `/profile` | ~~`valueOrNull` → null → "No coach assigned yet"~~ → **section hidden**; a failure is never rendered as a denial | "No coach assigned yet · Complete onboarding to choose your coach." | **YES** | coach provider | partial — see §3g | FIT-029 | **none for this leg**; a visible error state still needs OD-8 |
@@ -1409,7 +1460,7 @@ state for that screen.
 now. **This is a connection problem, not an empty schedule.**"* with a Try-again action, and
 a comment at `:609-611` naming the collapse as the bug. `chat_screen.dart` now follows it.
 
-**Four of the nine are now closed.** Both were
+**Five of the nine are now closed.** Both were
 the worst kind: not a failure shown as emptiness, but a failure shown as a **confident
 wrong number**. `/train` answered "0 workouts"; `/home` answered "0%" and then told the
 client to start logging. In both, a number the screen could not support became `'—'` and
@@ -1430,6 +1481,13 @@ booking screen's existing, already-shipped phrasing as the house pattern. Record
 **OD-8**.
 
 ## 6d · OWNER DECISION REGISTER
+
+**OD-16 · How a 1–5 rating maps to the package's three words.** FIT-004 declares
+`Low` / `Steady` / `Strong` for energy and FIT-023 draws `Energy steady` in its history
+rows, while the database stores 1–5 and a coach reads that number. Choosing thresholds is a
+product decision about what a coach is being told, not a formatting one. Until it is made,
+both surfaces state the value (`Energy 3 of 5`) rather than interpret it, and a test asserts
+the three words are not produced.
 
 **OD-15 · FIT-027 does not draw a coach's "New Class" affordance.** The anchor folds
 `/classes`, `/events` and `/challenges` into one list and draws no create control. The FAB
