@@ -721,6 +721,31 @@ counted them — its heuristic is "an `Icon` and no `Text`". The count stays at 
 is a reminder of what it does not see: **a control with a visible label can still be
 unreachable**, because a label is not a role and not a state.
 
+## 3i · Fixture hygiene for this cycle — **nothing was written to QA**
+
+The brief requires every QA fixture to be cleaned up and the remainder proved zero. This
+cycle there was nothing to clean up, which is a stronger result and was deliberate: F-21
+is open, and the standing instruction is not to exercise it through unnecessary mutation.
+
+Every device probe added this cycle mounts a widget directly and injects its data, so four
+of the five touch no backend at all. The fifth (`fit028_no_coach_live_test.dart`) signs in
+as `p1-victim` and issues only `SELECT`s.
+
+Verified after the run, as `p1-victim`, against QA:
+
+| Table | Rows owned by the fixture |
+|---|---|
+| `workout_programs` (`coach_id = uid`) | **0** |
+| `workout_program_assignments` (`client_id = uid`) | **0** |
+| `workout_feedback` (`user_id = uid`) | **0** |
+| `user_profiles.onboarding_complete` | **`false`** — unchanged |
+
+The last row is worth stating. Reaching `/messages` through the app UI would have needed
+this fixture past onboarding, and a `PATCH` to flip that one column **was attempted and
+refused by the sandbox**. Rather than work around the refusal, the runtime verification was
+re-done as an integration test that mounts the screen against the live read paths — which
+proved more, wrote less, and left the fixture exactly as it was found.
+
 ## 4 · Design package
 
 | Check | Status |
