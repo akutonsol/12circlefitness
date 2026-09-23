@@ -382,9 +382,79 @@ So integration is **objectively supported**: set the identity before navigating,
 `selectedWorkoutProvider` in the screen, render the real workout, and add the three states.
 No backend field is missing and no data would be fabricated.
 
-**Status: MAPPED, NOT YET IMPLEMENTED.** It is a screen rewrite against a locked design
-anchor and belongs in its own coherent commit — recorded here so the next tranche starts
-from evidence rather than rediscovery.
+**Status: ~~MAPPED, NOT YET IMPLEMENTED~~ → IMPLEMENTED AND RUNTIME-VERIFIED.**
+
+#### F-20 · Acceptance criteria, each with evidence
+
+Runtime walk on `emulator-5554`, signed in as `p1-victim`, Workouts → browse list.
+
+| # | Criterion | Evidence | Verdict |
+|---|---|---|---|
+| 1 | Implementation corresponds to FIT-016 | back/more bar, context line, 3-col metric strip between hairlines, coach note, numbered rows, CTA — all from the board | **PASS** |
+| 2 | Selected identity preserved | `selectedWorkoutProvider` set at the nav site, read by the screen | **PASS** |
+| 3 | Title matching no longer identity | `_WorkoutItem.workoutId` resolves `Workout.id`; the title comparison is deleted | **PASS** |
+| 4 | Workout A displays A | tapped "Full Body Strength" → `ASSIGNED BY COACH SARAH` · `3 EXERCISES / 45min / 7 SETS` · `1 Barbell Squat 3 × 8 · 60 kg · rest 90 s` | **PASS** |
+| 5 | Workout B displays B | tapped the card shown as `Glute & Hamstring\nFocus` → resolved to domain title **`Glute and Hamstring Focus`** · `2 EXERCISES / 50min / 5 SETS` · `1 Hip Thrust 3 × 12 · 80 kg` | **PASS** |
+| 6 | No fabricated data | every value traced to `Workout`/`WorkoutExercise`/`WorkoutSet`/`Exercise` | **PASS** |
+| 7 | Empty/no-selection distinct | tapped "Metabolic Overdrive" (no domain workout) → **"No workout selected"**, no CTA, no exercises | **PASS** |
+| 8 | Error does not masquerade as success | — | **N/A, stated honestly** — see below |
+| 9 | Existing flows intact | 848 tests pass; active-workout, list, assignment, AI generation untouched | **PASS** |
+| 10 | Relevant tests pass | 6 new widget tests + 848 suite + analyzer clean | **PASS** |
+| 11 | Android runtime verification | the walk above; **zero** `E/flutter`, `FATAL`, `RenderFlex` or overflow throughout | **PASS** |
+| 12 | Accessibility not regressed | `Back`, `Begin session` and each row (`1 Barbell Squat 3 × 8 · 60 kg · rest 90 s`) carry names; rows ≥ 44 dp | **PASS** |
+
+**Criterion 5 is the decisive one.** The card's *displayed* title and the *resolved* workout
+title differ (`Glute & Hamstring\nFocus` vs `Glute and Hamstring Focus`). That they differ
+is the proof: a title match could not have produced this, and previously that exact card
+always fell through to the mockup.
+
+**Criterion 8 — why N/A rather than PASS.** This screen reads an in-memory
+`StateProvider`; there is no fetch, so there is no load to fail and nothing to inject. The
+analogous risk — a *missing* selection being dressed up as content — is criterion 7 and it
+passes. Claiming a PASS for an untestable path would be exactly the category conversion
+this ledger forbids.
+
+**Two defects found and fixed during verification, both by runtime evidence:**
+
+- **Doubled semantics labels.** Wrapping a labelled `Semantics` around a widget that
+  already contains the same `Text` produced `'Sign in\nSign in'` and
+  `'Continue with Apple\nContinue with Apple'` — a screen reader says it twice. Visible in
+  my own earlier on-device dumps and not questioned at the time. Removed the redundant
+  `label:` on both auth buttons and the CTA, and used `excludeSemantics` on the exercise
+  row whose composed label replaces its children. Re-verified on-device: now `'Sign in'`.
+- **Back button returned to `/train`, not the list.** Navigating with `context.go` leaves
+  no pop-able entry, so `canPop()` was false and the fallback fired. Changed to
+  `context.push`, matching this feature's own convention
+  (`train_hub_screen.dart:123`). Re-verified: Back now lands on `BROWSE WORKOUTS`.
+
+**A test of mine was passing trivially and was fixed.** The screen is a `ListView`, so the
+CTA sat below the fold of the default 800×600 test surface and was never built — meaning
+`expect(find.text('Begin session'), findsNothing)` proved nothing. The tests that assert
+the CTA's presence or absence now set a 390×1600 surface first.
+
+**Fixture hygiene.** Reaching the list required the fixture's `onboarding_complete` to be
+true. It was flipped, used, and restored: re-read confirms `onboarding_complete: false`,
+`role: client`. Device state cleared with `pm clear`.
+
+#### F-20b · The browse list advertises workouts that do not exist **NEW**
+
+Established while fixing F-20, and left unfixed deliberately.
+
+| Browse card | Domain workout |
+|---|---|
+| Full Body Strength | `id '1'` |
+| `Glute & Hamstring\nFocus` | `id '2'` |
+| Metabolic Overdrive | **none** |
+| Morning Cardio Blast | **none** |
+| Active Recovery Flow | **none** |
+| — | `id '3'` Upper Body + Core Circuit — **not in the list** |
+
+`_sampleWorkouts` (`workout_list_screen.dart:64`) is a hardcoded list of five presentation
+items; `workoutsProvider` returns three domain workouts. **Three cards have no workout
+behind them at all, and one real workout is not offered.** Those three now open an honest
+"No workout selected" instead of a mockup, but a browse list that advertises sessions the
+app cannot open is a product-content question, not a QA repair. **OWNER DECISION — OD-11**:
+remove the unbacked cards, author real workouts for them, or accept the placeholder.
 
 ### F-10 / GAP-09 · CORRECTION OF TERMINOLOGY
 
