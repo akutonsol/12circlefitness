@@ -916,3 +916,92 @@ and AVD are all installed and staged, and the gate should clear on the next atte
 
 Not attempted, deliberately: installing Xcode (explicitly excluded by the owner), and
 deleting user data to make room.
+
+---
+
+## 20. Design handoff intake — complete, and implementation is BLOCKED by the package itself
+
+### 20.1 Where the design lives
+
+`/Users/dmac/Documents/projects/helix-design-references/12circle fitness/fitness-app-board/` —
+a 468 KB `12Circle Fitness - Complete Board.dc.html`, seven governance docs, and five
+images. Read-only; nothing there was modified. It is **outside** the app repo, which the
+in-repo audit itself notes (§17.5: *"`docs/design/` does not exist in the repo and no design
+board artifact exists"*). `docs/design/` in this repo holds only the 2026-09-09 UI audit.
+
+### 20.2 The package forbids its own application
+
+- `12CIRCLE-FITNESS-DESIGN-CLOSURE.md:3-4` — *"Status: design package closed for review.
+  No Dart, Flutter, provider, route, Supabase or backend code has been modified.
+  **Nothing has been implemented.**"*
+- `12CIRCLE-FITNESS-PHASE-2-DESIGN-SYSTEM.md:11` — *"**⚠ SPECIFICATION ONLY — DO NOT APPLY
+  FROM THIS DOCUMENT**"*
+
+**Implementation cannot begin on this package's own terms.** That is the single decisive
+finding of this intake.
+
+### 20.3 Correction: Home and Active Workout are not recorded as "rebuilt"
+
+The brief describes Home and Active Workout as newly rebuilt. The design documents do not
+support that. Both are **locked anchors** present since the first pass (Wave 3 crosswalk
+classes them `A — designed and locked`). The only structural change recorded is
+DESIGN-CLOSURE §5: *"the five core screens originally sat in fixed 844px frames with
+`overflow: hidden`, which clipped content. They now flow intrinsically"* — a layout-flow
+fix, not a redesign. **Home does not appear in the Locked-Screen Change Register at all**;
+Active Workout appears once, for an exercise reference thumbnail, marked **NEEDS OWNER
+REVIEW**. The register carries 7 element-level alterations total — 2 approved, 5 awaiting
+review — and opens by correcting its own prior report (*"The list was wrong in both
+directions"*).
+
+What *is* new: Waves 1–4 (77 frames) plus 4 promoted auth screens, and five genuinely new
+products with no Flutter counterpart — Post detail + comments, Create post, Pod detail,
+Challenge leaderboard, Cancellation sheet — plus a route for the built-but-unreachable
+`EventTicketScreen`.
+
+### 20.4 The spec conflicts with the shipped theme on nearly every token
+
+| Token | Spec | Repo `twelve_circle_theme.dart` |
+|---|---|---|
+| accent | `#7C3AED` | `#7C5CFF` — **the spec explicitly rejects this value** |
+| radiusCard | 16 | **28** |
+| radiusButton | 12, flat | **999 (pill)** |
+| fonts | Schibsted Grotesk ×3 | Outfit / Inter / Rajdhani |
+| motion | `emphasized`, 200 ms | `spring`, 300 ms |
+| textTertiary | `#8B8595` (4.81:1 floor) | `#5B646F` — **fails AA** |
+| heading weights | "Nothing above 500" | w700/w800 in `helix_theme_builder.dart` |
+| displayWeight / displayTracking | required | **fields do not exist** in `HelixSemantics` |
+
+`HelixTypeScale` has no `w300`; `helixNumeric` has no `FontFeature.tabularFigures`, so the
+spec's tabular rule is currently unimplementable. Spacing is the one dimension that already
+agrees (`x5=20, x8=32, x12=48`).
+
+Applying this spec means changing every colour, radius, font and motion token in the app —
+a wholesale visual redesign. That is a product decision, explicitly outside QA's mutation
+authority, and it is also what the spec's own banner forbids doing from the document.
+
+### 20.5 Handoff gaps — 32 recorded
+
+Counts disagree across the package itself (README 110 frames / board header 88 / closure 64),
+and the coverage matrix marks screens "Designed" that the Wave 3 crosswalk marks
+`Design? no`. Materially: no white/mono brand mark (supplied artwork is black-on-white,
+rendered in the board with `filter: invert(1)` and *"Approved for the design artifact
+only"*); no avatar, class-category, event or progress photography; only 5 of a claimed 22
+images ship. Undrawn: role-unauthorized state, email verification, offline as a real frame,
+10 of 27 intake pages, and every money-path surface (`/subscription`, `/payment-success`,
+`/payment-cancel`). Unresolved interactions include the AI Coach dashboard-vs-chat switch
+(*"Not decidable from source"*), and the nav contract conflicts between two design documents
+(slot 3 `/nutrition` vs `/meals-dashboard`; whether `coachingModeProvider` changes the
+Workouts destination).
+
+### 20.6 Status
+
+**DESIGN HANDOFF INTAKE: COMPLETE.**
+**NEW SCREEN INTEGRATION: BLOCKED — OWNER DECISION REQUIRED**, on three independent
+grounds: the package forbids application, 32 handoff gaps remain open (including 4+
+decisions the closure doc itself lists), and applying it constitutes a product-wide visual
+redesign QA may not decide.
+
+Consequently **functional QA of new screens, Android QA of integrated screens, and the
+final premium visual QA cannot begin** — there are no integrated new screens to test. The
+brief's own sequencing (intake → integration → functional QA → Android QA → visual QA)
+stops at the first gate.
