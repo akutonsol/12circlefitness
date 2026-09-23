@@ -212,7 +212,7 @@ actually renders an injected programme end-to-end.
 
 ---
 
-## 0c · F-22 — 56 icon-only controls ship with no accessible name
+## 0c · F-22 — icon-only controls ship with no accessible name (**56 → 53**)
 
 **ID** F-22 · **Severity** P2 accessibility · **Status** RATCHETED, OD-8 for the copy
 
@@ -240,31 +240,68 @@ It deliberately does **not** repeat EC-G5's mistake, which `QA_CLOSURE_STANDARD`
 as counting `catch` blocks while the defect it targets contains none: A-G8 matches the
 shape that reports unlabelled, not a keyword that happens to sit nearby.
 
-## 0d · F-9 — cause established, fix not yet runtime-verified
+## 0d · F-9 — **RESOLVED AND MEASURED ON DEVICE**, including the related finding
 
-**Cause.** There is **no `MergeSemantics`, `Semantics` or `BlockSemantics` anywhere in
-`intake_flow_screen.dart`** — verified by grep. The merge is Flutter's default: with only
-one actionable node on the page (the "Get Started" `GestureDetector`), the surrounding
-`Text` has no boundary and is absorbed into it, which also expands that node's rect to the
-whole screen. Page 2 yields 11 discrete nodes because its form fields create those
-boundaries naturally. That explains the 1-vs-11 asymmetry recorded earlier without needing
-a hidden merge.
+**Cause.** There is no `MergeSemantics`, `Semantics` or `BlockSemantics` anywhere in
+`intake_flow_screen.dart` — verified by grep. The merge was Flutter's default: with only
+one actionable node on the page (a bare `GestureDetector` around a back icon), the
+surrounding `Text` had no boundary of its own and was absorbed into it, which also
+expanded that node's rect to the whole screen. Page 2 yielded 11 nodes because its form
+fields create boundaries naturally.
 
-**Fix applied.** An explicit bounded button — `Semantics(button: true, label: 'Get Started',
-excludeSemantics: true, …)` — the same pattern that worked for the FIT-016 exercise rows.
-The label is the board's own. Analyzer clean; 875 tests pass.
+**What was wrong, measured.** The earlier `uiautomator` dump recorded page 2 still
+carrying a whole-screen control: `411.4 × 914.3 dp, clickable=true, 'Your Profile\nTell
+us a little about yourself.'`. A screen reader offered the entire page as one button named
+after the heading.
 
-**Status: LOCALLY_VERIFIED, not RUNTIME_VERIFIED, and not claimed as closed.** Reaching the
-welcome page on-device requires a fixture with *no* intake data; `p1-victim` carries a
-first and last name, so the flow resumes at page 2 and page 1 is never rendered. Arranging
-a clean-intake fixture means writing intake rows, which is fixture data this pass did not
-create.
+**The fix.** The intake flow's **three** back controls — `_AppBar` (40 dp),
+`_IntakeStepBar` (36 dp) and the profile header (36 dp) — were all bare
+`GestureDetector`s with no name and under the 44 dp floor. They are now one
+`IntakeBackButton`: named "Back" (FIT-027's own word), `container: true` so it is its own
+node and cannot swallow its neighbours, 44 dp target, visible chip unchanged. The two
+header lines were given their own boundaries, the title as a `header`.
 
-**Related finding, observed while attempting it.** The whole-screen clickable node is
-**still present on page 2**: `411.4 × 914.3 dp, clickable=true,
-'Your Profile\nTell us a little about yourself.'`. So the root node absorbing unbounded
-header text is a *screen-wide* pattern, not a page-1 quirk, and the page-1 fix does not
-address it. Recorded rather than papered over.
+**Measured on `emulator-5554`, dpr 2.625, 411.4 × 914.3 dp** — by reading the real
+semantics tree through the embedder rather than `uiautomator`, which returns an empty tree
+unless an accessibility service is enabled:
+
+| | Before | After |
+|---|---|---|
+| nodes on page 2 | the header and the control merged into one whole-screen node | **18 discrete nodes** |
+| tappable nodes covering >50% of the screen | 1 | **0** |
+| back control | absorbed, unnamed | `44.0 × 44.0 dp, tap=true, label="Back"` |
+| "Your Profile" | inside the control | own node, `315.4 × 29.0 dp`, not tappable |
+| "Tell us a little about yourself." | inside the control | own node, `186.0 × 20.0 dp`, not tappable |
+| "Continue" | — | `button=true enabled=false tap=false` while the form is invalid, `enabled=true tap=true` once filled |
+
+`integration_test/f9_intake_semantics_device_test.dart`. It writes nothing: the page takes
+plain values and callbacks, so it mounts with no session and touches no backend — which is
+also how it sidesteps the blocker recorded before. Reaching page 2 as a signed-in user
+needs a fixture with no intake data, and manufacturing one means writing intake rows while
+F-21 is open.
+
+### A defect this probe found in my own fix, and the rule it produced
+
+The first version of `IntakeBackButton` used `excludeSemantics: true` to keep the icon out
+of the announcement. **That drops the child's ACTIONS along with its labels.** The device
+read `44x44 tap=false label="Back"` — a node announced as a button that a screen reader
+cannot press. Worse than the unnamed control it replaced, and every host-VM test was green,
+because they asserted the name and the size and not the action.
+
+`_RestAction` (FIT-017's "Add 30 seconds" / "Skip rest, start set") had the identical
+defect, introduced earlier in this same cycle and not noticed. Both now pass `onTap` to the
+`Semantics` as well, and **all three device probes assert the tap action, not just the
+name**. Confirmed by mutation: removing the `Semantics` `onTap` fails both files.
+
+The rule: *`excludeSemantics: true` requires re-declaring the action.* Only the device
+showed it.
+
+### Still open on this screen
+
+`_GradientButton` now declares its role and `enabled` state (the child `Text` supplies the
+name, so no label is set — doubling an announcement is a mistake this repository has
+already made once). The rest of the intake flow's controls have not been audited; A-G8
+counts what remains.
 
 ## 1 · Defects found and fixed, each verified at runtime
 
@@ -283,7 +320,7 @@ address it. Recorded rather than papered over.
 | F-6 | Password visibility toggle is **19.8 × 20.2 dp with no accessible name** — under half the 44 dp floor | `uiautomator` dump, 2.625 px/dp | **OWNER DECISION** (D-3 copy) — size fix is mechanical, the label is product copy |
 | F-7 | "Forgot password?" 20.2 dp and "Sign Up" 19.8 dp targets | same dump | **OWNER DECISION** — same class as F-6 |
 | F-8 | Text inputs expose their *value* but carry no accessible **name** | same dump | **OWNER DECISION** (copy) |
-| F-9 | Intake welcome page collapses to **one merged accessibility node**; "Get Started" not separately focusable | dump ×2, plus 11-node control on next page | **CAUSE ESTABLISHED · FIX LOCALLY_VERIFIED, NOT RUNTIME_VERIFIED** — see §0d |
+| F-9 | Intake welcome page collapses to **one merged accessibility node**; "Get Started" not separately focusable; the same whole-screen clickable node also present on page 2 | `uiautomator` dump ×2; re-measured through the embedder on `emulator-5554` | **PASS — MEASURED ON DEVICE.** 18 discrete nodes, 0 whole-screen controls, back control `44.0 × 44.0 dp, tap=true, label="Back"`. See §0d, including a defect the probe found in the fix itself |
 | F-10 | `event_ticket_screen` is unrouted — reached only via `MaterialPageRoute`, so no URL, no deep link, outside the router shell | `app_router.dart` grep + `events_screen.dart:81` | **OWNER DECISION** (OD-4, design GAP-09) |
 | F-2b | Chat screen displayed four **fabricated messages** as the user's real coach conversation whenever a thread was empty or could not be created | `chat_screen.dart:88`, `messaging_service.dart:237-245` | **PASS** — fixed `0243867`; empty state restored, distinct failure state added, 840 tests pass |
 | F-6b | Password toggle 19.8x20.2dp unlabelled | `uiautomator` before/after | **PASS** — now **43.8 x 43.8 dp, labelled "Show password"**, verified on device; copy is the design's own |
@@ -299,6 +336,7 @@ address it. Recorded rather than papered over.
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
 | Unit + widget suite | **937 tests pass, 9 skipped** | **PASS** |
+| Device semantics probes | 5 integration tests on `emulator-5554`, no backend touched | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
 ## 3b · FIT-028 · Connect — no coach — **VERIFIED LIVE**

@@ -30,6 +30,7 @@
 // The FIT017-MARK lines carry the measurements into the evidence ledger.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -74,6 +75,14 @@ void main() {
 
       expect(find.bySemanticsLabel(announced), findsOneWidget,
           reason: '"$announced" is FIT-017\'s own wording for this control');
+
+      // A node announced as a button that carries no tap action is a button a
+      // screen reader cannot press. `excludeSemantics: true` drops the child's
+      // ACTIONS along with its labels — found on the intake back button, and
+      // these two had it as well.
+      final data = t.getSemantics(find.bySemanticsLabel(announced)).getSemanticsData();
+      expect(data.hasAction(SemanticsAction.tap), isTrue,
+          reason: '"$announced" announces as a button but cannot be activated');
 
       final target = find
           .ancestor(of: find.text(drawn), matching: find.byType(GestureDetector))

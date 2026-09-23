@@ -55,7 +55,10 @@ void main() {
   ///        control ("Pause session"); the count fell by one rather than
   ///        staying level because the new one is named, which is the whole
   ///        point of the ratchet.
-  const baseline = 55;
+  ///   53 — after F-9 replaced the intake flow's three unlabelled back controls
+  ///        (40/36/36 dp, no name) with one named `IntakeBackButton`. Two of
+  ///        the three were visible to this scan.
+  const baseline = 53;
 
   List<({String file, int count})> scan() {
     final files = <File>[
@@ -113,6 +116,16 @@ void main() {
   });
 
   test('A-G8 the controls already fixed stay fixed', () {
+    // F-9's three intake back controls, replaced by one named widget.
+    final intake = File('lib/features/onboarding/presentation/intake_flow_screen.dart')
+        .readAsStringSync();
+    expect(intake.contains('IntakeBackButton'), isTrue);
+    expect(RegExp(r'Icons\.arrow_back(_ios_new)?|Icons\.chevron_left')
+        .allMatches(intake).isNotEmpty, isTrue,
+        reason: 'the icons still ship — it is the naming that changed');
+    expect(File('lib/features/onboarding/presentation/widgets/intake_back_button.dart')
+        .readAsStringSync(), contains("label: 'Back'"));
+
     // FIT-002's two, extracted so they could be asserted at all.
     final zone = File('lib/features/workout/presentation/widgets/zone_action.dart');
     expect(zone.existsSync(), isTrue);

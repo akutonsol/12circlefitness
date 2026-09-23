@@ -228,7 +228,12 @@ class _RestAction extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
         button: true,
         label: label,
+        // `excludeSemantics` drops the child's ACTIONS too, so the tap has to be
+        // handed to the Semantics as well — otherwise the node announces as a
+        // button a screen reader cannot activate. Measured on-device on the
+        // intake back button before it was caught here as well.
         excludeSemantics: true,
+        onTap: onTap,
         child: GestureDetector(
           onTap: onTap,
           behavior: HitTestBehavior.opaque,

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'widgets/intake_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../scoring/data/score_engine.dart';
@@ -275,7 +276,7 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
               // 0 — Welcome
               _WelcomePage(onStart: _next),
               // 1 — Profile Info (name, gender, dob)
-              _ProfileInfoPage(
+              ProfileInfoPage(
                 firstName: _data.firstName,
                 lastName: _data.lastName,
                 gender: _data.gender,
@@ -517,10 +518,10 @@ class _AppBar extends StatelessWidget {
         child: Row(
           children: [
             if (onBack != null)
-              GestureDetector(
+              IntakeBackButton(
                 onTap: onBack,
-                child: Container(
-                  width: 40, height: 40,
+                size: 40,
+                chip: Container(
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(999),
@@ -530,7 +531,7 @@ class _AppBar extends StatelessWidget {
                 ),
               )
             else
-              const SizedBox(width: 40),
+              const SizedBox(width: 44),
             const Expanded(
               child: Center(
                 child: Text('12 Circle',
@@ -644,7 +645,16 @@ class _GradientButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    // The child `Text` supplies the name, so no label is set here — adding one
+    // would double the announcement, which is a mistake this repository has
+    // already made once (see `auth_design.dart`). What is added is the ROLE and
+    // the ENABLED state: the button is disabled until the page's fields are
+    // filled, and a screen reader had no way to know that.
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      onTap: enabled ? onTap : null,
+      child: GestureDetector(
       onTap: enabled ? onTap : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -672,6 +682,7 @@ class _GradientButton extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }
@@ -719,10 +730,9 @@ class _IntakeStepBar extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(16, top + 12, 16, 16),
       child: Row(
         children: [
-          GestureDetector(
+          IntakeBackButton(
             onTap: onBack,
-            child: Container(
-              width: 36, height: 36,
+            chip: Container(
               decoration: BoxDecoration(
                 color: _surfCH,
                 borderRadius: BorderRadius.circular(10),
@@ -4709,7 +4719,9 @@ class _BottomBar extends StatelessWidget {
 }
 
 // ── Profile Info Page ─────────────────────────────────────────────────────────
-class _ProfileInfoPage extends StatefulWidget {
+/// Public so F-9's whole-screen-node finding can be re-measured on the device.
+/// It takes plain values and callbacks — no Supabase — so it mounts standalone.
+class ProfileInfoPage extends StatefulWidget {
   final String firstName;
   final String lastName;
   final String gender;
@@ -4717,16 +4729,17 @@ class _ProfileInfoPage extends StatefulWidget {
   final void Function(String, String, String, DateTime?) onChanged;
   final VoidCallback onContinue;
   final VoidCallback onBack;
-  const _ProfileInfoPage({
+  const ProfileInfoPage({
+    super.key,
     required this.firstName, required this.lastName,
     required this.gender, required this.dateOfBirth,
     required this.onChanged, required this.onContinue, required this.onBack,
   });
   @override
-  State<_ProfileInfoPage> createState() => _ProfileInfoPageState();
+  State<ProfileInfoPage> createState() => _ProfileInfoPageState();
 }
 
-class _ProfileInfoPageState extends State<_ProfileInfoPage> {
+class _ProfileInfoPageState extends State<ProfileInfoPage> {
   late final TextEditingController _fnCtrl;
   late final TextEditingController _lnCtrl;
   late String _gender;
@@ -4794,21 +4807,30 @@ class _ProfileInfoPageState extends State<_ProfileInfoPage> {
         padding: EdgeInsets.only(top: top + 16, left: 20, right: 20, bottom: 24),
         child: Column(children: [
           Row(children: [
-            GestureDetector(
+            IntakeBackButton(
               onTap: widget.onBack,
-              child: Container(
-                width: 36, height: 36,
+              chip: Container(
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.07),
                   shape: BoxShape.circle),
                 child: const Icon(Icons.arrow_back_ios_new, color: _onSurf, size: 16))),
             const SizedBox(width: 12),
-            const Expanded(child: Text('Your Profile',
-              style: TextStyle(color: _onSurf, fontSize: 20, fontWeight: FontWeight.w800))),
+            // F-9: these two lines had no semantics boundary and were absorbed
+            // into the only actionable node on the page — the back button —
+            // whose rect then covered the whole screen. `header`/`container`
+            // give each its own node, which is also what a screen reader needs
+            // in order to offer the title as a heading.
+            Expanded(child: Semantics(
+              header: true,
+              container: true,
+              child: const Text('Your Profile',
+                style: TextStyle(color: _onSurf, fontSize: 20, fontWeight: FontWeight.w800)))),
           ]),
           const SizedBox(height: 8),
-          const Text('Tell us a little about yourself.',
-            style: TextStyle(color: _onSurfV, fontSize: 14)),
+          Semantics(
+            container: true,
+            child: const Text('Tell us a little about yourself.',
+              style: TextStyle(color: _onSurfV, fontSize: 14))),
         ])),
 
       Expanded(child: SingleChildScrollView(

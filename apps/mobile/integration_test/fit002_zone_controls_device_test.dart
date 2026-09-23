@@ -14,6 +14,7 @@
 //     -d emulator-5554 --dart-define-from-file=dart_defines/qa.json
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -66,6 +67,15 @@ void main() {
       // `bySemanticsLabel` matches a semantics node, not a widget, so it cannot
       // be the `of:` of an ancestor search — find the target through its icon.
       expect(find.bySemanticsLabel(label), findsOneWidget);
+
+      // Named AND pressable. A `Semantics` that excludes its child drops the
+      // child's actions too, which produced a "Back" node a screen reader could
+      // not activate on the intake flow. These do not exclude, but the
+      // assertion is cheap and the failure mode is silent.
+      final data =
+          t.getSemantics(find.bySemanticsLabel(label)).getSemanticsData();
+      expect(data.hasAction(SemanticsAction.tap), isTrue);
+      expect(data.hasFlag(SemanticsFlag.isButton), isTrue);
 
       final size = t.getSize(find
           .ancestor(of: find.byIcon(icon), matching: find.byType(GestureDetector))
