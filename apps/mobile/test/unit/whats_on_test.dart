@@ -342,4 +342,12 @@ void main() {
       expect(r.value!.failed, isEmpty);
     });
   });
+
+  test('F-15 the challenges failure line is shared with /challenges', () {
+    // `/challenges` renders this same string for the same source rather than
+    // introducing a second sentence for the same failure. If someone changes
+    // it here, they are changing it on both screens, which is the point of
+    // having one definition.
+    expect(failureLine(WhatsOnKind.challenges), 'Could not load challenges');
+  });
 }

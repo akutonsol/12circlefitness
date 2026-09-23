@@ -46,10 +46,15 @@ final unreadNotificationCountProvider = Provider<int>((ref) {
   return notifs.where((n) => n['read'] == false).length;
 });
 
+// F-15/F-16: the error propagates. These four reads ended `catch { return []; }`,
+// so a failure reached `/coach-dashboard` as "no clients", "no check-ins" and
+// "no workouts" — a coach told their whole roster had vanished. `clientIds
+// .isEmpty` is still an early empty list, because having no clients IS a real
+// answer and must stay distinguishable from the read having failed.
 final coachClientsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   // Live: re-fetch when a relationship changes (new client, status flip).
   ref.watch(tableTickerProvider('coach_client_relationships'));
-  try {
+  {
     final coachId = _supabase.auth.currentUser?.id;
     if (coachId == null) return [];
     // Only fetch clients with an active relationship to this coach
@@ -65,8 +70,6 @@ final coachClientsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) as
         .select('id, first_name, last_name, email, avatar_url, role')
         .inFilter('id', clientIds);
     return List<Map<String, dynamic>>.from(data);
-  } catch (e) {
-    return [];
   }
 });
 
@@ -92,14 +95,12 @@ Widget _riskPill(String label, Color color) => Container(
 // AI coaching signals for the coach's active clients (risk/adherence/last brief).
 final coachAiSignalsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   ref.watch(tableTickerProvider('coach_client_relationships'));
-  try {
-    final data = await _supabase.rpc('coach_client_ai_signals');
-    return List<Map<String, dynamic>>.from(data as List);
-  } catch (_) { return []; }
+  final data = await _supabase.rpc('coach_client_ai_signals');
+  return List<Map<String, dynamic>>.from(data as List);
 });
 
 final clientCheckinsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  try {
+  {
     final ids = await _coachClientIds();
     if (ids.isEmpty) return []; // no clients → no data (was showing ALL platform check-ins)
     final today = DateTime.now();
@@ -111,13 +112,11 @@ final clientCheckinsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) 
         .gte('checked_in_at', start.toIso8601String())
         .order('checked_in_at', ascending: false);
     return List<Map<String, dynamic>>.from(data);
-  } catch (e) {
-    return [];
   }
 });
 
 final clientWorkoutLogsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  try {
+  {
     final ids = await _coachClientIds();
     if (ids.isEmpty) return []; // no clients → no data (was showing ALL platform workouts)
     final now = DateTime.now();
@@ -130,8 +129,6 @@ final clientWorkoutLogsProvider = FutureProvider<List<Map<String, dynamic>>>((re
         .gte('completed_at', start.toIso8601String())
         .order('completed_at', ascending: false);
     return List<Map<String, dynamic>>.from(data);
-  } catch (e) {
-    return [];
   }
 });
 
@@ -170,9 +167,17 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen>
     final checkins = ref.watch(clientCheckinsProvider);
     final workouts = ref.watch(clientWorkoutLogsProvider);
 
-    final clientList    = clients.valueOrNull  ?? [];
-    final checkinList   = checkins.valueOrNull ?? [];
-    final workoutList   = workouts.valueOrNull ?? [];
+    // F-15: a failed read must not become "no clients". These three reads
+    // decide what a coach is told about their entire roster, and a failure
+    // arriving as an empty list told them it had vanished. `.valueOrNull` is
+    // kept — these are the reads EC-G8 already counts — but a failure is now
+    // tracked alongside it so the screen can tell the two apart.
+    final failed = clients is AsyncError ||
+        checkins is AsyncError ||
+        workouts is AsyncError;
+    final clientList    = clients is AsyncError ? const <Map<String, dynamic>>[] : (clients.valueOrNull  ?? []);
+    final checkinList   = checkins is AsyncError ? const <Map<String, dynamic>>[] : (checkins.valueOrNull ?? []);
+    final workoutList   = workouts is AsyncError ? const <Map<String, dynamic>>[] : (workouts.valueOrNull ?? []);
 
     // Stats
     final checkedInToday  = checkinList.map((c) => c['user_id']).toSet().length;
@@ -335,7 +340,7 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen>
           child: TabBarView(
             controller: _tabs,
             children: [
-              _buildClientsTab(clientList, checkinList, workoutList),
+              _buildClientsTab(clientList, checkinList, workoutList, failed: failed),
               _buildRequestsTab(),
               _buildCheckinsTab(checkinList, clientList),
               _buildWorkoutsTab(workoutList, clientList),
@@ -470,8 +475,9 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen>
   Widget _buildClientsTab(
     List<Map<String, dynamic>> clients,
     List<Map<String, dynamic>> checkins,
-    List<Map<String, dynamic>> workouts,
-  ) {
+    List<Map<String, dynamic>> workouts, {
+    required bool failed,
+  }) {
     // Client Intelligence metrics
     final highRisk = clients.where((c) => c['risk_level'] == 'high').length;
     final modRisk  = clients.where((c) => c['risk_level'] == 'moderate').length;
@@ -484,6 +490,16 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen>
     // AI Recommendations (rule-based from aggregate data)
     final aiRecs = _generateCoachRecs(clients, checkins, workouts);
 
+    if (failed) {
+      // NOT "No clients found". A coach whose roster read failed is being told
+      // their clients have gone, which is both false and alarming. The line
+      // follows the `Could not load [noun]` pattern this repository renders in
+      // fifteen files; "Try again" is the package's own label.
+      return _EmptyState(
+        icon: Icons.cloud_off_rounded,
+        message: "Could not load your clients",
+        sub: "Pull to refresh to try again");
+    }
     if (clients.isEmpty) {
       return _EmptyState(
         icon: Icons.people_outline,

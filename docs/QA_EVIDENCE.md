@@ -373,7 +373,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1045 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1046 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -1041,6 +1041,54 @@ literals alone. Every anchor this programme touched was re-measured:
 Headline: **276 → 272 present**, locked anchors **71 → 67**. The anchors reported complete
 were complete, which is the part of the result worth having.
 
+## 3o · F-15 — the inventory is closed
+
+Nine error→empty collapses were recorded in §6c. **All nine are now fixed, and none of
+them needed new product copy.**
+
+| Screen | Was | Now |
+|---|---|---|
+| `/train` | `error: (_, __) => '0'` — **"0 workouts" as a real answer** | `'—'` |
+| `/home` | `catch` → all-zero bars → **"0%"** and "Log meals or workouts to see progress" | `'—'`, nudge dropped, no bar highlighted |
+| `/profile` | `valueOrNull` → **"No coach assigned yet · Complete onboarding"** | section hidden |
+| `/classes` | `valueOrNull ?? []` and a swallowing service | per-source failure named |
+| `/checkins` sessions | `catch (_)` → **"No upcoming sessions. Book a call with your coach."** | `Could not load sessions` + Try again |
+| `/checkins` history | `catch (e) { return []; }` in the service | propagates |
+| `/challenges` | `AsyncError` never consumed → "🏁 No challenges here" **and "0 active challenges"** | `Could not load challenges` + Try again, count `—` |
+| `/progress` | `catch (_)` → **three empty states at once** | `Could not load your progress` + Try again |
+| `/coach-dashboard` ×4 reads | `catch` → `[]` → **"No clients found"** | `Could not load your clients`; any of the three failing is reported |
+
+### What OD-8 turned out to be
+
+OD-8 said these could not be fixed because each needed **user-facing error copy**, and
+writing nine new strings would be inventing product copy. That was true of writing them.
+It was not true of the fix.
+
+Every line used is one this repository already renders: `Could not load events`
+(`events_screen.dart:66`), `Could not load classes` (`coach_classes_screen.dart:37`), the
+`Could not load [noun]` pattern in fifteen files, and `Try again` — the **design package's
+own label**, 16 declarations. Two of the nine needed no words at all: a number the screen
+could not support became `'—'`.
+
+**OD-8 is no longer blocking anything.** It asked for permission to invent; none was
+needed. It stays open only as the question of whether the owner wants *better* copy than
+the house pattern.
+
+### The two that were worse than "empty"
+
+Most of the nine hid a failure. Two **instructed the client to act on it**:
+
+* `/checkins` told them to **book a call with their coach** — one they may already have
+  booked, which is what the failed read was trying to tell them.
+* `/coach-dashboard` told a coach **their entire roster had vanished**. Both false and
+  alarming, and the read had simply failed.
+
+### Three that answered with a confident wrong number
+
+`/train`'s "0 workouts", `/home`'s "0%", `/challenges`' "0 active challenges". Not a
+failure shown as emptiness — a failure shown as a **measurement**. All three now read
+`'—'`, which needs no copy and cannot be misread as a result.
+
 ## 4 · Design package
 
 | Check | Status |
@@ -1501,13 +1549,13 @@ state for that screen.
 
 | Screen | Route | Failure behaviour | Empty behaviour | Distinguishable | Data source | Existing error state | Design state | Decision needed |
 |---|---|---|---|---|---|---|---|---|
-| `progress_screen.dart:139` | `/progress` | `catch (_) { _loading = false }` — whole-screen load | "Log your first weight…", "No entries yet", "No check-ins yet" — **all at once** | **NO** | direct Supabase, 6 fetches | none | FIT-052…057 declare `empty`; no error state declared | copy for an error state |
+| ~~`progress_screen.dart:139`~~ | `/progress` | ~~`catch (_)` → three empty states at once~~ → **`Could not load your progress` + Try again** | "Log your first weight…", "No entries yet", "No check-ins yet" | **YES** | direct Supabase, 6 fetches | yes | FIT-052…057 | **none for this leg** |
 | ~~`checkin_screen.dart:146`~~ | `/checkins` | ~~`catch (_)` → "No upcoming sessions. Book a call with your coach."~~ → **`Could not load sessions` + Try again** | "No upcoming sessions…" | **YES** | `coaching_calls` | yes — see §3m | FIT-023 | **none for this leg** |
-| `coach_dashboard_screen.dart:68` | `/coach-dashboard` | provider `catch` → `[]` | "No clients found — Clients will appear here when they sign up" | **NO** | clients query | none | FIT-032 | copy |
-| `coach_dashboard_screen.dart:98/114/133` | `/coach-dashboard` | `catch` → `[]` ×3 | empty tabs | **NO** | check-ins, workouts, aggregate | none | FIT-032/033 | copy |
+| ~~`coach_dashboard_screen.dart:68`~~ | `/coach-dashboard` | ~~`catch` → `[]` → "No clients found"~~ → **`Could not load your clients`** | "No clients found…" | **YES** | clients query | yes | FIT-032 | **none for this leg** |
+| ~~`coach_dashboard_screen.dart:98/114/133`~~ | `/coach-dashboard` | ~~`catch` → `[]` ×3~~ → **errors propagate**; any of the three failing is reported | empty tabs | **YES** | check-ins, workouts, aggregate | yes | FIT-032/033 | **none for this leg** |
 | ~~`profile_screen.dart:830`~~ | `/profile` | ~~`valueOrNull` → null → "No coach assigned yet"~~ → **section hidden**; a failure is never rendered as a denial | "No coach assigned yet · Complete onboarding to choose your coach." | **YES** | coach provider | partial — see §3g | FIT-029 | **none for this leg**; a visible error state still needs OD-8 |
 | ~~`classes_screen.dart:39`~~ | `/classes` | ~~`valueOrNull ?? []`, and `LiveClassService` swallowed the read~~ → **errors propagate**; a failed source is named, per kind | Schedule tab rendered **nothing at all** (`itemCount: 0`) | **YES** | class providers | `Could not load classes` + Try again | FIT-027 | **none for this leg** |
-| `challenges_screen.dart:36-39` | `/challenges` | `AsyncError` never consumed | "🏁 No challenges here" | **NO** | challenge StateNotifier | none | FIT-075/078/079 | copy |
+| ~~`challenges_screen.dart:36-39`~~ | `/challenges` | ~~`AsyncError` never consumed → "🏁 No challenges here" and "0 active challenges"~~ → **`Could not load challenges` + Try again**, count `—` | "🏁 No challenges here" | **YES** | challenge StateNotifier | yes | FIT-075/078/079 | **none for this leg** |
 | ~~`home_screen.dart:80`~~ | `/home` | ~~`catch` → all-zero bars~~ → **error propagates**; headline `'—'`, nudge omitted, bars drawn as the unknown track | zero bars + "Log meals or workouts…" | **YES** | weekly activity | partial — see §3f | FIT-001 (locked) | **none for this leg**; a full error state with retry still needs OD-8 |
 | ~~`train_hub_screen.dart:224-246`~~ | `/train` | ~~`error: (_, __) => '0'`~~ → **`'—'`** | `'—'` placeholders | **YES** | 4 stat providers | `_PlanUnavailable` | FIT-014/015 (locked) | **none for this leg** |
 
@@ -1516,7 +1564,7 @@ state for that screen.
 now. **This is a connection problem, not an empty schedule.**"* with a Try-again action, and
 a comment at `:609-611` naming the collapse as the bug. `chat_screen.dart` now follows it.
 
-**Five of the nine are now closed.** Both were
+**All nine are now closed.** Both were
 the worst kind: not a failure shown as emptiness, but a failure shown as a **confident
 wrong number**. `/train` answered "0 workouts"; `/home` answered "0%" and then told the
 client to start logging. In both, a number the screen could not support became `'—'` and
@@ -1526,7 +1574,7 @@ paying a coach every month. It is now hidden rather than reworded, because the s
 already sitting there was the false one and there was nothing shipped to fall back to.
 Nothing was written to fix any of the three.
 
-The remaining six need **user-facing error copy**, and that is still OD-8.
+**OD-8 is no longer blocking any of them.** Every line used is one this repository already renders — `Could not load [noun]`, a pattern in fifteen files — or the package's own `Try again` (16 declarations). What OD-8 asked for was permission to *invent* copy; none was needed.
 
 **Why the rest are not fixed in this pass:** the pattern is unambiguous but each needs
 **user-facing error copy**, and the authoritative package declares `empty`/`loading` states

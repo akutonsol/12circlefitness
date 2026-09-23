@@ -45,6 +45,12 @@ class _ProgressScreenState extends State<ProgressScreen>
   Map<String, String> _galleryUrls = {};
   String? _frontUrl, _sideUrl, _backUrl;
   bool _loading = true;
+  /// F-15: a failed load is not an empty history. This screen used to end
+  /// `catch (_) { _loading = false; }` and then render "Log your first weight
+  /// to see your chart", "No entries yet" and "No check-ins yet" — **all at
+  /// once** — to a client whose six reads had simply failed. Three definite
+  /// statements about their history, none of which the screen could support.
+  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -55,6 +61,7 @@ class _ProgressScreenState extends State<ProgressScreen>
   }
 
   Future<void> _loadData() async {
+    if (mounted) setState(() => _loadFailed = false);
     final uid = Supabase.instance.client.auth.currentUser?.id;
     if (uid == null) { setState(() => _loading = false); return; }
     try {
@@ -137,7 +144,7 @@ class _ProgressScreenState extends State<ProgressScreen>
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() { _loading = false; _loadFailed = true; });
     }
   }
 
@@ -164,6 +171,53 @@ class _ProgressScreenState extends State<ProgressScreen>
       title: 'PERFORMANCE',
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: _C.primary))
+          : _loadFailed
+          // NOT three empty states. The screen knows nothing about this
+          // client's history, so it says that and offers a retry instead of
+          // telling them to log their first weight.
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.cloud_off_rounded,
+                      color: Color(0xFFFFB4AB), size: 40),
+                  const SizedBox(height: 14),
+                  // Follows the `Could not load [noun]` pattern this
+                  // repository renders in fifteen files.
+                  const Text('Could not load your progress',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Color(0xFFFFB4AB),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 14),
+                  Semantics(
+                    button: true,
+                    child: GestureDetector(
+                      onTap: _loadData,
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        constraints:
+                            const BoxConstraints(minWidth: 44, minHeight: 44),
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.12))),
+                        // The package's own label, 16 declarations.
+                        child: const Text('Try again',
+                            style: TextStyle(
+                                color: _C.onSurface,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+            )
           : Column(
               children: [
                 // ── Tab bar ──
