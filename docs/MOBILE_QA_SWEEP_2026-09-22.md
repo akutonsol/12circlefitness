@@ -865,3 +865,54 @@ Independently re-verified after all CI activity: conversations **1** (the pre-ex
 (`UIX1-MARK CLEANUP verified availability=0 active-relationships=0`;
 `WRK01-MARK CLEANUP verified remaining=0`, plus CI's independent re-check). **No fixture
 leaked, by me or by CI.**
+
+---
+
+## 19. Android runtime gate — pursued to a hard, quantified blocker
+
+§10 recorded Android as unavailable on the strength of `flutter doctor` alone. That was
+under-investigated. This section supersedes it with an actual attempt.
+
+### 19.1 No sanctioned tooling existed to reuse
+
+Searched exhaustively before building anything: no `adb`/`emulator`/`sdkmanager`/`avdmanager`
+anywhere under `$HOME`, no `cmdline-tools`, no Android Studio, no SDK in any standard
+location, `~/.android` holding only `analytics.settings` and `cache` (no `avd/`),
+`apps/mobile/android/local.properties` carrying only `flutter.sdk=` with **no `sdk.dir`**,
+and **no Android job, script or documented emulator workflow anywhere in the repository or
+its CI**. There was nothing to reuse, so the toolchain had to be built.
+
+### 19.2 Toolchain installed from nothing — this part succeeded
+
+| Component | Version | Result |
+|---|---|---|
+| cmdline-tools | 12.0 | installed (Google official zip; the Homebrew cask fails on this machine with `Failed to quarantine … xattr: No such file: …kotlin-compiler-mvn.jar`, and `--no-quarantine` was removed in Homebrew 7) |
+| platform-tools | 37.0.1 | installed — `adb` 1.0.41 working |
+| platforms;android-35 | 2 | installed |
+| emulator | 37.1.11 | installed |
+| system-images;android-35;google_apis;arm64-v8a | rev 9 | installed (1.78 GB, direct from `dl.google.com` after `sdkmanager` failed twice with a bare `Warning: Failed to download package!`) |
+| SDK licences | — | 14 accepted |
+| AVD `qa35` | Pixel 6, API 35, arm64-v8a | **created**, and `flutter emulators` lists it: `qa35 • qa35 • Google • android` |
+
+### 19.3 Boot blocked — disk, with exact numbers
+
+```
+FATAL | Not enough space to create userdata partition.
+        Available: 2201.36 MB at ~/.android/avd/qa35.avd, need 7372.80 MB.
+```
+
+The 7,372.80 MB figure is a fixed emulator pre-flight requirement, **not** the configured
+partition size: it was reproduced after setting `disk.dataPartition.size = 1600M`, removing
+the 512 MB SD card and passing `-partition-size 2048`. Two boot attempts, same FATAL.
+
+Disk was also reclaimed along the way — Homebrew caches pruned twice, the failed cask
+download removed, the QA web build deleted, temp logs cleared — which is why free space
+*rose* from 942 MiB to ~2.2 GiB mid-run. It is still **≈5.1 GB short**.
+
+**ANDROID: ENVIRONMENT_BLOCKED — insufficient disk, ~5.1 GB short of the emulator's
+7.2 GB pre-flight requirement.** This is not a tooling gap any more: the SDK, system image
+and AVD are all installed and staged, and the gate should clear on the next attempt once
+~5–6 GB is free. Freeing that means deleting data this QA pass does not own.
+
+Not attempted, deliberately: installing Xcode (explicitly excluded by the owner), and
+deleting user data to make room.
