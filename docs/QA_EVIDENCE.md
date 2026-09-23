@@ -298,7 +298,7 @@ address it. Recorded rather than papered over.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **911 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **919 tests pass, 9 skipped** | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
 ## 3b · FIT-028 · Connect — no coach — **VERIFIED LIVE**
@@ -475,6 +475,51 @@ The probe is kept as a regression guard. Recording this matters as much as recor
 real defect: an Ahem artifact reported as a product bug would be a fabricated finding,
 and F-5 (a genuine 39 px landscape overflow, confirmed on-device) is what a real one
 looks like.
+
+## 3e · FIT-002 · the Workout Zone — the screen the design calls the most focus-critical in the app
+
+Four of five declared controls. Two of them were **defects, not gaps**: they existed, and
+both were unreachable by a screen reader and under the touch-target floor.
+
+| Declared | Before | Now |
+|---|---|---|
+| `End session` | unlabelled 36 dp cross | named, 44.0 × 44.0 dp on device, chip still 36 dp |
+| `Log set` | unlabelled 32 dp check — the most-used control on the screen | named, 44.0 × 44.0 dp, chip still 32 dp; a completed set reports the same control `enabled: false` |
+| `Pause session` | **absent** | present |
+| `Skip` | present | unchanged |
+| `Adjust weight or reps` | visible label "Edit" | **not claimed** — see below |
+
+**Pause suspends the rest countdown, deliberately.** Rest is wall-clock. Left running, a
+paused session would keep sliding into overtime, sound its siren and take 5 points every
+20 seconds for time the client has explicitly said they are not training. Overtime already
+accrued is still banked, so pausing is not a way to erase a drain that has already
+happened — only to stop a new one. Elapsed time is persisted on pause so a crash while
+paused resumes at the right number.
+
+**`Adjust weight or reps` is recorded as absent although the control exists.** The "Edit"
+affordance on a completed set does exactly what the design describes, but its *visible*
+label is "Edit". Overriding the accessible name with the design's longer phrase would
+break WCAG 2.5.3 — an accessible name must contain the visible label — and changing the
+visible label is a layout and copy decision. Naming it in semantics only would have moved
+the coverage number without helping a single user, so it was not done.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Zone controls | `test/widget/zone_action_test.dart` — 5 tests | **PASS** |
+| Log set | `test/widget/set_tracker_row_test.dart` — 3 added, 10 total | **PASS** |
+| Guard strength | 8 mutations, all killed: drop the Semantics wrapper, drop the 44 dp constraint, drop opaque hit-testing, grow the chip into the target (×2 widgets), drop the "Log set" label, always report enabled, grow the check | **PASS** |
+| **Runtime, on device** | `integration_test/fit002_zone_controls_device_test.dart` on `emulator-5554`: `dpr=2.625 width=411.4dp`, `"End session" 44.0x44.0dp`, `"Pause session" 44.0x44.0dp` | **VERIFIED ON DEVICE** |
+| Pause state machine | **not runtime-verified** — reaching it needs a live session, which means writing to QA. F-21 is open. Classified **FIXED IN CODE**. | **OPEN** |
+| Suite | 919 pass / 9 skipped | **PASS** |
+
+**A-G8 lowered 56 → 55, and why not further.** Naming "End session" removed one from the
+population *while FIT-002 also added a control*, which is the ratchet working as intended.
+"Log set" is now named too, and the scan still counts it: it reads forward from each
+tappable, so a `Semantics` wrapper placed outside the `GestureDetector` is invisible to
+it. The window was **not** widened backwards to make the number fall — a backward window
+would also swallow an unrelated `Semantics` above a genuinely unnamed control, and a
+ratchet that under-counts hides regressions while one that over-counts only overstates the
+work left. The discrepancy is recorded in the guard rather than tuned away.
 
 ## 4 · Design package
 

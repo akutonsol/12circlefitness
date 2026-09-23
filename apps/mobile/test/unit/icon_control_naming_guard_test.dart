@@ -22,8 +22,22 @@ import 'package:flutter_test/flutter_test.dart';
 /// screens it does not draw, and inventing 56 strings would be exactly the
 /// fabrication the brief forbids. Recorded as F-22 / OD-8 instead.
 ///
-/// So this guard holds the line where it sits. It fails on the 57th, which is
-/// the only thing that can be asserted honestly today.
+/// So this guard holds the line where it sits. It fails on the next one, which
+/// is the only thing that can be asserted honestly today.
+///
+/// ── A KNOWN FALSE POSITIVE, LEFT IN ON PURPOSE ─────────────────────────────
+/// The scan reads 420 characters FORWARD from each tappable, so a `Semantics`
+/// wrapper that sits OUTSIDE the `GestureDetector` is invisible to it. FIT-002
+/// named `set_tracker_row.dart`'s completion check exactly that way — the
+/// control now announces "Log set" and is asserted to, in
+/// `test/widget/set_tracker_row_test.dart` — and this scan still counts it.
+///
+/// The window is not widened backwards to make the number fall. A backward
+/// window would also swallow an unrelated `Semantics` sitting above a genuinely
+/// unnamed control, and a ratchet that under-counts is worse than one that
+/// over-counts: the first hides a regression, the second only overstates the
+/// work left. The baseline is held at the number this scan produces, and the
+/// discrepancy is recorded here rather than tuned away.
 ///
 /// ── WHY IT DOES NOT COPY EC-G5'S MISTAKE ───────────────────────────────────
 /// `QA_CLOSURE_STANDARD` §4 records that EC-G5 "counts `catch` blocks" while
@@ -32,10 +46,16 @@ import 'package:flutter_test/flutter_test.dart';
 /// tappable whose subtree has an Icon and no Text, tooltip or Semantics —
 /// rather than on a keyword that happens to appear nearby.
 void main() {
-  /// The population as measured on 2026-09-23, after FIT-001's three top-bar
-  /// controls were named. Lower this number when sites are fixed; never raise
-  /// it. A rise means a new unreachable control shipped.
-  const baseline = 56;
+  /// The population as measured on 2026-09-23. Lower this number when sites are
+  /// fixed; never raise it. A rise means a new unreachable control shipped.
+  ///
+  ///   56 — after FIT-001 named the three top-bar controls
+  ///   55 — after FIT-002 named the Workout Zone's close control "End session"
+  ///        and extracted it to `ZoneAction`. Note that FIT-002 also ADDED a
+  ///        control ("Pause session"); the count fell by one rather than
+  ///        staying level because the new one is named, which is the whole
+  ///        point of the ratchet.
+  const baseline = 55;
 
   List<({String file, int count})> scan() {
     final files = <File>[
@@ -93,6 +113,17 @@ void main() {
   });
 
   test('A-G8 the controls already fixed stay fixed', () {
+    // FIT-002's two, extracted so they could be asserted at all.
+    final zone = File('lib/features/workout/presentation/widgets/zone_action.dart');
+    expect(zone.existsSync(), isTrue);
+    final screen = File('lib/features/workout/presentation/active_workout_screen.dart')
+        .readAsStringSync();
+    for (final label in ["label: 'End session'", "'Pause session'"]) {
+      expect(screen, contains(label),
+          reason: 'FIT-002 names this control; it was an unlabelled 36 dp '
+              'cross before.');
+    }
+
     // These three were measured unlabelled on-device and named from FIT-001.
     final nav = File('lib/core/widgets/app_top_nav.dart').readAsStringSync();
     for (final label in ['Directory', 'Messages', 'Notifications']) {

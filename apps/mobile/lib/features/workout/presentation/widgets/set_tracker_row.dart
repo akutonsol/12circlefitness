@@ -279,7 +279,22 @@ class _SetTrackerRowState extends State<SetTrackerRow>
                 ),
               ),
               const SizedBox(width: 6),
-              GestureDetector(
+              // FIT-002 names this control "Log set". It was an unlabelled
+              // 32 dp check: a screen reader announced nothing for the single
+              // most-used control on the most focus-critical screen in the app,
+              // and the target was under the 44 dp floor (F-6's class).
+              //
+              // `enabled: !completed` rather than a second label: completion is
+              // one-way, so a logged set's control is genuinely disabled, and
+              // saying so is what a screen reader needs. Inventing a "Set
+              // logged" string would be product copy the design does not
+              // supply.
+              Semantics(
+                button: true,
+                enabled: !widget.completed,
+                label: 'Log set',
+                child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 // Completion is one-way: a completed set has no tap handler, so
                 // it can't be deselected and its values can't be re-submitted.
                 onTap: widget.completed ? null : () {
@@ -294,22 +309,30 @@ class _SetTrackerRowState extends State<SetTrackerRow>
                       : _notesController.text.trim();
                   widget.onCompleted(reps, weightKg, rpe, notes);
                 },
+                // The visual check stays 32 dp — the TARGET is what grew, the
+                // same treatment FIT-001's top nav and FIT-002's Zone controls
+                // use.
                 child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: widget.completed ? AppColors.success : AppColors.surfaceDark,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: widget.completed ? AppColors.success : AppColors.textTertiary,
+                  constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                  alignment: Alignment.center,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: widget.completed ? AppColors.success : AppColors.surfaceDark,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: widget.completed ? AppColors.success : AppColors.textTertiary,
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.check,
+                      color: widget.completed ? AppColors.white : AppColors.textTertiary,
+                      size: 16,
                     ),
                   ),
-                  child: Icon(
-                    Icons.check,
-                    color: widget.completed ? AppColors.white : AppColors.textTertiary,
-                    size: 16,
-                  ),
                 ),
+              ),
               ),
             ],
           ),

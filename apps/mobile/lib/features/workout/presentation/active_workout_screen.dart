@@ -13,6 +13,7 @@ import '../domain/workout_restoration.dart';
 import '../domain/workout_session_manager.dart';
 import 'widgets/set_tracker_row.dart';
 import 'widgets/rest_timer_widget.dart';
+import 'widgets/zone_action.dart';
 import 'widgets/exercise_guide_sheet.dart';
 import '../../exercise_database/data/custom_exercise_service.dart';
 import '../../exercise_database/data/exercise_database_service.dart';
@@ -127,6 +128,8 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
   int _elapsedSeconds = 0;
   int _idleSeconds = 0; // accumulated rest-overrun (overtime) across the session
   int _overtimePenalties = 0; // recurring overtime deductions for the current rest
+  /// FIT-002 · "Pause session". The session clock stops; see [_togglePause].
+  bool _paused = false;
   Timer? _timer;
   bool _saving = false;
   final _workoutService = WorkoutService();
@@ -160,6 +163,7 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
     super.initState();
     _sessions = ref.read(workoutSessionManagerProvider);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_paused) return;
       setState(() => _elapsedSeconds++);
     });
     _startSession();
@@ -582,6 +586,27 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
     );
   }
 
+  /// FIT-002 · "Pause session" — the screen's second declared control, absent
+  /// until now. The session clock ran from the moment the Zone opened until the
+  /// workout was finished, whatever the client was actually doing.
+  ///
+  /// **Pausing suspends the rest countdown too, and that is the point.** Rest
+  /// is wall-clock: left running, a paused session would keep sliding into
+  /// overtime, sound its siren and take 5 points every 20 seconds for time the
+  /// client has explicitly said they are not training. Overtime already accrued
+  /// is still banked — `_dismissRest` does that — so pausing is not a way to
+  /// erase a drain that has already happened, only to stop a new one.
+  ///
+  /// Elapsed time is persisted on pause so a crash or a kill while paused
+  /// resumes at the right number rather than at the last set that was logged.
+  void _togglePause() {
+    final next = !_paused;
+    setState(() => _paused = next);
+    if (!next) return;
+    _dismissRest();
+    _saveElapsed();
+  }
+
   Future<void> _saveElapsed() async {
     final sid = _sessionId;
     if (sid == null) return;
@@ -730,16 +755,25 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
               color: _card,
               border: Border(bottom: BorderSide(color: _border))),
             child: Row(children: [
-              GestureDetector(
-                onTap: () => _showEndDialog(context),
-                child: Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: _error.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _error.withValues(alpha: 0.3))),
-                  child: const Icon(Icons.close, color: _error, size: 18))),
-              const SizedBox(width: 12),
+              // FIT-002 names this control "End session". It was an unlabelled
+              // 36 dp cross: a screen reader announced nothing (F-22 / A-G8)
+              // and the target was under the 44 dp floor (F-6's class).
+              ZoneAction(
+                icon: Icons.close,
+                label: 'End session',
+                color: _error,
+                onTap: () => _showEndDialog(context)),
+              const SizedBox(width: 4),
+              // FIT-002 · "Pause session". See _togglePause.
+              ZoneAction(
+                icon: _paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                // "Pause session" is the design's own wording; "Resume" is the
+                // wording already shipping on the resume banner. Neither is
+                // invented here.
+                label: _paused ? 'Resume' : 'Pause session',
+                color: _paused ? _tertiary : _brand,
+                onTap: _togglePause),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text('Workout Zone',
@@ -750,14 +784,18 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _brand.withValues(alpha: 0.12),
+                  color: (_paused ? _muted : _brand).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _brand.withValues(alpha: 0.3))),
+                  border: Border.all(color: (_paused ? _muted : _brand).withValues(alpha: 0.3))),
                 child: Row(children: [
-                  const Icon(Icons.timer_outlined, color: _brand, size: 14),
+                  Icon(_paused ? Icons.pause_rounded : Icons.timer_outlined,
+                    color: _paused ? _muted : _brand, size: 14),
                   const SizedBox(width: 5),
                   Text(_elapsedTime,
-                    style: const TextStyle(color: _white, fontSize: 14, fontWeight: FontWeight.w700)),
+                    style: TextStyle(
+                      color: _paused ? _muted : _white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700)),
                 ])),
             ])),
 

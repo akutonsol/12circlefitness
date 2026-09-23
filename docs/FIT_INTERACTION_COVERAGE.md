@@ -24,13 +24,14 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 263 (44%) |
-| **Label absent** | **337** |
-| Locked anchors | 58/179 (32%) |
+| Label present | 266 (44%) |
+| **Label absent** | **334** |
+| Locked anchors | 61/179 (34%) |
 
-Baseline measured 2026-09-23 was 258 / 342 / 53. Five points have moved since, in two
-anchors: FIT-028 (+3) and FIT-017 (+2). FIT-017's two are **hand-corrected** — see its
-note below, because the generator cannot see them. FIT-028's three-point move
+Baseline measured 2026-09-23 was 258 / 342 / 53. Eight points have moved since, in three
+anchors: FIT-028 (+3), FIT-017 (+2) and FIT-002 (+3). FIT-017's and FIT-002's are
+**hand-corrected** — see the notes below; the generator reads only the file the router
+builds, and both anchors' controls live in sibling widget files. FIT-028's three-point move
 (`/messages`, no-coach state) and is itemised in the note under that row — **two of the
 three are real, the third is a comment matching its own anchor id.** The heuristic cannot
 tell those apart, which is the caveat above stated as a concrete instance rather than as
@@ -61,7 +62,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-019 | Log a meal | `/log-meal` | 0 | 5 | `log_meal_screen.dart` |
 | FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 0 | 5 | `—` |
 | FIT-031 | Plans | `/upgrade` | 0 | 5 | `upgrade_screen.dart` |
-| FIT-002 | Active Workout | `/active-workout` | 1 | 5 | `active_workout_screen.dart` |
+| FIT-002 | Active Workout | `/active-workout` | 4 | 5 | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
 | FIT-015 | Workouts — no plan yet | `/train` | 5 | 9 | `train_hub_screen.dart` |
 | FIT-016 | Workout detail | `/workout-detail` | 3 | 7 | `workout_detail_screen.dart` |
 | FIT-029 | Profile | `/profile` | 2 | 6 | `profile_screen.dart` |
@@ -78,6 +79,19 @@ everything else. Where anything disagrees, they win."*
 | FIT-007 | Sign in | `/login` | 1 | 1 | `login_screen.dart` |
 | FIT-025 | Awaiting reply | `/checkin-detail` | 1 | 1 | `checkin_detail_screen.dart` |
 
+
+
+### FIT-002, itemised — "the most focus-critical screen in the app"
+
+| Declared | Status | Note |
+|---|---|---|
+| `End session` | **present** | Existed as an **unlabelled 36 dp cross**. Two defects in one widget: a screen reader announced nothing, and the target was under the 44 dp floor. Now named from FIT-002 and measured 44.0 × 44.0 dp on `emulator-5554`. |
+| `Pause session` | **present** | **Did not exist.** The session clock ran from the moment the Zone opened until the workout finished, whatever the client was actually doing. |
+| `Log set` | **present** | Existed as an **unlabelled 32 dp check** — the most-used control on this screen, announcing nothing. Named from FIT-002; a completed set reports the same control `enabled: false` rather than inventing a second string. |
+| `Skip` | present | Pre-existing. |
+| `Adjust weight or reps` | **absent, deliberately** | The control exists — the "Edit" affordance on a completed set — but its **visible** label is "Edit". Overriding the accessible name with the design's longer phrase would break WCAG 2.5.3 (an accessible name must contain the visible label), and changing the visible label is a layout and copy decision. Recorded rather than faked: naming it in semantics only would have moved this number without helping anyone. |
+
+Four of five. The fifth is the one that could have been claimed cheaply and was not.
 
 ### FIT-017, and a limit of the generator
 
@@ -132,7 +146,7 @@ without fabricating content the brief forbids.
 | FIT | Screen | Route | Present/Declared | Implementation |
 |---|---|---|--:|---|
 | FIT-001 | Home | `/home` | 4/9 | `home_screen.dart` |
-| FIT-002 | Active Workout | `/active-workout` | 1/5 | `active_workout_screen.dart` |
+| FIT-002 | Active Workout | `/active-workout` | 4/5 | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
 | FIT-003 | Nutrition | `/meals-dashboard` | 5/12 | `meals_dashboard_screen.dart` |
 | FIT-004 | Check-In | `/daily-checkin` | 3/11 | `daily_checkin_screen.dart` |
 | FIT-005 | Connect | `/messages` | 1/12 | `messaging_screen.dart` |
