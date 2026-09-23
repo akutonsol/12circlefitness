@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/widgets/named_icon_button.dart';
 import '../data/models/checkin_model.dart';
 import '../domain/checkin_hub.dart';
+import '../domain/checkin_provider.dart';
 
 /// FIT-024 · "Check-in detail — `/checkin-detail · with the coach's reply`"
 /// and FIT-025 · "Awaiting reply — the empty state with a real answer".

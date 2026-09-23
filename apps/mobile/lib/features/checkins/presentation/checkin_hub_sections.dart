@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../data/models/checkin_model.dart';
 import '../data/weekly_checkin_service.dart';
 import '../domain/checkin_hub.dart';
+import '../domain/checkin_provider.dart';
 
 /// The client's weekly check-in history.
 ///

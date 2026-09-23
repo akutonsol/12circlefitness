@@ -403,7 +403,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1120 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1121 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -1579,6 +1579,52 @@ stub that rendered "Check-in details coming soon". The single declared interacti
 while the screen did not exist. **A full score against a stub is the strongest argument yet
 that presence is weak evidence**, which this document has said from the start and can now
 show.
+
+## 3aa · A defect I introduced, and the stub sweep that found it
+
+### F-27 · two `selectedCheckinProvider`s
+
+Building FIT-024 I declared `selectedCheckinProvider` in `checkin_hub.dart`. **One already
+existed**, in `checkin_provider.dart`, and it is the one `CheckinCard` sets.
+
+Nothing failed to compile. Nothing failed a test. The analyzer was clean. `CheckinCard`
+wrote to one provider and the detail screen read the other, so **tapping a check-in card
+would have opened the screen I had just built and shown "Open a check-in from your
+history"** — while my own FIT-023 rows, which set the new one, worked.
+
+Two providers of the same name split state between the screens that write it and the
+screens that read it, and that is invisible to the analyzer and to any test that exercises
+only one path. Mine is removed; the existing one is used. A guard asserts there is exactly
+one, and reintroducing a duplicate fails it.
+
+**Found by reading the entry points, not by a test.** It is the clearest example in this
+programme of why "reuse existing architecture" is a correctness rule and not a tidiness
+preference.
+
+### The stub sweep
+
+FIT-025 had scored **1/1 against a 23-line stub**, which raised the obvious question: how
+many other "implemented" screens are placeholders? Swept every `*_screen.dart` under
+`lib/features/*/presentation/` for placeholder text and for suspiciously small files.
+
+**The answer is reassuring — four small screens, and only one was a real problem:**
+
+| Screen | Lines | Verdict |
+|---|---|---|
+| `log_meal_screen.dart` | 23 | redirect to `/meals-dashboard` — recorded under FIT-019 |
+| `food_search_screen.dart` | 23 | redirect to `/meals-dashboard` — legitimate |
+| `embedded_checkout_screen.dart` | 33 | thin wrapper around the real checkout |
+| `checkin_form_screen.dart` | 37 | **an interstitial** — fixed, see below |
+| `checkin_detail_screen.dart` | 23 | the stub, now built (§3z) |
+
+No other `coming soon` placeholder exists in the codebase.
+
+### `/checkin-form` was an interstitial, not a screen
+
+It rendered a near-empty page titled "Check-In Form" with one button reading "Go to Daily
+Check-In". A client tapping a **pending** check-in card (`checkin_card.dart:25`) landed
+there and had to press again to reach the form they had already asked for. It is now a
+redirect, matching the two sibling routes that already resolve that way.
 
 ## 4 · Design package
 

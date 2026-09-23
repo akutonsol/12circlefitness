@@ -134,8 +134,10 @@ String checkinSubmitLabel(AsyncValue<Map<String, dynamic>?> coach) =>
 
 // ── FIT-024 / FIT-025 · Check-in detail ──────────────────────────────────────
 
-/// The check-in the client opened from the hub.
-final selectedCheckinProvider = StateProvider<WeeklyCheckin?>((ref) => null);
+// The check-in the client opened is held by `selectedCheckinProvider` in
+// `checkin_provider.dart`, which already existed and is what `CheckinCard`
+// sets. A second provider of the same name was briefly declared here; see the
+// correction recorded in docs/QA_EVIDENCE.md.
 
 /// The board draws the answers as **label-value rows** — "quick to scan, and
 /// they hold at large Dynamic Type where a table wouldn't".

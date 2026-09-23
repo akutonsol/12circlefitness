@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:circle_fitness/features/checkins/data/models/checkin_model.dart';
@@ -213,5 +215,27 @@ void main() {
               const AsyncData<Map<String, dynamic>?>({'first_name': ' Nadia '})),
           'Send to Nadia');
     });
+  });
+
+  test('there is exactly ONE selectedCheckinProvider', () {
+    // A second one was briefly declared in `checkin_hub.dart` while building
+    // FIT-024, next to the one that already existed in `checkin_provider.dart`.
+    // Nothing failed to compile: `CheckinCard` set one and the detail screen
+    // read the other, so tapping a check-in card would have opened an empty
+    // screen. Parallel state with the same name is invisible to the analyzer
+    // and to every test that only exercises one path.
+    final defs = Directory('lib/features/checkins')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))
+        .where((f) =>
+            f.readAsStringSync().contains('selectedCheckinProvider = '))
+        .map((f) => f.path)
+        .toList();
+
+    expect(defs, hasLength(1),
+        reason: 'two providers of the same name split the state between the '
+            'screens that write it and the screens that read it. Found: $defs');
+    expect(defs.single, endsWith('domain/checkin_provider.dart'));
   });
 }

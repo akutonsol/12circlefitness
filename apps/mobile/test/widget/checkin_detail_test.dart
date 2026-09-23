@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:circle_fitness/features/checkins/data/models/checkin_model.dart';
-import 'package:circle_fitness/features/checkins/domain/checkin_hub.dart';
+import 'package:circle_fitness/features/checkins/domain/checkin_provider.dart';
 import 'package:circle_fitness/features/checkins/presentation/checkin_detail_screen.dart';
 
 /// FIT-024 · "Check-in detail — with the coach's reply" and
