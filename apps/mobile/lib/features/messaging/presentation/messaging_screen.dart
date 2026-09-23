@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/widgets/named_icon_button.dart';
 import '../../auth/domain/auth_provider.dart';
 import '../../coach/domain/coach_provider.dart';
 import '../domain/messaging_provider.dart';
@@ -207,24 +208,16 @@ class _HeaderAction extends StatelessWidget {
   const _HeaderAction({required this.icon, required this.label, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => Semantics(
-        button: true,
+  Widget build(BuildContext context) => NamedIconButton(
         label: label,
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-            alignment: Alignment.center,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.06),
-                shape: BoxShape.circle),
-              child: Icon(icon, color: _white, size: 18),
-            ),
-          ),
+        onTap: onTap,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.06),
+            shape: BoxShape.circle),
+          child: Icon(icon, color: _white, size: 18),
         ),
       );
 }

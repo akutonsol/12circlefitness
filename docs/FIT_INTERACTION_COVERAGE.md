@@ -24,12 +24,12 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 267 (45%) |
-| **Label absent** | **333** |
-| Locked anchors | 62/179 (35%) |
+| Label present | 269 (45%) |
+| **Label absent** | **331** |
+| Locked anchors | 64/179 (36%) |
 
-Baseline measured 2026-09-23 was 258 / 342 / 53. Nine points have moved since, in three
-anchors: FIT-028 (+3), FIT-017 (+2) and FIT-002 (+4, now complete at 5/5). FIT-017's and FIT-002's are
+Baseline measured 2026-09-23 was 258 / 342 / 53. Eleven points have moved since, in four
+anchors: FIT-028 (+3), FIT-017 (+2, complete), FIT-002 (+4, complete) and FIT-027 (+2, structurally complete). FIT-017's and FIT-002's are
 **hand-corrected** — see the notes below; the generator reads only the file the router
 builds, and both anchors' controls live in sibling widget files. FIT-028's three-point move
 (`/messages`, no-coach state) and is itemised in the note under that row — **two of the
@@ -54,7 +54,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-023 | Check-in hub | `/checkins` | 2 | 10 | `checkin_screen.dart` |
 | FIT-003 | Nutrition | `/meals-dashboard` | 5 | 12 | `meals_dashboard_screen.dart` |
 | FIT-014 | Workouts hub | `/train` | 5 | 12 | `train_hub_screen.dart` |
-| FIT-027 | What's on | `/classes` | 3 | 10 | `classes_screen.dart` |
+| FIT-027 | What's on | `/classes` | 5 | 10 | `classes_screen.dart` + `whats_on_view.dart` + `domain/whats_on.dart` |
 | FIT-032 | Coach dashboard | `/coach-dashboard` | 5 | 11 | `coach_dashboard_screen.dart` |
 | FIT-028 | Connect — no coach | `/messages` | 4 | 10 | `messaging_screen.dart` |
 | FIT-001 | Home | `/home` | 4 | 9 | `home_screen.dart` |
@@ -80,6 +80,28 @@ everything else. Where anything disagrees, they win."*
 | FIT-025 | Awaiting reply | `/checkin-detail` | 1 | 1 | `checkin_detail_screen.dart` |
 
 
+
+
+### FIT-027, itemised — five of ten is the honest ceiling
+
+| Declared | Status | Note |
+|---|---|---|
+| `Back` · `All` · `Classes` · `Events` · `Challenges` | **all present** | The whole structure of the anchor: a Back control and a four-segment row over one chronological list. All five are the package's own words. |
+| the five dated rows | **absent, and they will stay absent** | `11 Sep Reformer, small group Class · Studio 2 · 4 places left`, `12 Sep Strength basics workshop…`, and three more. |
+
+**The row *shapes* are implemented.** A real class renders exactly
+`Class · Studio 2 · 4 places left`; a real event renders `Event · 18:30 · 12 going`; a
+real challenge renders `Challenge closes · 24 in`. Tests pin each format. What the
+heuristic looks for is the **literal sample strings** from the design board — a specific
+Reformer class in Studio 2 with four places left — and putting those in the code means
+fabricating a class, an event and a challenge that do not exist.
+
+So FIT-027 is structurally complete at 5/10, and the remaining five are the measurement
+counting the design's demo data as a requirement. The same is true of FIT-005's four pod
+and community rows and FIT-003's three meal rows. **This is a limit of the metric, not a
+backlog**, and it is the third such limit recorded here — the first being the generator's
+inability to see sibling widget files, the second its inability to see a `Semantics`
+above a tappable.
 
 ### FIT-002, itemised — "the most focus-critical screen in the app"
 
@@ -176,7 +198,7 @@ without fabricating content the brief forbids.
 | FIT-024 | Check-in detail | `/checkin-detail` | 1/2 | `checkin_detail_screen.dart` |
 | FIT-025 | Awaiting reply | `/checkin-detail` | 1/1 | `checkin_detail_screen.dart` |
 | FIT-026 | Conversation | `/chat` | 3/5 | `chat_screen.dart` |
-| FIT-027 | What's on | `/classes` | 3/10 | `classes_screen.dart` |
+| FIT-027 | What's on | `/classes` | 5/10 | `classes_screen.dart` + `whats_on_view.dart` + `domain/whats_on.dart` |
 | FIT-028 | Connect — no coach | `/messages` | 4/10 | `messaging_screen.dart` |
 | FIT-029 | Profile | `/profile` | 2/6 | `profile_screen.dart` |
 | FIT-030 | Settings | `/settings` | 2/6 | `settings_screen.dart` |

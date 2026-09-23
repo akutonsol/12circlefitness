@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/widgets/named_icon_button.dart';
+
 /// The intake flow's back control.
 ///
 /// ── WHAT IT REPLACES ───────────────────────────────────────────────────────
@@ -49,20 +51,10 @@ class IntakeBackButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Semantics(
-        button: true,
-        container: true,
+  Widget build(BuildContext context) => NamedIconButton(
+        // FIT-027 declares "Back" (138 declarations across the package).
         label: 'Back',
-        excludeSemantics: true,
         onTap: onTap,
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-            alignment: Alignment.center,
-            child: SizedBox(width: size, height: size, child: chip),
-          ),
-        ),
+        child: SizedBox(width: size, height: size, child: chip),
       );
 }

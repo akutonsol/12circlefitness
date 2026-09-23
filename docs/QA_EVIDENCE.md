@@ -373,8 +373,8 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **945 tests pass, 9 skipped** | **PASS** |
-| Device semantics probes | 5 integration tests on `emulator-5554`, no backend touched | **PASS** |
+| Unit + widget suite | **987 tests pass, 9 skipped** | **PASS** |
+| Device probes | 7 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
 ## 3b · FIT-028 · Connect — no coach — **VERIFIED LIVE**
@@ -754,6 +754,86 @@ this fixture past onboarding, and a `PATCH` to flip that one column **was attemp
 refused by the sandbox**. Rather than work around the refusal, the runtime verification was
 re-done as an integration test that mounts the screen against the live read paths — which
 proved more, wrote less, and left the fixture exactly as it was found.
+
+## 3j · FIT-027 · "What's on" — three routes under one list
+
+`/classes · /events · /challenges under one list`. The three shipped as separate screens,
+and F-14 recorded `/events` and `/challenges` as **stranded** once the bottom nav went to
+five tabs. This is the anchor that unstrands them.
+
+**Five of the ten declared interactions, and that is the ceiling.** `Back`, `All`,
+`Classes`, `Events`, `Challenges` — the entire structure — are present. The other five are
+the design board's own sample rows (`11 Sep Reformer, small group Class · Studio 2 · 4
+places left`). The row *formats* are implemented and tested; matching the literal strings
+would mean fabricating a class, an event and a challenge. Itemised in
+`FIT_INTERACTION_COVERAGE.md`.
+
+### The rule the architecture exists for
+
+**A partial failure is reported, never hidden.** Three sources load independently. If
+Events fails and the other two succeed, rendering the surviving two as "what's on" tells
+the client there are no events this month — a false answer assembled from a true one and a
+failure. A merged list invites exactly this: the list still looks full, so nothing looks
+wrong.
+
+So `WhatsOn` carries `failed` alongside `items`, and:
+
+| State | What the screen does |
+|---|---|
+| one source failed, others have rows | names the failed source **above** the rows that loaded |
+| one source failed, nothing else to show | the failure notice **replaces** the empty state |
+| viewing a single segment | reports that source's failure, and only that one |
+| all three genuinely empty | the three shipped empty lines, no failure line |
+| any source still in flight | a spinner — **not** a partial list |
+| a failed source carrying stale rows | contributes **none** of them |
+
+**Every string is one this repository already renders.** `Could not load events`
+(`events_screen.dart:66`), `Could not load classes` (`coach_classes_screen.dart:37`),
+`Could not load challenges` (the `Could not load [noun]` pattern used in fifteen files),
+`No classes yet`, `No upcoming events`, `No challenges here`, and `Try again` (the
+package's own label, 16 declarations). FIT-027 declares only a `default` state, so it
+supplies no failure or empty copy — and this screen can report a failure at all only
+because it borrows from the three screens it replaces. Nothing here needs OD-8.
+
+### Two swallowed reads fixed on the way
+
+| Where | Was | Now |
+|---|---|---|
+| `LiveClassService.getUpcomingClasses` | `catch (_) { return []; }` | propagates — without this FIT-027's failure machinery could never fire for classes |
+| `events_screen.dart`'s private provider | `catch (_) { return []; }` | propagates, which **makes `/events`' own `error:` branch reachable for the first time** — the copy for the failure was written; the catch made sure nobody ever saw it |
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/whats_on_test.dart` — 26 tests | **PASS** |
+| Wiring | `test/widget/whats_on_view_test.dart` — 16 tests over the real view and the three real source providers | **PASS** |
+| Guard strength | 9 mutations, all killed | **PASS** |
+| **Runtime, on device** | `integration_test/fit027_whats_on_device_test.dart` on `emulator-5554` at 411.4 / 390 / 360 dp: all four segments ≥ 44 dp, exclusive-group + tap action on each, 0 overflows at every width | **VERIFIED ON DEVICE** |
+| Suite | 987 pass / 9 skipped; A-G8 unchanged at 47, EC-G8 unchanged at 134 | **PASS** |
+
+The segment row needs **372.2 dp**. It fits at 411 and at the design's own 390; at 360 it
+scrolls horizontally, which is what the widget is for. Measured, not assumed — and
+measured on the device because the host harness renders in Ahem, where a width means
+nothing (F-24 is the recorded instance of mistaking an Ahem overflow for a product bug).
+
+### A trivially-passing test, caught and moved
+
+The first version asserted "a failed read carrying stale rows contributes none of them" as
+a **widget** test. It passed — and it would have passed whatever the code did. The harness
+turns an `AsyncError` into `Future.error`, so Riverpod rebuilds with a plain error and the
+previous value is discarded; the state the test named could not exist inside it. Found by
+running the mutation, which survived.
+
+`combineWhatsOn` was extracted as a pure function so the state can actually be
+constructed, and the assertion moved there, where the mutation now fails. The widget file
+keeps a note saying why that particular claim is not made in it.
+
+### OD-15 — the coach's "New Class" affordance
+
+FIT-027 does not draw one. A booked class is still a class and appears in the one list
+carrying "Booked", so nothing was lost there — but removing the FAB would take away a
+coach's only way to create a class. **A locked screen not drawing something is not the
+same as the design saying to delete it**, so the FAB stays and the discrepancy is recorded
+rather than resolved by guessing.
 
 ## 4 · Design package
 
@@ -1220,7 +1300,7 @@ state for that screen.
 | `coach_dashboard_screen.dart:68` | `/coach-dashboard` | provider `catch` → `[]` | "No clients found — Clients will appear here when they sign up" | **NO** | clients query | none | FIT-032 | copy |
 | `coach_dashboard_screen.dart:98/114/133` | `/coach-dashboard` | `catch` → `[]` ×3 | empty tabs | **NO** | check-ins, workouts, aggregate | none | FIT-032/033 | copy |
 | ~~`profile_screen.dart:830`~~ | `/profile` | ~~`valueOrNull` → null → "No coach assigned yet"~~ → **section hidden**; a failure is never rendered as a denial | "No coach assigned yet · Complete onboarding to choose your coach." | **YES** | coach provider | partial — see §3g | FIT-029 | **none for this leg**; a visible error state still needs OD-8 |
-| `classes_screen.dart:39` | `/classes` | `valueOrNull ?? []` | Schedule tab renders **nothing at all** (`itemCount: 0`) | **NO** | class providers | none | FIT-027/080/084 | copy + an empty state for Schedule |
+| ~~`classes_screen.dart:39`~~ | `/classes` | ~~`valueOrNull ?? []`, and `LiveClassService` swallowed the read~~ → **errors propagate**; a failed source is named, per kind | Schedule tab rendered **nothing at all** (`itemCount: 0`) | **YES** | class providers | `Could not load classes` + Try again | FIT-027 | **none for this leg** |
 | `challenges_screen.dart:36-39` | `/challenges` | `AsyncError` never consumed | "🏁 No challenges here" | **NO** | challenge StateNotifier | none | FIT-075/078/079 | copy |
 | ~~`home_screen.dart:80`~~ | `/home` | ~~`catch` → all-zero bars~~ → **error propagates**; headline `'—'`, nudge omitted, bars drawn as the unknown track | zero bars + "Log meals or workouts…" | **YES** | weekly activity | partial — see §3f | FIT-001 (locked) | **none for this leg**; a full error state with retry still needs OD-8 |
 | ~~`train_hub_screen.dart:224-246`~~ | `/train` | ~~`error: (_, __) => '0'`~~ → **`'—'`** | `'—'` placeholders | **YES** | 4 stat providers | `_PlanUnavailable` | FIT-014/015 (locked) | **none for this leg** |
@@ -1230,7 +1310,7 @@ state for that screen.
 now. **This is a connection problem, not an empty schedule.**"* with a Try-again action, and
 a comment at `:609-611` naming the collapse as the bug. `chat_screen.dart` now follows it.
 
-**Three of the nine are now closed, and they are the three that needed no copy.** Both were
+**Four of the nine are now closed.** Both were
 the worst kind: not a failure shown as emptiness, but a failure shown as a **confident
 wrong number**. `/train` answered "0 workouts"; `/home` answered "0%" and then told the
 client to start logging. In both, a number the screen could not support became `'—'` and
@@ -1251,6 +1331,12 @@ booking screen's existing, already-shipped phrasing as the house pattern. Record
 **OD-8**.
 
 ## 6d · OWNER DECISION REGISTER
+
+**OD-15 · FIT-027 does not draw a coach's "New Class" affordance.** The anchor folds
+`/classes`, `/events` and `/challenges` into one list and draws no create control. The FAB
+was kept: removing it would take away a coach's only way to create a class, and a locked
+screen not drawing something is not the same as the design saying to delete it. Decide
+whether the affordance belongs on this screen, moves elsewhere, or goes.
 
 | ID | Question | Evidence | Options | QA can continue without it | Blocked by it |
 |---|---|---|---|---|---|
