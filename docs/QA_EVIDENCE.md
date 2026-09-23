@@ -403,7 +403,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1083 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1089 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -1345,6 +1345,35 @@ CTA reads `Find a Coach` and navigates to the marketplace; the anchor's wording 
 is the same class of decision as the prices.
 
 **FIT-031: 1/5, and the remaining four are one owner decision, not four tasks.**
+
+## 3u · FIT-021 · the entitlement gate — 0/3 → **3/3**, behind twelve routes
+
+One component, twelve gated routes. The anchor declares three controls; the screen had one
+and a half.
+
+| Declared | Was | Now |
+|---|---|---|
+| `See plans` | `See Plans` | the locked screen's own case |
+| `Back` | `AppBar`'s automatic leading, named by **Material's default tooltip** rather than by the package | named `Back`, 44 dp |
+| `Not now` | **did not exist** | present, leaves the gate |
+
+**`Not now` is the one that mattered.** A client who hit a paywall could only leave by the
+system back gesture — nothing on screen said they were allowed to. On a screen whose whole
+job is to ask for money, the absence of a visible way to decline is not a cosmetic gap.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Behaviour | `test/widget/paywall_locked_test.dart` — 6 tests | **PASS** |
+| Guard strength | 4 mutations killed, including **"`Not now` is drawn but does not leave"** — the control existing is not the point, being able to decline is | **PASS** |
+| Suite | 1089 pass / 9 skipped | **PASS** |
+| Runtime | not device-verified — `PaywallLocked` is a leaf and the host semantics tree is the same tree. **FIXED IN CODE**. | **OPEN** |
+
+`_Locked` was made public as `PaywallLocked` so the three controls could be asserted at
+all: `PaywallGate` itself reads two Supabase-backed providers, and this state takes plain
+values. Eighth extraction-or-exposure for that reason.
+
+**This is the second anchor completed** (after FIT-002), and the first cross-cutting one —
+it is the gate on twelve routes rather than one screen.
 
 ## 4 · Design package
 
