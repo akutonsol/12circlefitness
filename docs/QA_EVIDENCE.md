@@ -11,7 +11,83 @@ Classifications are used strictly, per brief §19: **PASS · FAIL · BLOCKED ·
 NOT ESTABLISHED · OWNER DECISION · ENVIRONMENT LIMITATION**. A category is never converted
 to make the ledger read better.
 
-Repository: `chore/qa-environments-secure-ai-backend`. Last updated 2026-09-22.
+Repository: `chore/qa-environments-secure-ai-backend`. Last updated 2026-09-23.
+
+---
+
+## 0 · RECONCILIATION AGAINST `QA_CLOSURE_STANDARD.md` — several of my own claims were overstated
+
+`docs/QA_CLOSURE_STANDARD.md` outranks this ledger and outranks any specialist skill
+(governance precedence: owner → product spec → design package → repo contracts → **closure
+standard** → skills → generic agents). Reading it against the work recorded below forces
+three corrections. They are made here rather than quietly edited into the tables.
+
+### 0.1 The evidence ladder has five states, and I used one word for several of them
+
+§2 defines `FIXED IN CODE` · `VERIFIED IN CI` · `FIXED ON QA` · `VERIFIED LIVE` ·
+`VERIFIED END-TO-END`, and §4 states plainly that *"the code changed"* is **one** of those
+states, not a closure. §2.1 then fixes, per finding class, which states are **required**.
+
+**No finding in this programme is `VERIFIED_CLOSED`, because nothing is `VERIFIED IN CI`.**
+
+There are **17 commits on this branch and none are pushed**. §4 lists, as an explicit
+non-closure: *"A passing suite that has never run in CI — a guard nobody runs protects
+nobody."* Every guard I added (A-G1…A-G5, D-T1…D-T5, the F-20 widget tests) is in exactly
+that position. They pass on this machine. That is not the claim the standard requires.
+
+| Finding | Class (§2.1) | States required | States I actually have | Verdict |
+|---|---|---|---|---|
+| F-1 Android build | Release / environment | FIXED IN CODE · **VERIFIED IN CI** | FIXED IN CODE | **NOT CLOSED** |
+| F-2 auth exception text | Error contract / false success | FIXED IN CODE · VERIFIED IN CI · VERIFIED END-TO-END | FIXED IN CODE · END-TO-END (device) | **NOT CLOSED** — no CI |
+| F-2b chat fabrication | Error contract / false success | FIXED IN CODE · VERIFIED IN CI · VERIFIED END-TO-END | FIXED IN CODE only | **NOT CLOSED** — I earlier wrote "VERIFIED COMPLETE"; that was wrong. I never reached an empty conversation at runtime |
+| F-3 app name | Hygiene / P3 | FIXED IN CODE · VERIFIED IN CI where cheap | FIXED IN CODE · END-TO-END | **NOT CLOSED** — no CI |
+| F-6b password toggle | Product integrity / UI reachability | FIXED IN CODE · VERIFIED IN CI · VERIFIED END-TO-END | FIXED IN CODE · END-TO-END | **NOT CLOSED** — no CI |
+| F-20 workout identity | Product integrity / UI reachability | FIXED IN CODE · VERIFIED IN CI · VERIFIED END-TO-END | FIXED IN CODE · END-TO-END | **NOT CLOSED** — no CI |
+| F-12 / F-12a | Security / authorization | FIXED IN CODE · FIXED ON QA · VERIFIED LIVE · VERIFIED IN CI | VERIFIED LIVE (disposition only; no fix exists) | **OPEN by design** — F-12a has no fix |
+
+**Correction of record:** my previous checkpoint reported F-20 as "IMPLEMENTED AND
+RUNTIME-VERIFIED" and F-2b as "VERIFIED COMPLETE". Both were accurate about the *device*
+and inaccurate as *closures*. `VERIFIED END-TO-END` is a real state and I earned it for
+F-20; it is not the whole ladder its class demands.
+
+**This is not a technicality.** The standard exists (§1) because *"findings were later found
+open, and in three cases the closure itself introduced the regression."* I introduced two
+regressions during this programme and caught both only on-device — the `MergeSemantics`
+change that destroyed the password toggle, and the doubled semantics labels. A guard that
+has never run in CI would not have caught either on someone else's machine.
+
+**Blocking condition, escalated rather than worked around:** the owner instructed "Hold —
+keep local" for pushes. That instruction is higher in the precedence order than this
+standard and is respected. The consequence is recorded, not circumvented: **until these
+commits run in CI, no finding in this programme can be marked `VERIFIED_CLOSED`.** See
+OD-12.
+
+### 0.2 "850 tests pass" is a weaker statement than it sounds
+
+§4 records that **259 tests — 37% of the Flutter suite — define the logic inside the test
+file and assert against the copy**: *"They are green whatever the app does."*
+
+I have repeated "848 / 850 tests pass" as a headline several times without that caveat. It
+remains true and remains worth running, but it is not evidence that the *application*
+behaves. The guards I added are deliberately of the other kind — they read committed source
+or drive the real widget — and each was mutation-tested, which is the property that makes a
+guard mean something. That distinction should have been stated the first time.
+
+### 0.3 The standard already names two of my findings, independently
+
+§4's non-closure table records, before I looked at either:
+
+- *"`EC-G1` asserts `workout_provider.dart` contains no `catch`. The defect moved to the
+  screens and to the service. The guard passes. **The defect is live.**"*
+- *"`EC-G5` counts `catch` blocks. Riverpod swallows via `error: (_,__) =>` and
+  `.valueOrNull`, which contain no `catch`. **~150 sites are invisible to it.**"*
+
+That is F-15 and F-16, reached from the opposite direction. It also explains why my A-G5
+guard is written to match `error: (_, __) =>` shapes rather than `catch` blocks: the
+existing ratchet cannot see the defect's shape, and a second guard with the same blind spot
+would have been theatre.
+
+---
 
 ---
 
