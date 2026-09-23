@@ -154,4 +154,64 @@ void main() {
       expect(l, isNot(contains('Exception')));
     }
   });
+
+  group('FIT-004 the submit button carries the coach\'s name, or nothing', () {
+    // The anchor draws "Send to Nadia". The name is real data, so using it
+    // invents nothing — but the two failure modes either side of it are the
+    // ones this repository has already been bitten by.
+    const fallback = 'Submit Check-In';
+
+    test('a loaded coach is addressed by name', () {
+      expect(
+          checkinSubmitLabel(
+              const AsyncData<Map<String, dynamic>?>({'first_name': 'Nadia'})),
+          'Send to Nadia');
+    });
+
+    test('a FAILED lookup does not address a coach', () {
+      // This is /profile's "No coach assigned yet" collapse turned inside out:
+      // there a failure claimed the client had no coach, here it would claim
+      // they have one. Both are the screen answering a question it cannot.
+      expect(
+          checkinSubmitLabel(AsyncError<Map<String, dynamic>?>(
+              Exception('offline'), StackTrace.empty)),
+          fallback);
+    });
+
+    test('a failure carrying a stale coach does not use it', () {
+      final stale = AsyncError<Map<String, dynamic>?>(
+              Exception('x'), StackTrace.empty)
+          .copyWithPrevious(
+              const AsyncData<Map<String, dynamic>?>({'first_name': 'Nadia'}));
+      expect(stale.valueOrNull, isNotNull, reason: 'guard the premise');
+      expect(checkinSubmitLabel(stale), fallback);
+    });
+
+    test('no coach falls back to the label this screen already ships', () {
+      // A client with no coach must not be shown a button addressed to nobody.
+      expect(checkinSubmitLabel(const AsyncData<Map<String, dynamic>?>(null)),
+          fallback);
+    });
+
+    test('a coach with a blank or missing first name falls back too', () {
+      expect(
+          checkinSubmitLabel(
+              const AsyncData<Map<String, dynamic>?>({'first_name': '   '})),
+          fallback);
+      expect(checkinSubmitLabel(const AsyncData<Map<String, dynamic>?>({})),
+          fallback);
+    });
+
+    test('while loading, the fallback — not a flash of a name', () {
+      expect(checkinSubmitLabel(const AsyncLoading<Map<String, dynamic>?>()),
+          fallback);
+    });
+
+    test('the name is trimmed, not padded into the sentence', () {
+      expect(
+          checkinSubmitLabel(
+              const AsyncData<Map<String, dynamic>?>({'first_name': ' Nadia '})),
+          'Send to Nadia');
+    });
+  });
 }

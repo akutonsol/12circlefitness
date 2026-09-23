@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'widgets/checkin_pickers.dart';
+import '../domain/checkin_hub.dart';
+import '../../coach/domain/coach_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../data/checkin_service.dart';
@@ -227,11 +229,29 @@ class _WeeklyCheckinState extends ConsumerState<DailyCheckinScreen> {
                         const SizedBox(height: 12),
                         _NotesField(controller: _notesCtrl),
                         const SizedBox(height: 32),
+                        // FIT-004 draws "Send to Nadia" — the client's coach,
+                        // by name. Real data, so nothing is invented; and the
+                        // name is used ONLY when the read has settled with one,
+                        // so a failed lookup cannot address the button to a
+                        // coach the client may not have. See checkinSubmitLabel.
                         _GradientBtn(
-                          label: 'Submit Check-In',
+                          label: checkinSubmitLabel(ref.watch(assignedCoachProvider)),
                           icon: Icons.check_circle_outline,
                           loading: _saving,
                           onTap: _saving ? null : _submit),
+                        const SizedBox(height: 16),
+                        // FIT-004's other two declared controls. Both go to the
+                        // screens this app already keeps that content on — no
+                        // screen is invented to satisfy a label.
+                        Row(children: [
+                          Expanded(child: _CheckinLink(
+                            label: 'Past check-ins',
+                            onTap: () => context.go('/checkins'))),
+                          const SizedBox(width: 10),
+                          Expanded(child: _CheckinLink(
+                            label: 'Add a progress photo',
+                            onTap: () => context.go('/progress'))),
+                        ]),
                       ]))),
           ])),
       ]),
@@ -550,3 +570,35 @@ class _AlreadyDone extends StatelessWidget {
           icon: Icons.home_outlined, onTap: onGoHome),
       ])));
 }
+
+/// FIT-004's two secondary controls: "Past check-ins" and "Add a progress
+/// photo". Both are the package's own labels.
+class _CheckinLink extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _CheckinLink({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12))),
+            child: Text(label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              style: const TextStyle(
+                color: _white, fontSize: 13, fontWeight: FontWeight.w700)),
+          ),
+        ),
+      );
+}
+

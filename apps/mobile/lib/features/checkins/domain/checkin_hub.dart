@@ -106,3 +106,34 @@ String historyLine(WeeklyCheckin c) => [
 /// would need OD-8.
 const checkinHistoryFailure = 'Could not load check-ins';
 const checkinSessionsFailure = 'Could not load sessions';
+
+// ── FIT-004 · Check-In — "Private and intentional, not a database form" ──────
+
+/// The submit button's label.
+///
+/// The anchor draws **"Send to Nadia"** — the client's coach, by name. The name
+/// is real data (`assignedCoachProvider` → `public_profiles.first_name`), so
+/// using it invents nothing. What must not happen is the two failure modes
+/// either side of it:
+///
+///   * naming a coach the client does not have, and
+///   * naming one when the read **failed**, which is the `/profile`
+///     "No coach assigned yet" collapse turned inside out.
+///
+/// So the name is used only when it is loaded and non-empty. Everything else —
+/// loading, failed, no coach, a coach with no first name — falls back to
+/// `Submit Check-In`, the label this screen already ships. A client with no
+/// coach is not shown a button addressed to nobody.
+String checkinSubmitLabel(AsyncValue<Map<String, dynamic>?> coach) {
+  const fallback = 'Submit Check-In';
+  return switch (coach) {
+    AsyncError() => fallback,
+    AsyncData(:final value) => () {
+        final name = (value?['first_name'] as String?)?.trim();
+        return (name == null || name.isEmpty) ? fallback : 'Send to $name';
+      }(),
+    // Loading, and anything else that is not a settled value.
+    _ => fallback,
+  };
+}
+

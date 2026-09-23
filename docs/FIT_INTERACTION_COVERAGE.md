@@ -24,12 +24,15 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 276 (46%) |
-| **Label absent** | **324** |
-| Locked anchors | 71/179 (40%) |
+| Label present | 272 (45%) |
+| **Label absent** | **328** |
+| Locked anchors | 67/179 (37%) |
 
-Baseline measured 2026-09-23 was 258 / 342 / 53. Eighteen points have moved since, in six
-anchors: FIT-028 (+3), FIT-017 (+2, complete), FIT-002 (+4, complete) FIT-027 (+2, structurally complete), FIT-005 (+4) and FIT-023 (+3). FIT-017's and FIT-002's are
+**These numbers went DOWN, and that is the correction.** See *"The measurement counted its
+own comments"* below.
+
+Baseline measured 2026-09-23 was 258 / 342 / 53. Fourteen points have moved since, in seven
+anchors: FIT-028 (+3), FIT-017 (+2, complete), FIT-002 (+4, complete) FIT-027 (+2, structurally complete), FIT-005 (+3), FIT-023 (+2) and FIT-004 (+2). FIT-017's and FIT-002's are
 **hand-corrected** — see the notes below; the generator reads only the file the router
 builds, and both anchors' controls live in sibling widget files. FIT-028's three-point move
 (`/messages`, no-coach state) and is itemised in the note under that row — **two of the
@@ -42,6 +45,49 @@ a disclaimer.
 `HomeScreen` classes exist and the resolver picked the dead one. It now prefers files the
 router imports. Aggregates were unaffected; per-screen attribution was not.
 
+
+## The measurement counted its own comments
+
+**Reported numbers fell by four when this was fixed.** Nothing was un-built.
+
+The original tool matched a declared interaction's first three words against the **raw
+text** of the implementing file. Dart comments are raw text, and this programme's comments
+quote the design constantly — an anchor id, a row the board draws, a decision that was
+deliberately *not* made. Four anchors had accumulated artifacts, each one recorded at the
+time rather than left to flatter the count:
+
+| Anchor | Counted | Actually |
+|---|---|---|
+| FIT-028 | `Connect` | a doc comment naming the anchor |
+| FIT-005 | `Priya Hit 70 kg…` | a comment quoting the sample row |
+| FIT-023 | `Week 13 Energy steady…` | the same |
+| FIT-004 | `Steady`, `Strong`, `Send to Nadia` | a comment explaining why the mapping was **not** built (OD-16) |
+
+The last is the one that settled it. **Writing down that something was deliberately not
+implemented made the metric report it as implemented.** A number that rises when nothing
+ships is not a measurement, and annotating each case was treating the symptom.
+
+`apps/mobile/tool/fit_coverage.dart` now strips `//` and `/* */` before matching, leaving
+string literals alone — a label inside a string is the thing being looked for. Every anchor
+touched in this programme was re-measured with it:
+
+| Anchor | Was reported | Measured |
+|---|---|---|
+| FIT-002 | 5/5 | **5/5** |
+| FIT-017 | 2/2 | **2/2** |
+| FIT-027 | 5/10 | **5/10** |
+| FIT-028 | 4/10 | **4/10** |
+| FIT-005 | 5/12 | **4/12** |
+| FIT-023 | 5/10 | **4/10** |
+| FIT-004 | 8/11 (never recorded) | **5/11** |
+
+FIT-002, FIT-017, FIT-027 and FIT-028 are unchanged, which is the useful part of the
+result: the anchors reported complete were complete.
+
+The three caveats the old tool carried all still apply — weak evidence of presence, blind
+to sibling widget files unless they are listed, and unable to match the board's sample rows
+without fabricating the data they describe.
+
 ## Locked anchors, worst first
 
 These are the design's own reference screens: *"29 locked screens are the reference for
@@ -49,9 +95,9 @@ everything else. Where anything disagrees, they win."*
 
 | FIT | Screen | Route | Present | Declared | Implementation |
 |---|---|---|--:|--:|---|
-| FIT-005 | Connect | `/messages` | 5 | 12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
-| FIT-004 | Check-In | `/daily-checkin` | 3 | 11 | `daily_checkin_screen.dart` |
-| FIT-023 | Check-in hub | `/checkins` | 5 | 10 | `checkin_screen.dart` + `checkin_hub_sections.dart` + `domain/checkin_hub.dart` |
+| FIT-005 | Connect | `/messages` | 4 | 12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
+| FIT-004 | Check-In | `/daily-checkin` | 5 | 11 | `daily_checkin_screen.dart` + `widgets/checkin_pickers.dart` + `domain/checkin_hub.dart` |
+| FIT-023 | Check-in hub | `/checkins` | 4 | 10 | `checkin_screen.dart` + `checkin_hub_sections.dart` + `domain/checkin_hub.dart` |
 | FIT-003 | Nutrition | `/meals-dashboard` | 5 | 12 | `meals_dashboard_screen.dart` |
 | FIT-014 | Workouts hub | `/train` | 5 | 12 | `train_hub_screen.dart` |
 | FIT-027 | What's on | `/classes` | 5 | 10 | `classes_screen.dart` + `whats_on_view.dart` + `domain/whats_on.dart` |
@@ -210,8 +256,8 @@ without fabricating content the brief forbids.
 | FIT-001 | Home | `/home` | 4/9 | `home_screen.dart` |
 | FIT-002 ✅ | Active Workout | `/active-workout` | **5/5** | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
 | FIT-003 | Nutrition | `/meals-dashboard` | 5/12 | `meals_dashboard_screen.dart` |
-| FIT-004 | Check-In | `/daily-checkin` | 3/11 | `daily_checkin_screen.dart` |
-| FIT-005 | Connect | `/messages` | 5/12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
+| FIT-004 | Check-In | `/daily-checkin` | 5/11 | `daily_checkin_screen.dart` + `widgets/checkin_pickers.dart` + `domain/checkin_hub.dart` |
+| FIT-005 | Connect | `/messages` | 4/12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
 | FIT-006 | Welcome | `/onboarding` | 0/2 | `onboarding_screen.dart` |
 | FIT-007 | Sign in | `/login` | 1/1 | `login_screen.dart` |
 | FIT-008 | Intake | `/intake` | 2/7 | `intake_flow_screen.dart` |
@@ -229,7 +275,7 @@ without fabricating content the brief forbids.
 | FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 0/5 | `—` |
 | FIT-021 | Entitlement gate | `PaywallGate wrapper (12 routes)` | 0/3 | `—` |
 | FIT-022 | Loading & failure | `cross-cutting pattern` | 0/1 | `—` |
-| FIT-023 | Check-in hub | `/checkins` | 5/10 | `checkin_screen.dart` + `checkin_hub_sections.dart` + `domain/checkin_hub.dart` |
+| FIT-023 | Check-in hub | `/checkins` | 4/10 | `checkin_screen.dart` + `checkin_hub_sections.dart` + `domain/checkin_hub.dart` |
 | FIT-024 | Check-in detail | `/checkin-detail` | 1/2 | `checkin_detail_screen.dart` |
 | FIT-025 | Awaiting reply | `/checkin-detail` | 1/1 | `checkin_detail_screen.dart` |
 | FIT-026 | Conversation | `/chat` | 3/5 | `chat_screen.dart` |

@@ -373,7 +373,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1038 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1045 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -984,6 +984,62 @@ carries the two-party policy (`F21_BLAST_RADIUS.md` §3b) — a forged row appea
 session the client never booked. **The work done here is structure, accessibility and error
 honesty, none of which rests on those rows being authentic.** The integrity of what the
 sessions list displays remains blocked on OD-14, and is not claimed.
+
+## 3n · FIT-004 · Check-In, and a measurement that counted its own comments
+
+### FIT-004 — three of its declared controls
+
+| Declared | Built |
+|---|---|
+| `Past check-ins` | → `/checkins` |
+| `Add a progress photo` | → `/progress`, where this app already keeps photo capture and the `progress-photos` bucket. No screen invented to satisfy a label. |
+| `Send to Nadia` | the submit button is addressed to the client's coach, by name |
+
+**The submit label is the interesting one.** The name is real data, so using it invents
+nothing — but the two failure modes either side of it are ones this repository has already
+been bitten by:
+
+* naming a coach the client does not have, and
+* naming one when the read **failed** — which is `/profile`'s "No coach assigned yet"
+  collapse turned inside out. There a failure claimed the client had no coach; here it
+  would claim they have one. Both are the screen answering a question it cannot.
+
+So the name is used only on a settled, non-empty value. Loading, failed, no coach, and a
+coach with a blank first name all fall back to `Submit Check-In` — the label this screen
+already ships. 7 tests, 2 mutations killed.
+
+`Low` / `Steady` / `Strong` remain **OD-16**, unchanged.
+
+### The measurement counted its own comments — reported numbers fell by four
+
+The coverage tool matched a declared label's first three words against the **raw text** of
+the implementing file. Dart comments are raw text, and this programme's comments quote the
+design constantly. Four anchors had accumulated artifacts — each recorded at the time, none
+left to flatter the count:
+
+| Anchor | Counted | Actually |
+|---|---|---|
+| FIT-028 | `Connect` | a doc comment naming the anchor |
+| FIT-005 | `Priya Hit 70 kg…` | a comment quoting the sample row |
+| FIT-023 | `Week 13 Energy steady…` | the same |
+| FIT-004 | `Steady`, `Strong`, `Send to Nadia` | a comment explaining why the mapping was **not** built |
+
+The last settled it. **Writing down that something was deliberately not implemented made
+the metric report it as implemented.** A number that rises when nothing ships is not a
+measurement, and annotating each case was treating the symptom.
+
+`apps/mobile/tool/fit_coverage.dart` now strips comments before matching, leaving string
+literals alone. Every anchor this programme touched was re-measured:
+
+| Anchor | Was reported | Measured |
+|---|---|---|
+| FIT-002 · FIT-017 · FIT-027 · FIT-028 | 5/5 · 2/2 · 5/10 · 4/10 | **unchanged** |
+| FIT-005 | 5/12 | **4/12** |
+| FIT-023 | 5/10 | **4/10** |
+| FIT-004 | 8/11 | **5/11** |
+
+Headline: **276 → 272 present**, locked anchors **71 → 67**. The anchors reported complete
+were complete, which is the part of the result worth having.
 
 ## 4 · Design package
 
