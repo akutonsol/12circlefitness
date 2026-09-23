@@ -716,3 +716,152 @@ not counted as one.
 
 **No fixture leaked in either job** — the failure mode that blocked migration 131 in §13
 did not recur.
+
+---
+
+## 18. Post-green closure sweep
+
+Run against `6cc1ff6a`, CI `35799894916` (7/7 success). Nothing below re-runs completed
+work; each item adds coverage or examines a state that could have changed.
+
+### 18.1 CI forensics — three caveats a "passed" summary would have hidden
+
+**(a) The security roll-up is 350/350 here, not the 351/351 recorded in §1.** The difference
+is one *conditional* assertion, not a regression. `d02-role-escalation.mjs:137-144`:
+
+```js
+if (pub.status === 429) {
+  console.log('  SKIP  public /auth/v1/signup — project email rate limit (429); …');
+} else {
+  check('public signup cannot mint an admin', …);
+}
+```
+
+CI logged that SKIP. Re-running `d02` locally now reproduces it — **39/39, still rate-limited**.
+So the suite's count is **non-deterministic (39 or 40 for D-02, 350 or 351 overall)**
+depending on Supabase's email rate limiter. Both figures were correct for their moment;
+§1's "351/351" should be read as 350–351. The underlying invariant is not uncovered — the
+harness notes *"the same handle_new_user() trigger is covered above."*
+Classification: **ENVIRONMENT_BLOCKED (intermittent)**.
+
+**(b) Two `##[error] N tests passed, M failed` lines appear inside green jobs.** These are
+the negative controls' **required** pre-fix legs — e.g. `❌ WKT-204 … (failed)` immediately
+followed by `✅` and `restore: committed implementation`. Working as designed.
+
+**(c) Skip inventory, complete:** 9 Flutter skips, all
+`billing_entitlement_contract_test.dart` K/OPEN executable specifications (K-01…K-12,
+K-ENV-1) for findings that remain open on Stripe test mode (EB-5) · 1 AI section, J-03E
+writes · 1 security assertion, (a) above.
+
+**J-03E was deliberately NOT run.** `j03-engine-boundary.mjs:89-101` gates it behind
+`AI_ALLOW_WRITES=1`, and its own comment states **"decision_traces rows are not
+client-deletable."** Running it would add one characterization assertion at the cost of
+permanent uncleanable residue in shared QA — the exact failure mode that blocked migration
+131 in §13. Not run, by choice.
+
+### 18.2 Authenticated UI runtime — §12.4 SUPERSEDED
+
+§12.4 recorded authenticated UI runtime as harness-blocked. That was true locally and is
+now **superseded**: the sanctioned mechanism already exists and already passed.
+
+`integration_test/uix1_booking_e2e_test.dart:121-132` signs in for real —
+`_db.auth.signInWithPassword(email, password)` against the fixture identities, asserting
+`currentUser != null` — then drives the real app. CI logged `UIX1-MARK AUTH ok
+client-session=true`, `ROUTE navigated=/appointments`, `A1 surface-reached=true`,
+`A2 coach-rendered=true`, `A3 ready-state=true`.
+
+**Authenticated UI rendering is VERIFIED — in CI, on Linux desktop.** It remains
+unavailable *locally* (no Xcode for macOS desktop, no chromedriver for web), which is an
+environment limit, not a coverage gap.
+
+### 18.3 UIX-1 A4 — NOT_ESTABLISHED, and it is a TEST limitation, not a product defect
+
+A4 is not an oversight. The probe header says so verbatim
+(`uix1_booking_e2e_test.dart:50-55`):
+
+> `A4 IS NOT ASSERTED, AND THAT IS A RECORDED LIMITATION, NOT AN OVERSIGHT.`
+> `_LoadFailedState` cannot be reached honestly from here: `_load()` returns at
+> `uid == null` before its try/catch (booking_screen.dart:50), so an unreachable URL yields
+> `noCoach`, not `error`. Reaching it would need a production-code edit, an RLS change, or a
+> mock — all forbidden by the owner ruling.
+
+**What A4 would assert:** the inverse of A3's third negative — that when the authoritative
+read genuinely fails, the surface renders `_LoadFailedState` ("Couldn't load your bookings"
++ Try again) rather than the confident empty answer `_NoSlotsState`. That false success is
+the exact defect this workstream exists to prevent.
+
+**`_LoadFailedState` is NOT dead code** — three independent pieces of evidence:
+1. `app_router.dart:180-198` redirects unauthenticated users to `/login`, and
+   `/appointments` sits behind `PaywallGate`, so in production `uid` is non-null and the
+   `try`/`catch` **is** the live path. The harness's blocker and production's behaviour are
+   inverted.
+2. The catch has demonstrably executed in production: PostgREST answered `PGRST200` for the
+   `coach:coach_id(…)` embed, and `_load()`'s catch turned it into a confident "no slots" —
+   the original M-03 defect. UIX-1 changed what that catch *renders*.
+3. `_LoadFailedState(onRetry: _load)` plus the AppBar refresh shown in every state except
+   `loading`/`noCoach` is an intended live re-entry after a transient outage.
+
+**Structural cause — a testability defect, recorded not fixed:**
+`booking_screen.dart:26` — `final _db = Supabase.instance.client;`. The screen reaches the
+network through a global singleton inside a `StatefulWidget`, so there is **no seam to fail**.
+Every error state in this repo that *is* tested sits behind a Riverpod provider — compare
+`test/widget/active_workout_hydration_test.dart:21-59`, which does exactly the A4-shaped job
+for another screen via `activeWorkoutRestorationProvider.overrideWith(...)`, with no backend
+and no production access. A4 becomes trivially testable the moment that read moves behind a
+provider. Moving it is a product change and was not made.
+
+**One candidate path exists that touches neither production code, RLS, nor a mock:** reach
+`ready`, break host reachability on the CI runner, then tap the AppBar refresh — `uid` stays
+non-null from the cached session, the PostgREST call fails, and the catch renders
+`_LoadFailedState`. This is *environment-level fault injection*. It is implemented nowhere
+in the repo, and the owner ruling quoted in the header does not enumerate it in either
+direction. **OWNER DECISION** — not assumed, not implemented.
+
+### 18.4 Error / empty / loading coverage — measured
+
+| Measure | Count |
+|---|---|
+| Presentation files | 158 |
+| Using `.when(` | 39 — **all 39 declare both `error:` and `loading:`** |
+| Bypassing `.when()` via `.valueOrNull` | **41** (collapses an error to `null` beneath any declared arm) |
+| `error: → SizedBox/Container` swallows | **16** |
+| Tests rendering loading/empty/error as distinct outcomes | **1** (`active_workout_hydration_test.dart`, WKT-112) |
+
+Branch *presence* is 100%; the real hole is `.valueOrNull`. All three ratchets are green and
+already pin these: EC-G7 at baseline **16**, EC-G8 at **134**, EC-G5 at **234**, each checked
+bidirectionally so a fix must lower the baseline.
+
+Two findings worth recording:
+- **A sanctioned-swallow list exists, but only for the service layer.**
+  `docs/QA_WORKSTREAM_B_ERROR_CONTRACT_REPORT.md` §5 enumerates exactly five allowed cases.
+  There is **no presentation-layer equivalent**, so all 16 `error: → SizedBox` branches are
+  unsanctioned by contract and held only by EC-G7's numeric ratchet. **OWNER DECISION**
+  whether to sanction or remediate them.
+- **`EC-G6` deliberately pins a live defect by name** —
+  *"DEFECT: Train hub renders the failure as 'nothing to resume'"* — with the instruction to
+  delete the test when the arm gains a retry. It is a defect marker, not a passing contract.
+
+### 18.5 Accessibility — the label question is settled as a product decision
+
+`semanticLabel` appears in **0 files** across `lib/`; `tooltip:` in **3** (one of which is
+`'Filter'`; the other two are the `_IconBtn` strings §11.1 wired). There is **no established
+accessibility-label convention and no reusable copy** anywhere in the repository. Labelling
+the password-visibility toggle therefore requires inventing product copy, which QA will not
+do. **OWNER DECISION**, unchanged from §14.
+
+### 18.6 Security regression — scoped, not repeated
+
+The three commits touched `ci.yml`, `train_hub_screen.dart`, a new test, the evidence doc,
+and `expected_applied.json`. **No migration, Edge Function, auth, policy, `app_env`,
+`config.toml` or `dart_defines` file was touched**, so nothing could invalidate the security
+evidence — and that evidence is current regardless: the full live suite ran **in CI at
+`6cc1ff6a`**. Prod-ref guard re-run on the current tree: OK, both arms.
+
+### 18.7 Fixtures
+
+Independently re-verified after all CI activity: conversations **1** (the pre-existing
+25-message survivor), duplicate participant pairs **0**, payments **0**, session credits
+**0**, p1-victim cycle logs **0**. Both CI probes proved their own removal
+(`UIX1-MARK CLEANUP verified availability=0 active-relationships=0`;
+`WRK01-MARK CLEANUP verified remaining=0`, plus CI's independent re-check). **No fixture
+leaked, by me or by CI.**
