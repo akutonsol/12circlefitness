@@ -1005,3 +1005,418 @@ Consequently **functional QA of new screens, Android QA of integrated screens, a
 final premium visual QA cannot begin** — there are no integrated new screens to test. The
 brief's own sequencing (intake → integration → functional QA → Android QA → visual QA)
 stops at the first gate.
+
+---
+
+## 21. CORRECTION OF RECORD — §20 audited an INCOMPLETE copy of the package
+
+§20 stands as written history, and its central ruling is now **withdrawn**. The cause is
+not new reasoning; it is a second, complete copy of the same package.
+
+### 21.1 What was actually audited in §20
+
+`~/Downloads/12circle-fitness-new-screens.zip` (1,826,216 bytes, sha256
+`d4438803deee0984…`, dated 2026-09-22 19:53) unpacks to `fitness-handoff/` — **21 files**.
+The directory §20 audited holds **8 entries**. Comparing them file by file, through a pipe,
+with nothing extracted:
+
+| File | zip | `fitness-app-board/` |
+|---|---|---|
+| `12Circle Fitness - Complete Board.dc.html` | `edcce7a51d6a0a87…` | `edcce7a51d6a0a87…` — **identical** |
+| `manifest.json` (340 KB) | present | **absent** |
+| `DESIGN_HANDOFF.md` | present | **absent** |
+| `IMPLEMENT-THIS.md` | present | **absent** |
+| `capture-references.mjs` | present | **absent** |
+
+Same design — the board is byte-identical. The on-disk copy was missing precisely the
+files that carry the package's authority and its machine-readable contract. §20 was a
+sound reading of an unsound input.
+
+### 21.2 The decisive blocking finding falls
+
+§20.2 held that "the package forbids its own application," resting on
+`PHASE-2-DESIGN-SYSTEM.md:11` — *"SPECIFICATION ONLY — DO NOT APPLY FROM THIS DOCUMENT."*
+
+`IMPLEMENT-THIS.md`, absent from the audited copy, is titled *"IMPLEMENT: 12Circle Fitness
+— rebuilt screens"* and opens: *"You are implementing the redesigned 12Circle Fitness
+screens in the existing Flutter app. The design is the source of truth."* Its step 4 then
+points **at** the banner-bearing document: *"Read
+`docs/12CIRCLE-FITNESS-PHASE-2-DESIGN-SYSTEM.md`. Tokens go into Helix Tier 1–3 as written
+there. No parallel theme."*
+
+The banner scopes to that one document — do not implement *from the spec sheet alone* —
+not to the package. Authority sits in `IMPLEMENT-THIS.md` + `manifest.json`.
+`DESIGN_HANDOFF.md:4` states the status outright: **"READY FOR CLAUDE CODE."**
+
+### 21.3 The gap count falls: 32 → 9
+
+§20.5's 32 gaps were largely reconstructed by hand because the register was missing.
+`manifest.json → implementationGaps` carries **9**, `GAP-01…GAP-09`, of which
+`IMPLEMENT-THIS.md` marks exactly three as owner decisions: **GAP-07** (intended states the
+backend cannot reach), **GAP-08** (Score frame semantic mismatch), **GAP-09** (event ticket
+unrouted). Measured manifest totals: 110 screens · 50 routes · 28 components · 19 tokens ·
+108 icons · 600 interactions.
+
+### 21.4 What SURVIVES the correction
+
+- **The 88-vs-110 frame-count inconsistency is real.** The board HTML — the byte-identical
+  file, the declared source of truth — still says `88 screens` in three places, while
+  `README.txt` and `manifest.json` say 110. Unchanged internal contradiction.
+- **§20.4's token conflict table stands unaltered.** Every measured divergence (accent
+  `#7C3AED` vs `#7C5CFF`, radiusCard 16 vs 28, radiusButton 12 vs 999, three font families,
+  motion, heading weights) is still true of the shipped theme.
+
+What changes is who decides them. The package *rules* on these conflicts rather than
+raising them: accent `#7C3AED`, accent text `#A78BFA`, `--dim` `#8b8595` (*"Not `#6a6572`
+— that was a regression"*), *"Schibsted Grotesk, nothing above weight 500,"* tokens into
+Helix Tier 1–3, *"No parallel theme."* That is a direct answer to the open **D-2**
+design-system contract decision.
+
+It also answers **D-3**, which this sweep deliberately left open. `IMPLEMENT-THIS.md`:
+*"Every interactive target ≥ 44×44. Several current source controls are 18–40px; the design
+floor wins."* That names the 40×40 `_IconBtn` hit box (§4) and the 20×20/22×22 password
+toggle this sweep declined to alter without an owner ruling.
+
+### 21.5 Revised status
+
+**NEW SCREEN INTEGRATION: STILL OWNER-GATED — but on one ground, not three.**
+
+Two of the three grounds in §20.6 are withdrawn. The surviving one is unchanged in
+substance and is the only real question: implementing this package changes every colour,
+radius, font and motion token in the app. That is a product-wide visual redesign, and QA
+does not hold the authority to start one on its own initiative.
+
+One procedural matter attaches to it. The owner's standing instruction for this workstream
+is *"Do NOT trust any existing design package found on the machine."* This package was
+found on the machine, in `~/Downloads`. It is complete, internally consistent on its own
+IDs, and self-identifying — but its provenance is a download, not an owner handoff. **QA
+records it as verified-complete and refers the adoption decision upward rather than
+inferring authorization from the package's own say-so.** Under this workstream's own rule:
+an authorization problem is not solved by making the change anyway.
+
+Nothing in the package was extracted, applied, or copied into the repository. The zip and
+the reference directory were read only.
+
+---
+
+## 22. Android runtime gate — toolchain provisioning
+
+§19 closed with the Android gate staged but unopened. The emulator now boots and Flutter
+sees it; this section records what stood between those two facts, because every obstacle
+was an environment defect rather than a product defect, and the distinction is the whole
+point of the gate.
+
+### 22.1 Emulator — open
+
+```
+emulator-5554   device   product:sdk_gphone64_arm64   model:sdk_gphone64_arm64   device:emu64a
+sys.boot_completed = 1 · Android 15 (API 35) · arm64-v8a · 1080x2400 @ 420dpi
+```
+
+Flutter enumerates it as `sdk gphone64 arm64 (mobile) • emulator-5554 • android-arm64`.
+The QA backend is reachable from the host (`/auth/v1/health` → **200**) and the emulator
+has working egress (0% packet loss). The nonsensical RTT the emulator reports
+(`739477957506295 ms`) is a known emulator clock artifact, not a network fault.
+
+Launch target: `com.twelvecircle.circle_fitness/.MainActivity`. Dart defines resolve to
+Supabase ref `eyqtldjqpgpljlqvpowh` — the **QA** project declared in
+`supabase/expected_applied.json`, so runtime exercises QA and not production.
+
+### 22.2 Why an NDK is required at all
+
+`android/app/build.gradle.kts:10` sets `ndkVersion = flutter.ndkVersion`, but the binding
+requirement comes from a plugin that actually compiles C++:
+
+```
+jni-1.0.0/android/build.gradle:55-58
+    externalNativeBuild { cmake { path "../src/CMakeLists.txt" } }
+```
+
+`jni` is **transitive**. The only direct dependency is `speech_to_text: ^7.4.0`
+(`pubspec.yaml:45`), which reaches `jni`/`jni_flutter` (`pubspec.lock:818` —
+`dependency: transitive`). One voice-input package therefore imposes a 2.8 GB NDK and a
+CMake toolchain on every Android build. Recorded as a build-cost observation; changing a
+dependency is not QA's call.
+
+### 22.3 `sdkmanager` cannot install packages on this machine
+
+The documented route produces **stub directories containing only `.installer`** and no
+payload — 4.0 KB where an NDK should be. AGP then fails:
+
+```
+[CXX1101] NDK at .../ndk/28.2.13676358 did not have a source.properties file
+```
+
+This is the identical failure mode that defeated the system-image install in §19, so it is
+a property of this machine's `sdkmanager`, not of any one package. Both the NDK and CMake
+were therefore fetched directly from `dl.google.com`, the workaround already proven.
+
+### 22.4 A streaming extraction silently corrupted the toolchain
+
+To avoid holding a 688 MB archive and its 2.8 GB expansion simultaneously on a volume with
+4.8 GB free, the first NDK install was streamed — `curl … | tar -xf -`. It reported
+success and produced a correct-looking tree with a valid `source.properties`. It was
+nonetheless **structurally corrupt in two ways**:
+
+- **Mode bits lost.** 179 binaries in a single `bin/` were non-executable; a magic-number
+  scan found 394 files across the NDK and CMake needing `+x`.
+- **Symlinks materialized as text.** `toolchains/llvm/prebuilt/darwin-x86_64/bin/clang` was
+  an 8-byte regular file containing its target's name rather than a link to `clang-20`.
+
+libarchive's streaming zip reader does not carry zip symlink and permission attributes.
+The mode bits were repairable; the symlinks were not repairable by inspection without
+guessing, so both packages were deleted and re-fetched with `unzip`, which restores link
+and permission attributes correctly.
+
+**This is worth recording as method, not just incident.** A stream-extracted toolchain
+reports success, passes a file-existence check, and produces a valid version string — and
+would have failed later inside a native compile, where the symptom would have looked like a
+product or plugin defect. Verifying a provisioned toolchain means executing its binaries,
+not listing its files.
+
+### 22.5 Disk was the real constraint, and no user data was deleted
+
+The volume (APFS, 89% full) offered 4,856 MB. A single `assembleDebug` consumed ~2.67 GB
+before producing any `build/` directory, of which ~1.9 GB was transient daemon scratch
+returned on exit and ~730 MB was persistent cache growth. Two runs were aborted by a disk
+watchdog at 192 MB and 321 MB free — **the watchdog killed the build; the build did not
+fail.** Recording that distinction matters: neither abort is evidence about the product.
+
+Reclaimed, in order, and only regenerable machine-level caches:
+
+| Reclaimed | Size | Why it was safe |
+|---|---|---|
+| `~/.gradle/caches/{9.2.0,9.3.1,9.4.1}` | 1.76 GB | Other Gradle versions; this project pins `gradle-9.1.0-all` |
+| `~/.gradle/daemon` | 95 MB | Daemon logs |
+| `~/Library/Caches/com.microsoft.VSCode.ShipIt/update.*` | 1.4 GB | A staged, undelivered app update |
+| `~/.npm/{_cacache,_npx}` | 2.4 GB | Package caches; re-fetched on demand |
+| `~/.gradle/caches/8.7` | 164 MB | Unused Gradle version |
+
+Kept deliberately: `~/.gradle/caches/modules-2` (this build's dependency cache),
+`system-images/android-35` (mounted by the running emulator), and the 46 GB Docker
+container directory — **images and volumes are user data and were not touched**. Nothing
+in any repository, and no document, was deleted.
+
+Not attempted, deliberately: installing Xcode (excluded by the owner), and deleting user
+data to make room.
+
+### 22.6 P1 — the Android app could not be built, and no gate would ever have said so
+
+With the toolchain finally sound, the build failed again — and this failure is **not an
+environment defect**:
+
+```
+Execution failed for task ':app:checkDebugAarMetadata'.
+> An issue was found when checking AAR metadata:
+    1. Dependency ':flutter_local_notifications' requires core library desugaring
+       to be enabled for :app.
+```
+
+`flutter_local_notifications: ^18.0.1` is `dependency: "direct main"`. Version 18.x
+declares in its AAR metadata that the consuming app must enable core library desugaring.
+`apps/mobile/android/app/build.gradle.kts` did not, and
+`git log -S'coreLibraryDesugaring' -- apps/mobile/android/` returns **nothing** — it has
+never been configured in this repository's history. The file is still the stock Flutter
+template, TODOs for `applicationId` and the release signing config intact.
+
+The check runs before any code is compiled, so this is not a marginal or
+configuration-dependent failure: **`flutter build apk` could not succeed on this branch at
+any point.**
+
+#### Why CI is green anyway
+
+CI's `flutter` job (`.github/workflows/ci.yml:188-220`) runs exactly four things:
+
+```
+flutter pub get
+flutter analyze --no-fatal-infos --no-fatal-warnings
+flutter test
+flutter build web --dart-define-from-file=dart_defines/qa.json
+```
+
+`flutter build web` is the **only** build. Across both workflows, no job runs
+`flutter build apk`, `assembleDebug`, or `appbundle`, and there is no iOS build either.
+
+That is the finding, and it is larger than the missing flag. **The five consecutive green
+pipelines recorded in §18 never once compiled the shipped product for the platform it
+ships on.** CI proves the web target compiles; the Android target was broken the whole
+time, and green CI was never capable of noticing. A unit and analyzer suite cannot detect
+an AAR metadata contract — only a build can.
+
+#### Repair applied
+
+Minimal and prescribed by the error and by the plugin's own requirement — no product
+behaviour, no design, no gate weakened:
+
+```kotlin
+compileOptions {
+    isCoreLibraryDesugaringEnabled = true      // + explanatory comment
+    …
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+}
+```
+
+The build then advanced past `checkDebugAarMetadata` into native compilation.
+
+**Recommended and NOT done unilaterally:** adding an Android build job to CI. That changes
+the pipeline's contract and its cost, and belongs to the owner. Recorded here as the
+remedy that would convert this from a defect that recurs into one that cannot.
+
+### 22.7 Forward-looking build-health warning (recorded, not acted on)
+
+```
+WARNING: Your app uses the following plugins that apply Kotlin Gradle Plugin (KGP):
+mobile_scanner, sign_in_with_apple, speech_to_text
+Future versions of Flutter will fail to build if your app uses plugins that apply KGP.
+```
+
+Three direct dependencies will break the Android build on a future Flutter release.
+Upgrading or replacing a dependency is a product decision, so this is logged, not
+actioned. It compounds §22.6: without an Android build in CI, the day this stops being a
+warning and becomes an error will be discovered by a person, not by a gate.
+
+---
+
+## 23. ANDROID RUNTIME QA — the gate is open, and it immediately earned its keep
+
+Everything below was observed on a running Android app. Device: `emulator-5554`,
+`sdk_gphone64_arm64`, Android 15 (API 35), arm64-v8a, 1080×2400 @ 420 dpi (2.625 px/dp).
+Build: `app-debug.apk`, 126 MB, `--dart-define-from-file=dart_defines/qa.json` → QA
+Supabase `eyqtldjqpgpljlqvpowh`. Evidence (screenshots + `uiautomator` XML dumps) in the
+session scratchpad.
+
+```
+Performing Streamed Install → Success
+am start -W -n com.twelvecircle.circle_fitness/.MainActivity
+  Status: ok · LaunchState: COLD · TotalTime: 5009 ms
+```
+
+No `FATAL`, no crash-buffer entries, no `E/flutter` at any point in this pass. The only
+log noise is `ChimeraSrvcProxy` from Play Services (pid 2125), not the app.
+
+### 23.1 P1 — a raw Dart exception is shown to the user *(found at runtime, repaired)*
+
+Signing in with a wrong password displayed this, in a SnackBar, to the user:
+
+```
+AuthApiException(message: Invalid login credentials, statusCode: 400,
+code: invalid_credentials)
+```
+
+That is `AuthException.toString()` verbatim (`gotrue-2.21.0`,
+`lib/src/types/auth_exception.dart`). A mistyped password shows a consumer a Dart object
+dump carrying a class name, an HTTP status code and a backend error code.
+
+**It was not one screen. It was all four** — the entire unauthenticated surface, the first
+thing every new user touches:
+
+| Site | Was |
+|---|---|
+| `login_screen.dart:101` | `_showError(authState.error.toString())` |
+| `signup_screen.dart:61` | `error: (e, _) => _showError(e.toString())` |
+| `reset_password_screen.dart:49` | `_snack(e.toString())` |
+| `forgot_password_screen.dart:43` | `SnackBar(content: Text(e.toString()))` |
+
+`login_screen.dart` convicts itself: its Google (`:79`), Apple (`:86`) and empty-field
+(`:92`) paths all use written copy — *"Could not start Google sign-in. Please try again."*
+Only the primary email/password path dumps the object. The intent was never in doubt; the
+main path was simply missed.
+
+**Repair — and it invents no product copy.** `AuthException` already carries a `message`
+field that gotrue documents as *"Human readable error message associated with the error."*
+The defect was stringifying the **wrapper** instead of reading that field. New seam
+`lib/core/errors/auth_error_text.dart` returns `error.message`, so the wording of every
+auth error remains exactly what the auth provider chose. The raw object now goes to
+`reportError` (`lib/core/observability/app_failure.dart`) — the status code and error code
+belong in an operator's console, not a SnackBar. The sink already existed and these
+screens simply were not using it.
+
+The one string this repository adds is the fallback for errors that are **not**
+`AuthException` and therefore carry no human-readable message: *"Something went wrong.
+Please try again."* Flagged as the only copy decision in the change.
+
+Guarded by **A-G2** in `test/unit/presentation_drift_guard_test.dart`, mutation-tested:
+reintroducing `authState.error.toString()` at `login_screen.dart:108` fails the guard, and
+restoring returns it to green. The guard strips `//` comments first, so the explanatory
+comment that quotes the old expression does not self-trigger. Scoped deliberately to
+`features/auth/presentation` — the same shape exists elsewhere in the tree and is recorded
+below rather than pinned by a guard that would need weakening to pass.
+
+### 23.2 P1 — the app's user-facing name is `circle_fitness` *(owner decision)*
+
+The first thing the OS showed the user was *"Allow **circle_fitness** to send you
+notifications?"* — the Flutter project directory name, in a system dialog.
+`AndroidManifest.xml:11` sets `android:label="circle_fitness"`. On Android that string is
+the home-screen name, the app-drawer name, the Settings entry and every permission dialog.
+
+The platforms also disagree: iOS `Info.plist` declares `CFBundleDisplayName` =
+**"Circle Fitness"**, while `CFBundleName` is `circle_fitness`. Neither is the product's
+name.
+
+**Not repaired, deliberately.** That `circle_fitness` is wrong is not in question; *which*
+string replaces it is branding — the design package says "12Circle Fitness", iOS ships
+"Circle Fitness", the repo is `12circle-fitness`. Three candidates, no authority to pick.
+One line, one owner decision.
+
+### 23.3 Notification permission is requested on cold start, before any UI
+
+`POST_NOTIFICATIONS` is requested during launch: the first frame the user sees is a system
+dialog over an empty grey screen, with the app's value proposition not yet shown. The
+top-resumed activity at +5 s was `GrantPermissionsActivity`, not `MainActivity`. No priming
+screen precedes it. Recorded as a product/UX decision, not repaired.
+
+### 23.4 Accessibility — measured on-device, not inferred
+
+From `uiautomator` dumps, converted at 2.625 px/dp. The 44 dp floor is WCAG 2.5.5 / the
+design package's *"Every interactive target ≥ 44×44."*
+
+| Control | Size (dp) | Accessible name | Verdict |
+|---|---|---|---|
+| Password visibility toggle | **19.8 × 20.2** | **none** | fails size **and** name |
+| "Forgot password?" | 122.3 × **20.2** | present | fails size |
+| "Don't have an account? Sign Up" | 219.4 × **19.8** | present | fails size |
+| Email / password inputs | 324.6 × 23.2 | **none** | see note |
+| Sign In | 363.4 × 58.3 | present | passes |
+| Google / Apple | 175.6 × 56.0 | present | passes |
+
+**The password toggle is the worst case and confirms a static prediction.** §4 flagged a
+20×20/22×22 toggle from source and declined to change it pending **D-3**. Runtime now
+measures it at **19.8 × 20.2 dp — under half the 44 dp floor — and carries no accessible
+name at all**, so a screen-reader user cannot find it or know what it does. Static analysis
+predicted it; runtime proves it.
+
+**Note on the inputs.** Their 23.2 dp height is *not* a target defect: each sits inside a
+clickable wrapper measuring 363.4 × 57.9 dp, so the tappable area is compliant. Their real
+defect is the missing accessible name — the visible "Email address" / "Password" strings
+are placeholder hints and are not exposed. The email node reports
+`text='qa.tester@example.com'`, which is its *value*, not a label; it appeared only because
+this pass typed into it.
+
+Also observed: interactive controls surface as `android.view.View` with `clickable=true`
+rather than as buttons, so assistive technology announces the label without the role.
+Lower confidence — Flutter's semantics bridge commonly reports `View` — recorded for
+follow-up rather than asserted as a defect.
+
+### 23.5 What passed, and is worth stating plainly
+
+- **Keyboard insets are correct.** Focusing email raises the IME
+  (`mInputShown=true`), content resizes, the footer relocates above the keyboard, and
+  nothing is clipped or obscured. The large gap visible on the idle login screen is a
+  deliberate spacer that absorbs the keyboard, not dead space.
+- **Password masking is handled correctly and securely.** Masked, the field reports
+  `password=true` and **withholds its value from the accessibility tree** (`text=''`).
+  Revealed, it reports `password=false` with the value present. The toggle works; only its
+  size and label are wrong.
+- **Focus affordance** is clear — a purple focus ring on the active field.
+- **Navigation** welcome → sign-in works; no crash, no jank, no error output.
+
+### 23.6 A correction of my own reading
+
+While viewing the sign-in screenshot I suspected text was painted under the status bar. It
+was not. The `uiautomator` dump places the only candidate node, *"Don't have an account?
+Sign Up"*, at `[252,2248][828,2300]` — the bottom of the screen. The apparent artifact was
+my misreading of the image. Recorded because a QA document that only keeps its confirmed
+suspicions is not an honest instrument.
