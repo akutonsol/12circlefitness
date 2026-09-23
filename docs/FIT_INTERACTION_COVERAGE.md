@@ -24,9 +24,9 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 286 (48%) |
-| **Label absent** | **314** |
-| Locked anchors | 81/179 (45%) |
+| Label present | 291 (49%) |
+| **Label absent** | **309** |
+| Locked anchors | 86/179 (48%) |
 
 **These numbers went DOWN, and that is the correction.** See *"The measurement counted its
 own comments"* below.
@@ -119,14 +119,14 @@ everything else. Where anything disagrees, they win."*
 | FIT-015 | Workouts — no plan yet | `/train` | 5 | 9 | `train_hub_screen.dart` |
 | FIT-016 | Workout detail | `/workout-detail` | 3 | 7 | `workout_detail_screen.dart` |
 | FIT-029 | Profile | `/profile` | 2 | 6 | `profile_screen.dart` |
-| FIT-030 | Settings | `/settings` | 2 | 6 | `settings_screen.dart` |
+| FIT-030 | Settings | `/settings` | 5 | 6 | `settings_screen.dart` — sixth blocked on OD-19 |
 | FIT-033 | Check-in review | `/coach-checkin-review` | 1 | 5 | `coach_checkin_review_screen.dart` |
 | FIT-021 ✅ | Entitlement gate | `PaywallGate wrapper (12 routes)` | **3** | 3 | `paywall_gate.dart` |
 | FIT-006 ✅ | Welcome | `/onboarding` | **2** | 2 | `onboarding_screen.dart` |
 | FIT-017 | Rest & completion | `/active-workout` | 2 | 2 | `active_workout_screen.dart` + `widgets/rest_timer_widget.dart` |
 | FIT-018 | Session complete | `/active-workout` | 2 | 4 | `active_workout_screen.dart` |
 | FIT-026 | Conversation | `/chat` | 3 | 5 | `chat_screen.dart` |
-| FIT-009 | Intake complete | `/intake` | 0 | 1 | `intake_flow_screen.dart` |
+| FIT-009 ✅ | Intake complete | `/intake` | **1** | 1 | `widgets/intake_complete_page.dart` |
 | FIT-022 | Loading & failure | `cross-cutting pattern` | 0 | 1 | `—` |
 | FIT-024 | Check-in detail | `/checkin-detail` | 1 | 2 | `checkin_detail_screen.dart` |
 | FIT-007 | Sign in | `/login` | 1 | 1 | `login_screen.dart` |
@@ -314,7 +314,7 @@ without fabricating content the brief forbids.
 | FIT-006 ✅ | Welcome | `/onboarding` | **2/2** | `onboarding_screen.dart` |
 | FIT-007 | Sign in | `/login` | 1/1 | `login_screen.dart` |
 | FIT-008 | Intake | `/intake` | 2/7 | `intake_flow_screen.dart` |
-| FIT-009 | Intake complete | `/intake` | 0/1 | `intake_flow_screen.dart` |
+| FIT-009 ✅ | Intake complete | `/intake` | **1/1** | `widgets/intake_complete_page.dart` |
 | FIT-010 | Splash | `/splash` | 1/1 | `splash_screen.dart` |
 | FIT-011 | Sign up | `/signup` | 2/2 | `signup_screen.dart` |
 | FIT-012 | Forgot password | `/forgot-password` | 2/2 | `forgot_password_screen.dart` |
@@ -335,7 +335,7 @@ without fabricating content the brief forbids.
 | FIT-027 | What's on | `/classes` | 5/10 | `classes_screen.dart` + `whats_on_view.dart` + `domain/whats_on.dart` |
 | FIT-028 | Connect — no coach | `/messages` | 4/10 | `messaging_screen.dart` |
 | FIT-029 | Profile | `/profile` | 2/6 | `profile_screen.dart` |
-| FIT-030 | Settings | `/settings` | 2/6 | `settings_screen.dart` |
+| FIT-030 | Settings | `/settings` | 5/6 | `settings_screen.dart` — sixth blocked on OD-19 |
 | FIT-031 🔒 | Plans | `/upgrade` | 1/5 | `upgrade_screen.dart` — **remaining 4 blocked on OD-18** |
 | FIT-032 | Coach dashboard | `/coach-dashboard` | 5/11 | `coach_dashboard_screen.dart` |
 | FIT-033 | Check-in review | `/coach-checkin-review` | 1/5 | `coach_checkin_review_screen.dart` |

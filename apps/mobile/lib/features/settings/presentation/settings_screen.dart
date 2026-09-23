@@ -311,21 +311,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   // ── Legal & Support ──
                   _SectionLabel(label: 'Legal & Support'),
                   const SizedBox(height: 10),
+                  // FIT-030's wording. Three of these differ from what shipped
+                  // only in spelling or case — "Help centre", "Privacy policy",
+                  // "Sign out" against "Help Center", "Privacy Policy",
+                  // "Logout" — and the locked screen wins. The package is
+                  // consistently UK English (it also prices in £), and the app
+                  // shipped US spellings; see OD-18, which is the same
+                  // divergence with money attached.
                   _GlassSection(children: [
+                    // FIT-030 declares "Change password". It routes to the
+                    // reset flow this app already has — `/forgot-password`
+                    // sends the email that `reset_password_screen.dart`
+                    // completes. No new auth path is introduced.
                     _SettingsRow(
-                      title: 'Help Center',
+                      title: 'Change password',
+                      trailing: const Icon(Icons.chevron_right, color: _C.onSurfaceVar, size: 20),
+                      hasBorder: true,
+                      onTap: () => context.push('/forgot-password'),
+                    ),
+                    _SettingsRow(
+                      title: 'Help centre',
                       trailing: const Icon(Icons.open_in_new, color: _C.onSurfaceVar, size: 18),
                       hasBorder: true,
                       onTap: () => context.push('/help-center'),
                     ),
                     _SettingsRow(
-                      title: 'Privacy Policy',
+                      title: 'Privacy policy',
                       trailing: const Icon(Icons.chevron_right, color: _C.onSurfaceVar, size: 20),
                       hasBorder: true,
                       onTap: () => context.push('/privacy-policy'),
                     ),
                     _SettingsRow(
-                      title: 'Logout',
+                      title: 'Sign out',
                       titleColor: _C.error,
                       trailing: const Icon(Icons.logout, color: _C.error, size: 20),
                       hasBorder: false,
@@ -436,7 +453,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: _C.surfaceContainer,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Logout', style: TextStyle(color: _C.onSurface, fontWeight: FontWeight.w700)),
+        // The row says "Sign out"; the dialog confirming it must say the same
+        // thing, or the client is asked to confirm an action they did not
+        // press.
+        title: const Text('Sign out', style: TextStyle(color: _C.onSurface, fontWeight: FontWeight.w700)),
         content: const Text('Are you sure you want to logout?',
           style: TextStyle(color: _C.onSurfaceVar)),
         actions: [
@@ -446,7 +466,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogCtx, rootNavigator: true).pop(true),
-            child: const Text('Logout', style: TextStyle(color: _C.error, fontWeight: FontWeight.w700)),
+            child: const Text('Sign out', style: TextStyle(color: _C.error, fontWeight: FontWeight.w700)),
           ),
         ],
       ),

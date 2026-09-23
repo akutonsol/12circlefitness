@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'widgets/intake_back_button.dart';
+import 'widgets/intake_complete_page.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../scoring/data/score_engine.dart';
@@ -208,6 +209,11 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
     }
   }
 
+  /// FIT-009 · "Intake complete". The flow used to `context.go('/home')` the
+  /// instant the last answer saved, so the state the anchor draws never
+  /// existed — the client's work ended in a screen transition.
+  bool _done = false;
+
   Future<void> _finish() async {
     setState(() => _saving = true);
     final uid = Supabase.instance.client.auth.currentUser?.id;
@@ -238,7 +244,10 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
         } catch (_) {/* generation must never block finishing onboarding */}
       }
     }
-    if (mounted) context.go('/home');
+    // FIT-009 is a state, not a redirect. The board's note is explicit:
+    // "Success is quiet: a mark, a sentence, what happens next. No confetti,
+    // no celebration animation."
+    if (mounted) setState(() { _saving = false; _done = true; });
   }
 
   @override
@@ -258,6 +267,8 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
         ),
       );
     }
+
+    if (_done) return IntakeCompletePage(onGoHome: () => context.go('/home'));
 
     return Scaffold(
       backgroundColor: _bg,

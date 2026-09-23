@@ -403,7 +403,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1094 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1102 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -1416,6 +1416,70 @@ and no assistive technology enabled still has only the drag. Making the knob tap
 remove the deliberate friction the design specifies, so it is not done here — recorded as a
 known limitation rather than resolved by guessing.
 
+## 3w · The design board carries the BODY COPY — it had not been used as a source
+
+A finding about the method, discovered while building FIT-009.
+
+Every copy decision in this programme so far was made against `manifest.json`, which lists
+**interaction labels** and nothing else. That is why so much was recorded as "the package
+supplies no copy for this frame" and pushed to OD-8.
+
+**`12Circle Fitness - Complete Board.dc.html` (466 KB) carries the prose**, per frame, plus
+the designer's annotations. FIT-009's entire screen was in it:
+
+> "That's everything we needed."
+> "*<coach>* has your answers and will have your first week ready by tomorrow morning."
+> "While you wait" · "Have a look at the exercise library, or log what you ate today."
+> "Go to my home"
+> — and the note: *"Success is quiet: a mark, a sentence, what happens next. **No confetti,
+> no celebration animation** — the brief's 'rewarding but sophisticated', applied
+> literally."*
+
+Spot checks confirm it is not unique to that frame: `Reply to Nadia`,
+`Who can see my progress · Coach only` and their surrounding paragraphs are all there.
+
+**This does not retroactively make any earlier decision wrong** — where the house pattern
+was reused (`Could not load [noun]`, `Try again`) the result is the same words the product
+already ships. It does mean the board should be consulted before anything is recorded as
+copy-blocked again.
+
+## 3x · FIT-009 · Intake complete — the state that did not exist
+
+The flow called `context.go('/home')` the instant the last answer saved. **The state the
+anchor draws never existed**: a client finished a long intake and their work ended in a
+screen transition.
+
+Every word is the board's, including the design note, applied literally — a mark, a
+sentence, what happens next. A test asserts there is **no celebration icon**, because the
+note is explicit and a later "improvement" would otherwise quietly contradict it.
+
+The coach's name goes through the same `coachAddressed` rule as FIT-004 and FIT-015: a
+failed read must not name a coach the client may not have, and the fallback — "*We* have
+your answers…" — is grammatical without one.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Behaviour | `test/widget/intake_complete_test.dart` — 8 tests | **PASS** |
+| Guard strength | 3 mutations killed: celebrate (contradicting the board), drop the heading roles, **skip the state and go straight home** (the shipped behaviour) | **PASS** |
+| Suite | 1102 pass / 9 skipped | **PASS** |
+| Runtime | not device-verified — leaf widget. **FIXED IN CODE**. | **OPEN** |
+
+**Two limits recorded rather than papered over.**
+
+The wiring — *does the flow actually render the state* — cannot be reached by a widget
+test, because `IntakeFlowScreen` reads Supabase and cannot be driven to completion. A
+source-level guard holds it instead, and deleting the render fails it. Without that guard
+the mutation survived.
+
+And one mutation **survives by design** in that file: swapping the coach input for
+`AsyncData(provider.valueOrNull)` — which drops the error state — passes, because the
+override harness turns an `AsyncError` into `Future.error` and the provider rebuilds with
+no previous value. The stale-error case cannot be built through a provider override. It is
+built directly, and that mutation killed, in `test/unit/coach_name_test.dart`. Noted in the
+test so it does not look like coverage it is not.
+
+**FIT-009: 0/1 → 1/1.** Fourth anchor completed.
+
 ## 4 · Design package
 
 | Check | Status |
@@ -1427,6 +1491,7 @@ known limitation rather than resolved by guessing.
 | 105/110 FIT screens map to an existing route | **PASS** — `DESIGN_ROUTE_IMPLEMENTATION_MATRIX.md` |
 | Design board carries no FIT ids — frame↔manifest linkage is by name only | **ENVIRONMENT LIMITATION** — automated visual regression breaks silently on a rename |
 | `capture-references.mjs` baseline not yet generated | **NOT ESTABLISHED** — required before Visual QA (Phase 11) |
+| Board HTML carries per-frame **body copy** and designer annotations | **CONFIRMED** — see §3w; the manifest alone was being used as the copy source |
 
 ## 5 · Integration state
 
@@ -1912,6 +1977,13 @@ booking screen's existing, already-shipped phrasing as the house pattern. Record
 **OD-8**.
 
 ## 6d · OWNER DECISION REGISTER
+
+**OD-19 · FIT-030 declares a privacy control that has no data model.**
+"Who can see my progress · Coach only" implies a visibility setting on a client's progress.
+**No such column or policy exists** — the only `visibility` in the migrations is on
+`custom_exercises`. Building it means defining who may see a client's data, which is a
+data-sharing boundary, not a settings row. Decide the model (values, default, and what
+enforces it server-side) before it is drawn.
 
 **OD-18 · FIT-031's prices are not the product's prices.** The anchor draws £19 / £39 / £79;
 the app shows $29 / $59 / "Coach-set", backed by live Stripe price IDs whose own function
