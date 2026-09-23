@@ -159,6 +159,51 @@ Three rows were created by the probe and all three deleted. Verified by re-query
 `remaining SEC-PROBE rows: 0`. An earlier single-row probe was likewise deleted and
 verified at 0.
 
+### F-21b · Blast radius — measured statically, read-only, no further mutation
+
+The exploit is a *policy shape*, so the surface was sized by auditing every `FOR ALL`
+policy in `supabase/migrations/` rather than by creating more rows.
+
+**22 policies share the shape and are CORRECT** — `"users manage own weight logs"` with
+`user_id = auth.uid()` scopes a user to their own rows, which is the intent. Those are not
+defects and are not listed.
+
+**15 carry a privilege-asserting NAME with no role check.** The predicate is satisfied by
+writing your own uid into the column the name claims authority over:
+
+| Migration | Table | Predicate columns | Policy |
+|---|---|---|---|
+| `001:347` | `coach_invites` | coach_id | "coaches manage invites" |
+| `001:351` | `workout_programs` | coach_id | "coaches manage programs" — **PROVEN** |
+| `001:354` | `program_workouts` | coach_id | "coaches manage program workouts" |
+| `001:357` | `workout_program_assignments` | **client_id, coach_id** | "coaches manage assignments" — **PROVEN** |
+| `001:360` | `client_nutrition_plans` | **client_id, coach_id** | "coach client nutrition" |
+| `001:361` | `client_habits` | **client_id, coach_id** | "coach client habits" |
+| `001:386` | `challenges` | coach_id | "coaches manage challenges" |
+| `001:392` | `classes` | coach_id | "coaches manage classes" |
+| `002:47` | `coach_availability` | coach_id | "Coaches manage own availability" |
+| `002:67` | `coaching_calls` | **client_id, coach_id** | "Coach and client can see calls" |
+| `002:104` | `accountability_pods` | coach_id | "Coaches manage pods" |
+| `002:146` | `coach_team_members` | coach_id | "Head coach manages team" |
+| `002:159` | `coach_team_invites` | coach_id | "Coach manages own invites" |
+| `005:48` | `custom_exercises` | coach_id | "coaches manage own exercises" |
+| `017:46` | `action_items` | coach_id | "coach manages assigned action items" |
+
+**The four in bold are the cross-user injection candidates.** They carry a `client_id`
+alongside `coach_id`, so the `coach_id = auth.uid()` arm lets a caller name themselves
+coach while targeting *someone else* as the client — which is exactly the step-3 write
+proven for `workout_program_assignments`. The other three are **UNTESTED**: predicted from
+the shape, not demonstrated, and recorded that way.
+
+By payload: `client_nutrition_plans` and `client_habits` would inject a nutrition plan or
+habit into another member's programme; `coaching_calls` would place a call in their
+schedule. With `workout_program_assignments` these are the same class of safety input as
+F-21.
+
+**Nothing further was written.** Confirming the remaining three needs one INSERT each, which
+is a security decision to authorise, not one to take unilaterally — it is folded into
+OD-14.
+
 ### Next tests, once authorised
 
 `program_workouts` (`001:354` scopes by program ownership — inherits the same weakness),
