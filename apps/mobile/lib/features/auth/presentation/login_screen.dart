@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../domain/auth_provider.dart';
+import '../../../core/errors/auth_error_text.dart';
+import '../../../core/observability/app_failure.dart';
 import '../../../core/router/app_router.dart' show authErrorNotifier;
 import 'widgets/auth_design.dart';
 
@@ -98,7 +100,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     final authState = ref.read(authNotifierProvider);
     if (authState.hasError) {
-      _showError(authState.error.toString());
+      // The raw object goes to the sink (status code, error code, type); the
+      // user gets the provider's human-readable message. Showing
+      // `error.toString()` here put `AuthApiException(message: …,
+      // statusCode: 400, code: invalid_credentials)` on screen.
+      reportError('LoginScreen._signIn', authState.error!, authState.stackTrace);
+      _showError(authErrorText(authState.error));
       return;
     }
     await _handlePostAuthNavigation();

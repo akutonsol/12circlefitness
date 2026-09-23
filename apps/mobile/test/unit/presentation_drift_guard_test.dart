@@ -90,6 +90,70 @@ void main() {
     });
   });
 
+  group('A-G2 no auth screen may show a user a raw error object', () {
+    /// Confirmed at runtime on Android (emulator-5554, API 35): signing in with
+    /// a wrong password put this on screen, in a SnackBar, for the user:
+    ///
+    ///   AuthApiException(message: Invalid login credentials, statusCode: 400,
+    ///   code: invalid_credentials)
+    ///
+    /// That is `AuthException.toString()`. All four auth screens did the same
+    /// thing — the entire unauthenticated surface. The repair reads the
+    /// provider's own `message` field via `authErrorText` and sends the raw
+    /// object to `reportError` instead.
+    ///
+    /// This guard is deliberately scoped to `features/auth/presentation`. The
+    /// same shape exists elsewhere in the tree and is NOT repaired here; that
+    /// is recorded in docs/MOBILE_QA_SWEEP_2026-09-22.md §23, not silently
+    /// pinned by a guard that would have to be weakened to pass.
+    final authFiles = Directory('lib/features/auth/presentation')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))
+        .toList();
+
+    test('no auth screen stringifies a caught error into UI text', () {
+      final offenders = <String>[];
+
+      // `Text(e.toString())`, `_showError(e.toString())`,
+      // `_snack(error.toString())`, `Text('$e')` — the shapes actually found.
+      final raw = RegExp(
+        r"\b(?:e|err|error)\!?\.toString\(\)|"
+        r"Text\(\s*'\$\{?(?:e|err|error)\}?'\s*\)",
+      );
+
+      for (final file in authFiles) {
+        for (final line in file.readAsLinesSync()) {
+          final code = line.split('//').first;
+          if (raw.hasMatch(code)) {
+            offenders.add('${file.path}: ${line.trim()}');
+          }
+        }
+      }
+
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'An auth screen puts a caught error object into user-facing text. '
+            'Use `authErrorText(e)` for the user and `reportError(...)` for the '
+            'operator:\n  ${offenders.join('\n  ')}',
+      );
+    });
+
+    test('authErrorText exists and reads the provider message field', () {
+      final src = File('lib/core/errors/auth_error_text.dart');
+      expect(src.existsSync(), isTrue,
+          reason: 'lib/core/errors/auth_error_text.dart is the seam the auth '
+              'screens depend on.');
+      final text = src.readAsStringSync();
+      expect(text, contains('is AuthException'));
+      expect(text, contains('error.message'),
+          reason: 'It must return the provider-supplied human-readable '
+              'message, not a string this repository invented.');
+    });
+  });
+
   group('H-D1 the private-palette population must not grow', () {
     /// Three palettes ship concurrently — the Helix brand tier, a legacy
     /// `AppColors`, and a per-screen private palette in each file below. That
