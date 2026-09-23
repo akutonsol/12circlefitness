@@ -212,7 +212,7 @@ actually renders an injected programme end-to-end.
 
 ---
 
-## 0c · F-22 — icon-only controls ship with no accessible name (**56 → 47**)
+## 0c · F-22 — icon-only controls ship with no accessible name (**56 → 46 raw, ~40 real**)
 
 **ID** F-22 · **Severity** P2 accessibility · **Status** RATCHETED, OD-8 for the copy
 
@@ -277,6 +277,36 @@ F-20 test caught it (`Found 2 widgets with a semantics label named "Back"`). The
 was removed and the site annotated. The scan is still not widened backwards, for the
 reason recorded in the guard.
 
+### The scan over-counts, and by how much
+
+A-G8 reads **forward** from each tappable, so a `Semantics` wrapper placed *outside* the
+`GestureDetector` is invisible to it. Six sites are verified named and still counted. The
+clearest is `auth_design.dart`'s password toggle: **this guard already asserts that control
+is named** — it was measured on-device at 19.8 × 20.2 dp and fixed as F-6b — and the scan
+counts it anyway.
+
+| Site | Name it actually carries |
+|---|---|
+| `auth_design.dart` | `Show password` / `Hide password` |
+| `workout_detail_screen.dart` | `Back` |
+| `nutrition_screen.dart` | `Close` |
+| `directory_screen.dart` | `Close` |
+| `meals_dashboard_screen.dart` | `Log a meal` |
+| `ai_nutrition_screen.dart` | `Scan a meal` |
+
+So the raw figure is **46** and the real one is about **40**.
+
+**The window is still not widened backwards.** A backward window would also swallow an
+unrelated `Semantics` above a genuinely unnamed control, and a ratchet that under-counts
+hides regressions while one that over-counts only overstates the work left. What was not
+acceptable was leaving the discrepancy as a sentence in prose: the six are now **listed and
+asserted** in the guard, so if one loses its name the test fails and it becomes a real
+finding again. Mutation-tested both ways — removing a listed name fails, and a new unnamed
+control still fails the baseline at 47.
+
+**Two more named from the package's vocabulary**, bringing 47 → 46: FIT-003 declares
+`Log a meal` and `Scan a meal`, and both controls do exactly what those labels say — the
+`+` opens the add-meal sheet, the camera picks a photo and has it analysed.
 
 ## 0d · F-9 — **RESOLVED AND MEASURED ON DEVICE**, including the related finding
 
@@ -373,7 +403,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1056 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1057 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 

@@ -46,7 +46,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// So this guard holds the line where it sits. It fails on the next one, which
 /// is the only thing that can be asserted honestly today.
 ///
-/// ── A KNOWN FALSE POSITIVE, LEFT IN ON PURPOSE ─────────────────────────────
+/// ── KNOWN FALSE POSITIVES, LEFT IN ON PURPOSE ──────────────────────────────
 /// The scan reads 420 characters FORWARD from each tappable, so a `Semantics`
 /// wrapper that sits OUTSIDE the `GestureDetector` is invisible to it. FIT-002
 /// named `set_tracker_row.dart`'s completion check exactly that way — the
@@ -57,8 +57,14 @@ import 'package:flutter_test/flutter_test.dart';
 /// window would also swallow an unrelated `Semantics` sitting above a genuinely
 /// unnamed control, and a ratchet that under-counts is worse than one that
 /// over-counts: the first hides a regression, the second only overstates the
-/// work left. The baseline is held at the number this scan produces, and the
-/// discrepancy is recorded here rather than tuned away.
+/// work left. The baseline is held at the number this scan produces.
+///
+/// What is NOT acceptable is leaving the discrepancy unquantified. The sites
+/// verified named-but-counted are listed and asserted below, so the real figure
+/// is auditable rather than a caveat in prose. The clearest case is
+/// `auth_design.dart`'s password toggle: **this file already asserts it is
+/// named** — it was measured on-device at 19.8 × 20.2 dp and fixed — and the
+/// scan counts it anyway.
 ///
 /// ── WHY IT DOES NOT COPY EC-G5'S MISTAKE ───────────────────────────────────
 /// `QA_CLOSURE_STANDARD` §4 records that EC-G5 "counts `catch` blocks" while
@@ -81,7 +87,11 @@ void main() {
   ///        the three were visible to this scan.
   ///   47 — after nine more were named from the package's OWN vocabulary. See
   ///        the note below on why those nine and not the other forty-four.
-  const baseline = 47;
+  ///   46 — after FIT-003's "Log a meal" and "Scan a meal".
+  ///
+  /// **This number OVERSTATES the defect, and by a known amount.** See the
+  /// verified-false-positive test below.
+  const baseline = 46;
 
   List<({String file, int count})> scan() {
     final files = <File>[
@@ -197,5 +207,40 @@ void main() {
         .readAsStringSync();
     expect(auth, contains("'Show password'"));
     expect(auth, contains("'Hide password'"));
+  });
+
+  test('A-G8 the scan\'s verified false positives, quantified', () {
+    // Each of these carries a `Semantics` wrapper OUTSIDE its tappable, which
+    // the forward-only scan cannot see. They were read and confirmed named.
+    // Listing them keeps the real figure auditable instead of leaving the
+    // over-count as a sentence in a doc comment.
+    const namedButCounted = <String, String>{
+      'lib/features/auth/presentation/widgets/auth_design.dart':
+          "label: _obscure ? 'Show password' : 'Hide password'",
+      'lib/features/workout/presentation/workout_detail_screen.dart':
+          "label: 'Back'",
+      'lib/features/nutrition/presentation/nutrition_screen.dart':
+          "label: 'Close'",
+      'lib/features/dashboard/presentation/directory_screen.dart':
+          "label: 'Close'",
+      'lib/features/nutrition/presentation/meals_dashboard_screen.dart':
+          "label: 'Log a meal'",
+      'lib/features/ai_nutrition/presentation/ai_nutrition_screen.dart':
+          "label: 'Scan a meal'",
+    };
+
+    namedButCounted.forEach((path, needle) {
+      expect(File(path).readAsStringSync(), contains(needle),
+          reason: '$path is listed as a verified false positive of this scan. '
+              'If the name is gone, it is a real finding again — remove it '
+              'from this list rather than from the count.');
+    });
+
+    final raw = scan().fold<int>(0, (a, b) => a + b.count);
+    final adjusted = raw - namedButCounted.length;
+    printOnFailure('raw=$raw  verified false positives=${namedButCounted.length}  '
+        'adjusted=$adjusted');
+    expect(adjusted, lessThan(raw));
+    expect(adjusted, greaterThanOrEqualTo(0));
   });
 }

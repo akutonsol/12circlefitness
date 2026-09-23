@@ -250,9 +250,18 @@ class _AiNutritionScreenState extends ConsumerState<AiNutritionScreen> {
             color: AppColors.bgDarkSecondary,
             border: Border(top: BorderSide(color: AppColors.surfaceDarkElevated))),
           child: Row(children: [
-            // Photo button
-            GestureDetector(
+            // Photo button.
+            //
+            // F-22: it was unnamed. FIT-003 declares "Scan a meal" for exactly
+            // this — pick a photo and have it analysed — so the name is the
+            // package's own.
+            Semantics(
+              button: true,
+              label: 'Scan a meal',
+              enabled: !_isLoading,
+              child: GestureDetector(
               onTap: _isLoading ? null : _pickAndAnalyzePhoto,
+              behavior: HitTestBehavior.opaque,
               child: Container(
                 width: 40, height: 40,
                 decoration: BoxDecoration(
@@ -260,7 +269,7 @@ class _AiNutritionScreenState extends ConsumerState<AiNutritionScreen> {
                   shape: BoxShape.circle,
                   border: Border.all(color: AppColors.surfaceDarkElevated)),
                 child: Icon(Icons.camera_alt_outlined,
-                  color: _isLoading ? AppColors.textTertiary : AppColors.purple, size: 20))),
+                  color: _isLoading ? AppColors.textTertiary : AppColors.purple, size: 20)))),
             const SizedBox(width: 8),
 
             // Text field

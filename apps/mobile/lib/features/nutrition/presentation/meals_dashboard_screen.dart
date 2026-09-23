@@ -234,8 +234,15 @@ class _Header extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(color: _white, fontSize: 18,
             fontWeight: FontWeight.w700))),
-      GestureDetector(
+      // F-22: an unnamed 44 dp circle. FIT-003 declares "Log a meal" for this
+      // control, and that is what `onAdd` opens — the add-meal sheet — so the
+      // name is the package's own and describes what happens.
+      Semantics(
+        button: true,
+        label: 'Log a meal',
+        child: GestureDetector(
         onTap: onAdd,
+        behavior: HitTestBehavior.opaque,
         child: Container(
           width: 44, height: 44,
           decoration: BoxDecoration(
@@ -244,7 +251,7 @@ class _Header extends StatelessWidget {
             boxShadow: [BoxShadow(
               color: _brand.withValues(alpha: 0.55),
               blurRadius: 18, spreadRadius: 2)]),
-          child: const Icon(Icons.add, color: _white, size: 26))),
+          child: const Icon(Icons.add, color: _white, size: 26)))),
     ]));
 }
 
