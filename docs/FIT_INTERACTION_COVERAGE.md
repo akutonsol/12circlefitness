@@ -24,9 +24,9 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 284 (47%) |
-| **Label absent** | **316** |
-| Locked anchors | 79/179 (44%) |
+| Label present | 286 (48%) |
+| **Label absent** | **314** |
+| Locked anchors | 81/179 (45%) |
 
 **These numbers went DOWN, and that is the correction.** See *"The measurement counted its
 own comments"* below.
@@ -122,7 +122,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-030 | Settings | `/settings` | 2 | 6 | `settings_screen.dart` |
 | FIT-033 | Check-in review | `/coach-checkin-review` | 1 | 5 | `coach_checkin_review_screen.dart` |
 | FIT-021 ✅ | Entitlement gate | `PaywallGate wrapper (12 routes)` | **3** | 3 | `paywall_gate.dart` |
-| FIT-006 | Welcome | `/onboarding` | 0 | 2 | `onboarding_screen.dart` |
+| FIT-006 ✅ | Welcome | `/onboarding` | **2** | 2 | `onboarding_screen.dart` |
 | FIT-017 | Rest & completion | `/active-workout` | 2 | 2 | `active_workout_screen.dart` + `widgets/rest_timer_widget.dart` |
 | FIT-018 | Session complete | `/active-workout` | 2 | 4 | `active_workout_screen.dart` |
 | FIT-026 | Conversation | `/chat` | 3 | 5 | `chat_screen.dart` |
@@ -311,7 +311,7 @@ without fabricating content the brief forbids.
 | FIT-003 | Nutrition | `/meals-dashboard` | 5/12 | `meals_dashboard_screen.dart` |
 | FIT-004 | Check-In | `/daily-checkin` | 5/11 | `daily_checkin_screen.dart` + `widgets/checkin_pickers.dart` + `domain/checkin_hub.dart` |
 | FIT-005 | Connect | `/messages` | 4/12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
-| FIT-006 | Welcome | `/onboarding` | 0/2 | `onboarding_screen.dart` |
+| FIT-006 ✅ | Welcome | `/onboarding` | **2/2** | `onboarding_screen.dart` |
 | FIT-007 | Sign in | `/login` | 1/1 | `login_screen.dart` |
 | FIT-008 | Intake | `/intake` | 2/7 | `intake_flow_screen.dart` |
 | FIT-009 | Intake complete | `/intake` | 0/1 | `intake_flow_screen.dart` |

@@ -403,7 +403,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1089 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1094 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -1374,6 +1374,47 @@ values. Eighth extraction-or-exposure for that reason.
 
 **This is the second anchor completed** (after FIT-002), and the first cross-cutting one —
 it is the gate on twelve routes rather than one screen.
+
+## 3v · F-26 · the app's front door could not be opened without a drag **FOUND AND FIXED**
+
+Found while aligning FIT-006's two labels — the label was the smaller problem.
+
+`/onboarding`'s "Get Started" is a **slide-to-confirm** control:
+`onHorizontalDragUpdate` and `onHorizontalDragEnd`, **no tap, no semantics**. A
+screen-reader user, or anyone who cannot perform a precise horizontal drag — switch
+access, tremor, limited dexterity — **could not create an account at all.**
+
+Not a labelling gap. The first screen of the product had no accessible path past it.
+
+**The slide stays.** It is what the design draws and the friction is deliberate. What was
+added is one activatable node for the accessibility APIs, which is the standard remedy and
+changes nothing on screen. A test asserts the drag handler survives, so a later "fix" that
+replaces the interaction fails.
+
+| | Before | After |
+|---|---|---|
+| account CTA | drag only, unnamed | `button=true tap=true`, named `Create your account` |
+| sign-in CTA | "Already a member? Sign In", ~20 dp tall | `I already have one`, `363.4 × 44.0 dp` |
+
+FIT-006's wording is now on screen. The **visible** text changed rather than being
+overridden in semantics — an accessible name has to contain the visible label (WCAG 2.5.3),
+so announcing the design's phrase over different words would have been a violation dressed
+up as coverage. Destinations unchanged.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Behaviour | `test/widget/onboarding_entry_test.dart` — 5 tests | **PASS** |
+| Guard strength | 4 mutations killed, including **the drag-only front door itself** and **"the slide gesture removed"** — the fix must add, not replace | **PASS** |
+| **Runtime, on device** | `integration_test/f26_onboarding_entry_device_test.dart` on `emulator-5554`: both controls `button=true tap=true` | **VERIFIED ON DEVICE** |
+| Suite | 1094 pass / 9 skipped | **PASS** |
+
+**FIT-006: 0/2 → 2/2.** Third anchor completed.
+
+**Residual, recorded not fixed.** The semantic action covers screen readers and switch
+access, which is what the platform APIs drive. A **sighted** user with limited dexterity
+and no assistive technology enabled still has only the drag. Making the knob tappable would
+remove the deliberate friction the design specifies, so it is not done here — recorded as a
+known limitation rather than resolved by guessing.
 
 ## 4 · Design package
 
