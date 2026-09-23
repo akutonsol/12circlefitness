@@ -11,6 +11,9 @@ import '../../coach/domain/coach_ecosystem_provider.dart';
 import '../../coach/presentation/coach_business_screen.dart';
 import '../../coach/presentation/coach_availability_screen.dart';
 import 'client_detail_screen.dart';
+import '../../../core/widgets/named_icon_button.dart';
+import '../domain/coach_triage_provider.dart';
+import 'widgets/needs_you_today.dart';
 
 const _bg      = Color(0xFF030303);
 const _card    = Color(0xFF0E0B16);
@@ -235,8 +238,25 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen>
                 ]),
               ),
               const Spacer(),
+              // FIT-032 declares "Messages" and "Notifications" as named
+              // controls. The bell shipped as a bare GestureDetector + Icon —
+              // an A-G8 site, and the coverage tool read it as present only
+              // because `Icons.notifications_outlined` contains the word.
+              NamedIconButton(
+                label: 'Messages',
+                onTap: () => context.go('/messages'),
+                child: Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    shape: BoxShape.circle),
+                  child: const Icon(Icons.chat_bubble_outline,
+                      color: _white, size: 18)),
+              ),
+              const SizedBox(width: 8),
               // Notification bell
-              GestureDetector(
+              NamedIconButton(
+                label: 'Notifications',
                 onTap: () => _showNotificationsSheet(context),
                 child: Stack(
                   clipBehavior: Clip.none,
@@ -263,7 +283,8 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen>
                             style: const TextStyle(color: Colors.white,
                               fontSize: 8, fontWeight: FontWeight.w800)))),
                   ],
-                )),
+                ),
+              ),
               const SizedBox(width: 8),
               // All coach tools live behind one menu — keeps the header clean
               // and overflow-proof on any width.
@@ -521,6 +542,36 @@ class _CoachDashboardScreenState extends ConsumerState<CoachDashboardScreen>
           // ── Client Intelligence header (index 0) ──
           if (i == 0) {
             return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // ── FIT-032 · "Needs you today" ────────────────────────────
+              // The board's triage surface, added ABOVE the roster rather
+              // than replacing it: this screen carries a coach's only path
+              // to invites and pending requests, which the board does not
+              // draw, and removing a capability because a frame omits it is
+              // the mistake OD-15 records.
+              //
+              // The two thresholds are stated HERE, at the call site, so the
+              // choice is visible in the diff. Neither is the board's — it
+              // shows `9 days` and `Sunday` as sample values, not rules —
+              // and both are recorded as OD-21.
+              ref.watch(coachTriageSignalsProvider).when(
+                loading: () => const SizedBox.shrink(),
+                // A failed read must not read as "nothing needs you". That
+                // is F-15 on the screen F-15 was found on.
+                error: (_, __) => const Padding(
+                  padding: EdgeInsets.only(bottom: 18),
+                  child: Text("Couldn't load what needs you today",
+                      style: TextStyle(color: _muted, fontSize: 13)),
+                ),
+                data: (signals) => Padding(
+                  padding: const EdgeInsets.only(bottom: 22),
+                  child: NeedsYouToday(
+                    clients: signals,
+                    totalClients: clients.length,
+                    inactivityDays: 9,
+                    blockEndHorizonDays: 7,
+                  ),
+                ),
+              ),
               // Section header
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),

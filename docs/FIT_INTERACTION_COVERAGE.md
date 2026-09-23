@@ -113,7 +113,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-003 | Nutrition | `/meals-dashboard` | 5 | 12 | `meals_dashboard_screen.dart` |
 | FIT-014 | Workouts hub | `/train` | 6 | 12 | `train_hub_screen.dart` + `widgets/week_row_tile.dart` + `core/router/app_shell.dart` |
 | FIT-027 | What's on | `/classes` | 5 | 10 | `classes_screen.dart` + `whats_on_view.dart` + `domain/whats_on.dart` |
-| FIT-032 | Coach dashboard | `/coach-dashboard` | 5 | 11 | `coach_dashboard_screen.dart` |
+| FIT-032 | Coach dashboard | `/coach-dashboard` | 6 | 11 | `coach_dashboard_screen.dart` + `widgets/needs_you_today.dart` + `core/router/app_shell.dart` |
 | FIT-028 | Connect — no coach | `/messages` | 4 | 10 | `messaging_screen.dart` |
 | FIT-001 | Home | `/home` | 4 | 9 | `home_screen.dart` |
 | FIT-008 | Intake | `/intake` | 2 | 7 | `intake_flow_screen.dart` |
@@ -361,7 +361,7 @@ without fabricating content the brief forbids.
 | FIT-029 | Profile | `/profile` | 4/6 | `profile_screen.dart` |
 | FIT-030 | Settings | `/settings` | 5/6 | `settings_screen.dart` — sixth blocked on OD-19 |
 | FIT-031 🔒 | Plans | `/upgrade` | 1/5 | `upgrade_screen.dart` — **remaining 4 blocked on OD-18** |
-| FIT-032 | Coach dashboard | `/coach-dashboard` | 5/11 | `coach_dashboard_screen.dart` |
+| FIT-032 | Coach dashboard | `/coach-dashboard` | **6/11** | `coach_dashboard_screen.dart` + `widgets/needs_you_today.dart` + `domain/coach_triage.dart` + `core/router/app_shell.dart` — the 5 absent are 4 **sample clients** and `All 24 clients` (live count); all four row labels produced verbatim at runtime, QA_EVIDENCE §3aj |
 | FIT-033 | Check-in review | `/coach-checkin-review` | 1/5 | `coach_checkin_review_screen.dart` |
 | FIT-034 | Intake welcome | `/intake` | 1/1 | `intake_flow_screen.dart` |
 | FIT-035 | Profile information | `/intake` | 1/2 | `intake_flow_screen.dart` |

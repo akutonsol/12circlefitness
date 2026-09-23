@@ -493,6 +493,56 @@ void main() {
       );
     });
 
+    // ── H-D2 · THE OTHER HALF OF THE POPULATION ────────────────────────
+    // H-D1 counts palette *classes* — `class _C { static const bg = … }`.
+    // That is not how most of this codebase declares a palette, and it is not
+    // how anything this programme added declares one: `exercise_brief_sheet`,
+    // `pill_tab`, `nutrition_load_failed`, `intake_complete_page`,
+    // `checkin_detail_screen` and `needs_you_today` all use **top-level**
+    // `const _ink = Color(0xFF…)`.
+    //
+    // Measured 2026-09-23: **21** files declare a palette class, **77**
+    // declare top-level colour consts. So "the population is 21" was never
+    // true of the thing D-2 is about, and the shape this programme kept
+    // reaching for was the one nothing counted.
+    //
+    // Listing 77 files would be a large mechanical change against an open
+    // owner decision, so this is a bare count with a detector floor: it may
+    // fall, it may not rise.
+    test('H-D2 the top-level colour-const population must not grow', () {
+      final topLevel = RegExp(r'^const\s+_?\w+\s*=\s*Color\(0x',
+          multiLine: true);
+      final found = <String>[];
+      for (final file in presentationFiles) {
+        if (topLevel.hasMatch(file.readAsStringSync())) {
+          found.add(file.path.split('/').last);
+        }
+      }
+
+      // Detector floor — an absent result must not read as "nothing drifted".
+      expect(found, isNotEmpty,
+          reason: 'the scanner found no top-level palette at all, which is '
+              'false of this codebase — the detector is broken');
+      for (final path in const [
+        'coach_dashboard_screen.dart',
+        'active_workout_screen.dart',
+        'chat_screen.dart',
+      ]) {
+        expect(found, contains(path),
+            reason: '$path is a recorded site; the detector no longer sees it');
+      }
+
+      const baseline = 77;
+      found.sort();
+      printOnFailure(found.join('\n  '));
+      expect(found.length, lessThanOrEqualTo(baseline),
+          reason: 'another presentation file declares its own colours as '
+              'top-level consts. This is the same gap H-D1 names — components '
+              'consuming raw hex instead of semantic tokens (D-2) — in the '
+              'shape H-D1 does not count. Found ${found.length} '
+              '(baseline $baseline).');
+    });
+
     test('train_hub_screen.dart did not keep a copy of the palette it moved',
         () {
       // Without this, `train_palette.dart` replacing `train_hub_screen.dart`

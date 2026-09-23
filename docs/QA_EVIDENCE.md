@@ -2125,6 +2125,109 @@ and how many days before a block ends the coach should be prompted to assign the
 The board shows `9 days` and `Sunday` as sample values, not as rules. Until the owner sets
 them, the rules layer refuses a default and the call site must state both.
 
+## 3aj · FIT-032 · the triage surface, an invented route, and a guard counting the wrong shape
+
+The rules from §3ai are now on screen. `/coach-dashboard` measures **5/11 → 6/11**; the
+five that remain are the four **sample clients** and `All 24 clients`, which is composed
+with the live roster count — composed-label ceilings, not backlog.
+
+The board's triage is added **above** the shipped roster, not in place of it. The existing
+screen carries a coach's only path to invites and pending requests, which the board does not
+draw, and removing a capability because a frame omits it is the mistake **OD-15** records.
+
+### `Messages` and `Notifications` — and a coverage false positive
+
+The manifest declares both. `Notifications` measured **HAVE** before this change, and it was
+wrong: the bell was a bare `GestureDetector` wrapping `Icon(Icons.notifications_outlined)`
+with no accessible name at all — an **A-G8 site**. The metric matched the word inside the
+*icon constant*. Both controls are now `NamedIconButton`s, and `Messages` — which did not
+exist — opens `/messages`.
+
+That is the fourth defect found in this measurement, after counting comments, resolving a
+route to a redirect stub, and failing on HTML entities. All four have the same character:
+**the tool matches text, and text is not a control.**
+
+### The route I invented
+
+An earlier draft routed `Assign` to `/coach-programs` and the roster to `/clients`.
+**Neither is registered.** They read plausibly, `context.go` takes a `String`, nothing fails
+at compile time, and go_router would have put the coach on an error page.
+
+Corrected against the router, and against the coach nav in `app_shell.dart:95-103`, which
+already answers each of these:
+
+| Action | Route | Why that one |
+|---|---|---|
+| `Review` | `/coach-checkin-review` | the nav's own `Check-ins` |
+| `Reply` | `/messages` | the coach's thread |
+| `Assign` | `/program-builder` | the nav's own `Programs` |
+| `At risk` | `/coach-client-workouts` | a state, not an action — where a coach *looks* |
+
+A test now reads this widget's `context.go(…)` calls and asserts every one appears in
+`app_router.dart`. It is the only thing in the suite that could have caught it: the rules
+tests do not navigate, and the analyzer cannot type-check a string.
+
+### `H-D1` counts the wrong shape — H-D2 added
+
+H-D1 pins "the per-screen private-palette population" at 21 files. It counts palette
+**classes**. That is not how most of this codebase declares a palette, and **it is not how
+anything this programme added declares one** — `exercise_brief_sheet`, `pill_tab`,
+`nutrition_load_failed`, `intake_complete_page`, `checkin_detail_screen` and
+`needs_you_today` all use top-level `const _ink = Color(0xFF…)`.
+
+| Shape | Files |
+|---|---|
+| palette **class** — what H-D1 counts | **21** |
+| top-level colour consts — what it does not | **77** |
+
+So "the population is 21" was never true of the thing D-2 is about, and the shape this
+programme kept reaching for was the one nothing counted. Said plainly: I have been adding to
+an uncounted population for several commits, and writing this guard is how I found out.
+
+**H-D2** ratchets the second shape at 77 with its own detector floor. Listing 77 files
+against an open owner decision would be a large mechanical change, so it is a bare count —
+it may fall, it may not rise.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/coach_triage_test.dart` — 22 | **PASS** |
+| Widget | `test/widget/needs_you_today_test.dart` — 8, incl. the route guard | **PASS** |
+| Guard strength | **14 / 14 mutations killed** — 8 on the rules, 6 on the widget | **PASS** |
+| Ratchets | A-G8, EC-G7, EC-G8, SEC-G1/G2/G3, H-D1, **H-D2** | **PASS** |
+| Suite | **1205 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Runtime | `integration_test/fit032_needs_you_device_test.dart` | **RUNTIME_VERIFIED** |
+
+| # | Mutation | Result |
+|---|---|---|
+| U1 | an invented route comes back | **KILLED** |
+| U2 | drop `onTap` from the row's `Semantics` | **KILLED** |
+| U3 | `Review` and `Assign` swap destinations | **KILLED** |
+| U4 | the empty state renders nothing | **KILLED** |
+| U5 | the chips get uppercased | **KILLED** |
+| U6 | a coach with no clients is offered a roster | **KILLED** |
+| V1 | a 78th top-level palette ships | **KILLED** |
+| V2 | blind the H-D2 detector | **KILLED** |
+
+### Runtime — `emulator-5554`, 411.4 dp @ dpr 2.625
+
+```
+379.4x69.0 button=true tap=true "Amara Osei Week 14 check-in · travel next week Review"
+379.4x69.0 button=true tap=true "Tomas Vidal No sessions logged in 9 days At risk"
+379.4x69.0 button=true tap=true "Priya Raman Block ends Sunday · needs next Assign"
+379.4x69.0 button=true tap=true "Lena Fischer Asked about the split squat Reply"
+Assign -> /program-builder reached
+360.0 / 390.0 / 411.4 dp — exception=none
+```
+
+All four of the manifest's declared row labels, produced verbatim from `ClientSignals`. As
+with FIT-014, the coverage tool reports them ABSENT because it greps source for a literal;
+the device shows the shape is exact.
+
+No fixture was created and nothing was written. The `Assign` rule is exercised, and — as
+recorded in §3ai — **nothing here claims the assignment behind it is authentic**. That
+remains F-21/OD-14.
+
 ## 4 · Design package
 
 | Check | Status |
