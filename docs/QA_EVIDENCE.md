@@ -240,6 +240,32 @@ It deliberately does **not** repeat EC-G5's mistake, which `QA_CLOSURE_STANDARD`
 as counting `catch` blocks while the defect it targets contains none: A-G8 matches the
 shape that reports unlabelled, not a keyword that happens to sit nearby.
 
+## 0d · F-9 — cause established, fix not yet runtime-verified
+
+**Cause.** There is **no `MergeSemantics`, `Semantics` or `BlockSemantics` anywhere in
+`intake_flow_screen.dart`** — verified by grep. The merge is Flutter's default: with only
+one actionable node on the page (the "Get Started" `GestureDetector`), the surrounding
+`Text` has no boundary and is absorbed into it, which also expands that node's rect to the
+whole screen. Page 2 yields 11 discrete nodes because its form fields create those
+boundaries naturally. That explains the 1-vs-11 asymmetry recorded earlier without needing
+a hidden merge.
+
+**Fix applied.** An explicit bounded button — `Semantics(button: true, label: 'Get Started',
+excludeSemantics: true, …)` — the same pattern that worked for the FIT-016 exercise rows.
+The label is the board's own. Analyzer clean; 875 tests pass.
+
+**Status: LOCALLY_VERIFIED, not RUNTIME_VERIFIED, and not claimed as closed.** Reaching the
+welcome page on-device requires a fixture with *no* intake data; `p1-victim` carries a
+first and last name, so the flow resumes at page 2 and page 1 is never rendered. Arranging
+a clean-intake fixture means writing intake rows, which is fixture data this pass did not
+create.
+
+**Related finding, observed while attempting it.** The whole-screen clickable node is
+**still present on page 2**: `411.4 × 914.3 dp, clickable=true,
+'Your Profile\nTell us a little about yourself.'`. So the root node absorbing unbounded
+header text is a *screen-wide* pattern, not a page-1 quirk, and the page-1 fix does not
+address it. Recorded rather than papered over.
+
 ## 1 · Defects found and fixed, each verified at runtime
 
 | # | Finding | Evidence | Status |
@@ -257,7 +283,7 @@ shape that reports unlabelled, not a keyword that happens to sit nearby.
 | F-6 | Password visibility toggle is **19.8 × 20.2 dp with no accessible name** — under half the 44 dp floor | `uiautomator` dump, 2.625 px/dp | **OWNER DECISION** (D-3 copy) — size fix is mechanical, the label is product copy |
 | F-7 | "Forgot password?" 20.2 dp and "Sign Up" 19.8 dp targets | same dump | **OWNER DECISION** — same class as F-6 |
 | F-8 | Text inputs expose their *value* but carry no accessible **name** | same dump | **OWNER DECISION** (copy) |
-| F-9 | Intake welcome page collapses to **one merged accessibility node**; "Get Started" not separately focusable | dump ×2, plus 11-node control on next page | **FAIL** — real defect, origin not yet isolated → **NOT ESTABLISHED** for cause |
+| F-9 | Intake welcome page collapses to **one merged accessibility node**; "Get Started" not separately focusable | dump ×2, plus 11-node control on next page | **CAUSE ESTABLISHED · FIX LOCALLY_VERIFIED, NOT RUNTIME_VERIFIED** — see §0d |
 | F-10 | `event_ticket_screen` is unrouted — reached only via `MaterialPageRoute`, so no URL, no deep link, outside the router shell | `app_router.dart` grep + `events_screen.dart:81` | **OWNER DECISION** (OD-4, design GAP-09) |
 | F-2b | Chat screen displayed four **fabricated messages** as the user's real coach conversation whenever a thread was empty or could not be created | `chat_screen.dart:88`, `messaging_service.dart:237-245` | **PASS** — fixed `0243867`; empty state restored, distinct failure state added, 840 tests pass |
 | F-6b | Password toggle 19.8x20.2dp unlabelled | `uiautomator` before/after | **PASS** — now **43.8 x 43.8 dp, labelled "Show password"**, verified on device; copy is the design's own |

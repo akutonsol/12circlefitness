@@ -925,7 +925,23 @@ class _WelcomePage extends StatelessWidget {
         Positioned(
           bottom: bottom + 40,
           left: 20, right: 20,
-          child: GestureDetector(
+          // F-9: this page produced ONE merged accessibility node covering the
+          // whole screen — headline and button together — so "Get Started" was
+          // not separately focusable and a screen reader read the page as one
+          // run-on string. There is no MergeSemantics here; it is Flutter's
+          // default. With only one actionable node on the page, the
+          // surrounding Text has no boundary and is absorbed into it, which
+          // also expands its rect to the full screen. The next page produces 11
+          // discrete nodes because its form fields create those boundaries.
+          //
+          // Declaring an explicit bounded button gives the control its own node
+          // and stops it swallowing the headline. `excludeSemantics` keeps the
+          // label from being announced twice.
+          child: Semantics(
+            button: true,
+            label: 'Get Started',
+            excludeSemantics: true,
+            child: GestureDetector(
             onTap: onStart,
             child: Container(
               height: 60,
@@ -944,6 +960,7 @@ class _WelcomePage extends StatelessWidget {
                   color: Colors.white, fontSize: 18,
                   fontWeight: FontWeight.w700, letterSpacing: 0.3)),
             ),
+          ),
           ),
         ),
       ],
