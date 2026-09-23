@@ -91,6 +91,82 @@ would have been theatre.
 
 ---
 
+## 0b · F-21 — **P1 SECURITY: any authenticated user can assign a workout programme to any other user**
+
+**ID** F-21 · **Severity** P1 · **Status** OPEN — **authorization change required, escalated as OD-14**
+**Source** found incidentally while arranging a runtime fixture for FIT-014, then
+investigated under `12-12circle-security-engineer`.
+**Environment** QA `eyqtldjqpgpljlqvpowh`. **Production was not tested and nothing is
+claimed about it.**
+
+### Observed
+
+Signed in as the committed fixture `p1-victim@qa.12circle.test` — **role `client`**:
+
+| Step | Request | Result |
+|---|---|---|
+| 1 | `POST workout_programs {name, coach_id: <own uid>}` | **201 — row created** |
+| 2 | `POST workout_program_assignments {program_id, client_id: <own uid>, coach_id: <own uid>, status: active}` | **201 — row created** |
+| 3 | `POST workout_program_assignments {program_id, client_id: <p1-coach uid>, coach_id: <own uid>, status: active}` | **201 — CROSS-USER WRITE** |
+
+### Expected
+
+A member cannot author a training programme as a coach, and cannot place a programme into
+another person's plan.
+
+### Root cause
+
+`supabase/migrations/001_full_ecosystem.sql:351,357`:
+
+```sql
+CREATE POLICY "coaches manage programs" ON workout_programs
+  FOR ALL TO authenticated USING (coach_id = auth.uid());
+
+CREATE POLICY "coaches manage assignments" ON workout_program_assignments
+  FOR ALL TO authenticated USING (coach_id = auth.uid() OR client_id = auth.uid());
+```
+
+Both are named for coaches and **neither checks that the caller is one.** The predicate is
+satisfied by anyone willing to write their own uid into `coach_id`. The repository already
+has the helper this needs — `public.is_coach_profile(uuid)`
+(`113_rls_coach_client_relationships.sql:58`) — and migration 113 applies exactly that
+check to `coach_client_relationships`. It was never applied here.
+
+`FOR ALL` with `USING` and no `WITH CHECK` also means the INSERT path is governed by a
+predicate written for reads.
+
+### Why this is more serious than F-12
+
+F-12 found route-entry weakness with **no demonstrated cross-user mutation**. This one *is*
+a demonstrated cross-user mutation, and its payload is a **training prescription**: loads,
+sets and reps that the receiving member's `/train` will present as their coach's plan. Under
+`QA_CLOSURE_STANDARD` §5.1 a workout prescription injected by an arbitrary party is a
+safety input, and §5.1 closes safety findings live or not at all.
+
+The victim's hub renders it through the very surface integrated in this cycle
+(`_PlanSurface` → `_TodayHeroCard`), attributed with "assigned by …".
+
+### Not fixed — and why that is the correct call
+
+Tightening these policies is an **authorization policy change**, which the governing
+instruction lists as a genuine stop condition. The fix is small and obvious — add
+`is_coach_profile(coach_id)` and an explicit `WITH CHECK` — but QA does not change the
+authorization model on its own initiative. **OD-14.**
+
+### Fixture hygiene
+
+Three rows were created by the probe and all three deleted. Verified by re-query:
+`remaining SEC-PROBE rows: 0`. An earlier single-row probe was likewise deleted and
+verified at 0.
+
+### Next tests, once authorised
+
+`program_workouts` (`001:354` scopes by program ownership — inherits the same weakness),
+`workout_program_assignments` UPDATE/DELETE by a non-party, and whether the victim's client
+actually renders an injected programme end-to-end.
+
+---
+
 ## 1 · Defects found and fixed, each verified at runtime
 
 | # | Finding | Evidence | Status |
