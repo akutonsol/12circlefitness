@@ -1483,6 +1483,68 @@ itself carries no `onTap`. The one correlation the evidence supports — stated 
 correlation, not a cause — is that both screens exhibiting the node host the `PageView`,
 while the login screen, which has none, shows no such node. Worth starting there.
 
+The `onboarding_screen.dart` route does **not** merge: back-navigating to it exposed four
+discrete nodes (`WELCOME TO YOUR JOURNEY`, the headline, `Get Started`, `Already a member?
+Sign In`). The defect is specific to the intake flow, not to pre-auth screens generally.
+
+### 23.8 P2 — the first screen of the app overflows in landscape, clipping its own CTA
+
+**No orientation lock exists anywhere.** There is no `SystemChrome.setPreferredOrientations`
+in Dart and no `android:screenOrientation` in the manifest, so the app fully supports
+landscape and Android will rotate it. `AndroidManifest.xml:20` declares
+`configChanges="orientation|screenSize|…"`, so the Activity handles rotation itself.
+
+Rotated to landscape (`mRotation=ROTATION_90`, `w914dp h411dp`, bounds 2400×1080), the
+first screen a new user sees renders Flutter's own overflow diagnostic across its primary
+call to action:
+
+```
+BOTTOM OVERFLOWED BY 39 PIXELS
+```
+
+The yellow-and-black stripe is painted over the "Get Started" button and its label is
+clipped to illegibility. Reproduced deterministically on a fresh cold start in landscape,
+not only on rotation.
+
+**Correct attribution matters here and nearly went wrong.** The rendered screen is
+`lib/features/home/presentation/splash_screen.dart`, **not**
+`features/onboarding/presentation/onboarding_screen.dart`. The two are easily confused:
+both open "WELCOME TO YOUR JOURNEY" with the same subtitle and the same "Already a member?
+Sign In" footer. They are distinguished by the headline — `splash_screen.dart:26` cycles
+`_phrases` (*"Train like\nyou mean it" → "Push past\nyour limits" → "Stronger\nevery rep"*),
+which is why the headline differed between launches, while `onboarding_screen.dart` has the
+fixed "TRAIN LIKE\nYOU MEAN IT" and a slide-to-confirm CTA rather than a tap button.
+
+**Cause**, `splash_screen.dart:109` — a `Column` under `SafeArea > Padding` whose
+fixed-height children cannot fit 411 dp:
+
+| Child | Height |
+|---|---|
+| brand rings + logo (`:111`) | 70 |
+| `Spacer()` (`:119`) | ≥ 0 — can shrink to nothing, not below |
+| eyebrow + `SizedBox` (`:122-124`) | ~15 + 12 |
+| cycling headline (`:127`) | **fixed `SizedBox(height: 96)`** |
+| `SizedBox` + subtext + `SizedBox` (`:132-138`) | 16 + ~22 + 26 |
+| CTA + `SizedBox` + Sign In (`:140-142`) | ~60 + 18 + ~20 |
+
+The `Spacer` absorbs surplus in portrait and reaches zero in landscape, leaving the fixed
+remainder 39 px over budget.
+
+**Not repaired, and the reason is not timidity.** The obvious one-line fix does not exist:
+a `Spacer` cannot live inside a `SingleChildScrollView` (it requires bounded height), so
+making this scroll means restructuring the hero screen's layout. The alternative — locking
+the app to portrait — is a product posture, and every comparator this product is measured
+against (Apple Fitness+, WHOOP, Nike Run Club, Strava) locks phone UI to portrait. Both
+routes are product decisions:
+
+1. **Lock phone orientation to portrait** — one line, matches the category, and makes the
+   landscape layout question moot across all 91 routes rather than only this screen.
+2. **Support landscape properly** — restructure this `Column` and audit the other routes,
+   none of which have been checked in landscape.
+
+Recorded for decision. Note that option 2 is a larger commitment than this one screen: no
+landscape design exists in the design package either, whose frames are all 390×844.
+
 Intake page 2 (`Your Profile`) measured clean otherwise — every interactive target
 ≥ 44 dp (inputs 363.4 × 51.0 dp, Male/Female 175.6 × 51.0 dp, date 363.4 × 54.9 dp).
 
