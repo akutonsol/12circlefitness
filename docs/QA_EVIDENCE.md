@@ -373,7 +373,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **937 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **945 tests pass, 9 skipped** | **PASS** |
 | Device semantics probes | 5 integration tests on `emulator-5554`, no backend touched | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -687,6 +687,39 @@ under test, and the mutation *"delete the early return in `build`"* **survived**
 screen could have gone on rendering the denial with every unit test green. The section was
 made public and mounted so the wiring is asserted too. Found by running the mutation,
 which is the only reason it is not still true.
+
+## 3h · F-22 · `/daily-checkin` — fifteen controls that announced nothing at all
+
+The weekly check-in is five mood faces and two rows of five numbers. All fifteen were bare
+`GestureDetector`s. A screen reader read five emoji and the words "Rough Meh Good Great
+Amazing", then "1 2 3 4 5", then "1 2 3 4 5" again — **no role, no group, and no
+indication of which one was chosen**.
+
+Worse than an unnamed button. A blind client could fill this form, submit it to their
+coach, and have no way to know what they had said. Both number rows are identical, so they
+could not tell which one they were in either.
+
+**Nothing was invented to fix it.** The mood options are named by the label already drawn
+under each face. The number options are named from the section heading already drawn above
+the row plus the number already drawn inside it — "Energy Level 3 of 5" — because a screen
+reader announces one option at a time and "3" alone says nothing about what was rated.
+`inMutuallyExclusiveGroup` and `selected` are facts about the widget, not copy.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Behaviour | `test/widget/checkin_pickers_test.dart` — 8 tests | **PASS** |
+| Guard strength | 6 mutations, all killed: drop the wrapper (the shipped defect), always report selected, drop the exclusive group, drop the `Semantics` `onTap`, name the numbers with a bare digit, stop excluding the child so the emoji leaks | **PASS** |
+| Suite | 945 pass / 9 skipped | **PASS** |
+| Runtime | not verified on device — these are leaves, and the host-VM semantics tree is the same tree. Classified **FIXED IN CODE**. | **OPEN** |
+
+`MoodPicker` and `NumberPicker` were extracted to `widgets/checkin_pickers.dart` because
+the screen constructs a `CheckinService` in a field initializer and loads from Supabase in
+`initState`. Fifth instance of the same move.
+
+**A-G8 did not fall.** These fifteen carry `Text` inside the tappable, so the scan never
+counted them — its heuristic is "an `Icon` and no `Text`". The count stays at 47 and this
+is a reminder of what it does not see: **a control with a visible label can still be
+unreachable**, because a label is not a role and not a state.
 
 ## 4 · Design package
 

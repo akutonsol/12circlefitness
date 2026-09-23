@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'widgets/checkin_pickers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../data/checkin_service.dart';
@@ -174,7 +175,7 @@ class _WeeklyCheckinState extends ConsumerState<DailyCheckinScreen> {
                         const SizedBox(height: 24),
                         _sectionLabel("How's your mood?"),
                         const SizedBox(height: 12),
-                        _MoodPicker(
+                        MoodPicker(
                           selected: _mood,
                           emojis: _moodEmojis,
                           labels: _moodLabels,
@@ -182,13 +183,15 @@ class _WeeklyCheckinState extends ConsumerState<DailyCheckinScreen> {
                         const SizedBox(height: 24),
                         _sectionLabel('Energy Level'),
                         const SizedBox(height: 12),
-                        _NumberPicker(
+                        NumberPicker(
+                          scale: 'Energy Level',
                           value: _energy,
                           onChanged: (v) => setState(() => _energy = v)),
                         const SizedBox(height: 24),
                         _sectionLabel('Stress Level'),
                         const SizedBox(height: 12),
-                        _NumberPicker(
+                        NumberPicker(
+                          scale: 'Stress Level',
                           value: _stress,
                           onChanged: (v) => setState(() => _stress = v)),
                         if (_stress >= 4) ...[
@@ -336,86 +339,6 @@ class _WeekCard extends StatelessWidget {
               fontSize: 12)),
         ])),
     ]));
-}
-
-// ── Mood Picker ───────────────────────────────────────────────────────────────
-class _MoodPicker extends StatelessWidget {
-  final int selected;
-  final List<String> emojis, labels;
-  final ValueChanged<int> onTap;
-  const _MoodPicker({required this.selected, required this.emojis,
-    required this.labels, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisAlignment: MainAxisAlignment.spaceAround,
-    children: List.generate(5, (i) {
-      final active = i + 1 == selected;
-      return GestureDetector(
-        onTap: () => onTap(i + 1),
-        child: Column(children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 54, height: 54,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: active
-                ? _brand.withValues(alpha: 0.15)
-                : Colors.white.withValues(alpha: 0.05),
-              border: Border.all(
-                color: active ? _brand : Colors.white.withValues(alpha: 0.1),
-                width: active ? 2 : 1),
-              boxShadow: active
-                ? [BoxShadow(color: _brand.withValues(alpha: 0.35),
-                    blurRadius: 12, spreadRadius: 1)]
-                : null),
-            child: Center(child: Text(emojis[i],
-              style: TextStyle(fontSize: active ? 28 : 22)))),
-          const SizedBox(height: 6),
-          Text(labels[i],
-            style: TextStyle(
-              color: active ? _primary : _muted.withValues(alpha: 0.4),
-              fontSize: 10, fontWeight: FontWeight.w600)),
-        ]));
-    }));
-}
-
-// ── Number Picker (Energy / Stress) ───────────────────────────────────────────
-class _NumberPicker extends StatelessWidget {
-  final int value;
-  final ValueChanged<int> onChanged;
-  const _NumberPicker({required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisAlignment: MainAxisAlignment.spaceAround,
-    children: List.generate(5, (i) {
-      final n = i + 1;
-      final active = n == value;
-      return GestureDetector(
-        onTap: () => onChanged(n),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          width: 58, height: 58,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: active
-              ? LinearGradient(
-                  colors: [_brand, const Color(0xFF7C3AED)],
-                  begin: Alignment.topLeft, end: Alignment.bottomRight)
-              : null,
-            color: active ? null : Colors.white.withValues(alpha: 0.05),
-            border: Border.all(
-              color: active ? _brand : Colors.white.withValues(alpha: 0.08)),
-            boxShadow: active
-              ? [BoxShadow(color: _brand.withValues(alpha: 0.4),
-                  blurRadius: 12, offset: const Offset(0, 4))]
-              : null),
-          child: Center(child: Text('$n',
-            style: TextStyle(
-              color: active ? _white : _muted.withValues(alpha: 0.45),
-              fontSize: 18, fontWeight: FontWeight.w800)))));
-    }));
 }
 
 // ── Sleep Slider ──────────────────────────────────────────────────────────────
