@@ -650,7 +650,7 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (_) => _WorkoutCompleteDialog(
+        builder: (_) => WorkoutCompleteDialog(
           title: workout.title,
           duration: _elapsedTime,
           calories: log.caloriesBurned ?? 0,
@@ -1691,62 +1691,165 @@ class _StatChip extends StatelessWidget {
 }
 
 // ── Workout Complete Dialog ────────────────────────────────────────────────────
-class _WorkoutCompleteDialog extends StatefulWidget {
+/// What actually happened when the client pressed Submit. Three outcomes, not
+/// two — see [FeedbackDelivery].
+enum FeedbackDelivery {
+  /// Nothing was written. The form must stay up.
+  failed,
+
+  /// The feedback row is saved, but no coach was notified — either the client
+  /// has no active coach, or the notification insert failed. Either way the
+  /// notes are safe and the screen must not claim a delivery.
+  saved,
+
+  /// Saved, and the client's coach was notified.
+  delivered,
+}
+
+/// The mapping from "what actually happened at the database" to "what the
+/// client is told", separated from the I/O that produces it so it can be
+/// tested. The three inputs fail independently and the interesting cases are
+/// the mixed ones.
+///
+/// **A notification failure must not retract the save.** The client's notes
+/// are in `workout_feedback`; telling them the submission failed would send
+/// them to re-enter something that is already stored, and on a second success
+/// the coach would see it twice. The coach loses a ping, which is recoverable;
+/// the client is not lied to, which is the point.
+FeedbackDelivery deliveryFor({
+  required bool saved,
+  required String? coachId,
+  required bool notified,
+}) {
+  if (!saved) return FeedbackDelivery.failed;
+  if (coachId == null) return FeedbackDelivery.saved;
+  return notified ? FeedbackDelivery.delivered : FeedbackDelivery.saved;
+}
+
+/// Visible for testing. The dialog is where F-23 lived — a failed insert
+/// produced the words "Feedback sent to your coach!" — so the three outcomes
+/// have to be reachable from a test, and the default submit path reads
+/// `Supabase.instance` which no widget test can provide.
+class WorkoutCompleteDialog extends StatefulWidget {
   final String title, duration;
   final int calories;
   final int idleSeconds;
   final String? sessionId;
   final VoidCallback onDone;
-  const _WorkoutCompleteDialog({
+
+  /// Injection seam. Null uses the real Supabase path below.
+  final Future<FeedbackDelivery> Function({
+    required int rating,
+    required int energy,
+    required int difficulty,
+    required String notes,
+  })? submit;
+
+  const WorkoutCompleteDialog({
+    super.key,
     required this.title, required this.duration,
-    required this.calories, this.idleSeconds = 0, this.sessionId, required this.onDone});
+    required this.calories, this.idleSeconds = 0, this.sessionId,
+    required this.onDone, this.submit});
   @override
-  State<_WorkoutCompleteDialog> createState() => _WorkoutCompleteDialogState();
+  State<WorkoutCompleteDialog> createState() => _WorkoutCompleteDialogState();
 }
 
-class _WorkoutCompleteDialogState extends State<_WorkoutCompleteDialog> {
+class _WorkoutCompleteDialogState extends State<WorkoutCompleteDialog> {
   int _rating = 0;
   int _energy = 0;
   int _difficulty = 0;
   final _notes = TextEditingController();
   bool _submitted = false;
   bool _saving = false;
-  final _db = Supabase.instance.client;
+  /// Set when the insert failed. Its presence is what keeps the form on screen.
+  bool _saveFailed = false;
+  /// F-23: whether the feedback actually reached a coach. The success line used
+  /// to say "sent to your coach" unconditionally; a client with no coach was
+  /// told their notes had been delivered to nobody.
+  bool _reachedCoach = false;
 
   @override
   void dispose() { _notes.dispose(); super.dispose(); }
 
+  /// F-23 — this used to end `catch (_) {}` and then set `_submitted = true`
+  /// unconditionally, so a failed insert produced the words **"Feedback sent to
+  /// your coach!"** on screen. The client believed their session notes had
+  /// reached their coach; nothing had been written and nothing could be
+  /// recovered, because the dialog then offered only "Back to Home".
+  ///
+  /// Two separate claims are now told apart, because they can fail
+  /// independently:
+  ///
+  ///   * the **feedback row** — if this fails, nothing was saved, so the form
+  ///     stays up with its values intact and the button says try again;
+  ///   * the **coach's notification** — if only this fails, the feedback IS
+  ///     saved and saying otherwise would be a second falsehood. The success
+  ///     line drops the delivery claim instead of retracting the save.
   Future<void> _saveFeedback() async {
     if (_rating == 0) return;
-    setState(() => _saving = true);
+    setState(() { _saving = true; _saveFailed = false; });
+    final outcome = await (widget.submit ?? _submitToSupabase)(
+      rating: _rating,
+      energy: _energy,
+      difficulty: _difficulty,
+      notes: _notes.text,
+    );
+    if (!mounted) return;
+    setState(() {
+      _saving = false;
+      _saveFailed = outcome == FeedbackDelivery.failed;
+      _submitted = outcome != FeedbackDelivery.failed;
+      _reachedCoach = outcome == FeedbackDelivery.delivered;
+    });
+  }
+
+  Future<FeedbackDelivery> _submitToSupabase({
+    required int rating,
+    required int energy,
+    required int difficulty,
+    required String notes,
+  }) async {
+    final db = Supabase.instance.client;
+    String? coachId;
     try {
-      final uid = _db.auth.currentUser?.id;
-      final rel = await _db
+      final uid = db.auth.currentUser?.id;
+      final rel = await db
           .from('coach_client_relationships')
           .select('coach_id')
           .eq('client_id', uid!)
           .eq('status', 'active')
           .maybeSingle();
-      await _db.from('workout_feedback').insert({
+      coachId = rel?['coach_id'] as String?;
+      await db.from('workout_feedback').insert({
         'session_id': widget.sessionId,
         'user_id': uid,
-        'coach_id': rel?['coach_id'],
-        'rating': _rating,
-        'energy_level': _energy > 0 ? _energy : null,
-        'difficulty': _difficulty > 0 ? _difficulty : null,
-        'notes': _notes.text.isEmpty ? null : _notes.text,
+        'coach_id': coachId,
+        'rating': rating,
+        'energy_level': energy > 0 ? energy : null,
+        'difficulty': difficulty > 0 ? difficulty : null,
+        'notes': notes.isEmpty ? null : notes,
       });
-      if (rel?['coach_id'] != null) {
-        await _db.from('notifications').insert({
-          'recipient_id': rel!['coach_id'],
+    } catch (_) {
+      // Nothing was written.
+      return deliveryFor(saved: false, coachId: coachId, notified: false);
+    }
+
+    // Saved from here on. A failure below costs the coach their ping, not the
+    // client their notes.
+    var notified = false;
+    if (coachId != null) {
+      try {
+        await db.from('notifications').insert({
+          'recipient_id': coachId,
           'type': 'workout_feedback',
           'title': 'Workout Feedback Received',
-          'body': 'A client rated their workout $_rating/5 — tap to view.',
+          'body': 'A client rated their workout $rating/5 — tap to view.',
           'read': false,
         });
-      }
-    } catch (_) {}
-    setState(() { _saving = false; _submitted = true; });
+        notified = true;
+      } catch (_) {/* saved, just not announced */}
+    }
+    return deliveryFor(saved: true, coachId: coachId, notified: notified);
   }
 
   @override
@@ -1813,6 +1916,22 @@ class _WorkoutCompleteDialogState extends State<_WorkoutCompleteDialog> {
                 focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: _brand))),
             ),
+            if (_saveFailed) ...[
+              const SizedBox(height: 12),
+              // Voice and recovery match `_RestoreFailedView` above, which is
+              // this screen's existing failure language. The exception is NOT
+              // interpolated — F-2/F-16 were raised about exactly that.
+              Row(children: [
+                const Icon(Icons.cloud_off_rounded, color: _error, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Could not send your feedback. Check your connection and '
+                    'try again.',
+                    style: TextStyle(color: _error.withValues(alpha: 0.9), fontSize: 12, height: 1.4)),
+                ),
+              ]),
+            ],
             const SizedBox(height: 16),
             Row(children: [
               Expanded(child: TextButton(
@@ -1827,13 +1946,15 @@ class _WorkoutCompleteDialogState extends State<_WorkoutCompleteDialog> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 child: _saving
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: _white, strokeWidth: 2))
-                  : const Text('Submit', style: TextStyle(fontWeight: FontWeight.w700)))),
+                  : Text(_saveFailed ? 'Try Again' : 'Submit',
+                      style: const TextStyle(fontWeight: FontWeight.w700)))),
             ]),
           ] else ...[
             const SizedBox(height: 8),
             const Icon(Icons.check_circle, color: _tertiary, size: 40),
             const SizedBox(height: 8),
-            const Text('Feedback sent to your coach!', style: TextStyle(color: _tertiary, fontSize: 13)),
+            Text(_reachedCoach ? 'Feedback sent to your coach!' : 'Feedback saved.',
+              style: const TextStyle(color: _tertiary, fontSize: 13)),
             const SizedBox(height: 16),
             SizedBox(width: double.infinity, child: ElevatedButton(
               onPressed: widget.onDone,

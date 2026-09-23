@@ -298,7 +298,7 @@ address it. Recorded rather than papered over.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **899 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **911 tests pass, 9 skipped** | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
 ## 3b · FIT-028 · Connect — no coach — **VERIFIED LIVE**
@@ -403,6 +403,78 @@ mutation was then run against FIT-028's CTA assertion, which killed it correctly
 The on-device leg exists for the same reason: F-6 and F-6b were found by measuring the
 password toggle on the emulator (19.8 × 20.2 dp) after it looked fine in source. A host-VM
 measurement is not a device measurement, and this file now has both.
+
+## 3d · F-23 · the session-complete dialog claimed a delivery that never happened **FOUND AND FIXED**
+
+**New finding this cycle.** Found while reading `/active-workout`'s completion flow for
+FIT-018, not by a test.
+
+`_WorkoutCompleteDialog._saveFeedback` ended `catch (_) {}` and then set
+`_submitted = true` unconditionally. Every failure — no network, an RLS refusal, a
+malformed row — produced the same screen as success: a green tick and the words
+**"Feedback sent to your coach!"**. The dialog then offered only "Back to Home", so the
+notes the client had written for their coach were gone and unrecoverable.
+
+This is the F-15 error→empty pattern in its most harmful form. Not a failure shown as
+emptiness — a failure shown as **success**, with a specific factual claim about a third
+party attached to it. It is also a fabricated UI state, which the programme's brief names
+explicitly.
+
+A second falsehood sat next to it: the same line was shown to clients with **no coach at
+all**. The insert writes `coach_id: null`, nobody is notified, and the screen still said
+the feedback had been sent to a coach.
+
+**Three outcomes, because the two writes fail independently.**
+
+| Outcome | Condition | What the client is told |
+|---|---|---|
+| `failed` | the `workout_feedback` insert threw | "Could not send your feedback. Check your connection and try again." — form stays up, values intact, the button now reads "Try Again" |
+| `saved` | feedback written; no coach, or the notification insert threw | "Feedback saved." |
+| `delivered` | feedback written and the coach notified | "Feedback sent to your coach!" — now true |
+
+A notification failure deliberately does **not** retract the save. The notes are stored;
+reporting a failure would send the client to re-enter something already in the database,
+and a second success would show their coach the same feedback twice. The coach loses a
+ping, which is recoverable. The client is not lied to, which is the point.
+
+The failure message carries **no interpolated exception** — F-2 and F-16 were raised
+about exactly that, and this screen's own `_RestoreFailedView` already supplies the voice
+and the recovery wording.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Behaviour | `test/widget/workout_feedback_honesty_test.dart` — 8 widget tests + 4 on `deliveryFor` | **PASS** |
+| Guard strength | 5 mutations, all killed: restore the original catch-all success, claim delivery when only saved, close the form on failure, retract the save when only the notification failed, claim delivery when there is no coach | **PASS** |
+| Suite | 911 pass / 9 skipped | **PASS** |
+| Runtime | **not yet** — reaching this dialog needs a completed session, which means writing `workout_sessions` and `workout_set_logs` rows to QA. Not done: F-21 is open and the instruction is not to exercise it through unnecessary mutation. Classified **FIXED IN CODE**, not VERIFIED LIVE. | **OPEN** |
+
+**Why the dialog is now `WorkoutCompleteDialog` and takes a `submit` callback.** Its real
+path reads `Supabase.instance`, which no widget test can provide — the defect was
+unreachable from a test, which is part of why it survived. The seam exists so each
+outcome is assertable; the default path is unchanged in behaviour.
+
+### F-24 · investigated and **NOT a defect** — the complete dialog does not overflow
+
+A widget test at 420 dp reported `A RenderFlex overflowed by 18 pixels on the right` from
+the Duration/Calories/Idle row. **That was the harness, not the product.** Widget tests
+render in Ahem, where every glyph is a full em square, so text measures wider than any
+real font.
+
+Settled by measuring on the device rather than by arguing about it.
+`integration_test/fit018_complete_dialog_device_test.dart` mounts the same dialog on
+`emulator-5554` with the real font at three widths, with the worst realistic values
+(1:42:10, 1250 kcal, 10:05 idle):
+
+| Surface | Stats row | Constraint | Overflows |
+|---|---|---|---|
+| 411.4 dp (the emulator) | 283.4 dp | 283.4 dp | 0 |
+| 390 dp (the design's viewport) | 262.0 dp | 262.0 dp | 0 |
+| 360 dp (narrowest in common use) | 232.0 dp | 232.0 dp | 0 |
+
+The probe is kept as a regression guard. Recording this matters as much as recording a
+real defect: an Ahem artifact reported as a product bug would be a fabricated finding,
+and F-5 (a genuine 39 px landscape overflow, confirmed on-device) is what a real one
+looks like.
 
 ## 4 · Design package
 
