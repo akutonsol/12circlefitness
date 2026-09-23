@@ -243,7 +243,8 @@ class AuthButton extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: !loading,
-      label: label,
+      // The Text child supplies the name. Adding `label:` as well produced
+      // "Sign in\nSign in" in the on-device semantics tree.
       child: GestureDetector(
         onTap: loading ? null : onTap,
         child: Container(
@@ -289,7 +290,7 @@ class AuthSocialButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     button: true,
-    label: label,
+    // Name comes from the Text child; a `label:` here doubled it.
     child: GestureDetector(
       onTap: onTap,
       child: Container(
