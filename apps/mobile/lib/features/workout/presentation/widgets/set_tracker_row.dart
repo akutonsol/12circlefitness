@@ -339,19 +339,31 @@ class _SetTrackerRowState extends State<SetTrackerRow>
         ),
         // Correction affordance: deliberately below the row and right-aligned
         // under the value columns, well clear of the completion check.
+        //
+        // FIT-002 · "Adjust weight or reps" — the screen's fifth declared
+        // control. It read "Edit", which is why the anchor was recorded at 4/5
+        // rather than claimed: the accessible name must CONTAIN the visible
+        // label (WCAG 2.5.3), so announcing the design's phrase over a button
+        // drawn "Edit" would have been a violation dressed up as a coverage
+        // point. The visible label is what changed, and the name follows it.
+        //
+        // The target was measured on `emulator-5554` at **54.8 × 13.0 dp** —
+        // under a third of the 44 dp floor, on a control that appears under
+        // every completed set. `minimumSize` fixes that, and the `bottom: 4`
+        // padding is dropped to give part of the height back.
         if (widget.completed && widget.onEditCompleted != null)
           Padding(
-            padding: const EdgeInsets.only(right: 46, bottom: 4),
+            padding: const EdgeInsets.only(right: 46),
             child: Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
                 onPressed: widget.onEditCompleted,
                 icon: const Icon(Icons.edit_outlined, size: 12),
-                label: const Text('Edit'),
+                label: const Text('Adjust weight or reps'),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.textTertiary,
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                  minimumSize: Size.zero,
+                  minimumSize: const Size(0, 44),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                 ),

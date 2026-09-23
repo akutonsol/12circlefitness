@@ -24,12 +24,12 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 266 (44%) |
-| **Label absent** | **334** |
-| Locked anchors | 61/179 (34%) |
+| Label present | 267 (45%) |
+| **Label absent** | **333** |
+| Locked anchors | 62/179 (35%) |
 
-Baseline measured 2026-09-23 was 258 / 342 / 53. Eight points have moved since, in three
-anchors: FIT-028 (+3), FIT-017 (+2) and FIT-002 (+3). FIT-017's and FIT-002's are
+Baseline measured 2026-09-23 was 258 / 342 / 53. Nine points have moved since, in three
+anchors: FIT-028 (+3), FIT-017 (+2) and FIT-002 (+4, now complete at 5/5). FIT-017's and FIT-002's are
 **hand-corrected** — see the notes below; the generator reads only the file the router
 builds, and both anchors' controls live in sibling widget files. FIT-028's three-point move
 (`/messages`, no-coach state) and is itemised in the note under that row — **two of the
@@ -62,7 +62,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-019 | Log a meal | `/log-meal` | 0 | 5 | `log_meal_screen.dart` |
 | FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 0 | 5 | `—` |
 | FIT-031 | Plans | `/upgrade` | 0 | 5 | `upgrade_screen.dart` |
-| FIT-002 | Active Workout | `/active-workout` | 4 | 5 | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
+| FIT-002 ✅ | Active Workout | `/active-workout` | **5** | 5 | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
 | FIT-015 | Workouts — no plan yet | `/train` | 5 | 9 | `train_hub_screen.dart` |
 | FIT-016 | Workout detail | `/workout-detail` | 3 | 7 | `workout_detail_screen.dart` |
 | FIT-029 | Profile | `/profile` | 2 | 6 | `profile_screen.dart` |
@@ -89,9 +89,14 @@ everything else. Where anything disagrees, they win."*
 | `Pause session` | **present** | **Did not exist.** The session clock ran from the moment the Zone opened until the workout finished, whatever the client was actually doing. |
 | `Log set` | **present** | Existed as an **unlabelled 32 dp check** — the most-used control on this screen, announcing nothing. Named from FIT-002; a completed set reports the same control `enabled: false` rather than inventing a second string. |
 | `Skip` | present | Pre-existing. |
-| `Adjust weight or reps` | **absent, deliberately** | The control exists — the "Edit" affordance on a completed set — but its **visible** label is "Edit". Overriding the accessible name with the design's longer phrase would break WCAG 2.5.3 (an accessible name must contain the visible label), and changing the visible label is a layout and copy decision. Recorded rather than faked: naming it in semantics only would have moved this number without helping anyone. |
+| `Adjust weight or reps` | **present** | The control existed with the visible label "Edit". Rather than announce the design's phrase over a different visible word — a WCAG 2.5.3 violation dressed up as a coverage point — the **visible label** was changed and the accessible name follows it. Measured on `emulator-5554` at 390 dp: control `54.8 × 13.0` → `140.8 × 44.0 dp`, row `81.0` → `108.0 dp`. |
 
-Four of five. The fifth is the one that could have been claimed cheaply and was not.
+**Five of five — the anchor is complete.** The last one was the one that could have been
+claimed cheaply a cycle earlier, by overriding the accessible name and moving on. It was
+recorded as absent instead, and then resolved properly: a 13 dp tap target under every
+completed set was the real defect hiding behind the label question, and only measuring it
+on the device surfaced it. The +27 dp per completed row is a real cost — a 20-set workout
+scrolls ~540 dp further — and it is accepted and recorded, not hidden.
 
 ### FIT-017, and a limit of the generator
 
@@ -146,7 +151,7 @@ without fabricating content the brief forbids.
 | FIT | Screen | Route | Present/Declared | Implementation |
 |---|---|---|--:|---|
 | FIT-001 | Home | `/home` | 4/9 | `home_screen.dart` |
-| FIT-002 | Active Workout | `/active-workout` | 4/5 | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
+| FIT-002 ✅ | Active Workout | `/active-workout` | **5/5** | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
 | FIT-003 | Nutrition | `/meals-dashboard` | 5/12 | `meals_dashboard_screen.dart` |
 | FIT-004 | Check-In | `/daily-checkin` | 3/11 | `daily_checkin_screen.dart` |
 | FIT-005 | Connect | `/messages` | 1/12 | `messaging_screen.dart` |

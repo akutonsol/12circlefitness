@@ -563,7 +563,7 @@ both were unreachable by a screen reader and under the touch-target floor.
 | `Log set` | unlabelled 32 dp check — the most-used control on the screen | named, 44.0 × 44.0 dp, chip still 32 dp; a completed set reports the same control `enabled: false` |
 | `Pause session` | **absent** | present |
 | `Skip` | present | unchanged |
-| `Adjust weight or reps` | visible label "Edit" | **not claimed** — see below |
+| `Adjust weight or reps` | visible label "Edit", target **54.8 × 13.0 dp** | design's wording drawn, **140.8 × 44.0 dp** |
 
 **Pause suspends the rest countdown, deliberately.** Rest is wall-clock. Left running, a
 paused session would keep sliding into overtime, sound its siren and take 5 points every
@@ -572,12 +572,21 @@ accrued is still banked, so pausing is not a way to erase a drain that has alrea
 happened — only to stop a new one. Elapsed time is persisted on pause so a crash while
 paused resumes at the right number.
 
-**`Adjust weight or reps` is recorded as absent although the control exists.** The "Edit"
-affordance on a completed set does exactly what the design describes, but its *visible*
-label is "Edit". Overriding the accessible name with the design's longer phrase would
-break WCAG 2.5.3 — an accessible name must contain the visible label — and changing the
-visible label is a layout and copy decision. Naming it in semantics only would have moved
-the coverage number without helping a single user, so it was not done.
+**`Adjust weight or reps` — resolved, and the defect it was hiding.** The affordance on a
+completed set did what the design describes but read "Edit". Announcing the design's
+phrase over a different visible word would break WCAG 2.5.3, so the **visible label** was
+changed and the name follows it.
+
+Measuring it on the device to decide the layout question found the thing that actually
+mattered: the control was **54.8 × 13.0 dp** — under a third of the 44 dp floor — sitting
+under *every completed set* on one of the app's most-used screens. It is now
+`140.8 × 44.0 dp`, announced as a button with a tap action.
+
+The cost is recorded rather than hidden: the completed-set row grows `81.0 → 108.0 dp`, so
+a 20-set workout scrolls about 540 dp further. Part of the height was given back by
+dropping the affordance's bottom padding. The alternative was keeping a 13 dp target.
+
+**FIT-002 is now 5/5** and is the first locked anchor completed in this programme.
 
 | Layer | Evidence | Status |
 |---|---|---|

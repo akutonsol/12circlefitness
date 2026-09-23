@@ -403,3 +403,227 @@ alongside.
 pre-application state check, exactly as migration 130's was. It must re-verify
 the §4.2 blocking counts immediately before pushing, then run `d08` and record
 its results. Nothing in this package may be treated as `FIXED ON QA` until then.
+
+---
+
+## 13. Migration 131 application attempt — 2026-09-09 (FAILED, then unblocked)
+
+**Authorization boundary.** The owner authorized applying 131 to QA through the
+sanctioned route only, and separately authorized one bounded QA-data cleanup
+scoped to two named conversation rows. Nothing else in this section was
+permitted: no migration repair, no `schema_migrations` write, no out-of-band
+SQL, no production contact.
+
+### 13.1 Preflight — PASS
+
+`HEAD` = `7c2266c0346f6da0e50eba16d5c58fa0a64f0e09`, identical to `origin`.
+`131_identity_constraints.sql` byte-identical to the committed blob
+(sha256 `5bd40169…ac8`). Declared `applied_through` = `130` with `131` in
+`pending`. Live frontier **130**, `131` ledger row absent, **zero of seven**
+131 objects present. Linked project `eyqtldjqpgpljlqvpowh`; production
+`nxdbooufqzkpslkcogxc` unlinked.
+
+### 13.2 Application — FAILED, clean rollback
+
+Command: `supabase db push --linked --yes` (the only authorized route).
+
+```
+ERROR: could not create unique index "conversations_unique_participant_pair" (SQLSTATE 23505)
+Key (LEAST(participant_1, participant_2), GREATEST(participant_1, participant_2))=
+  (1c89c873-3c58-41e0-aebe-1fd6948ded5d, ce81ea42-a05f-47a2-a8a3-de87ca4fa822) is duplicated.
+At statement: 7
+```
+
+The migration runs in one transaction and rolled back whole: frontier stayed
+**130**, no `131` row, zero 131 objects. Statements 1–6 had succeeded
+in-transaction and were discarded with it. There was no partial state and
+nothing to repair.
+
+### 13.3 The blocker, and why §4.2 did not predict it
+
+§4.2's zero-dedupe verification was accurate when taken. The blocking rows did
+not exist then — they were created **afterwards, by running `d08` against the
+deliberately un-migrated database**. `d08-identity-constraints.mjs:162` proves
+the pair index directly:
+
+```js
+const dup = await rest(A.jwt, 'conversations', {
+  method: 'POST', prefer: 'return=minimal',
+  body: { participant_1: B.uid, participant_2: A.uid },
+});
+check('a direct duplicate-pair insert is refused by the index', uniqueViolation(dup), …);
+```
+
+There is no `cleanup.push` for it, and correctly so **once 131 is applied**:
+the insert is refused and no row exists to clean. With 131 unapplied the insert
+returns `201`, and `Prefer: return=minimal` means the suite never learns the new
+id — so it *cannot* register it. The cleanup block iterates the registered
+`cleanup` array only, which is why its `every fixture removed … remaining=0`
+claim was truthful while this row persisted. The leak exists **only** in the
+pre-131 window.
+
+Attribution is one-to-one with the two live-suite executions of 2026-09-09:
+
+| CI run | Live QA suites | leaked row | created |
+|---|---|---|---|
+| 34402447206 (20:40) | skipped — Static guards failed | — | — |
+| 34404901620 (21:05) | ran | `04a409ea-422a-460d-9e22-0393b3328520` | 21:07:21Z |
+| 34410026228 (22:01) | ran | `fdd97e88-1be1-40d3-af18-dbdb6928fec8` | 22:02:33Z |
+
+The leak reproduces on **any** pre-131 `d08` run, local or CI: `QA_SERVICE` is
+optional in this suite (`process.env.QA_SERVICE || null`) and governs only
+whether the *registered* fixtures are removed, so it cannot affect a row that
+was never registered. The two observed rows correlate one-to-one with the two
+CI live-suite executions above, and no local `d08` run occurred — the local
+logs contain no `D08-FIXTURE` marker.
+
+### 13.4 Authorized cleanup
+
+Six predicates were verified independently before deleting: both ids existed;
+both were the exact `p1-victim@qa.12circle.test` / `p1-coach@qa.12circle.test`
+pair; both had **0** messages; both had `last_message` NULL; both participants
+are QA seed personas; and `to_jsonb(row)` minus the six known columns was `{}`,
+proving no unrelated payload. `conversations` has exactly one FK dependent —
+`messages.conversation_id`, `ON DELETE CASCADE` — which the zero-message guard
+renders inert.
+
+```sql
+delete from public.conversations
+where id in ('04a409ea-422a-460d-9e22-0393b3328520',
+             'fdd97e88-1be1-40d3-af18-dbdb6928fec8')
+  and (select count(*) from public.messages m
+        where m.conversation_id = conversations.id) = 0;
+```
+
+`RETURNING` reported exactly those two ids and no others.
+
+### 13.5 Read-back
+
+Both ids absent. `conversations` 3 → **1**; `messages` 25 → **25** (unchanged —
+nothing cascaded). Survivor `6b40c911-094b-4229-a2fd-47dbe4657b6b` intact with
+its 25 messages. Duplicate participant pairs **0**. No rows created since the
+baseline. Frontier **130**, `131` row **absent**, 131 objects **0** — the
+cleanup touched data only, never the ledger or the schema.
+
+All six 131 prerequisites are now clear: active-plan dupes 0 · cycle
+`(user_id, start_date)` dupes 0 · invalid cycle date ranges 0 · unordered pair
+dupes 0 · `payment_id` dupes 0 · `participant_2 IS NULL` 0.
+
+### 13.6 Standing condition
+
+**Migration 131 remains UNAPPLIED** and was not retried in this task. The
+harness leak is recorded, not remediated — `d07` and `d08` were read only.
+Because the leak reproduces on any pre-131 CI run that reaches the live suites,
+the environment can be re-contaminated by a push before 131 is applied; the
+blocking count must therefore be re-verified immediately before the next
+attempt, as §12 already requires. **Production was not contacted.**
+
+---
+
+## 14. Migration 131 application — 2026-09-19 (SUCCEEDED)
+
+**Authorization boundary.** The owner explicitly authorized executing the
+previously drafted 12-step migration-only plan against the linked QA project
+only, with `expected_applied.json`, production, and unrelated files excluded
+from mutation, and commit/push withheld pending separate authorization.
+
+### 14.1 Immediate pre-push re-check
+
+All six blocking predicates re-verified at **0** immediately before pushing
+(active-plan dupes, cycle `(user_id, start_date)` dupes, invalid cycle dates,
+conversation-pair dupes, `payment_id` dupes, `participant_2 IS NULL`); frontier
+**130**, `131` row **absent** — unchanged since §13.
+
+### 14.2 Application — SUCCEEDED
+
+Command: `supabase db push --linked --yes` (the sole sanctioned route).
+Output: `Applying migration 131_identity_constraints.sql... Finished supabase
+db push.` No repair operation, no manual `schema_migrations` write, no
+production access.
+
+### 14.3 Ledger verification
+
+Live frontier **131**. `schema_migrations` contains **132** rows, `000`–`131`,
+contiguous, no gap, no `132`. Matches the authored set exactly (132 files,
+`000`–`131`, confirmed by direct enumeration of `supabase/migrations/`).
+
+### 14.4 Structural verification — every object, by definition
+
+| Object | Verified definition |
+|---|---|
+| `client_nutrition_plans_one_active_per_client` | `UNIQUE (client_id) WHERE is_active` |
+| `cycle_logs_one_period_per_start` | `UNIQUE (user_id, start_date)` |
+| `cycle_logs_end_on_or_after_start` | `CHECK (end_date IS NULL OR end_date >= start_date)`, `convalidated = true` |
+| `conversations_unique_participant_pair` | `UNIQUE (LEAST(participant_1, participant_2), GREATEST(participant_1, participant_2))` |
+| `client_session_credits_unique_payment` | `UNIQUE (payment_id)` |
+| `assign_nutrition_plan` | `prosecdef=true`, `provolatile='v'`, `search_path=public, pg_temp`; `anon`/`PUBLIC` EXECUTE = false, `authenticated` EXECUTE = true |
+| `get_or_create_conversation` | same posture as above |
+
+All seven match the authored migration exactly. No unexpected privilege
+expansion on either function.
+
+### 14.5 Positive and negative probes — `d08-identity-constraints.mjs`
+
+Run directly (self-contained; does not require `run.mjs` or
+`setup-identities.mjs` — the four fixture identities already existed and
+`signIn` only needs password auth). Result: **24/24 passed.**
+
+The previously observed `PGRST202` on `public.assign_nutrition_plan` is
+**gone** — the RPC now returns `200`. All five integrity rules refuse their
+prohibited operation, with the classification captured per case:
+
+| Rule | Refusal | Code |
+|---|---|---|
+| A. second active nutrition plan | direct insert refused by partial index | `23505` |
+| B. duplicate cycle-log period | double tap refused | `23505` |
+| C. `end_date < start_date` | insert refused | `23514` |
+| D. duplicate participant pair (either ordering) | direct insert refused | `23505` |
+| E. duplicate `payment_id` | second grant refused | `23505` |
+
+RPC authorization: `get_or_create_conversation` refused to `anon` (`401`);
+`assign_nutrition_plan` refused to `anon`; self-conversation refused;
+`coach_id`/`participant_1` proven to come from `auth.uid()`, never a supplied
+value. Two simultaneous callers converged on one conversation id (race proof).
+I-PAY-01's Stripe-replay boundary is unchanged — DB arbiter proven, Stripe
+replay explicitly not simulated (P-8), deferred to Wave 6/K-01 as before.
+
+### 14.6 Regression
+
+| Check | Result |
+|---|---|
+| `migration-durability-guard.mjs` | PASS — 0 unrecorded regression |
+| `npm run check:guards` (prod-refs, migration hygiene, edge-function config) | PASS |
+| `identity_constraint_guard_test.dart` + `product_contract_guard_test.dart` | PASS — 48/48 |
+| `ec23_negative_control.sh` | PASS — mutated tree correctly failed (7 pre-ERR-1 sites), restore was byte-exact, restored tree passed |
+| `d07-chat-media-storage.mjs` | PASS — 42/42, unchanged |
+| `d08-identity-constraints.mjs` | PASS — 24/24 (see 14.5) |
+
+### 14.7 ENV-3 — discrepancy flagged, NOT reconciled
+
+Live frontier is now **131**. `expected_applied.json` still declares
+`applied_through: "130"` with `131` in `pending`. **This file was deliberately
+NOT modified in this task** — the owner's authorization for this execution
+explicitly excluded it. The declared/observed mismatch is a known, expected
+consequence of applying the migration without touching the manifest in the
+same step, exactly as ENV-3's own governing comment anticipates: *"a version
+applied without being declared here fails."* Reconciling `applied_through` to
+`131` and clearing `pending` requires its own separate authorization.
+
+### 14.8 Fixture cleanup
+
+`conversations` total **1** (only the pre-existing 25-message survivor,
+`6b40c911-…`, intact); zero d08-created rows remain for either fixture
+identity in `client_nutrition_plans`, `cycle_logs`, `client_session_credits`,
+or `payments`; duplicate participant pairs **0**. Two unrelated
+`client_nutrition_plans` rows were found and independently confirmed
+pre-existing (owned by a different persona, `client_id
+5470a95f-bcae-4e01-b2be-7c16964fa432`, created 2026-08-24, unrelated to either
+d08 fixture identity) — correctly left untouched.
+
+### 14.9 Standing state
+
+**Migration 131 is now APPLIED to QA.** No commit was made — none was
+authorized in this task. `expected_applied.json` is unmodified.
+**Production was not contacted.** QA credentials used to run `d08`/`d07`
+(fetched via `supabase projects api-keys`, staged only in the session
+scratchpad) were deleted immediately after the live probes completed.

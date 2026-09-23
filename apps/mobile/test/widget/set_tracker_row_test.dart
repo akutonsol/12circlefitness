@@ -49,7 +49,7 @@ void main() {
       await tester.pump();
 
       expect(find.byType(TextField), findsNWidgets(3));
-      expect(find.text('Edit'), findsNothing);
+      expect(find.text('Adjust weight or reps'), findsNothing);
     });
 
     testWidgets('tapping the check reports the entered values', (tester) async {
@@ -120,7 +120,7 @@ void main() {
           reason: 'completion is one-way; the check is not a toggle');
     });
 
-    testWidgets('the Edit affordance is the only way in, and is opt-in',
+    testWidgets('the correction affordance is the only way in, and is opt-in',
         (tester) async {
       var edits = 0;
       await tester.pumpWidget(_host(SetTrackerRow(
@@ -135,16 +135,17 @@ void main() {
       )));
       await tester.pump();
 
-      expect(find.text('Edit'), findsOneWidget);
-      await tester.tap(find.text('Edit'));
+      expect(find.text('Adjust weight or reps'), findsOneWidget);
+      await tester.tap(find.text('Adjust weight or reps'));
       await tester.pump();
 
       expect(edits, 1);
       expect(find.byType(TextField), findsNothing,
-          reason: 'Edit opens the correction flow; it does not unlock the row');
+          reason: 'the correction affordance opens the correction flow; it does '
+              'not unlock the row');
     });
 
-    testWidgets('no Edit action is shown when correction is unavailable',
+    testWidgets('no correction action is shown when it is unavailable',
         (tester) async {
       await tester.pumpWidget(_host(SetTrackerRow(
         setNumber: 1,
@@ -157,7 +158,7 @@ void main() {
       )));
       await tester.pump();
 
-      expect(find.text('Edit'), findsNothing);
+      expect(find.text('Adjust weight or reps'), findsNothing);
     });
 
     testWidgets('a note stays editable and re-emits the recorded numbers',
