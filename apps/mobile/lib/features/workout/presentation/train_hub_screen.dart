@@ -11,6 +11,8 @@ import '../../exercise_database/domain/exercise_database_provider.dart';
 import '../data/models/workout_model.dart';
 import '../domain/plan_summary.dart';
 import '../domain/workout_provider.dart';
+import '../../coach/domain/coach_name.dart';
+import '../../coach/domain/coach_provider.dart';
 import '../data/workout_session_store.dart';
 
 class _C {
@@ -848,12 +850,20 @@ class _PlanUnavailable extends StatelessWidget {
 /// docs/QA_EVIDENCE.md: the board reads "as soon as she publishes it", which
 /// asserts a gender for whoever the member's coach happens to be. The sentence
 /// is rephrased to carry the same meaning without that assertion.
-class _NoPlanYet extends StatelessWidget {
+class _NoPlanYet extends ConsumerWidget {
   const _NoPlanYet();
 
   @override
-  Widget build(BuildContext context) {
-    const who = 'Your coach';
+  Widget build(BuildContext context, WidgetRef ref) {
+    // FIT-015 addresses the coach by name ("Message Nadia"). The name is real
+    // data, and `coachAddressed` is the one place that decides whether it is
+    // safe to use it — see that function for why a failed read must not
+    // produce a name.
+    final coach = ref.watch(assignedCoachProvider);
+    final who = coachAddressed(coach,
+        withName: (name) => name,
+        // Already shipping in this block before the change.
+        fallback: 'Your coach');
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -912,7 +922,11 @@ class _NoPlanYet extends StatelessWidget {
               label: 'Log something you did yourself',
               onTap: () => context.push('/workouts')),
             _MeantimeRow(
-              label: 'Message your coach',
+              // FIT-015 declares "Message Nadia" — the client's coach, by name.
+              label: coachAddressed(coach,
+                  withName: (name) => 'Message $name',
+                  // The wording this row already shipped, true with no coach.
+                  fallback: 'Message your coach'),
               showDivider: false,
               onTap: () => context.go('/messages')),
           ]),

@@ -373,7 +373,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1046 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1056 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -1088,6 +1088,41 @@ Most of the nine hid a failure. Two **instructed the client to act on it**:
 `/train`'s "0 workouts", `/home`'s "0%", `/challenges`' "0 active challenges". Not a
 failure shown as emptiness — a failure shown as a **measurement**. All three now read
 `'—'`, which needs no copy and cannot be misread as a result.
+
+## 3p · Addressing the coach by name — one rule, three screens
+
+The package names the client's coach in three places: **"Send to Nadia"** (FIT-004),
+**"Message Nadia"** (FIT-015), and `/train`'s empty-state body copy. The name is real data,
+so using it invents nothing — but the two failure modes either side of it are easy to
+reintroduce one screen at a time:
+
+* naming a coach the client **does not have**; and
+* naming one when the read **failed** — `/profile`'s "No coach assigned yet" collapse
+  turned inside out. There a failure claimed the client had no coach; here it would claim
+  they have one. Both are a screen answering a question it cannot.
+
+So the rule lives once, in `coach_name.dart`: **the name is used only on a settled,
+non-empty value.** Loading, failed, no coach and a blank first name all fall back to
+wording that stays true without one — `Submit Check-In`, `Message your coach`,
+`Your coach` — each of which this repository already shipped.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rule | `test/unit/coach_name_test.dart` — 10 tests | **PASS** |
+| Guard strength | 2 mutations killed: a failed read still yields a name; a blank name is used verbatim | **PASS** |
+| Suite | 1056 pass / 9 skipped | **PASS** |
+
+**A third mutation was an equivalent mutant, and is recorded as one.** Adding an explicit
+`AsyncLoading()` arm to the switch changed nothing, because the catch-all already returns
+null for a true loading state — and a refresh in flight is `AsyncData` with
+`isLoading: true`, not `AsyncLoading`, which was measured rather than assumed. A surviving
+mutation and a mutation that changes nothing look identical in a report; this one is the
+second, and the test now says so.
+
+**FIT-015's `Message Nadia` still measures ABSENT, and correctly.** The label is composed
+(`'Message $name'`), so the literal string never appears in source. Making the metric count
+it would mean hard-coding "Nadia" — naming every client's coach after the design board's
+example. The same ceiling as FIT-027's and FIT-005's sample rows.
 
 ## 4 · Design package
 

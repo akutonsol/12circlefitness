@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../coach/domain/coach_name.dart';
 import '../data/models/checkin_model.dart';
 
 /// FIT-023 · Check-in hub — "`/checkins` · status and history".
@@ -124,16 +125,9 @@ const checkinSessionsFailure = 'Could not load sessions';
 /// loading, failed, no coach, a coach with no first name — falls back to
 /// `Submit Check-In`, the label this screen already ships. A client with no
 /// coach is not shown a button addressed to nobody.
-String checkinSubmitLabel(AsyncValue<Map<String, dynamic>?> coach) {
-  const fallback = 'Submit Check-In';
-  return switch (coach) {
-    AsyncError() => fallback,
-    AsyncData(:final value) => () {
-        final name = (value?['first_name'] as String?)?.trim();
-        return (name == null || name.isEmpty) ? fallback : 'Send to $name';
-      }(),
-    // Loading, and anything else that is not a settled value.
-    _ => fallback,
-  };
-}
-
+String checkinSubmitLabel(AsyncValue<Map<String, dynamic>?> coach) =>
+    coachAddressed(coach,
+        withName: (name) => 'Send to $name',
+        // The label this screen already ships. A client with no coach is not
+        // shown a button addressed to nobody.
+        fallback: 'Submit Check-In');

@@ -84,6 +84,13 @@ touched in this programme was re-measured with it:
 FIT-002, FIT-017, FIT-027 and FIT-028 are unchanged, which is the useful part of the
 result: the anchors reported complete were complete.
 
+**A fourth ceiling, found while using it.** FIT-015 declares `Message Nadia` and FIT-004
+`Send to Nadia`. Both are now built — the button really is addressed to the client's coach
+by name — and both still measure ABSENT, because the label is **composed**
+(`'Message $name'`) and the literal string never appears in source. Making the metric count
+them would mean hard-coding "Nadia", naming every client's coach after the design board's
+example. A number that can only be earned by getting the product wrong is not a target.
+
 The three caveats the old tool carried all still apply — weak evidence of presence, blind
 to sibling widget files unless they are listed, and unable to match the board's sample rows
 without fabricating the data they describe.
