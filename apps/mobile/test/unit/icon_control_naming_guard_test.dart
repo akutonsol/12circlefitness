@@ -22,6 +22,27 @@ import 'package:flutter_test/flutter_test.dart';
 /// screens it does not draw, and inventing 56 strings would be exactly the
 /// fabrication the brief forbids. Recorded as F-22 / OD-8 instead.
 ///
+/// ── WHICH ONES COULD BE NAMED WITHOUT INVENTING ANYTHING ───────────────────
+/// The package declares short control labels, and three of them cover a large
+/// share of this population: **"Back" (138 declarations), "Close" (4) and
+/// "Refresh" (8)**. A back arrow named "Back" and a close cross named "Close"
+/// use the design's own words, so those are not product copy and were named:
+/// `/progress` ×2, `/directory`, `/daily-checkin`, `/nutrition`,
+/// `/chat`, `/messages` ×2, plus the intake flow's three.
+///
+/// What was deliberately NOT named, although it would have moved the number:
+///
+///   * `coach_checkin_review_screen.dart` — a cross that REMOVES a
+///     recommendation. "Close" would be wrong, and the package declares only
+///     "Remove <thing>", never a bare "Remove".
+///   * `exercise_database_screen.dart` — a cross that CLEARS a search field.
+///     Same reason.
+///   * `coach_notes_sheet.dart` — a cross wired to `onDelete`. The package
+///     declares no delete label at all.
+///
+/// Naming those three "Close" would have been faster, wrong, and invisible in
+/// a count.
+///
 /// So this guard holds the line where it sits. It fails on the next one, which
 /// is the only thing that can be asserted honestly today.
 ///
@@ -58,7 +79,9 @@ void main() {
   ///   53 — after F-9 replaced the intake flow's three unlabelled back controls
   ///        (40/36/36 dp, no name) with one named `IntakeBackButton`. Two of
   ///        the three were visible to this scan.
-  const baseline = 53;
+  ///   47 — after nine more were named from the package's OWN vocabulary. See
+  ///        the note below on why those nine and not the other forty-four.
+  const baseline = 47;
 
   List<({String file, int count})> scan() {
     final files = <File>[
@@ -116,6 +139,31 @@ void main() {
   });
 
   test('A-G8 the controls already fixed stay fixed', () {
+    // The nine named from the package's own vocabulary. If one loses its name
+    // the count alone would not say which.
+    const named = <String, String>{
+      'lib/features/progress/presentation/progress_screen.dart': "label: 'Close'",
+      'lib/features/dashboard/presentation/directory_screen.dart': "label: 'Close'",
+      'lib/features/nutrition/presentation/nutrition_screen.dart': "label: 'Close'",
+      'lib/features/checkins/presentation/daily_checkin_screen.dart': "label: 'Back'",
+      'lib/features/messaging/presentation/chat_screen.dart': "label: 'Back'",
+      'lib/features/messaging/presentation/messaging_screen.dart': "label: 'Refresh'",
+    };
+    named.forEach((path, needle) {
+      expect(File(path).readAsStringSync(), contains(needle),
+          reason: '$path lost the accessible name it was given from the '
+              "design's own vocabulary");
+    });
+
+    // And the three that were left unnamed ON PURPOSE stay that way rather
+    // than acquiring a plausible-sounding wrong one.
+    final review = File(
+            'lib/features/checkins/presentation/coach_checkin_review_screen.dart')
+        .readAsStringSync();
+    expect(review.contains("label: 'Close'"), isFalse,
+        reason: 'that cross removes a recommendation; "Close" would be wrong. '
+            'It stays unnamed under OD-8 until the owner supplies a word.');
+
     // F-9's three intake back controls, replaced by one named widget.
     final intake = File('lib/features/onboarding/presentation/intake_flow_screen.dart')
         .readAsStringSync();

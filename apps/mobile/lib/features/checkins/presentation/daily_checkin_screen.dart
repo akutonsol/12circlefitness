@@ -243,16 +243,23 @@ class _WeeklyCheckinState extends ConsumerState<DailyCheckinScreen> {
         border: Border(bottom: BorderSide(
           color: _brand.withValues(alpha: 0.1)))),
       child: Row(children: [
-        GestureDetector(
+        Semantics(
+          button: true,
+          label: 'Back',
+          child: GestureDetector(
           onTap: () => context.go('/home'),
+          behavior: HitTestBehavior.opaque,
           child: Container(
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            alignment: Alignment.center,
+            child: Container(
             width: 36, height: 36,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white.withValues(alpha: 0.07),
               border: Border.all(color: Colors.white.withValues(alpha: 0.08))),
             child: const Icon(Icons.arrow_back_ios_new,
-              color: _white, size: 16))),
+              color: _white, size: 16))))),
         const SizedBox(width: 12),
         const Text('Weekly Check-In',
           style: TextStyle(color: _white, fontSize: 18,

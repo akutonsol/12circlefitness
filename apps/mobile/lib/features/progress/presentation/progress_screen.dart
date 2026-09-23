@@ -1221,13 +1221,23 @@ class _LogMeasurementSheetState extends State<_LogMeasurementSheet> {
                 const Text('Log Measurements',
                   style: TextStyle(color: _C.onSurface, fontSize: 22,
                     fontWeight: FontWeight.w700)),
-                GestureDetector(
+                // F-22: "Close" is the design package's own word (declared on
+                // its sheet frames), so naming this invents nothing. It was an
+                // icon-only control reporting no name at all.
+                Semantics(
+                  button: true,
+                  label: 'Close',
+                  child: GestureDetector(
                   onTap: () => Navigator.pop(context),
+                  behavior: HitTestBehavior.opaque,
                   child: Container(
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    alignment: Alignment.center,
+                    child: Container(
                     width: 36, height: 36,
                     decoration: BoxDecoration(shape: BoxShape.circle,
                       color: _C.surfaceContainerHigh),
-                    child: const Icon(Icons.close, color: _C.onSurfaceVar, size: 18))),
+                    child: const Icon(Icons.close, color: _C.onSurfaceVar, size: 18))))),
               ],
             ),
             const SizedBox(height: 8),
@@ -1371,9 +1381,16 @@ class _LogWeightSheetState extends State<_LogWeightSheet> {
               const Text('Log Weight',
                 style: TextStyle(color: _C.onSurface, fontSize: 22,
                   fontWeight: FontWeight.w700)),
-              GestureDetector(
+              Semantics(
+                button: true,
+                label: 'Close',
+                child: GestureDetector(
                 onTap: () => Navigator.pop(context),
+                behavior: HitTestBehavior.opaque,
                 child: Container(
+                  constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                  alignment: Alignment.center,
+                  child: Container(
                   width: 36, height: 36,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
@@ -1381,6 +1398,8 @@ class _LogWeightSheetState extends State<_LogWeightSheet> {
                   ),
                   child: const Icon(Icons.close, color: _C.onSurfaceVar, size: 18),
                 ),
+                ),
+              ),
               ),
             ],
           ),

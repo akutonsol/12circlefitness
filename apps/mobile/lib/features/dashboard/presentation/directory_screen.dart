@@ -247,9 +247,16 @@ class _DirectoryNotificationsPanel extends ConsumerWidget {
           child: Row(children: [
             const Text('Notifications', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
             const Spacer(),
-            GestureDetector(
+            Semantics(
+              button: true,
+              label: 'Close',
+              child: GestureDetector(
               onTap: () => Navigator.pop(context),
-              child: const Icon(Icons.close_rounded, color: Color(0xFF4D4354), size: 22)),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                alignment: Alignment.center,
+                child: const Icon(Icons.close_rounded, color: Color(0xFF4D4354), size: 22)))),
           ]),
         ),
         const SizedBox(height: 16),

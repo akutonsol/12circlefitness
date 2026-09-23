@@ -67,6 +67,10 @@ class WorkoutDetailScreen extends ConsumerWidget {
   Widget _bar(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
         child: Row(children: [
+          // Already named — F-20 gave this control its name and its 44 dp
+          // target. A-G8's scan reads FORWARD from each tappable, so the
+          // `Semantics` above it is invisible to the scan and this site is a
+          // known false positive in that count. Recorded in the guard.
           Semantics(
             button: true,
             label: 'Back',

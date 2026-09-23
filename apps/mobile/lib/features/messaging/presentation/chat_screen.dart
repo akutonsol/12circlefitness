@@ -255,13 +255,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             color: _card,
             border: Border(bottom: BorderSide(color: _border))),
           child: Row(children: [
-            GestureDetector(
+            Semantics(
+              button: true,
+              label: 'Back',
+              child: GestureDetector(
               onTap: () => context.go('/messages'),
+              behavior: HitTestBehavior.opaque,
               child: Container(
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                alignment: Alignment.center,
+                child: Container(
                 width: 36, height: 36,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.06), shape: BoxShape.circle),
-                child: const Icon(Icons.arrow_back, color: _white, size: 18))),
+                child: const Icon(Icons.arrow_back, color: _white, size: 18))))),
             const SizedBox(width: 10),
             // Avatar
             Stack(children: [

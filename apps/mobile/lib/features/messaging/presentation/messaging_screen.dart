@@ -32,26 +32,21 @@ class MessagingScreen extends ConsumerWidget {
               color: _card,
               border: Border(bottom: BorderSide(color: _border))),
             child: Row(children: [
-              GestureDetector(
-                onTap: () => context.go('/home'),
-                child: Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.06),
-                    shape: BoxShape.circle),
-                  child: const Icon(Icons.arrow_back, color: _white, size: 18))),
+              // F-22: both of these were icon-only controls reporting no name.
+              // "Back" and "Refresh" are the authoritative package's own words
+              // — 138 and 8 declarations respectively — so nothing is invented.
+              _HeaderAction(
+                icon: Icons.arrow_back,
+                label: 'Back',
+                onTap: () => context.go('/home')),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text("Messages",
                   style: TextStyle(color: _white, fontSize: 19, fontWeight: FontWeight.w700))),
-              GestureDetector(
-                onTap: () => ref.invalidate(conversationsProvider),
-                child: Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.06),
-                    shape: BoxShape.circle),
-                  child: const Icon(Icons.refresh, color: _white, size: 18))),
+              _HeaderAction(
+                icon: Icons.refresh,
+                label: 'Refresh',
+                onTap: () => ref.invalidate(conversationsProvider)),
             ])),
 
           // ── Body ──
@@ -202,6 +197,36 @@ class _ConversationTile extends StatelessWidget {
     if (diff.inDays == 1) return 'Yesterday';
     return '${diff.inDays}d ago';
   }
+}
+
+/// A named 36 dp chip in the Messages header with a 44 dp target around it.
+class _HeaderAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _HeaderAction({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: label,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            alignment: Alignment.center,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.06),
+                shape: BoxShape.circle),
+              child: Icon(icon, color: _white, size: 18),
+            ),
+          ),
+        ),
+      );
 }
 
 // ── Empty state ───────────────────────────────────────────────────────────────

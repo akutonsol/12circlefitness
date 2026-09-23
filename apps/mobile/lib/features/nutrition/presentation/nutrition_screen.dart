@@ -335,9 +335,16 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
               const Text("Log Meal", style: TextStyle(color: _white,
                 fontSize: 18, fontWeight: FontWeight.w700)),
               const Spacer(),
-              GestureDetector(
+              Semantics(
+                button: true,
+                label: 'Close',
+                child: GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: Icon(Icons.close, color: _muted.withValues(alpha: 0.5), size: 22)),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                  alignment: Alignment.center,
+                  child: Icon(Icons.close, color: _muted.withValues(alpha: 0.5), size: 22)))),
             ])),
           const SizedBox(height: 12),
           // Meal type tabs

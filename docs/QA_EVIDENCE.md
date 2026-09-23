@@ -212,7 +212,7 @@ actually renders an injected programme end-to-end.
 
 ---
 
-## 0c · F-22 — icon-only controls ship with no accessible name (**56 → 53**)
+## 0c · F-22 — icon-only controls ship with no accessible name (**56 → 47**)
 
 **ID** F-22 · **Severity** P2 accessibility · **Status** RATCHETED, OD-8 for the copy
 
@@ -239,6 +239,44 @@ fixed so they cannot silently regress.
 It deliberately does **not** repeat EC-G5's mistake, which `QA_CLOSURE_STANDARD` §4 records
 as counting `catch` blocks while the defect it targets contains none: A-G8 matches the
 shape that reports unlabelled, not a keyword that happens to sit nearby.
+
+### What was named, and what was deliberately left alone
+
+The package declares short control labels, and three cover a large share of this
+population: **"Back" (138 declarations), "Close" (4), "Refresh" (8)**. A back arrow named
+"Back" and a close cross named "Close" use the design's own words, so they are not product
+copy. Nine controls were named on that basis, plus the intake flow's three under F-9:
+
+| Screen | Control | Name |
+|---|---|---|
+| `/progress` ×2 | measurement-sheet crosses | Close |
+| `/directory` | sheet cross | Close |
+| `/nutrition` | sheet cross | Close |
+| `/daily-checkin` | header back arrow | Back |
+| `/chat` | header back arrow | Back |
+| `/messages` | header back arrow, refresh | Back, Refresh |
+| `/intake` ×3 | `_AppBar`, `_IntakeStepBar`, profile header | Back |
+
+Each also gained a 44 dp target around its unchanged 36 dp chip.
+
+**Three crosses were left unnamed on purpose**, although naming them "Close" would have
+moved the number faster:
+
+* `coach_checkin_review_screen.dart` — the cross **removes a recommendation**. "Close" is
+  wrong, and the package declares only "Remove <thing>", never a bare "Remove".
+* `exercise_database_screen.dart` — the cross **clears a search field**. Same reason.
+* `coach_notes_sheet.dart` — the cross is wired to `onDelete`. The package declares no
+  delete label at all.
+
+A wrong name is not a smaller version of a missing one. These stay under OD-8.
+
+**A false positive found by doing this.** `workout_detail_screen.dart`'s back control was
+*already* named by F-20 — the scan reads forward from each tappable and could not see the
+`Semantics` above it, so the site was counted. The first attempt double-wrapped it and the
+F-20 test caught it (`Found 2 widgets with a semantics label named "Back"`). The wrapper
+was removed and the site annotated. The scan is still not widened backwards, for the
+reason recorded in the guard.
+
 
 ## 0d · F-9 — **RESOLVED AND MEASURED ON DEVICE**, including the related finding
 
