@@ -9,6 +9,7 @@ import '../../exercise_database/data/exercise_database_service.dart';
 import '../../exercise_database/data/models/exercise_detail_model.dart';
 import '../../exercise_database/domain/exercise_database_provider.dart';
 import '../data/models/workout_model.dart';
+import '../domain/plan_summary.dart';
 import '../domain/workout_provider.dart';
 import '../data/workout_session_store.dart';
 
@@ -771,7 +772,7 @@ class _PlanSurface extends ConsumerWidget {
           // pattern EC-G8 ratchets — and a name is not worth an error swallow.
           // The neutral noun carries the same meaning.
           ? const _NoPlanYet()
-          : _ThisWeek(workouts: workouts),
+          : _PlanContent(workouts: workouts),
     );
   }
 }
@@ -955,6 +956,122 @@ class _MeantimeRow extends StatelessWidget {
           ),
         ),
       );
+}
+
+/// FIT-014's content state: today's session as a hero card, then the week.
+///
+/// The hero is shown ONLY when a session is actually scheduled for today. The
+/// board's pill reads "Today · assigned by …", so rendering a different day's
+/// workout under it would state something untrue. FIT-014 declares a single
+/// `default` state and the package draws no "plan exists but nothing today"
+/// frame, so that case falls through to the week list alone — recorded as a
+/// design gap rather than invented.
+class _PlanContent extends StatelessWidget {
+  final List<Workout> workouts;
+  const _PlanContent({required this.workouts});
+
+  @override
+  Widget build(BuildContext context) {
+    final today = todaysSession(workouts);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (today != null) _TodayHeroCard(workout: today),
+      _ThisWeek(workouts: workouts),
+    ]);
+  }
+}
+
+/// FIT-014 `fc-card` — today's assigned session.
+///
+/// Every value is read from the Workout: title, exercise count, duration, the
+/// heaviest prescribed load, the coach's name and the scheduled date. Nothing
+/// is hardcoded and nothing is estimated.
+///
+/// The hero image is the asset the design declares for this frame
+/// (`img/exercise-deadlift.jpg`, already present in assets/). `Workout` carries
+/// no image field, so per-workout photography is a real gap of the GAP-03
+/// class ("photography ... Wave 2 placeholders intentional") and is recorded as
+/// such — the single declared asset is used rather than inventing a mapping
+/// from category to picture.
+class _TodayHeroCard extends ConsumerWidget {
+  final Workout workout;
+  const _TodayHeroCard({required this.workout});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary = workoutSummaryLine(workout);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16), // `fc-card`
+        child: Container(
+          decoration: BoxDecoration(
+            color: _C.surfaceContainerHigh,
+            border: Border.all(color: _C.outline.withValues(alpha: 0.18)),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Image.asset('assets/images/exercise-deadlift.jpg',
+                height: 132, width: double.infinity,
+                fit: BoxFit.cover,
+                alignment: const Alignment(0, -0.36), // board: object-position 50% 32%
+                errorBuilder: (_, __, ___) =>
+                    Container(height: 132, color: _C.surfaceContainerHigh)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // `pill` — violet-muted fill, accent text.
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _C.primaryContainer.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(todayPillLabel(workout),
+                      style: const TextStyle(
+                          color: _C.primary, fontSize: 11, fontWeight: FontWeight.w500)),
+                ),
+                const SizedBox(height: 14),
+                Text(workout.title,
+                    style: const TextStyle(
+                        color: _C.onSurface, fontSize: 24,
+                        fontWeight: FontWeight.w500, letterSpacing: -0.6, height: 1.1)),
+                if (summary.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(summary,
+                      style: const TextStyle(color: _C.onSurfaceVar, fontSize: 13, height: 1.5)),
+                ],
+                const SizedBox(height: 18),
+                Semantics(
+                  button: true,
+                  child: GestureDetector(
+                    onTap: () {
+                      // The established identity mechanism — the same one
+                      // workout_list_screen and active_workout_screen use. No
+                      // second identity path is introduced.
+                      ref.read(selectedWorkoutProvider.notifier).state = workout;
+                      context.go('/active-workout');
+                    },
+                    child: Container(
+                      height: 52, // `fc-btn`
+                      width: double.infinity,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: _C.primaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text('Begin session',
+                          style: TextStyle(
+                              color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500)),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 /// FIT-014's "This week" list. Status comes from the workout itself —
