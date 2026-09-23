@@ -403,7 +403,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1060 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1065 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -1219,6 +1219,48 @@ With a fresh APK and `--concurrency=1`: **16 pass**, and the only failures are
 They are driven by `tool/negative_control/wrk01_live_probe.sh` and are expected to refuse a
 bare run.
 
+## 3r · FIT-019 · Log a meal — 0/5 → 4/5, and the file it was measured against
+
+**The coverage resolver had the wrong file.** FIT-019 was recorded against
+`log_meal_screen.dart`: a **23-line redirect stub** that bounces to `/meals-dashboard` in
+`initState` and renders a spinner. The screen the anchor describes — "*a sheet, not a
+screen*" — is `_AddMealSheet` inside `meals_dashboard_screen.dart`. Same class as the
+FIT-001 → `home_org.dart` correction: **a route that exists is not an implementation.**
+
+| Declared | Status |
+|---|---|
+| `Close` | added — an unnamed 36 dp cross, now `NamedIconButton` |
+| `Search` | the "Manual" pill renamed to the locked word; it already searched foods |
+| `Scan` | the "AI Scan" pill, likewise |
+| `Search foods` | field placeholder aligned from `Search foods...` |
+| `Recent` | **OD-17** |
+
+### A systemic accessibility defect, fixed at the component
+
+The three pills were a `GestureDetector` around a `Text`: named by their text, but
+announced as **neither buttons nor selected**. A screen reader read "Search Scan Barcode"
+with no way to tell which mode was active — on the sheet where a client logs everything
+they eat. **Identical to the defect found on the weekly check-in's pickers**, in a
+different feature.
+
+So it was fixed at the component and extracted: `widgets/pill_tab.dart`. Seventh extraction
+for the same reason — a thing worth asserting gets moved somewhere it can be.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Behaviour | `test/widget/pill_tab_test.dart` — 5 tests | **PASS** |
+| Guard strength | 5 mutations killed: always-selected, drop the exclusive group, drop the `Semantics` `onTap`, drop the 44 dp floor, stop excluding the child. A sixth (delete the whole wrapper) did not compile and is recorded **inconclusive**, not as killed — the five cover each property it provides. | **PASS** |
+| **Runtime, on device** | `integration_test/fit019_log_meal_device_test.dart` on `emulator-5554`: all three `button=true exclusive=true tap=true`, one `selected=true`, targets `137.1 × 54.0 dp` | **VERIFIED ON DEVICE** |
+| Suite | 1065 pass / 9 skipped | **PASS** |
+
+### OD-17 — `Recent` vs `Barcode`
+
+The design's third pill is **Recent**; the app's is **Barcode**. They are different
+features, there is **no recent-foods data source in the repository**, and the design draws
+three pills, not four. Renaming would strand barcode scanning behind a label promising
+something else; deleting it would remove a shipped capability the design never said to
+remove. Not resolved by guessing.
+
 ## 4 · Design package
 
 | Check | Status |
@@ -1715,6 +1757,11 @@ booking screen's existing, already-shipped phrasing as the house pattern. Record
 **OD-8**.
 
 ## 6d · OWNER DECISION REGISTER
+
+**OD-17 · FIT-019's third pill is `Recent`; the app's is `Barcode`.** Different features,
+no recent-foods data source in the repository, and the design draws three pills. Decide
+whether Recent replaces Barcode (losing barcode scanning), sits beside it (a fourth pill
+the design does not draw), or is dropped.
 
 **OD-16 · How a 1–5 rating maps to the package's three words.** FIT-004 declares
 `Low` / `Steady` / `Strong` for energy and FIT-023 draws `Energy steady` in its history

@@ -24,9 +24,9 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 272 (45%) |
-| **Label absent** | **328** |
-| Locked anchors | 67/179 (37%) |
+| Label present | 276 (46%) |
+| **Label absent** | **324** |
+| Locked anchors | 71/179 (40%) |
 
 **These numbers went DOWN, and that is the correction.** See *"The measurement counted its
 own comments"* below.
@@ -112,7 +112,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-028 | Connect — no coach | `/messages` | 4 | 10 | `messaging_screen.dart` |
 | FIT-001 | Home | `/home` | 4 | 9 | `home_screen.dart` |
 | FIT-008 | Intake | `/intake` | 2 | 7 | `intake_flow_screen.dart` |
-| FIT-019 | Log a meal | `/log-meal` | 0 | 5 | `log_meal_screen.dart` |
+| FIT-019 | Log a meal | `/log-meal` | 4 | 5 | `meals_dashboard_screen.dart` (`_AddMealSheet`) + `widgets/pill_tab.dart` |
 | FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 0 | 5 | `—` |
 | FIT-031 | Plans | `/upgrade` | 0 | 5 | `upgrade_screen.dart` |
 | FIT-002 ✅ | Active Workout | `/active-workout` | **5** | 5 | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
@@ -153,6 +153,34 @@ decision FIT-004's difficulty mapping is blocked on, recorded as **OD-16**. The 
 `Energy 3 of 5`, which is the phrasing already used for those controls' accessible names.
 Stating a value and interpreting it are different acts, and a test asserts the row never
 produces the anchor's three words while the decision is outstanding.
+
+
+### FIT-019, and a second file-attribution error
+
+**The resolver had the wrong file.** FIT-019 was recorded against
+`log_meal_screen.dart`, which is a **23-line redirect stub** — it bounces straight to
+`/meals-dashboard` in `initState` and renders a spinner. The screen the anchor describes
+("*a sheet, not a screen*") is `_AddMealSheet`, inside `meals_dashboard_screen.dart`.
+
+Same class as the FIT-001 → `home_org.dart` correction already recorded here: the router
+entry is real, so the resolver found it, but nothing is drawn there. **A route that exists
+is not an implementation.**
+
+Measured against the sheet: **4/5**.
+
+| Declared | Status |
+|---|---|
+| `Close` | added — it was an unnamed 36 dp cross |
+| `Search` | the "Manual" pill, renamed to the locked design's word; it already searched foods |
+| `Scan` | the "AI Scan" pill, likewise |
+| `Search foods` | the field placeholder, aligned from `Search foods...` |
+| `Recent` | **blocked — OD-17** |
+
+**`Recent` is the one that was not taken.** The design's third pill is *Recent*; the app's
+is *Barcode*, and they are different features. Renaming it would strand barcode scanning
+behind a label promising something else; deleting it would remove a shipped capability the
+design never said to remove; and there is **no recent-foods data source in the repository**
+to build the real thing from. Recorded rather than guessed.
 
 ### FIT-005, itemised — the relationship layer
 
@@ -278,7 +306,7 @@ without fabricating content the brief forbids.
 | FIT-016 | Workout detail | `/workout-detail` | 3/7 | `workout_detail_screen.dart` |
 | FIT-017 | Rest & completion | `/active-workout` | 2/2 | `active_workout_screen.dart` + `widgets/rest_timer_widget.dart` |
 | FIT-018 | Session complete | `/active-workout` | 2/4 | `active_workout_screen.dart` |
-| FIT-019 | Log a meal | `/log-meal` | 0/5 | `log_meal_screen.dart` |
+| FIT-019 | Log a meal | `/log-meal` | 4/5 | `meals_dashboard_screen.dart` (`_AddMealSheet`) + `widgets/pill_tab.dart` |
 | FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 0/5 | `—` |
 | FIT-021 | Entitlement gate | `PaywallGate wrapper (12 routes)` | 0/3 | `—` |
 | FIT-022 | Loading & failure | `cross-cutting pattern` | 0/1 | `—` |

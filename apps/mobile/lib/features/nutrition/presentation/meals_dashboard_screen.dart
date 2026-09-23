@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../../../core/widgets/named_icon_button.dart';
+import 'widgets/pill_tab.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../data/nutrition_service.dart';
@@ -939,7 +941,9 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
                     textAlign: TextAlign.center,
                     style: TextStyle(color: _white, fontSize: 26,
                       fontWeight: FontWeight.w800))),
-                GestureDetector(
+                // FIT-019 declares "Close". It was an unnamed 36 dp cross.
+                NamedIconButton(
+                  label: 'Close',
                   onTap: () => Navigator.pop(context),
                   child: Container(
                     width: 36, height: 36,
@@ -964,14 +968,25 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
                     color: Colors.white.withValues(alpha: 0.08))),
+                // FIT-019 names these "Search", "Scan" and "Recent". The first
+                // two are label alignments to the locked design and describe
+                // what the tabs already do — the first searches foods, the
+                // second scans one.
+                //
+                // The third is NOT renamed. The design's slot is "Recent"; this
+                // one is Barcode, and they are different features. Renaming it
+                // would strand barcode scanning behind a label that promises
+                // something else, and deleting it would remove a shipped
+                // capability the design never said to remove. Recorded as
+                // OD-17 rather than resolved by guessing.
                 child: Row(children: [
-                  Expanded(child: _PillTab('Manual',
+                  Expanded(child: PillTab('Search',
                     _inputMode == 'manual',
                     () => setState(() => _inputMode = 'manual'))),
-                  Expanded(child: _PillTab('AI Scan',
+                  Expanded(child: PillTab('Scan',
                     _inputMode == 'ai_scan',
                     () => setState(() => _inputMode = 'ai_scan'))),
-                  Expanded(child: _PillTab('Barcode',
+                  Expanded(child: PillTab('Barcode',
                     _inputMode == 'barcode',
                     () => setState(() => _inputMode = 'barcode'))),
                 ]))),
@@ -1026,7 +1041,7 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
                     controller: _searchCtrl,
                     style: const TextStyle(color: _white, fontSize: 15),
                     decoration: InputDecoration(
-                      hintText: 'Search foods...',
+                      hintText: 'Search foods',
                       hintStyle: TextStyle(
                         color: _grey.withValues(alpha: 0.45), fontSize: 15),
                       prefixIcon: Icon(Icons.search,
@@ -1189,35 +1204,6 @@ class _AddCustomRow extends StatelessWidget {
           style: TextStyle(color: _brand.withValues(alpha: 0.8),
             fontSize: 14, fontWeight: FontWeight.w600)),
       ])));
-}
-
-class _PillTab extends StatelessWidget {
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-  const _PillTab(this.label, this.active, this.onTap);
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      decoration: BoxDecoration(
-        gradient: active
-          ? const LinearGradient(
-              colors: [Color(0xFF7C3AED), Color(0xFFA855F7)])
-          : null,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: active
-          ? [BoxShadow(
-              color: _brand.withValues(alpha: 0.45),
-              blurRadius: 14, spreadRadius: -2)]
-          : null),
-      alignment: Alignment.center,
-      child: Text(label,
-        style: TextStyle(
-          color: active ? _white : _grey.withValues(alpha: 0.55),
-          fontSize: 15, fontWeight: FontWeight.w700))));
 }
 
 // ── Food Detail ────────────────────────────────────────────────────────────
