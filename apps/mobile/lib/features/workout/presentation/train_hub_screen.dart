@@ -10,24 +10,16 @@ import '../../exercise_database/data/models/exercise_detail_model.dart';
 import '../../exercise_database/domain/exercise_database_provider.dart';
 import '../data/models/workout_model.dart';
 import '../domain/plan_summary.dart';
+import 'train_palette.dart';
+import 'widgets/week_row_tile.dart';
 import '../domain/workout_provider.dart';
 import '../../coach/domain/coach_name.dart';
 import '../../coach/domain/coach_provider.dart';
 import '../data/workout_session_store.dart';
 
-class _C {
-  static const bg                   = Color(0xFF0E0E0F);
-  static const surfaceContainerHigh = Color(0xFF2A2A2B);
-  static const glassCard            = Color(0x72201F20);
-  static const primary              = Color(0xFFDDB7FF);
-  static const primaryContainer     = Color(0xFFB76DFF);
-  static const inversePrimary       = Color(0xFF842BD2);
-  static const onSurface            = Color(0xFFE5E2E3);
-  static const onSurfaceVar         = Color(0xFFCDC3D0);
-  static const outline              = Color(0xFF968E99);
-  static const tertiary             = Color(0xFF6FFBBE);
-  static const amber                = Color(0xFFFFD580);
-}
+/// The palette moved to `train_palette.dart` so `WeekRowTile` could be
+/// extracted without copying it into a 21st per-screen private palette.
+typedef _C = TrainColors;
 
 const _muscleCategories = [
   ('ALL',       Icons.grid_4x4_rounded),
@@ -1088,83 +1080,23 @@ class _TodayHeroCard extends ConsumerWidget {
   }
 }
 
-/// FIT-014's "This week" list. Status comes from the workout itself —
-/// `isCompleted` and `scheduledDate` — never from a hardcoded position.
-class _ThisWeek extends StatelessWidget {
+/// FIT-014's "This week" list.
+///
+/// Every rule the rows follow lives in `domain/week_row.dart`, with the board
+/// markup they came from quoted beside them. Status is derived from the
+/// workout itself — `isCompleted` and `scheduledDate` — never from a hardcoded
+/// position in the list.
+class _ThisWeek extends ConsumerWidget {
   final List<Workout> workouts;
   const _ThisWeek({required this.workouts});
 
-  static const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-  bool _isToday(DateTime? d) {
-    if (d == null) return false;
-    final n = DateTime.now();
-    return d.year == n.year && d.month == n.month && d.day == n.day;
-  }
-
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('THIS WEEK', style: _NoPlanYet._micStyle),
           const SizedBox(height: 8),
-          ...workouts.map((w) {
-            final today = _isToday(w.scheduledDate);
-            final day = w.scheduledDate == null
-                ? ''
-                : (today ? 'Today' : _days[w.scheduledDate!.weekday - 1]);
-            final status = w.isCompleted
-                ? 'Done'
-                : today
-                    ? 'Now'
-                    : (w.scheduledDate == null ? '' : _days[w.scheduledDate!.weekday - 1]);
-            final detail = [
-              if (day.isNotEmpty) day,
-              if (w.estimatedDuration > 0) '${w.estimatedDuration} min',
-            ].join(' · ');
-            return Semantics(
-              button: true,
-              label: '${w.title} $detail $status',
-              excludeSemantics: true,
-              child: Container(
-                constraints: const BoxConstraints(minHeight: 44),
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                decoration: BoxDecoration(
-                  border: Border(
-                      bottom: BorderSide(color: _C.outline.withValues(alpha: 0.4)))),
-                child: Row(children: [
-                  SizedBox(
-                    width: 32,
-                    child: w.isCompleted
-                        ? Icon(Icons.check, color: _C.tertiary, size: 15)
-                        : today
-                            ? Container(
-                                width: 7, height: 7,
-                                margin: const EdgeInsets.only(left: 4),
-                                decoration: const BoxDecoration(
-                                    color: _C.primaryContainer, shape: BoxShape.circle))
-                            : const SizedBox.shrink(),
-                  ),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(w.title,
-                          maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              color: w.isCompleted ? _C.outline : _C.onSurface,
-                              fontSize: 15, fontWeight: FontWeight.w500)),
-                      if (detail.isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Text(detail,
-                            style: const TextStyle(color: _C.onSurfaceVar, fontSize: 12.5)),
-                      ],
-                    ]),
-                  ),
-                  if (status.isNotEmpty)
-                    Text(status.toUpperCase(), style: _NoPlanYet._micStyle),
-                ]),
-              ),
-            );
-          }),
+          ...workouts.map((w) => WeekRowTile(workout: w)),
         ]),
       );
 }

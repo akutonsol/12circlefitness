@@ -1813,6 +1813,100 @@ prescribed", zero is a prescribed zero (bodyweight). On screen they render ident
 because the package contains no word for bodyweight anywhere and `0 kg` would be worse than
 silence. Pinned by a test so the collapse is a decision, not an accident.
 
+## 3af · FIT-014 · This week — four defects in one row, and a guard that could not see
+
+FIT-014 is **locked**. Measured against the hub screen alone it read 4/12; measured
+against the screen **and** the shell that carries the tab labels it reads **6/12**. The
+four that remain absent are the board's sample rows, plus `Nutrition` and `Connect`, which
+are **F-14** — the open five-tab decision. Neither is work this cycle could do.
+
+The defects were in the rows themselves, and the manifest's flattened labels do not show
+them. The board's markup does:
+
+```html
+<button type="button" class="tap row">
+  <span class="met" style="color: var(--green);"><i class="ph ph-check"></i></span>
+  <span><span class="ttl" style="color: var(--grey);">Upper body — push</span>
+        <span class="bds">Monday · 44 min</span></span>
+  <span class="mic">Done</span>
+</button>
+```
+
+| # | Shipped | Board | Why it matters |
+|---|---|---|---|
+| 1 | `Thu · 30 min` | `Thursday · 30 min` | the abbreviated day sat beside a `THU` chip saying the same word twice |
+| 2 | `NOW` as a `.mic` | `Now` in a `.pill` | `.mic` carries `text-transform: uppercase`; **`.pill` does not**. Today's row also loses its violet-muted chip |
+| 3 | no marker at all | a hollow ring (`inset 0 0 0 1px var(--dim)`) | an upcoming session was the only row with nothing in the marker column |
+| 4 | `Semantics(button: true)`, no action | `<button class="tap row">` | the same false affordance FIT-016's session rows carried — announced to a screen reader and to the eye, answering neither |
+
+The destination for (4) is not invented. A week row **is** a workout, the package contains
+exactly one surface for reviewing one before committing — FIT-016, `/workout-detail`,
+*"review before committing"* — and `selectedWorkoutProvider` is the identity mechanism
+`workout_list_screen` and `active_workout_screen` already use. Committing stays on the hero
+card's `Begin session`.
+
+`WeekRowTile` was extracted from the 1,170-line screen for the reason `PillTab` and
+`NutritionLoadFailed` were: a row that navigates cannot be **proven** to navigate while it
+is private to a screen that reads a dozen Supabase-backed providers.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/week_row_test.dart` — 13 tests | **PASS** |
+| Widget | `test/widget/week_row_tile_test.dart` — 7 tests, against the semantics tree and a **real router**, never text presence | **PASS** |
+| Guard strength | **9 / 9 mutations killed** (W8 first run invalid → re-run validly) | **PASS** |
+| Suite | **1169 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Runtime | `integration_test/fit014_week_rows_device_test.dart`, `emulator-5554` | **RUNTIME_VERIFIED** |
+| CI | no Android job exists | **OPEN** |
+
+### The device produces the manifest's four labels verbatim
+
+```
+row0 411.4x73.0 button=true tap=true label="Upper body — push Monday · 44 min Done"
+row1 411.4x73.0 button=true tap=true label="Lower body — strength Today · 48 min Now"
+row2 411.4x73.0 button=true tap=true label="Conditioning Thursday · 30 min Thu"
+row3 411.4x73.0 button=true tap=true label="Upper body — pull Saturday · 44 min Sat"
+selected="Upper body — pull"        360 / 390 / 411.4 dp — exception=none
+```
+
+Those are the four interactions the coverage tool reports **ABSENT**, produced at runtime
+from real `Workout` fields. The tool greps source for a literal and cannot see it; the
+device can. The measurement stays 6/12 and this is what 6/12 means here.
+
+### The guard that could not see what it was counting
+
+`H-D1` in `presentation_drift_guard_test.dart` pins the per-screen private-palette
+population at 20 files so **D-2** can be decided deliberately rather than overtaken by
+drift. Extracting `WeekRowTile` copied a palette into a new file — and the guard **passed**.
+
+Its detector required `static const Color <name>` or a member beginning with `c`. **None of
+the twenty listed palettes are written that way.** They are `static const bg =
+Color(0xFF0E0E0F)`, with no type annotation. Measured:
+
+| Detector | Files found |
+|---|---|
+| as shipped | **5** |
+| shape-accurate | **22** |
+
+So the guard had been green not because nothing grew, but because it could not see fifteen
+of the files it names. That is F-25's class — an assertion that cannot observe what it
+asserts — for the third time in this programme.
+
+Repairing it surfaced **`ai_coach_screen.dart`**, a palette that had drifted in undetected.
+It is listed rather than quietly deleted and rather than migrated: rewriting another
+feature's screen is D-2's decision, not a QA repair.
+
+The palette itself was not duplicated. It moved to `train_palette.dart` and the screen
+aliases it (`typedef _C = TrainColors`) — one declaration, two consumers, population
+unchanged — and a second test holds the screen to that, so a relocation can never be
+mistaken for an addition.
+
+**And the guard now proves its own detector.** Reverting the regex initially **survived**:
+`added = found − known` is empty both when nothing drifted in and when the detector has gone
+blind, and the assertion could not tell those apart. `known` is now a **floor for detection**
+as well as a ceiling for additions — every listed file must still be found. With that in
+place the reverted regex is killed.
+
 ## 4 · Design package
 
 | Check | Status |

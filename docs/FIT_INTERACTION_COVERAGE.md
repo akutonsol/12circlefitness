@@ -111,7 +111,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-004 | Check-In | `/daily-checkin` | 5 | 11 | `daily_checkin_screen.dart` + `widgets/checkin_pickers.dart` + `domain/checkin_hub.dart` |
 | FIT-023 | Check-in hub | `/checkins` | 4 | 10 | `checkin_screen.dart` + `checkin_hub_sections.dart` + `domain/checkin_hub.dart` |
 | FIT-003 | Nutrition | `/meals-dashboard` | 5 | 12 | `meals_dashboard_screen.dart` |
-| FIT-014 | Workouts hub | `/train` | 5 | 12 | `train_hub_screen.dart` |
+| FIT-014 | Workouts hub | `/train` | 6 | 12 | `train_hub_screen.dart` + `widgets/week_row_tile.dart` + `core/router/app_shell.dart` |
 | FIT-027 | What's on | `/classes` | 5 | 10 | `classes_screen.dart` + `whats_on_view.dart` + `domain/whats_on.dart` |
 | FIT-032 | Coach dashboard | `/coach-dashboard` | 5 | 11 | `coach_dashboard_screen.dart` |
 | FIT-028 | Connect — no coach | `/messages` | 4 | 10 | `messaging_screen.dart` |
@@ -343,7 +343,7 @@ without fabricating content the brief forbids.
 | FIT-011 | Sign up | `/signup` | 2/2 | `signup_screen.dart` |
 | FIT-012 | Forgot password | `/forgot-password` | 2/2 | `forgot_password_screen.dart` |
 | FIT-013 | Set a new password | `/reset-password` | 1/1 | `reset_password_screen.dart` |
-| FIT-014 | Workouts hub | `/train` | 5/12 | `train_hub_screen.dart` |
+| FIT-014 | Workouts hub | `/train` | **6/12** | `train_hub_screen.dart` + `widgets/week_row_tile.dart` + `domain/week_row.dart` + `core/router/app_shell.dart` — 4 absent are the board's **sample rows** (produced verbatim at runtime, see QA_EVIDENCE §3af); `Nutrition` and `Connect` are **F-14** |
 | FIT-015 | Workouts — no plan yet | `/train` | 5/9 | `train_hub_screen.dart` |
 | FIT-016 | Workout detail | `/workout-detail` | 3/7 **at ceiling** | `workout_detail_screen.dart` + `domain/exercise_brief.dart` + `widgets/exercise_brief_sheet.dart` — the four remaining are the board's **sample exercise rows**; the row's shape, action and sheet are built and mutation-proven |
 | FIT-017 | Rest & completion | `/active-workout` | 2/2 | `active_workout_screen.dart` + `widgets/rest_timer_widget.dart` |

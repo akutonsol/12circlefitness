@@ -401,17 +401,43 @@ void main() {
       'create_exercise_screen.dart',
       'workout_list_screen.dart',
       'workout_history_screen.dart',
-      'train_hub_screen.dart',
       'exercise_library_screen.dart',
       'workout_detail_screen.dart',
+
+      // NOT an addition — a relocation. `train_hub_screen.dart` used to
+      // declare this palette privately; extracting `WeekRowTile` would have
+      // meant copying it into a second file, so the declaration moved to
+      // `train_palette.dart` and the screen aliases it (`typedef _C =
+      // TrainColors`). One declaration, two consumers, population unchanged.
+      // The test below holds the screen to that.
+      'train_palette.dart',
+
+      // Found the moment the regex above was repaired: it was never detected
+      // by the broken one, so it is pre-existing drift rather than a new
+      // arrival. Listed rather than quietly deleted, and rather than migrated
+      // — rewriting another feature's screen is D-2's decision, not a QA
+      // repair.
+      'ai_coach_screen.dart',
     };
 
     test('no NEW file declares a private colour palette class', () {
       // A private palette is a private class whose body is (almost) entirely
       // colour constants — the `class _C {}` / `class _S {}` / `class
       // AuthColors {}` shape the sweep found.
+      // ── THIS REGEX WAS REPAIRED, AND THE REPAIR IS THE FINDING ──────────
+      // The original required `static const Color <name>` or a member whose
+      // name began with `c`. **None of the listed palettes are written that
+      // way.** They are `static const bg = Color(0xFF0E0E0F)` — no type
+      // annotation — so the guard detected only **5 of the 20 files it
+      // names**, and had been passing because it could not see the other 15,
+      // not because nothing had grown.
+      //
+      // A guard that cannot observe what it asserts is the defect class this
+      // programme has recorded twice already (F-25's two live assertions, one
+      // of them green forever). Repairing it immediately surfaced one file
+      // that had drifted in undetected — see `known` below.
       final palette = RegExp(
-        r'class\s+(_?[A-Z]\w*)\s*\{[^}]*static\s+const\s+(?:Color|c\w*)\s',
+        r'class\s+(_?[A-Z]\w*)\s*\{[^}]*static\s+const\s+(?:Color\s+\w+|\w+)\s*=\s*Color\(0x',
         dotAll: true,
       );
 
@@ -434,6 +460,53 @@ void main() {
             'semantic tokens (see docs/MOBILE_QA_SWEEP_2026-09-22.md §4). '
             'Adding another widens a gap that is already an open owner '
             'decision:\n  ${added.join('\n  ')}',
+      );
+    });
+
+    test('the detector still sees every palette it is supposed to be counting',
+        () {
+      // `added = found - known` is empty both when nothing drifted in and when
+      // the detector has gone blind. Those are opposite facts and the
+      // assertion above cannot tell them apart — which is how the original
+      // regex passed for as long as it did while seeing 5 of 20.
+      //
+      // So `known` is a FLOOR for detection as well as a ceiling for
+      // additions: every file listed must still be found. Narrow the regex and
+      // this fails immediately.
+      final palette = RegExp(
+        r'class\s+(_?[A-Z]\w*)\s*\{[^}]*static\s+const\s+(?:Color\s+\w+|\w+)\s*=\s*Color\(0x',
+        dotAll: true,
+      );
+      final found = <String>{};
+      for (final file in presentationFiles) {
+        final source = file.readAsStringSync();
+        if (!palette.hasMatch(source)) continue;
+        if (!source.contains(RegExp(r'Color\(0x[0-9a-fA-F]{8}\)'))) continue;
+        found.add(file.path.split('/').last);
+      }
+
+      expect(
+        known.difference(found),
+        isEmpty,
+        reason: 'the detector no longer sees palette(s) it is meant to count, '
+            'so an absent result proves nothing about drift',
+      );
+    });
+
+    test('train_hub_screen.dart did not keep a copy of the palette it moved',
+        () {
+      // Without this, `train_palette.dart` replacing `train_hub_screen.dart`
+      // in the list above would be indistinguishable from a 21st palette
+      // arriving while the screen kept its own — the population would have
+      // grown and the ceiling would still read 20.
+      final source = File(
+              'lib/features/workout/presentation/train_hub_screen.dart')
+          .readAsStringSync();
+      expect(source, contains('typedef _C = TrainColors;'));
+      expect(
+        RegExp(r'class\s+_C\s*\{').hasMatch(source),
+        isFalse,
+        reason: 'the screen must consume the shared palette, not re-declare it',
       );
     });
   });
