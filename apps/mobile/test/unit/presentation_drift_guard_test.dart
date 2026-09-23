@@ -154,6 +154,46 @@ void main() {
     });
   });
 
+  group('A-G3 the app ships under its product name, on both platforms', () {
+    /// Found at runtime: the first thing Android showed a new user was
+    /// "Allow circle_fitness to send you notifications?" — the Flutter project
+    /// directory name, in a system dialog. On Android `android:label` is also
+    /// the launcher name, the app-drawer name and the Settings entry.
+    ///
+    /// The platforms had drifted apart too: iOS declared "Circle Fitness"
+    /// while Android declared "circle_fitness", and neither was the product's
+    /// name. Owner decision 2026-09-22: **12Circle Fitness**, both platforms.
+    const expected = '12Circle Fitness';
+
+    test('android:label is the product name', () {
+      final manifest =
+          File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+      final m =
+          RegExp(r'android:label="([^"]*)"').firstMatch(manifest);
+      expect(m, isNotNull, reason: '<application> must declare android:label.');
+      expect(
+        m!.group(1),
+        expected,
+        reason: 'android:label is the launcher, Settings and permission-dialog '
+            'name. It must never be the project directory name.',
+      );
+    });
+
+    test('iOS CFBundleDisplayName matches, so the platforms cannot drift', () {
+      final plist = File('ios/Runner/Info.plist').readAsStringSync();
+      final m = RegExp(
+        r'<key>CFBundleDisplayName</key>\s*<string>([^<]*)</string>',
+      ).firstMatch(plist);
+      expect(m, isNotNull);
+      expect(
+        m!.group(1),
+        expected,
+        reason: 'iOS shipped "Circle Fitness" while Android shipped '
+            '"circle_fitness". One product, one name.',
+      );
+    });
+  });
+
   group('H-D1 the private-palette population must not grow', () {
     /// Three palettes ship concurrently — the Helix brand tier, a legacy
     /// `AppColors`, and a per-screen private palette in each file below. That

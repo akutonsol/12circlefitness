@@ -1356,10 +1356,19 @@ The platforms also disagree: iOS `Info.plist` declares `CFBundleDisplayName` =
 **"Circle Fitness"**, while `CFBundleName` is `circle_fitness`. Neither is the product's
 name.
 
-**Not repaired, deliberately.** That `circle_fitness` is wrong is not in question; *which*
-string replaces it is branding — the design package says "12Circle Fitness", iOS ships
-"Circle Fitness", the repo is `12circle-fitness`. Three candidates, no authority to pick.
-One line, one owner decision.
+**Referred, then repaired.** That `circle_fitness` was wrong was never in question; *which*
+string replaced it was branding — three candidates, no authority to pick. Referred to the
+owner, who ruled on 2026-09-22: **"12Circle Fitness"**, and both platforms aligned to it.
+
+```
+AndroidManifest.xml:11   android:label="12Circle Fitness"
+ios/Runner/Info.plist    <key>CFBundleDisplayName</key><string>12Circle Fitness</string>
+```
+
+Guarded by **A-G3**, mutation-tested: restoring `android:label="circle_fitness"` fails the
+guard. The guard asserts both platforms against the same constant, so Android and iOS
+cannot drift apart again — which is how they came to declare two different names in the
+first place.
 
 ### 23.3 Notification permission is requested on cold start, before any UI
 
@@ -1467,6 +1476,12 @@ collapses into it there. The login screen shows no such node, so this is specifi
 bare `GestureDetector` (`:928`) with no `Semantics(button: true)`; the `PageView` uses
 `NeverScrollableScrollPhysics`. **The precise origin of the full-screen clickable node is
 not yet isolated, and is recorded as unresolved rather than guessed at.**
+
+Ruled out by inspection: there is no global gesture or `unfocus` wrapper in `main.dart` or
+`app_router.dart`, `_Glow` (`:493`) is a non-interactive `Container`, and the `Scaffold`
+itself carries no `onTap`. The one correlation the evidence supports — stated as a
+correlation, not a cause — is that both screens exhibiting the node host the `PageView`,
+while the login screen, which has none, shows no such node. Worth starting there.
 
 Intake page 2 (`Your Profile`) measured clean otherwise — every interactive target
 ≥ 44 dp (inputs 363.4 × 51.0 dp, Male/Female 175.6 × 51.0 dp, date 363.4 × 54.9 dp).
