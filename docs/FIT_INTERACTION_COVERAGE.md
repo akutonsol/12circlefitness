@@ -24,9 +24,9 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 280 (47%) |
-| **Label absent** | **320** |
-| Locked anchors | 75/179 (42%) |
+| Label present | 281 (47%) |
+| **Label absent** | **319** |
+| Locked anchors | 76/179 (42%) |
 
 **These numbers went DOWN, and that is the correction.** See *"The measurement counted its
 own comments"* below.
@@ -114,7 +114,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-008 | Intake | `/intake` | 2 | 7 | `intake_flow_screen.dart` |
 | FIT-019 | Log a meal | `/log-meal` | 4 | 5 | `meals_dashboard_screen.dart` (`_AddMealSheet`) + `widgets/pill_tab.dart` |
 | FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 4 | 5 | `widgets/ai_scan_view.dart` |
-| FIT-031 | Plans | `/upgrade` | 0 | 5 | `upgrade_screen.dart` |
+| FIT-031 🔒 | Plans | `/upgrade` | 1 | 5 | `upgrade_screen.dart` — **remaining 4 blocked on OD-18** |
 | FIT-002 ✅ | Active Workout | `/active-workout` | **5** | 5 | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
 | FIT-015 | Workouts — no plan yet | `/train` | 5 | 9 | `train_hub_screen.dart` |
 | FIT-016 | Workout detail | `/workout-detail` | 3 | 7 | `workout_detail_screen.dart` |
@@ -336,7 +336,7 @@ without fabricating content the brief forbids.
 | FIT-028 | Connect — no coach | `/messages` | 4/10 | `messaging_screen.dart` |
 | FIT-029 | Profile | `/profile` | 2/6 | `profile_screen.dart` |
 | FIT-030 | Settings | `/settings` | 2/6 | `settings_screen.dart` |
-| FIT-031 | Plans | `/upgrade` | 0/5 | `upgrade_screen.dart` |
+| FIT-031 🔒 | Plans | `/upgrade` | 1/5 | `upgrade_screen.dart` — **remaining 4 blocked on OD-18** |
 | FIT-032 | Coach dashboard | `/coach-dashboard` | 5/11 | `coach_dashboard_screen.dart` |
 | FIT-033 | Check-in review | `/coach-checkin-review` | 1/5 | `coach_checkin_review_screen.dart` |
 | FIT-034 | Intake welcome | `/intake` | 1/1 | `intake_flow_screen.dart` |

@@ -5,6 +5,7 @@ import '../domain/entitlements.dart';
 import '../domain/payment_provider.dart';
 import '../../coach/domain/coach_provider.dart';
 import '../../coach/presentation/coach_packages_view_sheet.dart';
+import '../../../core/widgets/named_icon_button.dart';
 import 'checkout_launcher.dart';
 
 const _bg     = Color(0xFF030303);
@@ -60,6 +61,15 @@ class UpgradeScreen extends ConsumerWidget {
         backgroundColor: _bg,
         elevation: 0,
         iconTheme: const IconThemeData(color: _white),
+        // FIT-031 declares "Close" for this control. `AppBar`'s automatic
+        // leading is a back arrow whose accessible name comes from Material's
+        // default tooltip, not from the package — so it is replaced with the
+        // declared word. The action is unchanged: it pops, exactly as before.
+        leading: NamedIconButton(
+          label: 'Close',
+          onTap: () => Navigator.of(context).maybePop(),
+          child: const Icon(Icons.close, color: _white, size: 20),
+        ),
         title: const Text('Plans',
             style: TextStyle(color: _white, fontWeight: FontWeight.w700)),
       ),

@@ -1308,6 +1308,44 @@ finding.
 meal chip; matching the literal would mean hard-coding "lunch" and labelling the button for
 one meal regardless. Fifth composed-label ceiling recorded.
 
+## 3t · FIT-031 · Plans — **BLOCKED after one control. The prices disagree.**
+
+The anchor draws three tiers with prices. **They are not the prices this product charges.**
+
+| Tier | Shipped (`upgrade_screen.dart:28`) | FIT-031 declares |
+|---|---|---|
+| Self-Guided | **$29 /mo** | **£19 /mo** |
+| AI-Guided | **$59 /mo** | **£39 /mo** |
+| Coach-Guided | **"Coach-set"** (no price) | **£79 /mo** |
+
+Different **currency** and different **amounts**, on every tier. The shipped ladder also has
+**four** entries (Free, Self, AI, Coach); the anchor draws three.
+
+### Why this is not a copy change
+
+The displayed prices are backed by **real Stripe price IDs**:
+`STRIPE_SELF_GUIDED_PRICE_ID` and `STRIPE_AI_GUIDED_PRICE_ID`
+(`supabase/functions/create-checkout/index.ts:13`, `update-subscription/index.ts:10`), and
+that function's own header records the amounts as **$29/mo** and **$59/mo**.
+
+**Editing the label alone would show a client £19 and charge them $29.** That is not a
+design-integration task with a copy risk attached; it is a consumer-harm risk, and the
+decision — which currency, which amounts, whether Free survives, and whether Stripe is
+repriced — belongs to the owner. Recorded as **OD-18**.
+
+### What was taken
+
+`Close` only. FIT-031 declares it; `AppBar`'s automatic leading was a back arrow named by
+Material's default tooltip rather than by the package. The action is unchanged — it pops,
+exactly as before.
+
+`Switch to coach-guided` was **not** taken either, although it is only a label. The shipped
+CTA reads `Find a Coach` and navigates to the marketplace; the anchor's wording promises a
+**plan switch**. Those are different actions, and relabelling one as the other on a paywall
+is the same class of decision as the prices.
+
+**FIT-031: 1/5, and the remaining four are one owner decision, not four tasks.**
+
 ## 4 · Design package
 
 | Check | Status |
@@ -1804,6 +1842,13 @@ booking screen's existing, already-shipped phrasing as the house pattern. Record
 **OD-8**.
 
 ## 6d · OWNER DECISION REGISTER
+
+**OD-18 · FIT-031's prices are not the product's prices.** The anchor draws £19 / £39 / £79;
+the app shows $29 / $59 / "Coach-set", backed by live Stripe price IDs whose own function
+header records $29 and $59. Editing the label alone would show a client £19 and charge them
+$29. Decide the currency, the amounts, whether the Free tier survives (the anchor draws
+three tiers, the app has four), and whether Stripe is repriced. Also covers
+`Switch to coach-guided`, whose shipped CTA (`Find a Coach`) performs a different action.
 
 **OD-17 · FIT-019's third pill is `Recent`; the app's is `Barcode`.** Different features,
 no recent-foods data source in the repository, and the design draws three pills. Decide
