@@ -451,6 +451,37 @@ top-bar icon (`app_top_nav.dart:116`); Nutrition has no nav entry at all.
 A third, never-rendered nav definition also exists (`app_scaffold.dart:252-279`,
 `AppBottomNav`, never instantiated) with a *fourth* different tab set.
 
+### F-14 · UPDATE — the stranding objection is resolved by FIT-001
+
+My recorded reason for not adopting the mandated five tabs was that `/directory` is the
+**sole** entry to `/events` and the primary entry to `/classes`, `/challenges`,
+`/community` and `/progress`, so replacing the FAB would strand them. **FIT-001 answers
+that directly.**
+
+Its subtitle is *"Activity folded in · Directory moved to the top bar"*, and its frame
+carries three 44×44 controls in the Home bar:
+
+```
+aria-label="Directory"      ph-compass
+aria-label="Messages"       ph-chat-circle
+aria-label="Notifications"  ph-bell   + unread dot (violet-txt)
+```
+
+So the design does not delete those destinations — it **relocates** them. Directory moves
+from the bottom FAB to the Home top bar, and Activity folds into Home rather than holding a
+tab. That frees exactly the two slots the five-tab contract needs for Nutrition and
+Connect.
+
+**Consequence for the decision:** the technical objection is withdrawn. Nothing is
+stranded, and the package supplies the complete relocation plan rather than only the tab
+list. What remains is a genuine product choice — whether to adopt the new navigation —
+not an unanswered engineering question. The repo already has a top bar
+(`core/widgets/app_top_nav.dart`, which routes to `/messages` at `:116` and `/profile` at
+`:73`), so the Directory and Notifications controls have an established home.
+
+This is recorded as an update rather than an edit: the original objection was correct on the
+evidence available then, and wrong once FIT-001 was read.
+
 ### F-15 · Error→empty collapse — the dominant defect pattern
 
 Eight screens present a **server failure as "you have no data"**:
