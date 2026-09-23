@@ -24,12 +24,12 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 269 (45%) |
-| **Label absent** | **331** |
-| Locked anchors | 64/179 (36%) |
+| Label present | 273 (46%) |
+| **Label absent** | **327** |
+| Locked anchors | 68/179 (38%) |
 
-Baseline measured 2026-09-23 was 258 / 342 / 53. Eleven points have moved since, in four
-anchors: FIT-028 (+3), FIT-017 (+2, complete), FIT-002 (+4, complete) and FIT-027 (+2, structurally complete). FIT-017's and FIT-002's are
+Baseline measured 2026-09-23 was 258 / 342 / 53. Fifteen points have moved since, in five
+anchors: FIT-028 (+3), FIT-017 (+2, complete), FIT-002 (+4, complete) FIT-027 (+2, structurally complete) and FIT-005 (+4). FIT-017's and FIT-002's are
 **hand-corrected** — see the notes below; the generator reads only the file the router
 builds, and both anchors' controls live in sibling widget files. FIT-028's three-point move
 (`/messages`, no-coach state) and is itemised in the note under that row — **two of the
@@ -49,7 +49,7 @@ everything else. Where anything disagrees, they win."*
 
 | FIT | Screen | Route | Present | Declared | Implementation |
 |---|---|---|--:|--:|---|
-| FIT-005 | Connect | `/messages` | 1 | 12 | `messaging_screen.dart` |
+| FIT-005 | Connect | `/messages` | 5 | 12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
 | FIT-004 | Check-In | `/daily-checkin` | 3 | 11 | `daily_checkin_screen.dart` |
 | FIT-023 | Check-in hub | `/checkins` | 2 | 10 | `checkin_screen.dart` |
 | FIT-003 | Nutrition | `/meals-dashboard` | 5 | 12 | `meals_dashboard_screen.dart` |
@@ -81,6 +81,23 @@ everything else. Where anything disagrees, they win."*
 
 
 
+
+
+### FIT-005, itemised — the relationship layer
+
+| Declared | Status | Note |
+|---|---|---|
+| `Find a coach` | present | FIT-028's no-coach state. |
+| `Open message` | **present** | Added as a **hint**, not a name. The row's accessible name has to contain its visible label (WCAG 2.5.3), and what is visible — participant, last message, age — is also what a client needs in order to choose a thread. The design's phrase describes the action, so it is announced after: *"Priya, Hi there, 2h, button, Open message"*. The same judgement as FIT-002's `Adjust weight or reps`, reached the other way round. |
+| `Book` | **absent** | The teaser rows defer to `/classes`, which carries the Book affordance (FIT-027). Wiring a booking from `/messages` is a second write path to the same table for one row in a summary; recorded rather than built. |
+| `Priya Hit 70 kg…` | **artifact** | Counted, but it matches a **doc comment** quoting the anchor's sample row, not a rendered string. The row *shape* is real — a live post renders `Priya Hit 70 kg on the hinge today · 2h`, pinned by a test — but the literal sample would need that exact post to exist. Same class as FIT-028's `Connect` artifact. |
+| `Tues Lifters…` · the two dated rows | absent | The design board's demo data, as with FIT-027's five. |
+| bottom nav ×5 | absent | Shell items the screen-file heuristic cannot see. |
+
+**What was actually built**: three teasers under the conversations — **Feed**, **Groups**,
+**What's on** — all three titles being labels the package declares, all three fed by
+providers that already existed (`livePostsProvider`, `liveGroupsProvider`, and FIT-027's
+own `whatsOnProvider`, reused rather than reimplemented).
 
 ### FIT-027, itemised — five of ten is the honest ceiling
 
@@ -176,7 +193,7 @@ without fabricating content the brief forbids.
 | FIT-002 ✅ | Active Workout | `/active-workout` | **5/5** | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
 | FIT-003 | Nutrition | `/meals-dashboard` | 5/12 | `meals_dashboard_screen.dart` |
 | FIT-004 | Check-In | `/daily-checkin` | 3/11 | `daily_checkin_screen.dart` |
-| FIT-005 | Connect | `/messages` | 1/12 | `messaging_screen.dart` |
+| FIT-005 | Connect | `/messages` | 5/12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
 | FIT-006 | Welcome | `/onboarding` | 0/2 | `onboarding_screen.dart` |
 | FIT-007 | Sign in | `/login` | 1/1 | `login_screen.dart` |
 | FIT-008 | Intake | `/intake` | 2/7 | `intake_flow_screen.dart` |

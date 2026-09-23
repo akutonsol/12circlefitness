@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:circle_fitness/features/auth/domain/auth_provider.dart';
@@ -172,5 +173,36 @@ void main() {
     ).first);
     expect(size.height, greaterThanOrEqualTo(44.0));
     expect(size.width, greaterThanOrEqualTo(44.0));
+  });
+
+  testWidgets('FIT-005 a conversation row keeps its CONTENT as its name and '
+      'takes the design\'s phrase as a hint', (t) async {
+    final handle = t.ensureSemantics();
+    await t.pumpWidget(harness(
+      convs: const AsyncData<List<Map<String, dynamic>>>([
+        {
+          'id': 'c1',
+          'participant': {'first_name': 'Priya', 'last_name': 'N', 'role': 'coach'},
+          'last_message': 'Hi there',
+        }
+      ]),
+      coaches: const AsyncData([
+        {'id': 'c1'}
+      ]),
+      profile: member,
+    ));
+    await t.pump();
+
+    // The row announces WHO and WHAT — a client choosing between threads needs
+    // that, and WCAG 2.5.3 requires the name to contain the visible label.
+    final node = t.getSemantics(find.text('Priya N'));
+    expect(node.label, contains('Priya N'));
+    expect(node.label, contains('Hi there'));
+    // FIT-005's "Open message" describes the ACTION, so it is the hint. Naming
+    // the row with it would have replaced the content and scored a coverage
+    // point at the client's expense.
+    expect(node.hint, 'Open message');
+    expect(node.hasFlag(SemanticsFlag.isButton), isTrue);
+    handle.dispose();
   });
 }

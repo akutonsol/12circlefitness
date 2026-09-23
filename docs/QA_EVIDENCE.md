@@ -373,8 +373,8 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **987 tests pass, 9 skipped** | **PASS** |
-| Device probes | 7 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
+| Unit + widget suite | **1014 tests pass, 9 skipped** | **PASS** |
+| Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
 ## 3b · FIT-028 · Connect — no coach — **VERIFIED LIVE**
@@ -834,6 +834,52 @@ carrying "Booked", so nothing was lost there — but removing the FAB would take
 coach's only way to create a class. **A locked screen not drawing something is not the
 same as the design saying to delete it**, so the FAB stays and the discrepancy is recorded
 rather than resolved by guessing.
+
+## 3k · FIT-005 · Connect — "Coach, community and pods in one relationship layer"
+
+`/messages` was a conversation list. The anchor makes it the place a client sees every
+relationship they have. Three teasers now sit under the conversations — **Feed**,
+**Groups**, **What's on** — all three titles being labels the design package declares, all
+three fed by providers that already existed.
+
+**FIT-027 is reused, not reimplemented.** The "What's on" teaser reads the same merged
+list `/classes` reads. Two independent definitions of "what is coming up" would drift, and
+the first symptom would be the two screens disagreeing in front of the client.
+
+**The rule, again, for the same reason.** A section whose source failed must never be
+drawn as a section with nothing in it. Under a heading that says "Groups", an absence is
+an answer: it tells the client they are in none.
+
+| State | What the section does |
+|---|---|
+| source failed | names the failure under its own heading; the other sections are untouched |
+| failed carrying stale rows | contributes **none** of them |
+| genuinely empty | stays quiet and offers the way to the screen that owns it |
+| still loading | renders **nothing** — not a spinner, and above all not an empty section |
+| the merged list partly failed with rows surviving | shows them; the full screen names what is missing |
+
+**`Open message` is a hint, not a name.** The row's accessible name must contain its
+visible label (WCAG 2.5.3), and what is visible — participant, last message, age — is also
+what a client needs in order to choose a thread. The design's phrase describes the action,
+so it is announced after it. Naming the row "Open message" would have scored a coverage
+point by deleting the information the row exists to carry. The mutation that does exactly
+that now fails.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/connect_sections_test.dart` — 16 tests | **PASS** |
+| Wiring | `test/widget/connect_sections_view_test.dart` — 10 tests over the real sections and real providers | **PASS** |
+| `Open message` | 1 test in `messaging_no_coach_test.dart`, 2 mutations killed | **PASS** |
+| Guard strength | 9 mutations, all killed | **PASS** |
+| **Runtime, on device** | `integration_test/fit005_connect_device_test.dart` on `emulator-5554`: all three headings report `header=true`, all three "Open …" affordances `button:true tap:true` at `379.4 × 44.0 dp` | **VERIFIED ON DEVICE** |
+| Suite | 1014 pass / 9 skipped; A-G8 47, EC-G8 134, both unchanged | **PASS** |
+
+**Five of twelve, and the ceiling is lower than it looks.** Four of the seven absent are
+the design board's sample rows and the bottom nav. One — `Priya Hit 70 kg…` — is counted
+but is a **doc-comment artifact**, and is recorded as one rather than left to flatter the
+number. `Book` is genuinely absent: the teaser defers to `/classes`, which carries the
+affordance, and wiring a booking from `/messages` would be a second write path to the same
+table for one row in a summary.
 
 ## 4 · Design package
 

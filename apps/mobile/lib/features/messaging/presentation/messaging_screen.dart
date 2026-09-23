@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/widgets/named_icon_button.dart';
 import '../../auth/domain/auth_provider.dart';
 import '../../coach/domain/coach_provider.dart';
+import '../../community/domain/community_provider.dart';
 import '../domain/messaging_provider.dart';
+import 'connect_sections_view.dart';
 
 const _bg      = Color(0xFF030303);
 const _card    = Color(0xFF0E0B16);
@@ -51,10 +53,29 @@ class MessagingScreen extends ConsumerWidget {
             ])),
 
           // ── Body ──
+          //
+          // FIT-005 makes this screen a relationship layer, not a conversation
+          // list: the coach's threads, then Feed, Groups and What's on. One
+          // scroll view holds all four, so a member with two conversations
+          // still reaches the rest of their relationships without a second
+          // navigation.
           Expanded(
-            child: convsAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: _brand)),
+            child: RefreshIndicator(
+              color: _brand,
+              backgroundColor: _card,
+              onRefresh: () async {
+                ref.invalidate(conversationsProvider);
+                ref.invalidate(livePostsProvider);
+                ref.invalidate(liveGroupsProvider);
+              },
+              child: ListView(children: [
+                convsAsync.when(
+              // Inside a ListView these states need a bounded height; 320 is
+              // roughly a phone's remaining viewport under the header, so they
+              // still read as the screen's answer rather than a stray row.
+              loading: () => const SizedBox(
+                height: 320,
+                child: Center(child: CircularProgressIndicator(color: _brand))),
               error: (_, __) => _EmptyState(
                 icon: Icons.wifi_off_outlined,
                 message: "Couldn't load messages",
@@ -92,21 +113,25 @@ class MessagingScreen extends ConsumerWidget {
                     orElse: () => neutral,
                   );
                 }
-                return RefreshIndicator(
-                  color: _brand,
-                  backgroundColor: _card,
-                  onRefresh: () async => ref.invalidate(conversationsProvider),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: convs.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _ConversationTile(
-                      conv: convs[i],
-                      onTap: () {
-                        ref.read(selectedConversationProvider.notifier).state = convs[i];
-                        context.go('/chat');
-                      })));
-              })),
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(children: [
+                    for (var i = 0; i < convs.length; i++) ...[
+                      if (i > 0) const SizedBox(height: 10),
+                      _ConversationTile(
+                        conv: convs[i],
+                        onTap: () {
+                          ref.read(selectedConversationProvider.notifier).state = convs[i];
+                          context.go('/chat');
+                        }),
+                    ],
+                  ]),
+                );
+              }),
+                const ConnectSectionsView(),
+                const SizedBox(height: 80),
+              ]),
+            )),
         ])));
   }
 }
@@ -128,7 +153,21 @@ class _ConversationTile extends StatelessWidget {
     final lastAt = conv['last_message_at'] as String?;
     final timeStr = lastAt != null ? _formatTime(DateTime.parse(lastAt).toLocal()) : '';
 
-    return GestureDetector(
+    // FIT-005 declares "Open message" for this row. It is NOT used as the
+    // accessible name: the name has to contain the visible label (WCAG 2.5.3),
+    // and what is visible here is the participant, the last message and its
+    // age — which is also what a client needs to hear in order to choose a
+    // thread. So the row keeps its content as its name and the design's phrase
+    // becomes the HINT, announced after it: "Priya, Hi there, 2h, button,
+    // Open message".
+    //
+    // The same judgement as FIT-002's "Adjust weight or reps", reached the
+    // other way round: there the design's phrase belonged on screen, here it
+    // belongs beside it.
+    return Semantics(
+      button: true,
+      hint: 'Open message',
+      child: GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -187,7 +226,7 @@ class _ConversationTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: _muted.withValues(alpha: 0.6), fontSize: 13)),
             ])),
-        ])));
+        ]))));
   }
 
   String _formatTime(DateTime dt) {
@@ -233,7 +272,11 @@ class _NoCoachState extends StatelessWidget {
   const _NoCoachState();
 
   @override
-  Widget build(BuildContext context) => Center(
+  Widget build(BuildContext context) => SizedBox(
+        // Bounded because FIT-005 put this inside a scroll view; without it the
+        // Center has no height to centre in.
+        height: 340,
+        child: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -267,6 +310,7 @@ class _NoCoachState extends StatelessWidget {
             ),
           ]),
         ),
+        ),
       );
 }
 
@@ -276,7 +320,10 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.icon, required this.message, required this.sub});
 
   @override
-  Widget build(BuildContext context) => Center(
+  Widget build(BuildContext context) => SizedBox(
+        // Bounded because FIT-005 put this inside a scroll view.
+        height: 320,
+        child: Center(
     child: Padding(
       padding: const EdgeInsets.all(32),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -289,5 +336,5 @@ class _EmptyState extends StatelessWidget {
         Text(sub,
           textAlign: TextAlign.center,
           style: TextStyle(color: _muted.withValues(alpha: 0.5), fontSize: 13)),
-      ])));
+      ]))));
 }
