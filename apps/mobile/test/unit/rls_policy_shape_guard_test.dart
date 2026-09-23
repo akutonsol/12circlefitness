@@ -138,4 +138,104 @@ void main() {
         reason: 'The correction for F-21 needs no new database function — '
             'migration 113 already defines and uses this one.');
   });
+
+  // ── SEC-G2 · the cross-user-write subset ──────────────────────────────────
+  //
+  // SEC-G1 counts fifteen policies of one shape. They are NOT equally
+  // dangerous, and a single number lets the worse kind hide inside it.
+  //
+  // `USING (coach_id = auth.uid() OR client_id = auth.uid())` is satisfied by
+  // EITHER disjunct, so a caller can write a row naming itself as coach and
+  // **any other user** as client. That is the class that reaches a victim, and
+  // it is the one that was proven: a client fixture assigned a programme it had
+  // just forged to a different account (201).
+  //
+  // FIVE policies across FOUR tables carry it — `coaching_calls` has two
+  // ("Coach and client can see calls" from 002, and "calls_participant_access"
+  // added later), which is worth stating because it means a correction has to
+  // find both. A sixth must not appear while OD-14 is outstanding, and under
+  // SEC-G1 alone it could: displacing one of the single-party policies leaves
+  // the total unchanged.
+  group('SEC-G2 the cross-user-write shape', () {
+    /// Measured 2026-09-23: 5 policies across 4 tables. Lower when policies
+    /// are corrected; never raise.
+    const baseline = 5;
+
+    List<({String table, String policy})> twoParty() {
+      final dir = Directory('../../supabase/migrations');
+      if (!dir.existsSync()) return const [];
+
+      final policy = RegExp(
+        r'CREATE POLICY\s+"([^"]+)"\s+ON\s+([\w.]+)\s+FOR\s+ALL(.*?);',
+        dotAll: true,
+        caseSensitive: false,
+      );
+      // Two DIFFERENT caller-writable columns, either of which satisfies the
+      // predicate on its own.
+      final uidCol = RegExp(r'(\w+_id)\s*=\s*\(?\s*(?:SELECT\s+)?auth\.uid\(\)',
+          caseSensitive: false);
+      final uidColRev = RegExp(r'auth\.uid\(\)\s*=\s*(\w+_id)',
+          caseSensitive: false);
+
+      final out = <({String table, String policy})>[];
+      final files = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.sql'))
+          .toList()
+        ..sort((a, b) => a.path.compareTo(b.path));
+
+      for (final f in files) {
+        final src = f.readAsStringSync();
+        for (final m in policy.allMatches(src)) {
+          final body = m.group(3)!;
+          if (body.toUpperCase().contains('WITH CHECK')) continue;
+          if (!body.toUpperCase().contains(' OR ')) continue;
+          final cols = <String>{
+            ...uidCol.allMatches(body).map((c) => c.group(1)!),
+            ...uidColRev.allMatches(body).map((c) => c.group(1)!),
+          };
+          if (cols.length < 2) continue;
+          out.add((table: m.group(2)!, policy: m.group(1)!));
+        }
+      }
+      return out;
+    }
+
+    test('does not spread beyond the five recorded policies', () {
+      final found = twoParty();
+      if (found.isEmpty) {
+        fail('Could not read supabase/migrations — SEC-G2 asserted nothing.');
+      }
+      final listing =
+          found.map((p) => '  ${p.table} "${p.policy}"').join('\n');
+      expect(
+        found.length,
+        lessThanOrEqualTo(baseline),
+        reason: 'A policy lets a caller satisfy it by naming EITHER party, so '
+            'it can write a row about another user. This is the shape proven '
+            'exploitable for a cross-user write.\n'
+            'Found ${found.length} (baseline $baseline):\n$listing\n\n'
+            'See docs/F21_BLAST_RADIUS.md §2a.',
+      );
+    });
+
+    test('the four are the ones the blast-radius analysis names', () {
+      // If this drifts, the analysis is stale and the screens it clears as
+      // safe may no longer be.
+      final tables = twoParty().map((p) => p.table).toSet();
+      for (final t in const [
+        'workout_program_assignments',
+        'client_nutrition_plans',
+        'client_habits',
+        'coaching_calls',
+      ]) {
+        expect(tables.any((x) => x.endsWith(t)), isTrue,
+            reason: '$t is named in docs/F21_BLAST_RADIUS.md as carrying the '
+                'cross-user-write shape. If it no longer does, the fix has '
+                'landed — lower both baselines and update the analysis in the '
+                'same change.');
+      }
+    });
+  });
 }

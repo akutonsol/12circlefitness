@@ -373,7 +373,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1014 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1017 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -880,6 +880,59 @@ but is a **doc-comment artifact**, and is recorded as one rather than left to fl
 number. `Book` is genuinely absent: the teaser defers to `/classes`, which carries the
 affordance, and wiring a booking from `/messages` would be a second write path to the same
 table for one row in a summary.
+
+## 3l · F-21 · blast radius — **screen-level, static, no further mutation**
+
+Full analysis in **`docs/F21_BLAST_RADIUS.md`**. The policy was not changed; OD-14 stands.
+
+**The fifteen are not equally dangerous.** The split is whether the predicate names one
+party or two:
+
+| Class | Count | Effect |
+|---|---|---|
+| two-party, `coach_id = uid() OR client_id = uid()` | **5 policies, 4 tables** | a caller can write a row naming itself coach and **any other user** as client — the class that reaches a victim, and the one that was proven |
+| single-party, `coach_id = uid()` | 11 | self-forgery: claim to be a coach; no direct victim |
+
+**What a victim would actually see, traced end to end in code.** A forged
+`workout_program_assignments` row satisfies `getMyAssignedProgram()`'s filter
+(`.eq('client_id', me).eq('status','active')`, `coach_program_service.dart:219`) exactly as
+a real one does. It decodes through `assignedWorkoutsProvider` into `/train`'s hero card and
+programme list, `getTodaysWorkout()` → `/home`, and `/active-workout`. **The victim sees
+prescribed exercises, loads and rep schemes attributed to their coach, and can start and log
+the session.** The attacker chooses the weights, which makes this a physical-safety exposure
+in a strength product, not only a data-integrity one.
+
+**A second effect, not previously recorded.** That read uses `.maybeSingle()`. A victim who
+already has a real active assignment and receives a forged one matches **two** rows and the
+read fails — so the forged row does not merely add a fake programme, **it makes the victim's
+real programme unreadable.** Because `assignedWorkoutsProvider` now propagates its errors
+(the F-15 work), the client is at least shown `_PlanUnavailable` rather than told they have
+no plan. The denial stands either way.
+
+Also traced: forged `coaching_calls` appear in `/checkins` upcoming and **inflate `/home`'s
+activity bars** (calls are weighted ×3 there); forged `client_nutrition_plans` and
+`client_habits` land under the victim's id; forged `classes` and `challenges` are publicly
+readable and render in `/classes` and `/challenges` as real.
+
+**Which screens are safe to keep integrating.** The test is whether a screen's correctness
+depends on the integrity of a row written through one of these policies — not whether it
+touches the feature at all. `/train`, `/active-workout`, `/checkins`, `/booking`, nutrition
+and habits surfaces, `/coach-dashboard` are **BLOCKED-BY-F21 for integrity claims**, and
+that is narrower than "do not work on them": FIT-002 was taken to 5/5 while F-21 was open,
+because accessibility and interaction work does not rest on the row being authentic.
+`/messages`, `/classes`' structure, `/home`'s week card, `/daily-checkin`, `/profile`,
+`/progress`, `/intake` and auth are clear.
+
+**SEC-G2 added.** SEC-G1 holds the whole population at 15; a new two-party policy could
+hide inside that number by displacing a single-party one. SEC-G2 holds the cross-user-write
+subset at 5. Both parse the real migrations, both are ratchets, and both were
+mutation-tested — a sixth two-party policy fails SEC-G2, a sixteenth single-party one fails
+SEC-G1 without disturbing SEC-G2.
+
+**A correction of record.** The analysis first stated that `coaching_calls` carried its
+policy "twice", from reading the migration. SEC-G2 measured it: they are two *different*
+policies with different names, one added later. Five, not four. A correction that fixed one
+and left the other would have looked complete against the guess.
 
 ## 4 · Design package
 
