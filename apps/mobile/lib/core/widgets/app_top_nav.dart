@@ -110,14 +110,24 @@ class AppTopNavRow extends ConsumerWidget {
           ],
         ),
       ),
-      const SizedBox(width: 8),
+      // FIT-001 places three controls in the Home bar: Directory, Messages,
+      // Notifications. Directory was absent. The design moves it here from the
+      // bottom FAB ("Activity folded in · Directory moved to the top bar"),
+      // which is what frees a bottom slot without stranding /events, /classes,
+      // /challenges or /community — see F-14 in docs/QA_EVIDENCE.md.
+      _NavIconButton(
+        icon: Icons.explore_outlined,
+        label: 'Directory',
+        onTap: () => context.go('/directory'),
+      ),
       _NavIconButton(
         icon: Icons.chat_bubble_outline_rounded,
+        label: 'Messages',
         onTap: () => context.go('/messages'),
       ),
-      const SizedBox(width: 8),
       _NavIconButton(
         icon: Icons.notifications_none_rounded,
+        label: 'Notifications',
         showDot: unread > 0,
         onTap: () => context.push('/notifications'),
       ),
@@ -142,12 +152,32 @@ class _NavIconButton extends StatelessWidget {
   final IconData icon;
   final bool showDot;
   final VoidCallback onTap;
-  const _NavIconButton({required this.icon, this.showDot = false, required this.onTap});
+  /// Accessible name. These are icon-only controls: without it the tree reports
+  /// them unlabelled and a screen reader announces nothing. FIT-001 supplies
+  /// the wording for all three ("Directory", "Messages", "Notifications"), so
+  /// none of it is invented here.
+  final String label;
+  const _NavIconButton({
+    required this.icon,
+    this.showDot = false,
+    required this.onTap,
+    required this.label,
+  });
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        label: label,
+        child: GestureDetector(
         onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        // The visual chip stays 38px — the design's `tap` component is a 44x44
+        // TARGET, not a 44px box. Constraining the hit area rather than the
+        // decoration keeps the bar's appearance and clears the floor.
         child: Container(
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          alignment: Alignment.center,
+          child: Container(
           width: 38,
           height: 38,
           decoration: BoxDecoration(
@@ -173,6 +203,8 @@ class _NavIconButton extends StatelessWidget {
               ),
           ]),
         ),
+        ),
+      ),
       );
 }
 

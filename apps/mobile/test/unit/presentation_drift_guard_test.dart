@@ -295,6 +295,43 @@ void main() {
     });
   });
 
+  group('A-G7 the top-bar icon controls are named and reachable', () {
+    /// These are icon-only: a compass, a speech bubble, a bell. Without an
+    /// accessible name the tree reports them unlabelled and a screen reader
+    /// announces nothing at all — the same defect measured on the password
+    /// toggle. They were also 38x38, below the 44dp floor the design's `tap`
+    /// component sets.
+    ///
+    /// FIT-001 supplies all three names, so none was invented.
+    final src = File('lib/core/widgets/app_top_nav.dart').readAsStringSync();
+
+    test('every top-bar icon button declares a label', () {
+      final buttons = RegExp(r'_NavIconButton\((.*?)\)\s*,', dotAll: true)
+          .allMatches(src)
+          .map((m) => m.group(1)!)
+          .toList();
+      expect(buttons.length, greaterThanOrEqualTo(3),
+          reason: 'FIT-001 places Directory, Messages and Notifications here.');
+      for (final b in buttons) {
+        expect(b, contains('label:'),
+            reason: 'An icon-only control without a name is unusable by a '
+                'screen reader:\n$b');
+      }
+    });
+
+    test('Directory is present — FIT-001 moves it to the top bar', () {
+      expect(src, contains("label: 'Directory'"));
+      expect(src, contains("context.go('/directory')"),
+          reason: '/directory is the sole entry to /events; relocating rather '
+              'than deleting it is what makes the five-tab nav possible.');
+    });
+
+    test('the hit area clears the 44dp floor', () {
+      expect(src, contains('minWidth: 44, minHeight: 44'),
+          reason: 'The chip may stay 38px, but the TARGET must be 44.');
+    });
+  });
+
   group('A-G3 the app ships under its product name, on both platforms', () {
     /// Found at runtime: the first thing Android showed a new user was
     /// "Allow circle_fitness to send you notifications?" — the Flutter project
