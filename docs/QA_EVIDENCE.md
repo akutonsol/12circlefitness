@@ -2034,6 +2034,97 @@ exemption that matched everything would have hidden all three real sites.
 Suite: **1174 pass / 9 skipped**. Analyzer: 0 errors. No live mutation was performed and no
 policy was changed.
 
+## 3ai · FIT-032 · the triage rules, and the three places they refuse to speak
+
+FIT-032 is **locked**, and its annotation is the strongest product statement in the
+package:
+
+> *"A coach with 24 clients does not need 24 rows on open — they need the six that need
+> something, each with the action named. 'Needs you today' is triage; the roster is one tap
+> away. Coach nav is unchanged."*
+
+The shipped `/coach-dashboard` is 1,642 lines of exactly what that rejects — tabs, an
+`ALL CLIENTS` roster, a leaderboard, AI panels. It is **not** being deleted: it carries a
+coach's only path to invites and pending requests, which the board does not draw, and
+removing a capability because a frame omits it is the mistake **OD-15** already records.
+The triage surface is being added as the opening state.
+
+This commit is the rules layer — pure functions, no I/O, no widget — because that is where
+the board's product decisions live and where they can be proven.
+
+### Every signal comes from a source a coach may actually read
+
+| Row | Source | Authority |
+|---|---|---|
+| `Review` | `weekly_checkins` | `114` — owner **or** `is_active_coach_of` |
+| `At risk` | `workout_sessions` + `churn_risk` | `100` — owner **or** `is_active_coach_of`, FOR SELECT; `079` RPC |
+| `Assign` | `workout_program_assignments` | two-party, SEC-G2 — **readable, but see below** |
+| `Reply` | `messages` / `conversations` | participant-scoped; the coach is a participant |
+
+**`workout_logs` is deliberately not a source**, per §3ah and `SEC-G3`. Built on it, the
+`At risk` row would fire for every client always — a confident wrong zero about a real
+person. `workout_sessions` answers the same question and a coach is permitted to ask it.
+
+**`Assign` stays BLOCKED-BY-F21 for integrity claims.**
+`workout_program_assignments` is one of SEC-G2's four two-party tables
+(`docs/F21_BLAST_RADIUS.md` §3a). The rule is built and tested; what it must not claim is
+that the assignment it reads is authentic. Same standing as `/workout-detail`.
+
+### The three refusals
+
+A rule that always produces a row is not triage. Each of these is a place the rules stay
+silent, and each is pinned by a test **and** a mutation:
+
+1. **No name, no row.** "Client needs you today" is not triage.
+2. **No sessions at all is not a silence.** A client who has never trained has no sessions
+   either; counting that as inactivity would put every new client on the coach's list on
+   day one — the opposite of what the board asks for.
+3. **A risk score with no day count states the risk, not a number.** `Flagged at risk of
+   dropping off`, never `No sessions logged in 0 days`.
+
+### The thresholds are the caller's, and that is recorded as OD-21
+
+The board shows **values** — `9 days`, `Sunday` — not thresholds. How long a silence must
+last before a coach is told a client is at risk, and how far ahead a block's end should
+surface, are judgements about what a coach is being told. `inactivityDays` and
+`blockEndHorizonDays` are **required parameters with no default**, so no call site can
+adopt a number by accident.
+
+The one threshold that is fixed is the one already shipped: `churn_risk >= 50`
+(`coach_dashboard_screen.dart:565`). Reusing it is not a new decision, so it is a constant
+rather than a parameter — and a test pins it at 50.
+
+The **order** is the board's order and nothing more. No priority between a silent client and
+an unanswered question is stated anywhere in the package, and inventing one would assert a
+coaching judgement the design did not make.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/coach_triage_test.dart` — 22 tests | **PASS** |
+| Guard strength | **8 / 8 mutations killed** (T2's first run was a no-op; re-run validly) | **PASS** |
+| Suite | **1196 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Presentation | not yet wired — rules only | **OPEN** |
+| Runtime | not yet — nothing renders these | **OPEN** |
+
+| # | Mutation | Result |
+|---|---|---|
+| T1 | no sessions at all counts as a silence | **KILLED** |
+| T2 | an unnamed client gets a placeholder row | **KILLED** (first run was a no-op) |
+| T3 | ignore the inactivity threshold | **KILLED** |
+| T4 | drift the churn threshold to 40 | **KILLED** |
+| T5 | `hasNextBlock` stops mattering | **KILLED** |
+| T6 | the visible cap becomes six | **KILLED** |
+| T7 | the overflow line uses a numeral | **KILLED** |
+| T8 | a risk-only row invents a day count | **KILLED** |
+
+### New owner decision
+
+**OD-21 · the two triage thresholds.** How many days of silence make a client "at risk",
+and how many days before a block ends the coach should be prompted to assign the next one.
+The board shows `9 days` and `Sunday` as sample values, not as rules. Until the owner sets
+them, the rules layer refuses a default and the call site must state both.
+
 ## 4 · Design package
 
 | Check | Status |
