@@ -143,6 +143,43 @@ Separating the concerns exactly as the brief requires:
 open an admin screen and see it render empty or placeholdered. That is a trust, polish and
 defence-in-depth problem, not a breach. Overstating it would be as wrong as missing it.
 
+#### Second pass — the privileged screens' actual calls, probed
+
+A delegated trace produced the exact table/RPC surface of the four routes, which was then
+probed with the same client identity:
+
+| Probe | Result | Verdict |
+|---|---|---|
+| `rpc admin_platform_stats` | **403 `42501` "not authorized"** | denied — `SECURITY DEFINER` + `is_admin()` guard, `019_admin_dashboard.sql:24-26` |
+| `rpc admin_recent_users` | **403 `42501` "not authorized"** | denied — same guard, `:60-62` |
+| `rpc coach_client_ai_signals` | 200 **`[]`** | executes, but server-filters `r.coach_id = auth.uid()` (`079:88`) — returns nothing |
+| `GET events` | 200, 3 rows | `"all read events" USING (true)` (`001:398`) — shared content, by design |
+| **`GET platform_settings`** | **200, 1 row** | **readable by any authenticated user** |
+
+**F-12a · Platform configuration is readable by every member — the one real exposure.**
+
+`039_platform_settings.sql:17-18` declares
+`CREATE POLICY "read platform settings" … FOR SELECT TO authenticated USING (true)`. Writes
+are correctly admin-gated (`:22-25`), but reads are open, and the table holds business
+configuration — the row the admin dashboard reads is `marketplace_commission_rate`
+(`platform_settings_service.dart:11`).
+
+So a member can read the platform's commission rate. **Classification: P3 — business-
+configuration disclosure, not user-data disclosure.** It is declared and deliberate in the
+migration, so it may be intentional; recorded so the owner can confirm rather than
+discover. Raised as **OD-9**.
+
+**Declared-policy weak points found by the trace but NOT demonstrated as exploitable**, each
+recorded for the eventual table-by-table sweep rather than asserted as defects:
+`events` vendor UPDATE/DELETE are ownership-scoped but the role predicate sits only in
+`WITH CHECK` (`020:18-27`); `event_registrations` vendor UPDATE has `USING` and no
+`WITH CHECK` (`020:42-49`); `workout_logs` has **no coach-read policy at all** (owner-only,
+`003:193`) while three code paths read it for other users' ids — which means those reads are
+declared-denied and the coach surface silently gets nothing; `goals` coach-read keys on the
+row's `coach_id` column rather than an active-relationship check (`018:71`); and `checkins`
+— read by `coach_dashboard_screen.dart:107-112` — **does not exist in any migration** and is
+already a tracked contract violation (`known-violations.json:14-17`, I-CHK-01).
+
 **Scope limit, stated plainly:** this tested the tables named above, not an exhaustive set.
 It establishes that the data layer *is* enforcing, not that every table is covered. A
 table-by-table sweep is the remaining work, and the repo already has the harness for it
