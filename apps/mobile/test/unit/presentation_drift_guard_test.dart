@@ -246,6 +246,55 @@ void main() {
     });
   });
 
+  group('A-G6 the train hub keeps "no plan" distinct from "could not load"', () {
+    /// FIT-014 (coach-guided content) and FIT-015 ("the empty state that
+    /// matters most") are two states of one route, /train. The hub implemented
+    /// neither: it never read `assignedWorkoutsProvider`, so a member with a
+    /// plan was not shown it and a member without one saw a hub of zeros with
+    /// no explanation.
+    ///
+    /// The property pinned here is the one QA_CLOSURE_STANDARD §4 singles out:
+    /// "`[]` from a failed read and `[]` from 'this member has none' are the
+    /// same value at review time and different values in production."
+    /// `.valueOrNull ?? []` erases that difference; `.when` preserves it.
+    final src = File(
+      'lib/features/workout/presentation/train_hub_screen.dart',
+    ).readAsStringSync();
+
+    test('the plan surface reads the assigned-plan provider at all', () {
+      expect(src, contains('assignedWorkoutsProvider'),
+          reason: 'The hub cannot render FIT-014 or FIT-015 without it.');
+    });
+
+    test('it branches on .when, not on a collapsed valueOrNull', () {
+      final plan = src.substring(src.indexOf('class _PlanSurface'));
+      expect(plan, contains('assigned.when('),
+          reason: 'loading / error / data must stay three outcomes.');
+      expect(plan, contains('loading:'));
+      expect(plan, contains('error:'));
+      expect(plan, isNot(contains('valueOrNull ?? []')),
+          reason: 'That collapses a failed read into "no plan" — the exact '
+              'error-to-empty defect recorded as F-15.');
+    });
+
+    test('a failed load and an empty plan render different widgets', () {
+      expect(src, contains('_PlanUnavailable'));
+      expect(src, contains('_NoPlanYet'));
+      final plan = src.substring(src.indexOf('class _PlanSurface'));
+      // Assert the PROPERTY, not the spelling: the error arm must route to the
+      // unavailable widget and must not route to the no-plan one. An earlier
+      // draft of this guard pinned `=> const _PlanUnavailable` and broke the
+      // moment the widget legitimately gained a retry callback — a guard that
+      // fails on a correct change is noise, not protection.
+      final errorArm = RegExp(r'error:\s*\([^)]*\)\s*=>\s*(?:const\s+)?(\w+)')
+          .firstMatch(plan)
+          ?.group(1);
+      expect(errorArm, '_PlanUnavailable',
+          reason: 'A plan that could not be loaded is not an absent plan.');
+      expect(errorArm, isNot('_NoPlanYet'));
+    });
+  });
+
   group('A-G3 the app ships under its product name, on both platforms', () {
     /// Found at runtime: the first thing Android showed a new user was
     /// "Allow circle_fitness to send you notifications?" — the Flutter project

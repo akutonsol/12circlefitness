@@ -8,6 +8,7 @@ import '../../coaching_mode/domain/coaching_mode_provider.dart';
 import '../../exercise_database/data/exercise_database_service.dart';
 import '../../exercise_database/data/models/exercise_detail_model.dart';
 import '../../exercise_database/domain/exercise_database_provider.dart';
+import '../data/models/workout_model.dart';
 import '../domain/workout_provider.dart';
 import '../data/workout_session_store.dart';
 
@@ -162,6 +163,13 @@ class _TrainHubScreenState extends ConsumerState<TrainHubScreen> {
                   ]),
                 ])),
             const SizedBox(height: 20),
+
+            // ── Assigned plan · FIT-014 / FIT-015 ───────────────────────────
+            // Two states of one route. FIT-014 is the coach-guided content
+            // state; FIT-015 is what the package calls "the empty state that
+            // matters most" — a member with no plan previously saw a hub of
+            // zeros with no explanation of why.
+            const _PlanSurface(),
 
             // ── Resume Workout Banner ────────────────────────────────────────
             activeSession.when(
@@ -723,4 +731,309 @@ class _IconBtn extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white.withValues(alpha: 0.08))),
         child: Icon(icon, color: _C.onSurfaceVar, size: 20))));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FIT-014 · Workouts hub (coach-guided content state)
+// FIT-015 · Workouts — no plan yet ("the empty state that matters most")
+//
+// Both are the SAME route, /train, distinguished by whether a plan exists.
+// The hub previously rendered neither: it never read `assignedWorkoutsProvider`,
+// so a member with an assigned plan was not shown it, and a member WITHOUT one
+// saw a screen of zeros with no explanation.
+//
+// ── WHY `.when` AND NOT `.valueOrNull ?? []` ───────────────────────────────
+// QA_CLOSURE_STANDARD §4: "`[]` from a failed read and `[]` from 'this member
+// has none' are the same value at review time and different values in
+// production." Collapsing them is the error→empty defect recorded as F-15.
+// `assignedWorkoutsProvider` is a FutureProvider, so the three outcomes stay
+// distinguishable — and this widget keeps them distinguishable.
+// ═══════════════════════════════════════════════════════════════════════════
+class _PlanSurface extends ConsumerWidget {
+  const _PlanSurface();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final assigned = ref.watch(assignedWorkoutsProvider);
+
+    return assigned.when(
+      loading: () => const _PlanLoading(),
+      // Reuses the treatment this provider ALREADY has in
+      // workout_list_screen.dart — "Your program could not be loaded" with a
+      // Try again that invalidates the provider. EC-G8's sibling assertions
+      // pin that copy, so it is approved in-repo; inventing a second phrasing
+      // for the same failure would have been a new product voice.
+      error: (_, __) => _PlanUnavailable(
+          onRetry: () => ref.invalidate(assignedWorkoutsProvider)),
+      data: (workouts) => workouts.isEmpty
+          // The coach's name is deliberately NOT read here. Fetching it needs
+          // an AsyncValue read whose failure would collapse to null — the
+          // pattern EC-G8 ratchets — and a name is not worth an error swallow.
+          // The neutral noun carries the same meaning.
+          ? const _NoPlanYet()
+          : _ThisWeek(workouts: workouts),
+    );
+  }
+}
+
+/// No loading state is declared for /train in the authoritative package
+/// (FIT-014 states: `default`; FIT-015: `empty`, `no plan`). Rather than invent
+/// one, this reuses the app's existing quiet placeholder so the surface does
+/// not flash content — and, critically, does not look like an empty plan.
+class _PlanLoading extends StatelessWidget {
+  const _PlanLoading();
+  @override
+  Widget build(BuildContext context) => const Padding(
+        padding: EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: SizedBox(
+          height: 64,
+          child: Center(
+            child: SizedBox(
+              width: 20, height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: _C.primary)),
+          ),
+        ),
+      );
+}
+
+/// A plan that could not be loaded is NOT "no plan". Telling a member their
+/// coach has not written them a programme when the request merely failed is the
+/// same class of lie as the fabricated "0" streak.
+///
+/// The phrasing follows the pattern already shipped in
+/// `booking_screen.dart:627-635` — "this is a connection problem, not an empty
+/// schedule" — which is the one place in this repository that names the
+/// distinction. No new product voice is invented.
+class _PlanUnavailable extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _PlanUnavailable({required this.onRetry});
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _C.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _C.outline.withValues(alpha: 0.3)),
+          ),
+          child: Row(children: [
+            Icon(Icons.wifi_off_rounded, color: _C.outline, size: 18),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text('Your program could not be loaded',
+                style: TextStyle(color: _C.onSurfaceVar, fontSize: 13, height: 1.45)),
+            ),
+            const SizedBox(width: 8),
+            Semantics(
+              button: true,
+              child: GestureDetector(
+                onTap: onRetry,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
+                  alignment: Alignment.center,
+                  child: const Text('Try again',
+                    style: TextStyle(color: _C.primary, fontSize: 13, fontWeight: FontWeight.w500)),
+                ),
+              ),
+            ),
+          ]),
+        ),
+      );
+}
+
+/// FIT-015. Copy is the board's, with one deliberate adaptation recorded in
+/// docs/QA_EVIDENCE.md: the board reads "as soon as she publishes it", which
+/// asserts a gender for whoever the member's coach happens to be. The sentence
+/// is rephrased to carry the same meaning without that assertion.
+class _NoPlanYet extends StatelessWidget {
+  const _NoPlanYet();
+
+  @override
+  Widget build(BuildContext context) {
+    const who = 'Your coach';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // `state` + `sico` — the empty-state block with its icon disc.
+        Center(
+          child: Column(children: [
+            Container(
+              width: 48, height: 48,
+              decoration: BoxDecoration(
+                color: _C.surfaceContainerHigh, shape: BoxShape.circle),
+              child: Icon(Icons.fitness_center, color: _C.outline, size: 22),
+            ),
+            const SizedBox(height: 14),
+            const Text('No workout assigned yet',
+                style: TextStyle(color: _C.onSurface, fontSize: 20, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 10),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 300), // board: max-width 30ch
+              child: Text(
+                "$who is building your first week. It'll appear here as soon as "
+                "it's published — usually within a day of your intake.",
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: _C.onSurfaceVar, fontSize: 13, height: 1.5)),
+            ),
+            const SizedBox(height: 22),
+            // `fc-btn2` — secondary, auto width.
+            Semantics(
+              button: true,
+              child: GestureDetector(
+                onTap: () => context.push('/exercise-library'),
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 52),
+                  padding: const EdgeInsets.symmetric(horizontal: 22),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _C.outline),
+                  ),
+                  child: const Text('Browse the exercise library',
+                      style: TextStyle(color: _C.onSurface, fontSize: 15, fontWeight: FontWeight.w500)),
+                ),
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 24),
+        // "In the meantime" — the board's two escape hatches, above a hairline.
+        Container(
+          padding: const EdgeInsets.only(top: 20),
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: _C.outline.withValues(alpha: 0.4)))),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('IN THE MEANTIME', style: _micStyle),
+            const SizedBox(height: 6),
+            _MeantimeRow(
+              label: 'Log something you did yourself',
+              onTap: () => context.push('/workouts')),
+            _MeantimeRow(
+              label: 'Message your coach',
+              showDivider: false,
+              onTap: () => context.go('/messages')),
+          ]),
+        ),
+        const SizedBox(height: 8),
+      ]),
+    );
+  }
+
+  static const _micStyle = TextStyle(
+      color: _C.outline, fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 1.54);
+}
+
+class _MeantimeRow extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final bool showDivider;
+  const _MeantimeRow({required this.label, required this.onTap, this.showDivider = true});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 44), // `tap` floor
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: showDivider
+                ? BoxDecoration(
+                    border: Border(
+                        bottom: BorderSide(color: _C.outline.withValues(alpha: 0.4))))
+                : null,
+            child: Row(children: [
+              Expanded(
+                child: Text(label,
+                    style: const TextStyle(
+                        color: _C.onSurface, fontSize: 15, fontWeight: FontWeight.w500))),
+              Icon(Icons.arrow_forward, color: _C.primary, size: 14),
+            ]),
+          ),
+        ),
+      );
+}
+
+/// FIT-014's "This week" list. Status comes from the workout itself —
+/// `isCompleted` and `scheduledDate` — never from a hardcoded position.
+class _ThisWeek extends StatelessWidget {
+  final List<Workout> workouts;
+  const _ThisWeek({required this.workouts});
+
+  static const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  bool _isToday(DateTime? d) {
+    if (d == null) return false;
+    final n = DateTime.now();
+    return d.year == n.year && d.month == n.month && d.day == n.day;
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('THIS WEEK', style: _NoPlanYet._micStyle),
+          const SizedBox(height: 8),
+          ...workouts.map((w) {
+            final today = _isToday(w.scheduledDate);
+            final day = w.scheduledDate == null
+                ? ''
+                : (today ? 'Today' : _days[w.scheduledDate!.weekday - 1]);
+            final status = w.isCompleted
+                ? 'Done'
+                : today
+                    ? 'Now'
+                    : (w.scheduledDate == null ? '' : _days[w.scheduledDate!.weekday - 1]);
+            final detail = [
+              if (day.isNotEmpty) day,
+              if (w.estimatedDuration > 0) '${w.estimatedDuration} min',
+            ].join(' · ');
+            return Semantics(
+              button: true,
+              label: '${w.title} $detail $status',
+              excludeSemantics: true,
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 44),
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                decoration: BoxDecoration(
+                  border: Border(
+                      bottom: BorderSide(color: _C.outline.withValues(alpha: 0.4)))),
+                child: Row(children: [
+                  SizedBox(
+                    width: 32,
+                    child: w.isCompleted
+                        ? Icon(Icons.check, color: _C.tertiary, size: 15)
+                        : today
+                            ? Container(
+                                width: 7, height: 7,
+                                margin: const EdgeInsets.only(left: 4),
+                                decoration: const BoxDecoration(
+                                    color: _C.primaryContainer, shape: BoxShape.circle))
+                            : const SizedBox.shrink(),
+                  ),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(w.title,
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: w.isCompleted ? _C.outline : _C.onSurface,
+                              fontSize: 15, fontWeight: FontWeight.w500)),
+                      if (detail.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(detail,
+                            style: const TextStyle(color: _C.onSurfaceVar, fontSize: 12.5)),
+                      ],
+                    ]),
+                  ),
+                  if (status.isNotEmpty)
+                    Text(status.toUpperCase(), style: _NoPlanYet._micStyle),
+                ]),
+              ),
+            );
+          }),
+        ]),
+      );
 }
