@@ -154,6 +154,50 @@ void main() {
     });
   });
 
+  group('A-G4 no screen may present invented data as the user\'s own', () {
+    /// `chat_screen.dart` displayed four hardcoded messages as the member's
+    /// real coach conversation whenever the thread was empty or could not be
+    /// created — including one attributed to the member themselves ("A bit sore
+    /// but in a good way!..."). The screen already had the correct empty state;
+    /// the fabricated fallback was the only thing hiding it.
+    ///
+    /// This guard is narrow on purpose. It pins the specific fabrication that
+    /// shipped, rather than trying to define "fake data" in general — a broad
+    /// rule would have to be weakened the first time a legitimate placeholder
+    /// appeared, and a guard that gets weakened protects nothing.
+    test('no presentation file calls getSampleMessages()', () {
+      final offenders = <String>[];
+      for (final file in presentationFiles) {
+        for (final (i, line) in file.readAsLinesSync().indexed) {
+          final code = line.split('//').first; // comments may name it
+          if (code.contains('getSampleMessages')) {
+            offenders.add('${file.path}:${i + 1}');
+          }
+        }
+      }
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'A screen is substituting invented messages for real data:\n  '
+            '${offenders.join('\n  ')}',
+      );
+    });
+
+    test('the chat screen distinguishes failure from emptiness', () {
+      final src = File(
+        'lib/features/messaging/presentation/chat_screen.dart',
+      ).readAsStringSync();
+
+      expect(src, contains('_loadFailed'),
+          reason: 'A thread that could not be reached is not an empty thread. '
+              'Collapsing the two is the error-to-empty defect recorded as '
+              'F-15 in docs/QA_EVIDENCE.md.');
+      expect(src, contains("Start the conversation!"),
+          reason: 'The genuine empty state must remain reachable.');
+    });
+  });
+
   group('A-G3 the app ships under its product name, on both platforms', () {
     /// Found at runtime: the first thing Android showed a new user was
     /// "Allow circle_fitness to send you notifications?" — the Flutter project

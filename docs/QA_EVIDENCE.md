@@ -104,7 +104,57 @@ Produced by two delegated read-only audits. **Every item marked VERIFIED below w
 re-checked by me directly against source**, because each is consequential enough that a
 delegated claim alone is not evidence.
 
-### F-12 · P1 SECURITY — the router enforces no role restriction at all **VERIFIED**
+### F-12 · DISPOSITION — route entry is weak; the data layer is not **TESTED EMPIRICALLY**
+
+> **This supersedes the severity recorded below. The original finding is retained
+> unaltered underneath, because it is accurate about the router — it was simply incomplete
+> about consequence.**
+
+The open question was whether route-entry weakness produces data exposure. It was settled
+by **testing the live QA database as an authenticated client**, not by reading code.
+
+Method: signed in as the committed QA fixture `p1-victim@qa.12circle.test` (role `client`,
+`uid 1c89c873-…`) against QA `eyqtldjqpgpljlqvpowh` using the anon key, then issued the
+reads and writes the privileged screens issue. Probe:
+`scratchpad/f12_probe.mjs`. Prod ref is never contacted.
+
+| Probe | Result | Verdict |
+|---|---|---|
+| `GET user_profiles?select=id,role` | **1 row, `id == own uid`**, `content-range 0-0/1` | own row only |
+| `GET coach_client_relationships` | **403 `42501`** — "Grant the required privileges…" | denied at GRANT level |
+| `GET payments` / `subscriptions` / `event_registrations` / `notifications` / `workout_sessions` | 200, **0 rows** | filtered |
+| `GET events` | 200, 3 rows | shared content, not privileged |
+| `PATCH user_profiles(own).role = 'admin'` | **403 `42501` — "user_profiles.role is not self-assignable — use admin_set_user_role"**; role re-read as `client` | escalation blocked by a named guard |
+| `PATCH user_profiles(coach).first_name` | 200 **`[]` — 0 rows affected** | RLS filtered the target row out |
+
+**Neither mutation changed anything**, confirmed by re-reading after each.
+
+Separating the concerns exactly as the brief requires:
+
+| Layer | Finding |
+|---|---|
+| Route entry | **WEAK — confirmed.** Any authenticated user can enter `/admin-dashboard`, `/vendor-portal`, `/compliance`, `/coach-dashboard` |
+| UI self-guarding | **PARTIAL.** 9 screens swap the body for a placeholder; the rest do not |
+| Backend authorization | **SOUND in every path tested** — grants, RLS row filtering, and an explicit anti-escalation guard |
+| Information disclosure | **NOT DEMONSTRATED** |
+| Mutation capability | **NOT DEMONSTRATED** |
+
+**Revised classification: P3 — SECURITY/UX/ARCHITECTURE, not data exposure.** A client can
+open an admin screen and see it render empty or placeholdered. That is a trust, polish and
+defence-in-depth problem, not a breach. Overstating it would be as wrong as missing it.
+
+**Scope limit, stated plainly:** this tested the tables named above, not an exhaustive set.
+It establishes that the data layer *is* enforcing, not that every table is covered. A
+table-by-table sweep is the remaining work, and the repo already has the harness for it
+(`supabase/tests/security/`, which needs `QA_SERVICE` — not available locally, supplied in
+CI).
+
+**Correction of a stale record of mine:** a memory note claimed role escalation had been
+regressed by migrations 115/119. QA now blocks it with a purpose-built message. That note
+was wrong for QA as it stands today; production was not tested and is not claimed either
+way.
+
+### F-12 (original finding, retained) — the router enforces no role restriction at all **VERIFIED**
 
 `app_router.dart:180-224` contains exactly one denial:
 
@@ -254,6 +304,111 @@ tapped.
 
 **Classification: FAIL (P1 for integration).** No amount of restyling makes this screen
 correct; it needs wiring to a workout. Recorded against FIT-016 in the matrix.
+
+#### F-20 · Full workflow trace — the contract EXISTS, the plumbing does not
+
+Traced end to end, as required, before changing anything:
+
+```
+tap a workout        workout_list_screen.dart:312-320
+  │  final match = sampleWorkouts.where((sw) => sw.title == w.title).firstOrNull;
+  │  if (match != null) _startWorkout(match);        → sets identity, goes /active-workout
+  └─ else               context.go('/workout-detail');  → NO identity, static mockup
+route                app_router.dart:264
+  │  GoRoute(path: '/workout-detail', builder: (_, __) => const WorkoutDetailScreen())
+  │  no path parameter, no query, no `extra`
+implementation       workout_detail_screen.dart:18-19
+  │  const WorkoutDetailScreen({super.key})   ← accepts no workout identity at all
+data source          NONE — 0 occurrences of ref. / Supabase / await / Future
+loading / empty / error   none of the three exist
+```
+
+**Two defects, not one.**
+
+1. `/workout-detail` is the **failure branch of a title-string match**. `w` is a local
+   `_WorkoutItem` view model (`:529`) and `sampleWorkouts` are `Workout` objects, so the
+   code recovers the real object by comparing `title` strings. When that comparison misses,
+   the user is sent to a hardcoded screen describing **a different workout than the one
+   they tapped**. Matching domain objects by display title is fragile by construction.
+2. The screen renders fixed content regardless.
+
+**The backend contract exists and nothing needs inventing:**
+
+| Piece | Where |
+|---|---|
+| Identity carrier | `selectedWorkoutProvider` — `StateProvider<Workout?>`, `workout_provider.dart:116` |
+| Real data | `assignedWorkoutsProvider` → `FutureProvider<List<Workout>>` via `CoachProgramService().getMyAssignedProgram()`, `workout_provider.dart:152-158` |
+| Model | `Workout`, `workout_model.dart:232` |
+| Established convention | `active_workout_screen.dart:102` already does exactly this: `ref.watch(selectedWorkoutProvider)`. `chat_screen.dart` uses the same pattern with `selectedConversationProvider` |
+
+So integration is **objectively supported**: set the identity before navigating, read
+`selectedWorkoutProvider` in the screen, render the real workout, and add the three states.
+No backend field is missing and no data would be fabricated.
+
+**Status: MAPPED, NOT YET IMPLEMENTED.** It is a screen rewrite against a locked design
+anchor and belongs in its own coherent commit — recorded here so the next tranche starts
+from evidence rather than rediscovery.
+
+### F-10 / GAP-09 · CORRECTION OF TERMINOLOGY
+
+The design package calls `event_ticket_screen` **"unreachable"**. That word is wrong and
+this ledger will not repeat it.
+
+Measured: it has **no `GoRoute`** (`grep EventTicket lib/core/router/app_router.dart` →
+nothing), and it **is** reached at `events_screen.dart:81` via
+`Navigator.of(context).push(MaterialPageRoute(...))`.
+
+Correct terminology, used from here on: **not router-addressable / not deep-linkable.**
+The user-facing consequence is that the destination has no URL, cannot be deep-linked,
+does not participate in the router's shell or redirect logic, and does not update the
+bottom nav's active tab — **not** that it cannot be opened. Eight further screens share
+this characteristic (F-18).
+
+## 6c · F-15 inventory — every error→empty collapse
+
+Required fields per the brief. "Distinguishable" = can the user tell a failure from a
+genuinely empty result. Design state = does the authoritative package specify an error
+state for that screen.
+
+| Screen | Route | Failure behaviour | Empty behaviour | Distinguishable | Data source | Existing error state | Design state | Decision needed |
+|---|---|---|---|---|---|---|---|---|
+| `progress_screen.dart:139` | `/progress` | `catch (_) { _loading = false }` — whole-screen load | "Log your first weight…", "No entries yet", "No check-ins yet" — **all at once** | **NO** | direct Supabase, 6 fetches | none | FIT-052…057 declare `empty`; no error state declared | copy for an error state |
+| `checkin_screen.dart:146` | `/checkins` | `catch (_)` on `_loadCalls()` | "No upcoming sessions. Book a call with your coach." | **NO** | `coaching_calls` | none | FIT-023 | copy |
+| `coach_dashboard_screen.dart:68` | `/coach-dashboard` | provider `catch` → `[]` | "No clients found — Clients will appear here when they sign up" | **NO** | clients query | none | FIT-032 | copy |
+| `coach_dashboard_screen.dart:98/114/133` | `/coach-dashboard` | `catch` → `[]` ×3 | empty tabs | **NO** | check-ins, workouts, aggregate | none | FIT-032/033 | copy |
+| `profile_screen.dart:830` | `/profile` | `valueOrNull` → null | "No coach assigned yet" | **NO** | coach provider | none | FIT-029 | copy |
+| `classes_screen.dart:39` | `/classes` | `valueOrNull ?? []` | Schedule tab renders **nothing at all** (`itemCount: 0`) | **NO** | class providers | none | FIT-027/080/084 | copy + an empty state for Schedule |
+| `challenges_screen.dart:36-39` | `/challenges` | `AsyncError` never consumed | "🏁 No challenges here" | **NO** | challenge StateNotifier | none | FIT-075/078/079 | copy |
+| `home_screen.dart:80` | `/home` | `catch` → all-zero bars | zero bars | **NO** | weekly activity | none | FIT-001 (locked) | copy |
+| `train_hub_screen.dart:224-246` | `/train` | **`error: (_, __) => '0'`** — shows **"0 workouts" as a real answer** | `'—'` placeholders | **NO** | 4 stat providers | none | FIT-014/015 (locked) | copy |
+
+**Reference implementation already in-repo:** `booking_screen.dart:612-643` (`_LoadFailedState`)
+— *"Couldn't load your bookings / We could not reach your coach and availability data just
+now. **This is a connection problem, not an empty schedule.**"* with a Try-again action, and
+a comment at `:609-611` naming the collapse as the bug. `chat_screen.dart` now follows it.
+
+**Why these are not fixed in this pass:** the pattern is unambiguous but each needs
+**user-facing error copy**, and the authoritative package declares `empty`/`loading` states
+for these frames without declaring error copy for them. Writing nine new error strings is
+inventing product copy, which the brief forbids. **The mechanism is free; the words are
+not.** Two routes out: (a) the owner supplies copy, or (b) QA is authorised to reuse the
+booking screen's existing, already-shipped phrasing as the house pattern. Recorded as
+**OD-8**.
+
+## 6d · OWNER DECISION REGISTER
+
+| ID | Question | Evidence | Options | QA can continue without it | Blocked by it |
+|---|---|---|---|---|---|
+| **F-12** | Should role authorization move into the router? | Route entry weak (verified); backend sound in every path tested (6 probes, 2 mutations, no change) | (a) router-level role guard; (b) keep widget guards, extend to the 4 unguarded routes; (c) accept, document as defence-in-depth gap | **everything** — no data exposure demonstrated | nothing |
+| **F-14** | Adopt the mandated 5 tabs (Home/Workouts/Nutrition/Check-In/Connect)? | Shipped nav has 4 labelled destinations; Nutrition and Connect absent; `/directory` FAB is the **sole** entry to `/events` | (a) adopt 5 tabs and re-home `/directory`'s destinations; (b) keep shipped nav, record design deviation; (c) hybrid | all non-nav work | `/events` reachability, FIT-003/005 integration |
+| **F-13** | Keep PaywallGate failing open on provider error? | `paywall_gate.dart:45`, deliberate + commented | (a) keep; (b) fail closed; (c) fail closed with retry | everything | nothing |
+| **OD-1** | Landscape: lock portrait, or support it? | 39 px overflow on `splash_screen.dart:109`; design GAP-06 "Tablet and landscape are not designed. Phone widths only." | (a) lock portrait (1 line, matches comparators); (b) design landscape | all portrait work | F-5 |
+| **OD-2** | GAP-07 AI error states the backend cannot reach | manifest `implementationGaps` | owner-defined | all reachable states | those states |
+| **OD-3** | GAP-08 Score semantics — frame depicts `ScoreService`, route renders `ScoreEngine` | package calls it "locked, unresolved" | owner-defined | all other screens | FIT-060 |
+| **OD-4** | Navigation entry for the event ticket (not router-addressable) | `events_screen.dart:81` push; no `GoRoute` | (a) register a route; (b) keep imperative, accept no deep link | all other screens | FIT-086 |
+| **OD-6** | Display weight — design says w300; Schibsted Grotesk ships no w300 via `google_fonts` 8.1.0; board renders w400 | verified in pub-cache source | (a) w400/w500 per board (**currently implemented**); (b) bundle a Light weight; (c) substitute a family with w300 | colour, shape, spacing, motion, geometry | display/metric type only |
+| **OD-7** | Bundle fonts, or keep runtime fetch? | no `fonts:` in pubspec, no font assets, `allowRuntimeFetching` unset → true | (a) bundle; (b) accept offline degradation to Roboto | online behaviour | offline fidelity |
+| **OD-8** | Error copy for the 9 F-15 screens | package declares `empty`/`loading`, not error copy | (a) owner supplies copy; (b) authorise reuse of `booking_screen`'s shipped phrasing as the house pattern | everything else | F-15 fixes |
 
 ## 7 · Environment
 
