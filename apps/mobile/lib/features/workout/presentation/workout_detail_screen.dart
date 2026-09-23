@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/models/workout_model.dart';
+import '../domain/exercise_brief.dart';
 import '../domain/workout_provider.dart';
+import 'widgets/exercise_brief_sheet.dart';
 
 /// FIT-016 · Workout detail — `/workout-detail`, "review before committing".
 ///
@@ -272,61 +274,69 @@ class _ExerciseRow extends StatelessWidget {
   final WorkoutExercise exercise;
   const _ExerciseRow({required this.index, required this.exercise});
 
-  /// "4 × 6 · 65 kg · rest 120 s" — assembled only from fields that are set.
-  /// A missing weight or rest is omitted rather than rendered as 0.
-  ///
-  /// The design also shows "3 × 10 each" for a unilateral movement. No
-  /// unilateral/per-side field exists on Exercise or WorkoutSet, so "each" is
-  /// NOT emitted: inventing it would mean asserting something about the
-  /// prescription that the data does not say.
-  String get _prescription {
-    final sets = exercise.sets;
-    if (sets.isEmpty) return 'No sets prescribed';
-    final first = sets.first;
-    final parts = <String>['${sets.length} × ${first.reps}'];
-    final kg = first.weightKg;
-    if (kg != null && kg > 0) {
-      final s = kg == kg.roundToDouble() ? kg.toStringAsFixed(0) : kg.toString();
-      parts.add('$s kg');
-    }
-    final rest = first.restSeconds;
-    if (rest != null && rest > 0) parts.add('rest $rest s');
-    return parts.join(' · ');
-  }
-
   @override
   Widget build(BuildContext context) {
     final name = exercise.exercise.name;
+    final prescription = prescriptionLine(exercise);
+    final brief = exerciseBrief(exercise);
+
+    // The board declares each session row as `el: "button"` and its annotation
+    // says the info icon "opens form and instructions". Both are honoured —
+    // but only when there IS form or instructions behind this movement.
+    //
+    // Before this, the row announced `button: true` with no action wired and
+    // drew an info icon that did nothing: a control that exists for assistive
+    // technology and for the eye, and responds to neither. The fix is not to
+    // wire something invented — it is to open what the data holds, and to stop
+    // claiming a control when the data holds nothing.
+    final open = brief.hasContent
+        ? () => showExerciseBrief(context, brief)
+        : null;
+
+    // Semantics OUTSIDE, gesture INSIDE — the shape `NamedIconButton` uses,
+    // and the one that makes `onTap:` below load-bearing. With the gesture on
+    // the outside it is the ancestor node that carries the action, so dropping
+    // `onTap:` changes nothing and no test can see the difference; F-20 is the
+    // reminder of what an unasserted action costs.
     return Semantics(
-      button: true,
-      label: '$index $name $_prescription',
+      button: open != null,
+      label: rowLabel(index, exercise),
+      hint: rowHint(exercise),
       // The composed label already carries position, movement and
-      // prescription. Excluding the children stops it being announced twice.
+      // prescription. Excluding the children stops it being announced twice —
+      // and drops their ACTIONS too, so the tap is re-declared here (F-20).
       excludeSemantics: true,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 44), // `tap` floor
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: _C.line)),
+      onTap: open,
+      child: GestureDetector(
+        onTap: open,
+        behavior: HitTestBehavior.opaque,
+          child: Container(
+          constraints: const BoxConstraints(minHeight: 44), // `tap` floor
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: _C.line)),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            SizedBox(
+              width: 22,
+              child: Text('$index',
+                  style: const TextStyle(
+                      color: _C.dim, fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 1.54)),
+            ),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(name,
+                    style: const TextStyle(color: _C.ink, fontSize: 15, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 3),
+                Text(prescription,
+                    style: const TextStyle(color: _C.grey, fontSize: 12.5)),
+              ]),
+            ),
+            // Drawn only when it opens something.
+            if (open != null)
+              const Icon(Icons.info_outline, color: _C.dim, size: 15),
+          ]),
         ),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-          SizedBox(
-            width: 22,
-            child: Text('$index',
-                style: const TextStyle(
-                    color: _C.dim, fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 1.54)),
-          ),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(name,
-                  style: const TextStyle(color: _C.ink, fontSize: 15, fontWeight: FontWeight.w500)),
-              const SizedBox(height: 3),
-              Text(_prescription,
-                  style: const TextStyle(color: _C.grey, fontSize: 12.5)),
-            ]),
-          ),
-          const Icon(Icons.info_outline, color: _C.dim, size: 15),
-        ]),
       ),
     );
   }

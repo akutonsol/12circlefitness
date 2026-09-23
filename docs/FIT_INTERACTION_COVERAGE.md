@@ -122,7 +122,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-031 🔒 | Plans | `/upgrade` | 1 | 5 | `upgrade_screen.dart` — **remaining 4 blocked on OD-18** |
 | FIT-002 ✅ | Active Workout | `/active-workout` | **5** | 5 | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
 | FIT-015 | Workouts — no plan yet | `/train` | 5 | 9 | `train_hub_screen.dart` |
-| FIT-016 | Workout detail | `/workout-detail` | 3 | 7 | `workout_detail_screen.dart` |
+| FIT-016 | Workout detail | `/workout-detail` | 3 | 7 | `workout_detail_screen.dart` + `domain/exercise_brief.dart` + `widgets/exercise_brief_sheet.dart` |
 | FIT-029 | Profile | `/profile` | 4 | 6 | `profile_screen.dart` |
 | FIT-030 | Settings | `/settings` | 5 | 6 | `settings_screen.dart` — sixth blocked on OD-19 |
 | FIT-033 | Check-in review | `/coach-checkin-review` | 1 | 5 | `coach_checkin_review_screen.dart` |
@@ -345,7 +345,7 @@ without fabricating content the brief forbids.
 | FIT-013 | Set a new password | `/reset-password` | 1/1 | `reset_password_screen.dart` |
 | FIT-014 | Workouts hub | `/train` | 5/12 | `train_hub_screen.dart` |
 | FIT-015 | Workouts — no plan yet | `/train` | 5/9 | `train_hub_screen.dart` |
-| FIT-016 | Workout detail | `/workout-detail` | 3/7 | `workout_detail_screen.dart` |
+| FIT-016 | Workout detail | `/workout-detail` | 3/7 **at ceiling** | `workout_detail_screen.dart` + `domain/exercise_brief.dart` + `widgets/exercise_brief_sheet.dart` — the four remaining are the board's **sample exercise rows**; the row's shape, action and sheet are built and mutation-proven |
 | FIT-017 | Rest & completion | `/active-workout` | 2/2 | `active_workout_screen.dart` + `widgets/rest_timer_widget.dart` |
 | FIT-018 | Session complete | `/active-workout` | 2/4 | `active_workout_screen.dart` |
 | FIT-019 | Log a meal | `/log-meal` | 4/5 | `meals_dashboard_screen.dart` (`_AddMealSheet`) + `widgets/pill_tab.dart` |

@@ -1708,6 +1708,111 @@ integration.
 Recorded as a gap. The label is also composed from the coach's name and the clip's length,
 so it is a **seventh composed-label ceiling** even once the feature exists.
 
+## 3ae · FIT-016 · Workout detail — the row that was a button and did nothing
+
+FIT-016 is **locked**. Its three named controls (`Back`, `More`, `Begin session`) were
+already built and the four remaining declared interactions are the board's sample exercise
+rows, which the coverage metric can only match by fabricating those exact movements — the
+eighth composed-label ceiling, not a backlog. So the measurement stays at **3 / 7** and the
+defect was somewhere the measurement cannot see.
+
+### The defect
+
+Each session row rendered:
+
+```dart
+Semantics(button: true, label: '$index $name $_prescription',
+          excludeSemantics: true, child: Container( … Icon(Icons.info_outline) … ))
+```
+
+`button: true` to assistive technology, an info icon to the eye, **and no action wired to
+either**. A control that exists for both audiences and responds to neither is the same
+false-affordance class as F-20's `44x44 tap=false label="Back"`, one layer down.
+
+### What the package already decided
+
+Nothing here was invented. `manifest.json → FIT-016` declares each row `el: "button"` and
+lists `ph-info` among the frame's icons; the board's own annotation says what it does:
+
+> *"Prescription reads as one line per exercise — sets, reps, load, rest — because that is
+> what a lifter checks. No thumbnails, no cards. **The info icon opens form and
+> instructions.**"*
+
+`Exercise.description`, `Exercise.instructions` and `WorkoutExercise.notes` already hold
+exactly that. What the package does **not** contain is a drawn frame for the surface — there
+is no exercise-detail screen among the 110 — so every visual choice comes from something the
+package does specify: the design system's `surface` `#121215` ("Cards, sheets, rows"), the
+`border-radius: 24px 24px 0 0` the board uses for sheet tops in **seven** places, the
+system's stated **240 ms** sheet present/dismiss, the package's own dismissal word `Done`
+(used in five other frames), and the 44 dp `tap` floor. **No section headings** — `Form` and
+`Instructions` appear nowhere in the package, so nothing is labelled with them.
+
+### And where it stops
+
+A row must claim to be a button only when something is behind it. `hasContent` decides, and
+**equipment and muscle group deliberately do not count**: they are populated on almost every
+library row, so counting them would have made the control near-universal again while looking
+fixed. When it is false the row is not a button, exposes no tap action, and the info icon is
+not drawn.
+
+`3 × 10 each` — the board's unilateral line — is still **not** emitted. No per-side field
+exists on `Exercise` or `WorkoutSet`, and inventing one would assert something about the
+prescription the data does not say. Unchanged, and now pinned by a test.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/exercise_brief_test.dart` — 14 tests | **PASS** |
+| Widget | `test/widget/workout_detail_exercise_brief_test.dart` — 5 tests, asserted against the **semantics tree**, never against text presence | **PASS** |
+| Guard strength | **6 / 6 mutations killed** — see below | **PASS** |
+| Suite | **1147 pass / 9 skipped** (was 1128) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Ratchets | A-G8, EC-G7, EC-G8, SEC-G1/G2 all at or below baseline | **PASS** |
+| Runtime | `integration_test/fit016_exercise_brief_device_test.dart`, `emulator-5554` | **RUNTIME_VERIFIED** |
+| CI | no Android job exists | **OPEN** |
+
+### Mutations
+
+| # | Mutation | Result |
+|---|---|---|
+| M1 | drop `onTap:` from the row's `Semantics` | **KILLED** — `tap=false` |
+| M2 | let equipment/muscle group count as content | **KILLED** — the inert control returns |
+| M3 | always draw the info icon | **KILLED** — drawn on a row that opens nothing |
+| M4 | fold the action into the accessible name | **KILLED** — WCAG 2.5.3 |
+| M5 | drop the sheet's `Done` tap (the `excludeSemantics` action drop) | **KILLED** — sheet will not dismiss |
+| M6 | render an absent load as `0 kg` | **KILLED** |
+
+**M1 survived its first run**, and that is the finding worth recording. The row had been
+built with the `GestureDetector` *outside* the `Semantics`, so the ancestor node carried the
+tap action and removing `onTap:` changed nothing observable — a test that passes either way.
+The structure was changed to `Semantics` outside / gesture inside (the shape
+`NamedIconButton` already uses), which makes the declaration load-bearing; M1 then killed.
+A mutation that does not kill is a fact about the test, not about the code.
+
+### Runtime evidence — `emulator-5554`, 411.4 dp @ dpr 2.625
+
+```
+row1  371.4x73.0  button=true  tap=true  hint="Shows form and instructions"
+row2               button=false tap=false hint=""
+Done  371.4x48.0  button=true  tap=true
+sheet presented, read, dismissed; no exceptions
+360.0 dp — sheet open, exception=none
+390.0 dp — sheet open, exception=none
+411.4 dp — sheet open, exception=none
+```
+
+No fixture was created: the screen is mounted with `selectedWorkoutProvider` overridden to
+an in-memory workout, nothing is signed in and no row is written. That also keeps it clear
+of **F-21 / OD-14** — `/workout-detail` renders the assigned programme in production and
+stays blocked for *integrity* claims; this measures the widget's geometry and semantics, not
+the authenticity of any assignment.
+
+### One thing recorded rather than resolved
+
+`WorkoutSet` documents null and zero as **different** answers — null is "no load
+prescribed", zero is a prescribed zero (bodyweight). On screen they render identically,
+because the package contains no word for bodyweight anywhere and `0 kg` would be worse than
+silence. Pinned by a test so the collapse is a decision, not an accident.
+
 ## 4 · Design package
 
 | Check | Status |
