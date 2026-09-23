@@ -24,9 +24,9 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 276 (46%) |
-| **Label absent** | **324** |
-| Locked anchors | 71/179 (40%) |
+| Label present | 280 (47%) |
+| **Label absent** | **320** |
+| Locked anchors | 75/179 (42%) |
 
 **These numbers went DOWN, and that is the correction.** See *"The measurement counted its
 own comments"* below.
@@ -113,7 +113,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-001 | Home | `/home` | 4 | 9 | `home_screen.dart` |
 | FIT-008 | Intake | `/intake` | 2 | 7 | `intake_flow_screen.dart` |
 | FIT-019 | Log a meal | `/log-meal` | 4 | 5 | `meals_dashboard_screen.dart` (`_AddMealSheet`) + `widgets/pill_tab.dart` |
-| FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 0 | 5 | `—` |
+| FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 4 | 5 | `widgets/ai_scan_view.dart` |
 | FIT-031 | Plans | `/upgrade` | 0 | 5 | `upgrade_screen.dart` |
 | FIT-002 ✅ | Active Workout | `/active-workout` | **5** | 5 | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
 | FIT-015 | Workouts — no plan yet | `/train` | 5 | 9 | `train_hub_screen.dart` |
@@ -154,6 +154,24 @@ decision FIT-004's difficulty mapping is blocked on, recorded as **OD-16**. The 
 Stating a value and interpreting it are different acts, and a test asserts the row never
 produces the anchor's three words while the decision is outstanding.
 
+
+
+### FIT-020 — and the number the anchor did not give
+
+`Smaller` / `As shown` / `Larger` / `Save to lunch` / `Search instead`. Four of five, with
+the fifth absent for the right reason.
+
+**The anchor gives three words and no numbers.** Turning `Smaller` into a fixed multiplier
+— 0.75×, 1.5× — would be deciding, on the owner's behalf, *how much food a client just
+ate*, and that number goes into their day's calories and to their coach. So `Smaller` and
+`Larger` are **relative**, which is what the words mean, and one step is the granularity
+the shipped slider already defines: `(3.0 − 0.25) / 11`. `As shown` returns to 1.0 — the
+scan's own estimate, the one value in the control that is not a judgement.
+
+`Save to lunch` measures **absent**, correctly: the label is composed
+(`Save to ${mealType}`) from the meal chip the client selected. Hard-coding "lunch" would
+label the button for one meal regardless of the chip — the same ceiling as FIT-015's
+`Message Nadia`, now the fifth of its kind recorded here.
 
 ### FIT-019, and a second file-attribution error
 
@@ -307,7 +325,7 @@ without fabricating content the brief forbids.
 | FIT-017 | Rest & completion | `/active-workout` | 2/2 | `active_workout_screen.dart` + `widgets/rest_timer_widget.dart` |
 | FIT-018 | Session complete | `/active-workout` | 2/4 | `active_workout_screen.dart` |
 | FIT-019 | Log a meal | `/log-meal` | 4/5 | `meals_dashboard_screen.dart` (`_AddMealSheet`) + `widgets/pill_tab.dart` |
-| FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 0/5 | `—` |
+| FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 4/5 | `widgets/ai_scan_view.dart` |
 | FIT-021 | Entitlement gate | `PaywallGate wrapper (12 routes)` | 0/3 | `—` |
 | FIT-022 | Loading & failure | `cross-cutting pattern` | 0/1 | `—` |
 | FIT-023 | Check-in hub | `/checkins` | 4/10 | `checkin_screen.dart` + `checkin_hub_sections.dart` + `domain/checkin_hub.dart` |

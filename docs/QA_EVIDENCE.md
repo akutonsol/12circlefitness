@@ -403,7 +403,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1065 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1083 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -1260,6 +1260,53 @@ features, there is **no recent-foods data source in the repository**, and the de
 three pills, not four. Renaming would strand barcode scanning behind a label promising
 something else; deleting it would remove a shipped capability the design never said to
 remove. Not resolved by guessing.
+
+## 3s · FIT-020 · AI meal scan — 0/5 → 4/5
+
+| Declared | Built |
+|---|---|
+| `Smaller` · `As shown` · `Larger` | three portion controls above the existing slider |
+| `Save to lunch` | the save button, named after the meal chip the client selected |
+| `Search instead` | leaves the scan for the search tab |
+
+### The number the anchor did not give
+
+The anchor gives three words and **no numbers**. Turning `Smaller` into a fixed multiplier
+— 0.75×, 1.5× — would be deciding, on the owner's behalf, **how much food a client just
+ate**. That number goes into their day's calories and to their coach.
+
+So `Smaller` and `Larger` are **relative**, which is what the words mean, and one step is
+the granularity the shipped slider already defines: `(3.0 − 0.25) / 11 = 0.25`. The
+figure is the product's own, not one chosen here. `As shown` returns to 1.0 — the scan's
+own estimate, the only value in the control that is not a judgement.
+
+The slider stays. The anchor does not draw it, but removing a finer control would take
+capability away, and a locked screen not drawing something is not the design saying to
+delete it — the OD-15 / OD-17 rule, applied a third time.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/scan_portion_test.dart` — 10 tests | **PASS** |
+| Wiring | `test/widget/ai_scan_result_test.dart` — 8 tests over the real result state | **PASS** |
+| Guard strength | 4 mutations killed, including **"an invented fixed multiplier instead of a step"** — the decision this work refuses to make, now unable to be made silently | **PASS** |
+| **Runtime, on device** | `integration_test/fit020_scan_result_device_test.dart` at 411.4 / 390 / 360 dp: all three `button=true tap=true`, `As shown` `selected=true`, targets `107.1 × 44.0 dp`, **0 overflows** at every width | **VERIFIED ON DEVICE** |
+| Suite | 1083 pass / 9 skipped | **PASS** |
+
+**A test seam, and why.** The result state is only reachable by running a real scan — a
+camera, an upload and a model call — so `AiScanView` gained an `initialResult` for tests.
+Without it none of the wiring above could be asserted at all. Same seam as
+`WorkoutCompleteDialog.submit`.
+
+**An Ahem artifact, checked rather than reported.** The widget test overflowed the result
+card's title row by 131 px with the anchor's own "Chicken, rice, greens". That row is
+pre-existing and has no `Expanded` on the name, so it was worth measuring — on the device,
+with the real font, it fits at 411, 390 and 360 dp with **zero overflows**. Second instance
+of the F-24 discipline: an Ahem overflow reported as a product bug would be a fabricated
+finding.
+
+**`Save to lunch` measures absent, correctly.** The label is composed from the selected
+meal chip; matching the literal would mean hard-coding "lunch" and labelling the button for
+one meal regardless. Fifth composed-label ceiling recorded.
 
 ## 4 · Design package
 

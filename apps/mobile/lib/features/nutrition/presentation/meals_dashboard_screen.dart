@@ -1070,7 +1070,12 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
               child: _inputMode == 'barcode'
                 ? BarcodeScanView(onFound: _logFromBarcode)
                 : _inputMode == 'ai_scan'
-                ? AiScanView(onAccept: _logFromScan)
+                ? AiScanView(
+                    onAccept: _logFromScan,
+                    // FIT-020 names the save button after the meal chip the
+                    // client selected, and offers a way back to search.
+                    mealType: _label(_mealType),
+                    onSearchInstead: () => setState(() => _inputMode = 'manual'))
                 : _selected != null
                 ? _FoodDetail(
                     key: ValueKey(_selected!.name),
