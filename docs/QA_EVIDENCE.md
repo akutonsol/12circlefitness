@@ -1744,6 +1744,16 @@ whether the affordance belongs on this screen, moves elsewhere, or goes.
 
 ## 7 · Environment
 
+**Disk — the constraint that actually bites.** The volume ran to **100 % (1.0 GB free)**
+during this cycle and the Flutter test runner stopped producing output rather than failing
+with an error, which reads as a hang. `apps/mobile/.dart_tool/flutter_build` had grown to
+**7.4 GB** across the cycle's repeated `flutter build apk` runs. It is an incremental build
+cache and entirely regenerable; deleting it restored 8.4 GB free and the suite ran normally
+again. Cost: one slower next build.
+
+Recorded because the symptom does not name the cause — a stalled `flutter test` on this
+machine is a disk check first.
+
 | Item | Status |
 |---|---|
 | Android emulator `emulator-5554`, API 35, arm64-v8a | **PASS** — running, no further SDK installed |
