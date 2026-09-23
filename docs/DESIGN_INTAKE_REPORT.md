@@ -75,29 +75,29 @@ Verified programmatically against `manifest.json`.
 | Assets | 6 | **6**, all 6 files present | **PASS** |
 | Interactions | — | **600** | **PASS** |
 | Gaps | — | **9** (`GAP-01`…`GAP-09`) | **PASS** |
-| **Components** | **25** | **`counts.components` = 25, `components` array = 28** | **FAIL** |
+| Components | 25 | `counts.components` = 25 · array = 28, of which **25 `shipped: true`** | **PASS** |
 
-### 2.1 The one manifest inconsistency — components 25 vs 28
+### 2.1 Components 25 vs 28 — RESOLVED, the manifest is consistent
 
-`manifest.json` declares `counts.components = 25` while its own `components` array holds
-**28** entries:
+An earlier revision of this report recorded this as the package's one integrity **FAIL**.
+**That was wrong and is corrected here.**
 
-```
-CMP-stat CMP-bar CMP-body CMP-fc-card CMP-fc-btn CMP-fc-btn2 CMP-fc-btn--off
-CMP-fc-nav CMP-fc-navi CMP-fc-seg CMP-fc-sego CMP-fc-opt CMP-fc-prog CMP-fc-slot
-CMP-tap CMP-row CMP-pill CMP-fld CMP-bub-in CMP-bub-out CMP-state CMP-sico
-CMP-skel CMP-mic CMP-lbl CMP-cap CMP-note CMP-grp
-```
+Every component entry carries a `shipped` boolean. Counted:
 
-The brief's expected inventory (25) matches the *declared count*, not the array. Three
-entries are unaccounted for. Plausibly the three `--modifier`/variant-looking ids
-(`CMP-fc-btn2`, `CMP-fc-btn--off`, `CMP-fc-sego`) are variants counted under their base
-component — **but that is inference, and the package does not say so.**
+- `shipped: true` → **25** — exactly `counts.components`
+- `shipped: false` → **3** — `CMP-cap` (board caption), `CMP-note` (board annotation),
+  `CMP-grp` (board section heading)
 
-**CLASSIFICATION: DESIGN PACKAGE INCONSISTENCY — NOT ESTABLISHED.** Per the brief §5, the
-missing information is not invented. This does not block integration: all 28 ids are
-present and addressable. It blocks only any claim of "all 25 components implemented",
-because the denominator is unresolved.
+The three unshipped entries are **board furniture, not product components**: they exist to
+annotate the design board itself and are explicitly marked as not shipping. `counts`
+counts the product surface; the array documents the board in full.
+
+**The manifest is internally consistent on every measured dimension.** The prior
+conclusion was drawn from array length alone without reading the `shipped` field, and the
+brief's expected inventory of 25 is correct.
+
+**Consequence:** the component denominator is 25, so "all components implemented" is a
+checkable claim. Owner decision OD-5 is withdrawn.
 
 ---
 
@@ -263,9 +263,40 @@ inline failure — the current implementation cannot reach these states.
 destinations "must be asked".
 *Can continue without it:* yes.
 
-**OD-5 · Component denominator (§2.1)**
-*Question:* is the component set 25 or 28?
-*Can continue without it:* yes — all 28 are addressable.
+**~~OD-5 · Component denominator~~ — WITHDRAWN.** Resolved by the `shipped` field: 25
+shipped components, 3 board-only annotations. See §2.1.
+
+**OD-6 · The specified display weight does not exist in the shipped font** ⚠ NEW
+
+*Question:* the design's type ramp specifies **300 light** for Metric XL/L/M, Display and
+H1 (`PHASE-2-DESIGN-SYSTEM.md:346-353`), and requires
+`HelixSemantics.displayWeight = HelixTypeScale.light` (w300). **Schibsted Grotesk as
+shipped in `google_fonts: ^8.1.0` — the project's declared dependency, resolved to 8.1.0 —
+provides only w400, w500, w600, w700, w800, w900. There is no w300 and no w200.**
+Verified directly in
+`~/.pub-cache/hosted/pub.dev/google_fonts-8.1.0/lib/src/google_fonts_parts/part_s.dart`.
+
+*The package contradicts itself here, and the contradiction points to the answer:*
+
+| Source | Display / H1 weight |
+|---|---|
+| `PHASE-2-DESIGN-SYSTEM.md:346-353` (stated intent) | **300 light** — unsatisfiable |
+| `manifest.json` typography `d1`, `h1` (the board's **rendered** CSS) | **400** — satisfiable |
+| `IMPLEMENT-THIS.md` (implementation authority) | *"nothing above weight 500"* — a ceiling, satisfied by 400/500 |
+
+The manifest records what the board actually renders, and the board is the package's
+declared source of truth. `IMPLEMENT-THIS.md` states a ceiling, not a floor, and w400
+honours it. **The evidence therefore points to w400/w500**, but the design document says
+300 and this repository does not get to overrule a design document by inference.
+
+*Options:* (a) implement at w400/w500 per the manifest and the board — no new dependency;
+(b) bundle Schibsted Grotesk Light as a local font asset to obtain w300; (c) substitute a
+different neo-grotesk that ships w300 — the doc constrains this to "any true neo-grotesk
+with a 300 weight — **not** Inter, and **not** a rounded geometric".
+
+*Current impact:* blocks only the display/metric type ramp. Colour, shape, spacing, motion
+and all component geometry are unaffected.
+*Can continue without it:* **yes** — everything except display/metric font weight.
 
 ---
 
@@ -276,16 +307,124 @@ destinations "must be asked".
 | Exact package location | **ESTABLISHED** |
 | Package identity / version / date | **ESTABLISHED** — handoffVersion 1.0, generated 2026-09-23 |
 | FIT-001…FIT-110 present and machine-readable | **PASS** |
-| Manifest integrity | **PASS**, except components 25 vs 28 |
+| Manifest integrity | **PASS** — no inconsistency found on any measured dimension |
 | manifest ↔ DESIGN_HANDOFF | **PASS** — 0 mismatches across 110 screens |
 | IMPLEMENT-THIS ↔ both | **PASS** |
 | Board ↔ manifest | **PASS** — 110 = 110; caption stale |
-| Route / component / token / asset counts | **PASS** (components noted) |
+| Route / component / token / asset counts | **PASS** |
+| Conflicts with the existing repository | **ESTABLISHED** — see §10 |
 | Gaps enumerated | **PASS** — 9, all classified |
 | Legacy package rejected | **DONE** |
 
-**THE AUTHORITATIVE PACKAGE IS VALIDATED AND FIT FOR IMPLEMENTATION**, subject to the five
+**THE AUTHORITATIVE PACKAGE IS VALIDATED AND FIT FOR IMPLEMENTATION**, subject to the
 recorded owner decisions, none of which blocks the majority of integration work.
 
-**Next:** Phase 3 — FIT→route→implementation mapping
-(`DESIGN_ROUTE_IMPLEMENTATION_MATRIX.md`).
+---
+
+## 10 · Conflicts with the existing repository
+
+Required by brief §5. Measured against `apps/mobile/lib`.
+
+### 10.1 The decisive fact: the semantic token contract has zero consumers
+
+`grep -rn "context\.helix" apps/mobile/lib --include="*.dart"` returns **2 lines, both
+comments** (`core/theme/twelve_circle_theme.dart:23`,
+`core/helix/helix_theme_builder.dart:17`).
+
+**Not one widget in the application reads a Helix semantic token.** Nor does any file
+under `features/` reference `HelixSpace`, `HelixRadius`, `HelixMotion`, `HelixTypeScale`
+or `HelixElevation` — **0 references**. The Tier-2 contract at
+`core/helix/helix_semantics.dart:5-7` states *"Components consume ONLY these — never raw
+hex"*; it is honoured nowhere.
+
+The token system is installed (`main.dart:115-116` →
+`HelixThemeBuilder.dark` → `ThemeData.extensions`), so it reaches screens only indirectly
+through Material's `textTheme`/`colorScheme`/`cardTheme`.
+
+**Consequence for integration:** retargeting Tier-3 token *values* to the design will have
+almost no visual effect on its own, because the screens do not read them. The work is
+necessarily per-screen.
+
+### 10.2 Blast radius
+
+| Measure | Count |
+|---|---|
+| `.dart` files under `features/*/presentation` | 158 |
+| Files using a raw 8-digit hex colour | **108** (68.4%) |
+| Raw hex occurrences | **1,418** |
+| Files reading `context.helix` | **0** |
+| Files importing `helix_semantics` | **0** |
+| Files referencing legacy `AppColors` | 52 in presentation; **1,028 call sites across 54 files** repo-wide |
+| Per-screen private palette classes | **20** (plus 142 hex-bearing private classes across 55 files) |
+
+The 20 private palettes are **mutually inconsistent** — not 20 copies of one palette.
+Background is `#0A0A0B` in six files, `#0E0E0F` in five, `#030303` in one, `#060E20` in
+one. The dominant purple across them is `#A855F7` (rank 2 overall, 85 occurrences); the
+design's accent `#7C3AED` ranks 19th with 19 occurrences.
+
+### 10.3 Token conflicts — the shipped theme disagrees on nearly every value
+
+`core/theme/twelve_circle_theme.dart` is the Tier-3 theme actually wired at
+`main.dart:115-116`.
+
+| Token | Design | Repo | Repo file:line |
+|---|---|---|---|
+| background | `#0A0A0B` | `#0A0C10` | `:26` |
+| surface | `#121215` | `#14171D` | `:27` |
+| surfaceHigh | `#1B1B20` | `#1D222B` | `:28` |
+| border | white 8% | white ~12% (`0x1FFFFFFF`) | `:30` |
+| textPrimary | `#F4F3F6` | `#FFFFFF` | `:50` |
+| textSecondary | `#9B96A3` | `#9AA3AF` | `:33` |
+| **textTertiary** | `#8B8595` | `#5B646F` | `:34` |
+| **accent** | `#7C3AED` | `#7C5CFF` | `:36` |
+| success / warning / danger | `#2FBF87` / `#E0A030` / `#E8556D` | `#2FE0A6` / `#FFB020` / `#FF4D6A` | `:38-40` |
+| **radiusCard** | 16 | **28** | `:54` |
+| **radiusButton** | 12 flat | **999 (pill)** | `:54` |
+| radiusField | 12 | 16 | `:54` |
+| **motion** | `emphasized` `Cubic(0.2,0,0,1)`, 200 ms | `spring` `Cubic(0.34,1.56,0.64,1)`, 300 ms | `:56` |
+| **fonts** | Schibsted Grotesk ×3 | Outfit / Inter / Rajdhani | `:58` |
+
+Spacing is the one dimension that already agrees: `HelixSpace` is 4-based with
+`x5=20, x8=32, x12=48`, exactly as specified — though unused under `features/`.
+
+`textTertiary` is the sharpest conflict: the design raised it to `#8B8595` specifically to
+clear WCAG AA at 11 px (worst case 4.81:1 on `surfaceHigh`), having rejected `#6A6572` at
+3.31:1. **The repo ships `#5B646F`, which is darker than the value the design rejected.**
+
+### 10.4 Missing contract fields
+
+`HelixSemantics` exposes 22 fields. The design requires four that do not exist:
+`displayWeight`, `displayTracking`, `accentOnDark` (`#A78BFA`), and a second-tier border
+(`--line-2`). `HelixTypeScale` has no `light` (w300) or `extraLight` (w200) — its ramp
+starts at `regular` (w400). `helixNumeric` has no `tabular` parameter and no
+`FontFeature.tabularFigures()`, so the design's figure-spacing rule is currently
+unimplementable.
+
+### 10.5 The repository ships the signature the design bans
+
+`PHASE-2-DESIGN-SYSTEM.md:339-341`: *"Purple is a line and a mark, not a flood… No purple
+gradients on cards, no purple glow shadows."*
+
+The repo provides first-class helpers for exactly that: `accentSweep`
+(`helix_semantics.dart:64`), `accentGlow` (`:66`), `featureGradient` (`:68`),
+`cardDecoration(glow: true)` (`:47`), `HelixElevation.glow` (`helix_primitives.dart:64`),
+plus legacy `AppStyles.premiumPurpleCard` and `purpleGlow`
+(`core/theme/app_theme.dart:57-71`).
+
+**Classification: OWNER DECISION at removal time**, not a QA repair — deleting shipped
+helpers changes product appearance.
+
+### 10.6 Geometry drift, measured
+
+`BorderRadius.circular(N)` under `features/*/presentation`: `12` ×188, `20` ×153,
+`16` ×149, `14` ×142, `999` ×86, `10` ×71, `8` ×63. The design specifies 16 (card) and 12
+(button/field). Horizontal gutters: `16` ×78, `10` ×74, `14` ×69, `12` ×65, `8` ×58 —
+the design's 20 px screen gutter is only the **sixth** most common inset.
+
+Two further font families appear outside the declared trio:
+`GoogleFonts.plusJakartaSans` and `GoogleFonts.jetBrainsMono`.
+
+---
+
+**Next:** Phase 4 — integration, beginning with the token foundation
+(`DESIGN_ROUTE_IMPLEMENTATION_MATRIX.md` carries the per-screen plan).
