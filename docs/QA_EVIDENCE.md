@@ -298,7 +298,7 @@ address it. Recorded rather than papered over.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **929 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **937 tests pass, 9 skipped** | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
 ## 3b · FIT-028 · Connect — no coach — **VERIFIED LIVE**
@@ -565,6 +565,52 @@ settled: **a thing worth asserting gets moved somewhere it can be.**
 copy the design package does not supply for those frames. A full error state with a retry
 — the `booking_screen.dart:612` pattern — is still OD-8. What changed is that the two
 cases needing *no words at all* are done.
+
+## 3g · F-15 · `/profile` told paying clients they had no coach **FIXED**
+
+The "MY COACH" section read `assignedCoachProvider.valueOrNull`, so a failed read and
+"you have no coach" arrived as the same `null`. On any failure the client saw:
+
+> **No coach assigned yet**
+> Complete onboarding to choose your coach.
+
+Not a blank where data should be — a **specific false statement about the client's own
+relationship, with an instruction attached**. Someone paying a coach every month, told to
+go and pick one.
+
+This is the same falsehood FIT-028 was built to avoid on `/messages`. There it was caught
+before it shipped. Here it had shipped.
+
+**Hidden, not reworded.** FIT-028 could fall back to a neutral sentence because one was
+already shipping. Here the string already sitting there *is* the false one, so there is
+nothing to fall back to, and any replacement is new product copy — OD-8, like the other
+collapses. Saying nothing is not ideal; saying something untrue is worse, and that is what
+shipped. The heading goes too: a "MY COACH" label over empty space is its own small
+assertion that there is nothing there.
+
+**A retry in flight stays hidden.** Riverpod reports `isLoading` and `hasError` together
+during a refresh; a retry knows no more than the failure before it, and flashing a spinner
+in and out of a hidden section is worse than leaving it hidden until there is something
+true to say. Pinned by a test, because a plausible reordering would change it silently.
+
+**`coachSectionFor` matches on the state, never on the value** — `.valueOrNull` is exactly
+how the failure became "no coach", and it is the read EC-G8 ratchets. Fixing an error→null
+collapse by adding an error→null read would have been self-defeating. EC-G8 is unchanged
+at 134.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Decision | `test/widget/coach_section_state_test.dart` — 6 tests on `coachSectionFor` | **PASS** |
+| Wiring | 2 widget tests mounting the real `MyCoachSection` with the providers overridden | **PASS** |
+| Guard strength | 4 mutations, all killed | **PASS** |
+| Suite | 937 pass / 9 skipped; EC-G8 unchanged | **PASS** |
+| Runtime | **not verified** — reproducing it needs the coach read to fail against QA. Classified **FIXED IN CODE**. | **OPEN** |
+
+**A correction of record.** The first version of this fix had only the decision function
+under test, and the mutation *"delete the early return in `build`"* **survived** — the
+screen could have gone on rendering the denial with every unit test green. The section was
+made public and mounted so the wiring is asserted too. Found by running the mutation,
+which is the only reason it is not still true.
 
 ## 4 · Design package
 
@@ -1030,7 +1076,7 @@ state for that screen.
 | `checkin_screen.dart:146` | `/checkins` | `catch (_)` on `_loadCalls()` | "No upcoming sessions. Book a call with your coach." | **NO** | `coaching_calls` | none | FIT-023 | copy |
 | `coach_dashboard_screen.dart:68` | `/coach-dashboard` | provider `catch` → `[]` | "No clients found — Clients will appear here when they sign up" | **NO** | clients query | none | FIT-032 | copy |
 | `coach_dashboard_screen.dart:98/114/133` | `/coach-dashboard` | `catch` → `[]` ×3 | empty tabs | **NO** | check-ins, workouts, aggregate | none | FIT-032/033 | copy |
-| `profile_screen.dart:830` | `/profile` | `valueOrNull` → null | "No coach assigned yet" | **NO** | coach provider | none | FIT-029 | copy |
+| ~~`profile_screen.dart:830`~~ | `/profile` | ~~`valueOrNull` → null → "No coach assigned yet"~~ → **section hidden**; a failure is never rendered as a denial | "No coach assigned yet · Complete onboarding to choose your coach." | **YES** | coach provider | partial — see §3g | FIT-029 | **none for this leg**; a visible error state still needs OD-8 |
 | `classes_screen.dart:39` | `/classes` | `valueOrNull ?? []` | Schedule tab renders **nothing at all** (`itemCount: 0`) | **NO** | class providers | none | FIT-027/080/084 | copy + an empty state for Schedule |
 | `challenges_screen.dart:36-39` | `/challenges` | `AsyncError` never consumed | "🏁 No challenges here" | **NO** | challenge StateNotifier | none | FIT-075/078/079 | copy |
 | ~~`home_screen.dart:80`~~ | `/home` | ~~`catch` → all-zero bars~~ → **error propagates**; headline `'—'`, nudge omitted, bars drawn as the unknown track | zero bars + "Log meals or workouts…" | **YES** | weekly activity | partial — see §3f | FIT-001 (locked) | **none for this leg**; a full error state with retry still needs OD-8 |
@@ -1041,13 +1087,17 @@ state for that screen.
 now. **This is a connection problem, not an empty schedule.**"* with a Try-again action, and
 a comment at `:609-611` naming the collapse as the bug. `chat_screen.dart` now follows it.
 
-**Two of the nine are now closed, and they are the two that needed no copy.** Both were
+**Three of the nine are now closed, and they are the three that needed no copy.** Both were
 the worst kind: not a failure shown as emptiness, but a failure shown as a **confident
 wrong number**. `/train` answered "0 workouts"; `/home` answered "0%" and then told the
 client to start logging. In both, a number the screen could not support became `'—'` and
-the accusation was dropped. Nothing was written to do it.
+the accusation was dropped. The third, `/profile`, was worse still: a **denial** —
+"No coach assigned yet. Complete onboarding to choose your coach." shown to a client
+paying a coach every month. It is now hidden rather than reworded, because the string
+already sitting there was the false one and there was nothing shipped to fall back to.
+Nothing was written to fix any of the three.
 
-The remaining seven need **user-facing error copy**, and that is still OD-8.
+The remaining six need **user-facing error copy**, and that is still OD-8.
 
 **Why the rest are not fixed in this pass:** the pattern is unambiguous but each needs
 **user-facing error copy**, and the authoritative package declares `empty`/`loading` states
