@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../core/widgets/named_icon_button.dart';
+import 'widgets/nutrition_load_failed.dart';
 import 'widgets/pill_tab.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,7 +25,8 @@ const _blue  = Color(0xFF60A5FA);
 // ── Providers ──────────────────────────────────────────────────────────────
 final _svcProvider = Provider<NutritionService>((ref) => NutritionService());
 
-final _totalsProvider = FutureProvider<Map<String, double>>(
+/// Public so FIT-022's failure card can retry it.
+final nutritionTotalsProvider = FutureProvider<Map<String, double>>(
   (ref) async => ref.watch(_svcProvider).getTodayTotals());
 
 final _logsForDateProvider =
@@ -62,15 +64,28 @@ class _MealsDashboardScreenState
     double cal, double protein, double carbs, double fat,
     double calGoal, double proteinGoal, double carbGoal, double fatGoal,
     AsyncValue<List<Map<String, dynamic>>> logsAsync,
-    BuildContext context,
-  ) {
+    BuildContext context, {
+    required bool totalsFailed,
+  }) {
     final items = <Widget>[
       _MealTabs(
         active: _mealFilter,
         onSelect: (t) => setState(() => _mealFilter = t)),
       const SizedBox(height: 16),
     ];
-    if (_isToday) {
+    if (_isToday && totalsFailed) {
+      // FIT-022 · "Loading & failure". Until now a failed totals read rendered
+      // `?? 0.0` — a client who had logged three meals was shown **zero
+      // calories**, and may well have logged them again.
+      //
+      // The board's own words for this exact frame, and its annotation: "the
+      // failure state names what did NOT happen … because the fear a failed
+      // screen creates is data loss, not inconvenience."
+      items.addAll([
+        const NutritionLoadFailed(),
+        const SizedBox(height: 12),
+      ]);
+    } else if (_isToday) {
       items.addAll([
         _CalorieCard(cal: cal, protein: protein, carbs: carbs, fat: fat,
           calGoal: calGoal, proteinGoal: proteinGoal, carbGoal: carbGoal, fatGoal: fatGoal),
@@ -110,7 +125,7 @@ class _MealsDashboardScreenState
   @override
   Widget build(BuildContext context) {
     final logsAsync = ref.watch(_logsForDateProvider(_selectedDate));
-    final totals    = ref.watch(_totalsProvider);
+    final totals    = ref.watch(nutritionTotalsProvider);
     final goals     = ref.watch(nutritionGoalsProvider);
     final cal     = totals.valueOrNull?['calories'] ?? 0.0;
     final protein = totals.valueOrNull?['protein']  ?? 0.0;
@@ -132,7 +147,7 @@ class _MealsDashboardScreenState
                 color: _brand,
                 backgroundColor: _card,
                 onRefresh: () async {
-                  ref.invalidate(_totalsProvider);
+                  ref.invalidate(nutritionTotalsProvider);
                   ref.invalidate(_logsForDateProvider(_selectedDate));
                 },
                 child: SingleChildScrollView(
@@ -197,7 +212,8 @@ class _MealsDashboardScreenState
                           children: _innerChildren(
                             cal, protein, carbs, fat,
                             calGoal, proteinGoal, carbGoal, fatGoal,
-                            logsAsync, context))),
+                            logsAsync, context,
+                            totalsFailed: totals is AsyncError))),
                     ])))),
           ])));
   }
@@ -210,7 +226,7 @@ class _MealsDashboardScreenState
       builder: (_) => _AddMealSheet(onLogged: () async {
         await Future.delayed(const Duration(milliseconds: 300));
         if (mounted) {
-          ref.invalidate(_totalsProvider);
+          ref.invalidate(nutritionTotalsProvider);
           ref.invalidate(_logsForDateProvider(_selectedDate));
           ref.invalidate(todayNutritionProvider);
         }

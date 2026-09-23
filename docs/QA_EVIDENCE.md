@@ -403,7 +403,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1102 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1109 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -1480,6 +1480,56 @@ test so it does not look like coverage it is not.
 
 **FIT-009: 0/1 → 1/1.** Fourth anchor completed.
 
+## 3y · FIT-022 · Loading & failure — and a **tenth** F-15 case the inventory missed
+
+The board's annotation for this anchor is the most useful sentence in the package:
+
+> *"The failure state names what did **not** happen — 'everything you've logged is saved' —
+> because the fear a failed screen creates is data loss, not inconvenience."*
+
+That is why this state is not just another `Could not load X`. A client whose nutrition
+screen fails does not mainly want to know a request failed; they want to know their
+morning's logging is still there.
+
+### The defect it replaces — not in the nine
+
+`/meals-dashboard` read `totals.valueOrNull?['calories'] ?? 0.0`. **A failed read rendered
+zero calories, zero protein, zero carbs and zero fat** to a client who had logged three
+meals — who might reasonably log them again, and then be over by a day's food.
+
+Same class as `/train`'s "0 workouts", `/home`'s "0%" and `/challenges`' "0 active
+challenges". **It was not in the §6c inventory of nine.** That inventory was a survey, not
+a proof, and this is the evidence: it under-counted by at least one, found only because
+FIT-022 sent me to look at this specific screen.
+
+### What shipped
+
+Every string is the board's, verbatim — `Couldn't load today` / `Everything you've already
+logged is saved. Only today's totals failed to load.` / `Try again` — and a test asserts
+the **reassurance clause specifically**, because a failure card that only says "could not
+load" satisfies the shape and misses the point.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Behaviour | `test/widget/nutrition_load_failed_test.dart` — 7 tests | **PASS** |
+| Guard strength | 4 mutations killed: drop the reassurance, drop the heading role, drop the 44 dp floor, and **render zeros again** | **PASS** |
+| Suite | 1109 pass / 9 skipped | **PASS** |
+| Runtime | not device-verified — leaf widget. **FIXED IN CODE**. | **OPEN** |
+
+The fourth mutation needed a **source-level** guard, because `MealsDashboardScreen` reads
+Supabase and cannot be mounted. Without it, restoring the `?? 0.0` path survived. Second
+time that pattern was needed today, after FIT-009.
+
+### What is NOT claimed
+
+The board gives the principle and **one worked example**. Applying "name what did not
+happen" to the other nine failure states means writing a per-screen reassurance sentence —
+which is writing copy, even with an authoritative pattern to follow. Those keep the house
+`Could not load [noun]` wording, and the upgrade is proposed under **OD-8** rather than
+taken.
+
+**FIT-022: 0/1 → 1/1.** Fifth anchor completed.
+
 ## 4 · Design package
 
 | Check | Status |
@@ -1956,7 +2006,9 @@ state for that screen.
 now. **This is a connection problem, not an empty schedule.**"* with a Try-again action, and
 a comment at `:609-611` naming the collapse as the bug. `chat_screen.dart` now follows it.
 
-**All nine are now closed.** Both were
+**All nine are now closed — and the inventory was not complete.** A tenth, on
+`/meals-dashboard`, was found by FIT-022 and is recorded in §3y. The survey below was a
+survey, not a proof. Both were
 the worst kind: not a failure shown as emptiness, but a failure shown as a **confident
 wrong number**. `/train` answered "0 workouts"; `/home` answered "0%" and then told the
 client to start logging. In both, a number the screen could not support became `'—'` and

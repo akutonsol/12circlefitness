@@ -24,9 +24,9 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 291 (49%) |
-| **Label absent** | **309** |
-| Locked anchors | 86/179 (48%) |
+| Label present | 292 (49%) |
+| **Label absent** | **308** |
+| Locked anchors | 87/179 (49%) |
 
 **These numbers went DOWN, and that is the correction.** See *"The measurement counted its
 own comments"* below.
@@ -127,7 +127,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-018 | Session complete | `/active-workout` | 2 | 4 | `active_workout_screen.dart` |
 | FIT-026 | Conversation | `/chat` | 3 | 5 | `chat_screen.dart` |
 | FIT-009 ✅ | Intake complete | `/intake` | **1** | 1 | `widgets/intake_complete_page.dart` |
-| FIT-022 | Loading & failure | `cross-cutting pattern` | 0 | 1 | `—` |
+| FIT-022 ✅ | Loading & failure | `cross-cutting pattern` | **1** | 1 | `widgets/nutrition_load_failed.dart` |
 | FIT-024 | Check-in detail | `/checkin-detail` | 1 | 2 | `checkin_detail_screen.dart` |
 | FIT-007 | Sign in | `/login` | 1 | 1 | `login_screen.dart` |
 | FIT-025 | Awaiting reply | `/checkin-detail` | 1 | 1 | `checkin_detail_screen.dart` |
@@ -327,7 +327,7 @@ without fabricating content the brief forbids.
 | FIT-019 | Log a meal | `/log-meal` | 4/5 | `meals_dashboard_screen.dart` (`_AddMealSheet`) + `widgets/pill_tab.dart` |
 | FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 4/5 | `widgets/ai_scan_view.dart` |
 | FIT-021 ✅ | Entitlement gate | `PaywallGate wrapper (12 routes)` | **3/3** | `paywall_gate.dart` |
-| FIT-022 | Loading & failure | `cross-cutting pattern` | 0/1 | `—` |
+| FIT-022 ✅ | Loading & failure | `cross-cutting pattern` | **1/1** | `widgets/nutrition_load_failed.dart` |
 | FIT-023 | Check-in hub | `/checkins` | 4/10 | `checkin_screen.dart` + `checkin_hub_sections.dart` + `domain/checkin_hub.dart` |
 | FIT-024 | Check-in detail | `/checkin-detail` | 1/2 | `checkin_detail_screen.dart` |
 | FIT-025 | Awaiting reply | `/checkin-detail` | 1/1 | `checkin_detail_screen.dart` |
