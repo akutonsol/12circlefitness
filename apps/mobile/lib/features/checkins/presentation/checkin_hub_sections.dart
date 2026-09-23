@@ -95,7 +95,12 @@ class CheckinHubSections extends ConsumerWidget {
               // judgement FIT-005's conversation rows use.
               hint: 'Open check-in',
               child: GestureDetector(
-                onTap: () => context.go('/checkin-detail'),
+                // Select the week first: `/checkin-detail` used to be a stub,
+                // so this row navigated into a dead end of my own making.
+                onTap: () {
+                  ref.read(selectedCheckinProvider.notifier).state = week;
+                  context.go('/checkin-detail');
+                },
                 behavior: HitTestBehavior.opaque,
                 child: Container(
                   constraints: const BoxConstraints(minHeight: 44),

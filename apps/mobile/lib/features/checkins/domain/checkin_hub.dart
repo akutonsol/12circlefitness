@@ -131,3 +131,92 @@ String checkinSubmitLabel(AsyncValue<Map<String, dynamic>?> coach) =>
         // The label this screen already ships. A client with no coach is not
         // shown a button addressed to nobody.
         fallback: 'Submit Check-In');
+
+// ── FIT-024 / FIT-025 · Check-in detail ──────────────────────────────────────
+
+/// The check-in the client opened from the hub.
+final selectedCheckinProvider = StateProvider<WeeklyCheckin?>((ref) => null);
+
+/// The board draws the answers as **label-value rows** — "quick to scan, and
+/// they hold at large Dynamic Type where a table wouldn't".
+typedef CheckinAnswer = ({String label, String value});
+
+/// The answers, in the board's order, skipping anything the week does not
+/// carry.
+///
+/// **Energy is stated, not interpreted.** The board writes "Steady"; the stored
+/// value is 1–5, and mapping one to the other is OD-16 — the same decision
+/// FIT-023's history row leaves alone. A row that is not there is better than a
+/// row that guesses.
+List<CheckinAnswer> checkinAnswers(WeeklyCheckin c) {
+  Object? raw(String id) => c.responses
+      .where((r) => r.questionId == id)
+      .map((r) => r.answer)
+      .firstOrNull;
+
+  int? scale(String id) {
+    final v = raw(id);
+    final n = switch (v) {
+      final int i => i,
+      final double d => d.round(),
+      final String s => int.tryParse(s),
+      _ => null,
+    };
+    return (n == null || n < 1 || n > 5) ? null : n;
+  }
+
+  final out = <CheckinAnswer>[];
+  final energy = scale('energy');
+  if (energy != null) out.add((label: 'Energy', value: '$energy of 5'));
+
+  final sleep = raw('sleep_hours_avg');
+  final hours = switch (sleep) {
+    final num n => n.toDouble(),
+    final String s => double.tryParse(s),
+    _ => null,
+  };
+  if (hours != null) {
+    // "5 of 7 nights" on the board counts nights; this product stores average
+    // hours. Reporting hours as nights would be a different measurement
+    // wearing the board's label.
+    out.add((label: 'Sleep', value: '${_trim(hours)} hours average'));
+  }
+
+  final stress = scale('stress_level');
+  if (stress != null) out.add((label: 'Stress', value: '$stress of 5'));
+
+  final mood = scale('mood');
+  if (mood != null) out.add((label: 'Mood', value: '$mood of 5'));
+
+  return out;
+}
+
+/// What the client wrote, or null when they wrote nothing.
+String? checkinNote(WeeklyCheckin c) {
+  final v = c.responses
+      .where((r) => r.questionId == 'notes')
+      .map((r) => r.answer)
+      .firstOrNull;
+  final s = v is String ? v.trim() : null;
+  return (s == null || s.isEmpty) ? null : s;
+}
+
+/// `Sent Sunday 31 August`, or null before it was sent.
+String? checkinSentLine(WeeklyCheckin c) {
+  final at = c.submittedAt;
+  if (at == null) return null;
+  final l = at.toLocal();
+  return 'Sent ${_weekdays[l.weekday - 1]} ${l.day} ${_monthsLong[l.month - 1]}';
+}
+
+String _trim(double v) =>
+    v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
+
+const _weekdays = [
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+];
+const _monthsLong = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+

@@ -403,7 +403,7 @@ counts what remains.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **1109 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **1120 tests pass, 9 skipped** | **PASS** |
 | Device probes | 9 integration test files on `emulator-5554`; only one signs in, and it issues `SELECT`s only | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
@@ -1530,6 +1530,56 @@ taken.
 
 **FIT-022: 0/1 → 1/1.** Fifth anchor completed.
 
+## 3z · FIT-024 / FIT-025 · Check-in detail — a stub, and a dead end I had made
+
+`checkin_detail_screen.dart` was **23 lines**: an app bar and the words
+*"Check-in details coming soon"*. **And FIT-023's history rows, added earlier in this
+programme, navigated straight into it.** The dead end was mine — built two cycles ago,
+found now only because the anchor sent me to the screen.
+
+Both states are now real, from the board's own copy: the answers as label-value rows, what
+the client wrote, the coach's reply as *"the one card, because it's the reason to come back
+here"*, and FIT-025's `No reply yet`. The hub now selects the week before navigating, so
+the row opens the check-in it names.
+
+### Three places the board could not be followed verbatim — each recorded
+
+**A gendered pronoun.** The board writes *"She usually replies within a day"* because Nadia
+is its example. Applying that to a real coach would **misgender them**. The sentence is
+written without a pronoun and says the same thing. A test asserts no pronoun appears.
+
+**A schedule this product does not store.** The board's empty state reads *"Nadia reviews
+check-ins on Sundays and Mondays."* There is no coach review schedule in the data, and
+asserting one would be **inventing a commitment on a coach's behalf** — the client would
+chase on Monday. Omitted and recorded as **OD-20**. A test asserts no such claim appears,
+while allowing weekday names where they are facts ("Sent Monday 31 August").
+
+**"Energy · Steady".** OD-16 again: the stored value is 1–5. The row reads `3 of 5`, and a
+test asserts the three words never appear.
+
+### One more, smaller
+
+The board's "Sleep · 5 of 7 nights" counts **nights**; this product stores an **average
+number of hours**. Reporting hours under the board's label would be a different measurement
+wearing its words, so the row reads "7 hours average".
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Behaviour | `test/widget/checkin_detail_test.dart` — 11 tests | **PASS** |
+| Guard strength | 5 mutations killed: interpret energy (OD-16 silently), tell a **pending** week the coach has it, use a blank coach name, offer a reply when there is none, render a week when none is selected | **PASS** |
+| Suite | 1120 pass / 9 skipped | **PASS** |
+| Runtime | not device-verified. **FIXED IN CODE**. | **OPEN** |
+
+**FIT-025: 1/1. FIT-024: 1/2** — `Reply to Nadia` measures absent, correctly: the label is
+composed from the coach's name on the reply. Sixth composed-label ceiling.
+
+**A note on FIT-025's previous score.** It was recorded 1/1 *before this work*, against a
+stub that rendered "Check-in details coming soon". The single declared interaction is
+`Back`, which the stub's `AppBar` supplied automatically — so the anchor measured complete
+while the screen did not exist. **A full score against a stub is the strongest argument yet
+that presence is weak evidence**, which this document has said from the start and can now
+show.
+
 ## 4 · Design package
 
 | Check | Status |
@@ -2029,6 +2079,13 @@ booking screen's existing, already-shipped phrasing as the house pattern. Record
 **OD-8**.
 
 ## 6d · OWNER DECISION REGISTER
+
+**OD-20 · FIT-025 promises a coach review rhythm the product does not model.** The board's
+empty state reads "Nadia reviews check-ins on Sundays and Mondays … Her reply will appear
+here", and its annotation makes the rhythm the point: *"An empty state that explains the
+rhythm removes the need to wonder — and the need to chase."* There is no review schedule in
+the data. Decide whether coaches declare one (a field, and who edits it) or whether generic
+copy is approved. Until then the screen says only what is true.
 
 **OD-19 · FIT-030 declares a privacy control that has no data model.**
 "Who can see my progress · Coach only" implies a visibility setting on a client's progress.

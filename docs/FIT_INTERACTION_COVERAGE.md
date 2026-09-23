@@ -28,6 +28,11 @@ claim under `QA_CLOSURE_STANDARD`.
 | **Label absent** | **308** |
 | Locked anchors | 87/179 (49%) |
 
+**FIT-025 scored 1/1 against a 23-line stub** reading "Check-in details coming soon". Its
+one declared interaction is `Back`, which the stub's `AppBar` supplied automatically. The
+screen has since been built; the number did not move. It is the clearest example this
+document has of *presence is weak evidence*.
+
 **These numbers went DOWN, and that is the correction.** See *"The measurement counted its
 own comments"* below.
 
