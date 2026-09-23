@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../auth/domain/auth_provider.dart';
+import '../../coach/domain/coach_provider.dart';
 import '../domain/messaging_provider.dart';
 
 const _bg      = Color(0xFF030303);
@@ -63,10 +65,36 @@ class MessagingScreen extends ConsumerWidget {
                 sub: "Tap refresh to try again"),
               data: (convs) {
                 if (convs.isEmpty) {
-                  return _EmptyState(
+                  // ── FIT-028 · "/messages · the state that sells the plan
+                  // honestly" ────────────────────────────────────────────────
+                  // A member with no coach has nothing to message and no route
+                  // to change that. "No conversations yet" is true but leaves
+                  // them stranded.
+                  //
+                  // THE STATES STAY DISTINCT, AND THE PITCH IS SHOWN ONLY ON
+                  // PROOF. Two facts must both be *loaded* before we tell
+                  // someone they have no coach: that they are a member rather
+                  // than a coach (a coach with no clients is not a sales
+                  // prospect), and that their active-coach list really is
+                  // empty. If either is still loading or has failed we fall
+                  // back to the neutral sentence, which is true in every case.
+                  // Collapsing a failed lookup into "you have no coach" is the
+                  // error-to-empty defect recorded as F-15, and here it would
+                  // also sell a plan to someone who has already bought one.
+                  const neutral = _EmptyState(
                     icon: Icons.chat_bubble_outline,
                     message: "No conversations yet",
-                    sub: "Your messages with coaches and clients will appear here");
+                    sub: "Your messages with coaches and clients will appear here",
+                  );
+                  final isMember = ref.watch(currentUserProfileProvider).maybeWhen(
+                    data: (p) => p?['role'] != 'coach',
+                    orElse: () => false,
+                  );
+                  if (!isMember) return neutral;
+                  return ref.watch(myCoachesProvider).maybeWhen(
+                    data: (coaches) => coaches.isEmpty ? const _NoCoachState() : neutral,
+                    orElse: () => neutral,
+                  );
                 }
                 return RefreshIndicator(
                   color: _brand,
@@ -177,6 +205,53 @@ class _ConversationTile extends StatelessWidget {
 }
 
 // ── Empty state ───────────────────────────────────────────────────────────────
+/// FIT-028 · Connect — no coach.
+///
+/// Copy and destination are both already shipped in this repository, so neither
+/// is invented: "Find a coach" is the label used at
+/// `manage_subscription_screen.dart:241`, and the description and route come
+/// from the Coaches module at `directory_screen.dart:59`.
+class _NoCoachState extends StatelessWidget {
+  const _NoCoachState();
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.person_search_rounded, color: _brand.withValues(alpha: 0.3), size: 52),
+            const SizedBox(height: 16),
+            const Text('No coach yet',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _white, fontSize: 17, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text('Browse coaches, compare plans and get matched.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _muted.withValues(alpha: 0.7), fontSize: 13, height: 1.5)),
+            const SizedBox(height: 22),
+            Semantics(
+              button: true,
+              child: GestureDetector(
+                onTap: () => context.go('/coach-marketplace'),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 52),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _brand,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text('Find a coach',
+                      style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500)),
+                ),
+              ),
+            ),
+          ]),
+        ),
+      );
+}
+
 class _EmptyState extends StatelessWidget {
   final IconData icon;
   final String message, sub;

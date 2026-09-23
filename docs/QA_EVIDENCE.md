@@ -298,8 +298,57 @@ address it. Recorded rather than papered over.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **840 tests pass** | **PASS** |
+| Unit + widget suite | **886 tests pass, 9 skipped** | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
+
+## 3b · FIT-028 · Connect — no coach — **VERIFIED LIVE**
+
+The design calls this state *"/messages · the state that sells the plan honestly"*. It
+was absent: a member with no coach saw "No conversations yet", which is true and useless
+— nothing on the screen tells them a coach is the thing they are missing, or how to get
+one.
+
+**Why this anchor and not a larger one.** F-21 (cross-user write on
+`workout_programs`/`workout_program_assignments`) is OPEN and the standing instruction
+reserves the policy change as an owner decision. FIT-028 depends on no coach-assigned
+data — only on whether an active relationship exists — so it is integrable without
+touching the vulnerable path. FIT-005, the anchor above it, is a full relationship layer
+(coach + community + pods + classes) whose declared content is sample messages; building
+it means inventing them.
+
+**Nothing was invented.** Both strings already ship in this repository:
+
+| String | Already at |
+|---|---|
+| `Find a coach` | `manage_subscription_screen.dart:241` |
+| `Browse coaches, compare plans and get matched.` | `directory_screen.dart:59` |
+
+**The design decision worth recording.** The pitch renders only on *proof of two facts*:
+that the viewer is a member rather than a coach, and that their active-coach list really
+is empty. If either read is loading or has failed, the screen falls back to the neutral
+sentence. Collapsing a failed lookup into "you have no coach" would be the F-15
+error→empty defect, and here it would also sell a plan to someone who has already bought
+one. A coach with no client messages is likewise not a sales prospect.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Branch correctness | `test/widget/messaging_no_coach_test.dart` — 8 tests against the real widget tree, no simulated logic | **PASS** |
+| Guard strength | 3 mutations of the source, each killed: collapse `orElse`→pitch (2 fail), drop the role gate (2 fail), shrink the CTA to 30 px (1 fail) | **PASS** |
+| Suite | 886 pass / 9 skipped; EC-G8, A-G5, A-G8, SEC-G1 ratchets all hold, none raised | **PASS** |
+| Build | `flutter build apk --debug --dart-define-from-file=dart_defines/qa.json` | **PASS** |
+| **Runtime, real data** | `integration_test/fit028_no_coach_live_test.dart` on `emulator-5554` against QA, signed in as `p1-victim`: `PRECONDITION role=client · active_coaches=0 · conversations=0` then `RENDER pitch=1 neutral=0 failed=0` | **VERIFIED LIVE** |
+| Fixture residue | **none to clean** — the live test issues only `SELECT`s plus auth; it creates, updates and deletes nothing. Deliberate: F-21 is open and must not be exercised through unnecessary mutation. | **PASS** |
+
+The live test asserts its own preconditions from the database *before* it asserts
+anything about the screen, so if this fixture ever acquires a coach the run fails as
+"precondition changed" rather than quietly reporting a FIT-028 regression.
+
+**Still absent on this anchor, and why.** Six of ten declared interactions remain.
+Three are bottom-nav items that exist in the shell and are invisible to a screen-file
+heuristic — not gaps. Three are sample community content (`Tues Lifters…`, `Priya Hit
+70 kg…`, `What's on this week`) belonging to FIT-005 and FIT-027; implementing them from
+the design means fabricating messages and activity, which the brief forbids. Itemised in
+`FIT_INTERACTION_COVERAGE.md`.
 
 ## 4 · Design package
 

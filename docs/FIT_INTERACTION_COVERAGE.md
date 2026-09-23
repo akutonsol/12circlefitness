@@ -24,9 +24,15 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 258 (43%) |
-| **Label absent** | **342** |
-| Locked anchors | 53/179 (29%) |
+| Label present | 261 (44%) |
+| **Label absent** | **339** |
+| Locked anchors | 56/179 (31%) |
+
+Baseline measured 2026-09-23 was 258 / 342 / 53. The three-point move is FIT-028 alone
+(`/messages`, no-coach state) and is itemised in the note under that row — **two of the
+three are real, the third is a comment matching its own anchor id.** The heuristic cannot
+tell those apart, which is the caveat above stated as a concrete instance rather than as
+a disclaimer.
 
 **A correction of record.** The first run of this analysis resolved FIT-001 to
 `home_org.dart` — a file with **zero importers**, identified as dead code (F-19). Two
@@ -41,13 +47,13 @@ everything else. Where anything disagrees, they win."*
 | FIT | Screen | Route | Present | Declared | Implementation |
 |---|---|---|--:|--:|---|
 | FIT-005 | Connect | `/messages` | 1 | 12 | `messaging_screen.dart` |
-| FIT-028 | Connect — no coach | `/messages` | 1 | 10 | `messaging_screen.dart` |
 | FIT-004 | Check-In | `/daily-checkin` | 3 | 11 | `daily_checkin_screen.dart` |
 | FIT-023 | Check-in hub | `/checkins` | 2 | 10 | `checkin_screen.dart` |
 | FIT-003 | Nutrition | `/meals-dashboard` | 5 | 12 | `meals_dashboard_screen.dart` |
 | FIT-014 | Workouts hub | `/train` | 5 | 12 | `train_hub_screen.dart` |
 | FIT-027 | What's on | `/classes` | 3 | 10 | `classes_screen.dart` |
 | FIT-032 | Coach dashboard | `/coach-dashboard` | 5 | 11 | `coach_dashboard_screen.dart` |
+| FIT-028 | Connect — no coach | `/messages` | 4 | 10 | `messaging_screen.dart` |
 | FIT-001 | Home | `/home` | 4 | 9 | `home_screen.dart` |
 | FIT-008 | Intake | `/intake` | 2 | 7 | `intake_flow_screen.dart` |
 | FIT-019 | Log a meal | `/log-meal` | 0 | 5 | `log_meal_screen.dart` |
@@ -69,6 +75,28 @@ everything else. Where anything disagrees, they win."*
 | FIT-024 | Check-in detail | `/checkin-detail` | 1 | 2 | `checkin_detail_screen.dart` |
 | FIT-007 | Sign in | `/login` | 1 | 1 | `login_screen.dart` |
 | FIT-025 | Awaiting reply | `/checkin-detail` | 1 | 1 | `checkin_detail_screen.dart` |
+
+### FIT-028, itemised — what moved and what did not
+
+The only anchor this cycle changed. Its ten declared interactions, measured against
+`messaging_screen.dart` by the same heuristic as everything above:
+
+| Declared | Status | Note |
+|---|---|---|
+| `Find a coach` | **present** | Added. The label is not invented — it is the string already shipping at `manage_subscription_screen.dart:241`. |
+| `Browse coaches` | **present** | Added. Full sentence taken from `directory_screen.dart:59`. |
+| `Home` | present | Pre-existing, and a heuristic artifact: it matches the `context.go('/home')` back control, not a nav item. |
+| `Connect` | present | **Artifact introduced by this change** — it matches the Dart doc comment `/// FIT-028 · Connect — no coach`. Counted because the generator counts it; called out because it is not an interaction. |
+| `Tues Lifters Sam: anyone in at 7 tomorrow? 3` | absent | Community pod row. This is FIT-005's relationship layer, and the design's own content is sample data. Implementing it means inventing messages — forbidden. Deferred to FIT-005. |
+| `Priya Hit 70 kg on the hinge today 2h` | absent | As above. |
+| `What's on this week 3` | absent | A `/classes` teaser. Belongs with FIT-027. |
+| `Workouts` · `Nutrition` · `Check-In` | absent | Bottom-nav items. They exist, in the shell — the heuristic reads only the screen file, so it cannot see them. Not a gap. |
+
+So of the three-point move: **two are real**, one is a comment. Of the six still absent,
+**three are not gaps at all** (bottom nav) and **three are other anchors' work**. The
+honest reading is that FIT-028's own state is now complete and the row cannot reach 10/10
+without fabricating content the brief forbids.
+
 
 ## All screens with no implementing file
 
@@ -109,7 +137,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-025 | Awaiting reply | `/checkin-detail` | 1/1 | `checkin_detail_screen.dart` |
 | FIT-026 | Conversation | `/chat` | 3/5 | `chat_screen.dart` |
 | FIT-027 | What's on | `/classes` | 3/10 | `classes_screen.dart` |
-| FIT-028 | Connect — no coach | `/messages` | 1/10 | `messaging_screen.dart` |
+| FIT-028 | Connect — no coach | `/messages` | 4/10 | `messaging_screen.dart` |
 | FIT-029 | Profile | `/profile` | 2/6 | `profile_screen.dart` |
 | FIT-030 | Settings | `/settings` | 2/6 | `settings_screen.dart` |
 | FIT-031 | Plans | `/upgrade` | 0/5 | `upgrade_screen.dart` |
