@@ -212,6 +212,34 @@ actually renders an injected programme end-to-end.
 
 ---
 
+## 0c · F-22 — 56 icon-only controls ship with no accessible name
+
+**ID** F-22 · **Severity** P2 accessibility · **Status** RATCHETED, OD-8 for the copy
+
+A tappable whose entire content is an `Icon` reports to the accessibility tree with **no
+name**; a screen reader announces nothing. Measured on-device twice — the password toggle
+(19.8 × 20.2 dp) and the three top-bar controls (38 × 38). Both are now named from the
+design's own wording.
+
+A repository-wide scan of the shape that actually reports unlabelled — a tappable whose
+subtree holds an `Icon` and no `Text`, `tooltip` or `Semantics` — finds **56 more across 36
+files**. Heaviest: `exercise_content_center_screen` (4), `active_workout_screen` (4),
+`progress_screen` (3), `create_exercise_screen` (3), `meals_dashboard_screen` (3).
+
+**Not mass-fixed, deliberately.** Naming a control is product copy. The authoritative
+package supplies vocabulary for the controls it draws — "Back", "More", "Directory",
+"Messages", "Notifications", "History", "Exercise library", "Show password" — and all of
+those have been applied. It does not name every icon in screens it does not draw, and
+inventing 56 strings is the fabrication the brief forbids. Folded into **OD-8**.
+
+**Guard A-G8** holds the population at 56 and fails on the 57th — mutation-tested
+("Found 57 across 36 files (baseline 56)"). A second assertion pins the controls already
+fixed so they cannot silently regress.
+
+It deliberately does **not** repeat EC-G5's mistake, which `QA_CLOSURE_STANDARD` §4 records
+as counting `catch` blocks while the defect it targets contains none: A-G8 matches the
+shape that reports unlabelled, not a keyword that happens to sit nearby.
+
 ## 1 · Defects found and fixed, each verified at runtime
 
 | # | Finding | Evidence | Status |
