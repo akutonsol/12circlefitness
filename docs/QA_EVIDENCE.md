@@ -1952,6 +1952,88 @@ rather than raw occurrences — records 134.
 
 Suite: **1171 pass / 9 skipped**. Analyzer: 0 errors.
 
+## 3ah · SEC-G3 · a read the database already denies, now ratcheted
+
+FIT-032 ("Coach dashboard — triage, not a wall") is locked, and its `At risk` row is
+*"No sessions logged in 9 days"*. Before building it I resolved the RLS state of every
+table the dashboard reads. Three things came out of that, and **two of them were already
+recorded** — reported here as confirmation, not discovery.
+
+### One of mine was a false positive, and its shape is worth keeping
+
+I first concluded that `ai_insights`, `ai_reviews` and `ai_goal_predictions` had **no RLS
+anywhere in the migrations** — no `CREATE TABLE … ENABLE ROW LEVEL SECURITY`, no policy.
+That is wrong. `074_ai_coaching_layer.sql:74-81` enables RLS on all five `ai_*` tables and
+grants `own ai data` inside a `do $$ … foreach t in array[…] loop execute format(…)` block,
+which a line-oriented scan does not see.
+
+`docs/QA_WORKSTREAM_D_EDGE_AI_READINESS_REPORT.md:27` records a **previous** workstream
+making and correcting the identical mistake. Two independent passes reached the same false
+positive by the same mechanism, which makes it a property of the detector rather than of
+either analyst: **any RLS audit of this repo that greps line-wise will under-report
+protection and over-report exposure.** Re-run with a scanner that reads dynamic SQL, the
+three tables are correctly `user_id = auth.uid()` with a `WITH CHECK`.
+
+### Two findings re-derived independently, both already in the ledger
+
+`checkins` does not exist in any migration and is read by `coach_dashboard_screen.dart`.
+Already tracked — **I-CHK-01**, `supabase/tests/contract/known-violations.json`, with a
+bidirectional guard. Not new.
+
+`workout_logs` has no coach-read policy and three code paths read it for other users' ids.
+Already recorded in **§6b** above, in nearly these words. Not new either — but arriving at
+it independently confirms the record, and the re-derivation turned up the part that **was**
+missing.
+
+### What is actually new: the authorized path already exists
+
+The §6b record states the gap. It does not state that a correct alternative is already
+built, and that changes what can be done about it:
+
+| Source | Coach access | Provenance |
+|---|---|---|
+| `workout_logs` | **none** — `USING (user_id = auth.uid())`, `003:193`, sole policy | — |
+| `workout_sessions` | **permitted** — `USING (user_id = auth.uid() OR public.is_active_coach_of(user_id))` FOR SELECT | `100_rls_harden_client_data.sql` |
+| `coach_client_ai_signals()` | **permitted** — `SECURITY DEFINER`, scoped to `r.coach_id = auth.uid() AND r.status = 'active'`, returns `workouts_7d` | `079:70`, comment: *"SECURITY DEFINER so a coach can read their clients' AI risk/insights (which RLS otherwise restricts to the client)"* |
+
+So FIT-032's training-frequency signal **can be built correctly today**, with no policy
+change and no owner decision. The three recorded reads are not blocked on OD-14; they are
+querying the wrong table.
+
+### Why this is not OD-14, stated so it cannot be conflated
+
+F-21/OD-14 is a policy that **claims a role it never verifies** — correcting it changes the
+authorization model, which is the owner's call. This is the opposite: a table with **no
+coach policy at all**, whose authorized route exists elsewhere. SEC-G3 proposes no policy
+change and touches nothing F-21 covers.
+
+### Why a denial deserves a ratchet at all
+
+An RLS-filtered `SELECT` **is not an error**. PostgREST answers `200` with `[]`,
+indistinguishable from "this client trained zero times". The F-15 work gave these screens an
+error arm; this defect never reaches it — `coach_dashboard_screen.dart:176` only trips
+`failed` on `AsyncError`. The result is not a broken screen but a **confident wrong zero**,
+permanently, driving an "at risk" judgement about a real person. Built naively, FIT-032's
+`At risk` row would fire for **every client, always**.
+
+`SEC-G3` (`test/unit/declared_denied_read_guard_test.dart`) pins the three sites as a
+shrinking, bidirectionally-checked allowlist, carries the H-D1 detector floor, and fails if
+a coach policy ever lands on `workout_logs` so the guard is revisited rather than left
+forbidding a legitimate read.
+
+| Mutation | Result |
+|---|---|
+| S1 · a fourth cross-user read ships | **KILLED** (first run invalid — it mutated a different query in the same file; re-run validly) |
+| S2 · blind the scanner | **KILLED** |
+| S3 · make the self-read exemption swallow everything | **KILLED** |
+
+`insights_provider.dart:82` reads `workout_logs` with `.eq('user_id', uid)` — the signed-in
+user. A self-read, permitted, and deliberately **not** listed; S3 exists because an
+exemption that matched everything would have hidden all three real sites.
+
+Suite: **1174 pass / 9 skipped**. Analyzer: 0 errors. No live mutation was performed and no
+policy was changed.
+
 ## 4 · Design package
 
 | Check | Status |
