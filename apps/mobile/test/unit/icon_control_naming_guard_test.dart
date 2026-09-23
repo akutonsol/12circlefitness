@@ -148,6 +148,42 @@ void main() {
     );
   });
 
+  // ── DETECTOR FLOOR ────────────────────────────────────────────────────
+  // `total <= baseline` is satisfied both when nothing was added and when
+  // `scan()` stopped seeing anything. Those are opposite facts, and the
+  // assertion above cannot tell them apart — H-D1 passed for weeks on exactly
+  // that ambiguity, its detector seeing 5 of the 20 files it named.
+  //
+  // The test below asserts that NAMED controls keep their names; it reads
+  // source strings directly, so it would stay green while `scan()` went
+  // blind. This is the part that proves the scanner still works.
+  test('A-G8 the scanner still finds the controls it is counting', () {
+    final found = scan();
+    expect(found, isNotEmpty,
+        reason: 'the scanner found nothing at all — an absent result here '
+            'proves nothing about drift');
+
+    final byFile = {for (final e in found) e.file: e.count};
+    // Measured concentrations. When one is fixed, delete it here and lower
+    // the baseline in the same change — the discipline SEC-G1/G2 already use.
+    for (final path in const [
+      'lib/features/exercise_database/presentation/exercise_content_center_screen.dart',
+      'lib/features/nutrition/presentation/meals_dashboard_screen.dart',
+      'lib/features/workout/presentation/active_workout_screen.dart',
+    ]) {
+      expect(byFile[path], isNotNull,
+          reason: '$path is a recorded site for this shape. The scanner no '
+              'longer sees it, so the count above means nothing.');
+    }
+
+    // And the detector must still discriminate: a NAMED icon control must not
+    // be counted. `NamedIconButton` is the shared fix, and it wraps its
+    // gesture in a `Semantics`.
+    expect(byFile['lib/core/widgets/named_icon_button.dart'], isNull,
+        reason: 'the scanner counts a control that IS named — it would '
+            'over-report and the baseline would be meaningless');
+  });
+
   test('A-G8 the controls already fixed stay fixed', () {
     // The nine named from the package's own vocabulary. If one loses its name
     // the count alone would not say which.

@@ -231,6 +231,39 @@ void main() {
               'Use `.when(error: …)` and state the failure.');
     });
 
+    // ── DETECTOR FLOOR ─────────────────────────────────────────────────
+    // `hits.length <= baseline` is satisfied both when nothing was added and
+    // when `_valueOrNullReads()` stopped seeing anything. Those are opposite
+    // facts. H-D1 passed for weeks on exactly that ambiguity — its detector
+    // saw 5 of the 20 files it named — so every ratchet in this suite now has
+    // to prove it can still see.
+    //
+    // The companion test below uses its own inline scan, so it cannot catch
+    // the shared detector going blind. This can.
+    test('EC-G8 the detector still finds the reads it is counting', () {
+      final hits = _valueOrNullReads();
+      expect(hits, isNotEmpty,
+          reason: 'the scanner found nothing at all — an absent result here '
+              'proves nothing about drift');
+
+      final byFile = <String, int>{};
+      for (final h in hits) {
+        byFile[h.file] = (byFile[h.file] ?? 0) + 1;
+      }
+      // Files measured as carrying the heaviest concentration. If a fix lands
+      // in one, delete it here and lower the baseline in the same change —
+      // the same discipline SEC-G1/G2 use.
+      for (final path in const [
+        'lib/features/home/presentation/home_screen.dart',
+        'lib/features/dashboard/presentation/coach_dashboard_screen.dart',
+        'lib/features/nutrition/presentation/meals_dashboard_screen.dart',
+      ]) {
+        expect(byFile[path], isNotNull,
+            reason: '$path is a recorded `.valueOrNull` site. The detector no '
+                'longer sees it, so the count above means nothing.');
+      }
+    });
+
     test('no NEW workout provider read collapses an error to null', () {
       // The workout domain is the one where the failure mode is reproduced and
       // costed, so it gets a named list rather than a bare count.

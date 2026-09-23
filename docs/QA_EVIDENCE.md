@@ -1907,6 +1907,51 @@ blind, and the assertion could not tell those apart. `known` is now a **floor fo
 as well as a ceiling for additions — every listed file must still be found. With that in
 place the reverted regex is killed.
 
+## 3ag · Every ratchet audited for the defect H-D1 had
+
+H-D1 was green because it could not see, not because nothing had grown. That is
+the **third** instance of the same class in this programme — F-25's two live
+assertions, one of them green forever, and now this — so the remaining ratchets
+were audited rather than assumed.
+
+The defect is structural, not a typo. Every ratchet asserts `count <= baseline`,
+and that is satisfied by **two opposite facts**: nothing drifted in, or the detector
+stopped seeing. Nothing distinguishes them, so a detector can rot silently and the
+guard reports success the whole time.
+
+| Ratchet | Detector floor before | Verdict |
+|---|---|---|
+| **SEC-G1** | fails loudly when the scan is empty; asserts the two proven-exploitable tables are still found | **SOUND** |
+| **SEC-G2** | fails loudly when empty; asserts all four blast-radius tables are still found | **SOUND** |
+| **EC-G7** | its companion calls the **same** `_silentErrorBranches()` and asserts the recorded files in both directions, so a blind detector empties the set and fails | **SOUND** |
+| **EC-G8** | its companion uses a **separate inline** scan, so the shared `_valueOrNullReads()` could go blind unnoticed | **NO FLOOR — fixed** |
+| **A-G8** | its companion reads source strings directly and would stay green with `scan()` returning nothing | **NO FLOOR — fixed** |
+| **H-D1** | none, and it *had* gone blind — 5 of 20 | **fixed in §3af** |
+
+Both repairs follow SEC-G1/G2's shape: name the heaviest measured sites and assert
+the detector still finds them. When one is genuinely fixed, its entry is deleted and
+the baseline lowered **in the same change** — the discipline the security ratchets
+already use.
+
+A-G8 additionally gets a **discrimination** check: `named_icon_button.dart` must
+**not** be counted. A detector that fires on everything would also satisfy
+`count <= baseline` after someone raised the number, and over-reporting is how a
+baseline stops meaning anything.
+
+| Mutation | Result |
+|---|---|
+| D1 · blind A-G8's `GestureDetector\|InkWell\|InkResponse` regex | **KILLED** |
+| D2 · make A-G8 count every tappable, named or not | **KILLED** |
+| D3 · make `_valueOrNullReads()` return nothing | **KILLED** |
+| G2 · revert H-D1's regex to the broken one | **KILLED** (survived before the floor was added) |
+
+Measured while auditing, and recorded because the numbers are not the baselines:
+A-G8 scans **45** against a baseline of 46; `.valueOrNull` occurrences total **148**
+across 59 files, where EC-G8's own scanner — which strips comments and counts reads
+rather than raw occurrences — records 134.
+
+Suite: **1171 pass / 9 skipped**. Analyzer: 0 errors.
+
 ## 4 · Design package
 
 | Check | Status |
