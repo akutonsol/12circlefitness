@@ -24,11 +24,13 @@ claim under `QA_CLOSURE_STANDARD`.
 | FIT screens | 110 |
 | With an implementing file | 105 |
 | Declared interactions | 600 |
-| Label present | 261 (44%) |
-| **Label absent** | **339** |
-| Locked anchors | 56/179 (31%) |
+| Label present | 263 (44%) |
+| **Label absent** | **337** |
+| Locked anchors | 58/179 (32%) |
 
-Baseline measured 2026-09-23 was 258 / 342 / 53. The three-point move is FIT-028 alone
+Baseline measured 2026-09-23 was 258 / 342 / 53. Five points have moved since, in two
+anchors: FIT-028 (+3) and FIT-017 (+2). FIT-017's two are **hand-corrected** — see its
+note below, because the generator cannot see them. FIT-028's three-point move
 (`/messages`, no-coach state) and is itemised in the note under that row — **two of the
 three are real, the third is a comment matching its own anchor id.** The heuristic cannot
 tell those apart, which is the caveat above stated as a concrete instance rather than as
@@ -67,7 +69,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-033 | Check-in review | `/coach-checkin-review` | 1 | 5 | `coach_checkin_review_screen.dart` |
 | FIT-021 | Entitlement gate | `PaywallGate wrapper (12 routes)` | 0 | 3 | `—` |
 | FIT-006 | Welcome | `/onboarding` | 0 | 2 | `onboarding_screen.dart` |
-| FIT-017 | Rest & completion | `/active-workout` | 0 | 2 | `active_workout_screen.dart` |
+| FIT-017 | Rest & completion | `/active-workout` | 2 | 2 | `active_workout_screen.dart` + `widgets/rest_timer_widget.dart` |
 | FIT-018 | Session complete | `/active-workout` | 2 | 4 | `active_workout_screen.dart` |
 | FIT-026 | Conversation | `/chat` | 3 | 5 | `chat_screen.dart` |
 | FIT-009 | Intake complete | `/intake` | 0 | 1 | `intake_flow_screen.dart` |
@@ -75,6 +77,25 @@ everything else. Where anything disagrees, they win."*
 | FIT-024 | Check-in detail | `/checkin-detail` | 1 | 2 | `checkin_detail_screen.dart` |
 | FIT-007 | Sign in | `/login` | 1 | 1 | `login_screen.dart` |
 | FIT-025 | Awaiting reply | `/checkin-detail` | 1 | 1 | `checkin_detail_screen.dart` |
+
+
+### FIT-017, and a limit of the generator
+
+FIT-017 is now **2/2**, and the generator still reports 0/2. Both of its declared
+controls live in `widgets/rest_timer_widget.dart`; the generator resolves each route to
+the file the router builds and reads only that file, so a screen composed from widgets in
+sibling files is invisible to it. The count above is corrected by hand, and this is the
+correction of record.
+
+That cuts both ways and is worth stating plainly: **every other row in this table shares
+the blind spot.** A screen whose controls live in extracted widgets under-reports. The
+absent numbers remain trustworthy as an upper bound on work, which is what this table is
+for, but a low number can mean "not built" or "built next door".
+
+| Declared | Status | Evidence |
+|---|---|---|
+| `Skip rest, start set` | **present** | Existed as a control drawn "SKIP" with no accessible name. Now announces the design's phrase; measured 44.0 × 44.0 dp on `emulator-5554` at dpr 2.625. |
+| `Add 30 seconds` | **present** | **Did not exist.** A client who needed longer had no control at all — the only available action was to let the clock run into overtime, which starts a siren and drains points every 20 seconds. The screen punished a need it gave no way to express. |
 
 ### FIT-028, itemised — what moved and what did not
 
@@ -126,7 +147,7 @@ without fabricating content the brief forbids.
 | FIT-014 | Workouts hub | `/train` | 5/12 | `train_hub_screen.dart` |
 | FIT-015 | Workouts — no plan yet | `/train` | 5/9 | `train_hub_screen.dart` |
 | FIT-016 | Workout detail | `/workout-detail` | 3/7 | `workout_detail_screen.dart` |
-| FIT-017 | Rest & completion | `/active-workout` | 0/2 | `active_workout_screen.dart` |
+| FIT-017 | Rest & completion | `/active-workout` | 2/2 | `active_workout_screen.dart` + `widgets/rest_timer_widget.dart` |
 | FIT-018 | Session complete | `/active-workout` | 2/4 | `active_workout_screen.dart` |
 | FIT-019 | Log a meal | `/log-meal` | 0/5 | `log_meal_screen.dart` |
 | FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 0/5 | `—` |

@@ -524,6 +524,22 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
     ref.read(restTimerProvider.notifier).state = null;
   }
 
+  /// FIT-017 · "Add 30 seconds". The arithmetic and its two rules live in
+  /// `extendRest()` in the domain, where they are testable; this is the part
+  /// that touches screen state.
+  void _extendRest() {
+    final rt = ref.read(restTimerProvider);
+    if (rt == null) return;
+    final result = extendRest(rt, DateTime.now());
+    if (result.bankedOvertime > 0) {
+      _idleSeconds += result.bankedOvertime;
+      // A fresh rest gets a fresh overtime budget, the same way logging a set
+      // does — the drain that already happened stays banked above.
+      _overtimePenalties = 0;
+    }
+    ref.read(restTimerProvider.notifier).state = result.next;
+  }
+
   /// Caches entered values into the in-memory workout state so the row's fields
   /// reflect them across rebuilds (and survive navigation within the session).
   ///
@@ -779,6 +795,7 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
                 _overtimePenalties++;
                 ScoreEngine().idleTimePenalty();
               },
+              onExtend: _extendRest,
               onComplete: _dismissRest),
 
           // ── Exercise list ──

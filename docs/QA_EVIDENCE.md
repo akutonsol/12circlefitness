@@ -298,7 +298,7 @@ address it. Recorded rather than papered over.
 | Password masking is secure — masked field reports `password=true` and **withholds its value** from the accessibility tree | dump before/after toggle | **PASS** |
 | System back returns to the previous screen and stays in-app | `dumpsys activity` | **PASS** |
 | Landscape produces **no** `RenderFlex` overflow on the onboarding route | logcat + dump | **PASS** (distinct from F-5, a different screen) |
-| Unit + widget suite | **886 tests pass, 9 skipped** | **PASS** |
+| Unit + widget suite | **899 tests pass, 9 skipped** | **PASS** |
 | Design token conformance | 14 assertions, mutation-tested | **PASS** |
 
 ## 3b · FIT-028 · Connect — no coach — **VERIFIED LIVE**
@@ -334,7 +334,7 @@ one. A coach with no client messages is likewise not a sales prospect.
 |---|---|---|
 | Branch correctness | `test/widget/messaging_no_coach_test.dart` — 8 tests against the real widget tree, no simulated logic | **PASS** |
 | Guard strength | 3 mutations of the source, each killed: collapse `orElse`→pitch (2 fail), drop the role gate (2 fail), shrink the CTA to 30 px (1 fail) | **PASS** |
-| Suite | 886 pass / 9 skipped; EC-G8, A-G5, A-G8, SEC-G1 ratchets all hold, none raised | **PASS** |
+| Suite | 899 pass / 9 skipped; EC-G8, A-G5, A-G8, SEC-G1 ratchets all hold, none raised | **PASS** |
 | Build | `flutter build apk --debug --dart-define-from-file=dart_defines/qa.json` | **PASS** |
 | **Runtime, real data** | `integration_test/fit028_no_coach_live_test.dart` on `emulator-5554` against QA, signed in as `p1-victim`: `PRECONDITION role=client · active_coaches=0 · conversations=0` then `RENDER pitch=1 neutral=0 failed=0` | **VERIFIED LIVE** |
 | Fixture residue | **none to clean** — the live test issues only `SELECT`s plus auth; it creates, updates and deletes nothing. Deliberate: F-21 is open and must not be exercised through unnecessary mutation. | **PASS** |
@@ -349,6 +349,60 @@ heuristic — not gaps. Three are sample community content (`Tues Lifters…`, `
 70 kg…`, `What's on this week`) belonging to FIT-005 and FIT-027; implementing them from
 the design means fabricating messages and activity, which the brief forbids. Itemised in
 `FIT_INTERACTION_COVERAGE.md`.
+
+## 3c · FIT-017 · "Add 30 seconds" — the rest state's missing control
+
+`/active-workout` declares two controls on its rest state. Only one existed.
+
+**The defect, stated as a user experience.** A client mid-session who needs longer than
+the prescribed rest had no control to say so. The only thing they could do was let the
+clock run out — at which point the screen starts a siren, fires
+`ScoreEngine().idleTimePenalty()` for −5, and drains another 5 points every 20 seconds
+until they start the next set. The screen punished a need it gave them no way to express.
+
+**What shipped.**
+
+| Declared | Before | Now |
+|---|---|---|
+| `Skip rest, start set` | drawn "SKIP" / "STOP", **no accessible name**, ~30 dp tall | same short visible label, announces the design's phrase, 44 × 44 dp |
+| `Add 30 seconds` | **absent** | present, same treatment |
+
+The banner is a single row containing a progress bar, so the full phrase does not fit as
+visible text. The short label is drawn and the design's wording is what a screen reader
+announces. That is a deliberate compromise and is recorded as one.
+
+**The rule the arithmetic encodes.** Extending adds to the *end*, not to now, so two taps
+add a minute rather than restarting a short rest twice. And **overtime already accrued is
+banked, never erased**: past zero the siren has been sounding and points have already
+drained, so the overrun is added to the session's idle total exactly as dismissing the
+rest would add it, and only then does a fresh 30 s start. Without that, tapping "+30s" the
+instant the siren began would be an undo button for a penalty that had already fired.
+
+`extendRest()` was extracted to `workout_provider.dart` to make this testable —
+`_ActiveWorkoutViewState` touches `Supabase.instance`, `ScoreEngine` and a platform audio
+channel in `initState`, so the arithmetic cannot be reached from a widget test. Same
+reason `plan_summary.dart` was extracted.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Arithmetic | `test/unit/extend_rest_test.dart` — 8 tests | **PASS** |
+| Controls | `test/widget/rest_timer_controls_test.dart` — 5 tests | **PASS** |
+| Guard strength | 6 mutations, all killed: extend-from-now, discard the banked overtime, leave `total` unchanged, drop `excludeSemantics`, drop the 44 dp constraint, wire "+30s" to the skip handler | **PASS** |
+| **Runtime, on device** | `integration_test/fit017_rest_controls_device_test.dart` on `emulator-5554`: `dpr=2.625 physical=1080x2400`, then `+30s` → "Add 30 seconds" **44.0 × 44.0 dp** and `SKIP` → "Skip rest, start set" **44.0 × 44.0 dp** | **VERIFIED ON DEVICE** |
+| Backend | none touched — `RestTimerWidget` is a leaf; nothing signed in, read or written | **n/a** |
+
+**A correction of record, about my own test.** The first version of the target-floor
+assertion was worthless. It mounted the banner under an `Align`, which hands down
+loose-but-bounded constraints where `/active-workout`'s `Column` hands down unbounded
+ones; the controls expanded to 566 dp tall and the assertion passed no matter what the
+widget declared. Deleting the 44 dp constraint outright did not fail it. Found by running
+that deletion as a mutation, which is the whole point of running them. The harness now
+reproduces the production constraints, and the deletion fails as it should. The same
+mutation was then run against FIT-028's CTA assertion, which killed it correctly.
+
+The on-device leg exists for the same reason: F-6 and F-6b were found by measuring the
+password toggle on the emulator (19.8 × 20.2 dp) after it looked fine in source. A host-VM
+measurement is not a device measurement, and this file now has both.
 
 ## 4 · Design package
 

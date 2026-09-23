@@ -126,6 +126,48 @@ class RestTimerState {
 
 final restTimerProvider = StateProvider<RestTimerState?>((ref) => null);
 
+/// The result of FIT-017's "Add 30 seconds": the rest that should now be
+/// running, and the overtime seconds the caller must bank as idle time.
+typedef ExtendedRest = ({RestTimerState next, int bankedOvertime});
+
+/// FIT-017 · "Add 30 seconds", as a pure function.
+///
+/// It lives here rather than in `_ActiveWorkoutViewState` because the screen
+/// touches `Supabase.instance`, `ScoreEngine` and a platform audio channel in
+/// `initState`, which makes the arithmetic below untestable at the widget
+/// layer. `plan_summary.dart` was extracted for the same reason.
+///
+/// TWO RULES ARE ENCODED HERE, AND BOTH ARE DELIBERATE.
+///
+/// **Extending adds to the end, not to now.** Tapping twice while the clock is
+/// still running adds a minute. Restarting from `now` each time would silently
+/// shorten a long rest that was nearly over.
+///
+/// **Overtime already accrued is banked, never erased.** Past zero, the siren
+/// has been going and points have been draining. The seconds overrun are
+/// returned for the caller to add to its idle total — exactly what dismissing
+/// the rest does — and only then does a fresh [bonus] start from `now`.
+/// Extending is "I need longer", not an undo for a drain that already
+/// happened.
+///
+/// `total` grows with `end` so the progress ring keeps reading
+/// remaining/total; leaving it alone would push the value past 1.0, where it
+/// clamps and the bar appears frozen at full.
+ExtendedRest extendRest(RestTimerState current, DateTime now, {int bonus = 30}) {
+  final over = now.difference(current.end).inSeconds;
+  if (over > 0) {
+    return (
+      next: RestTimerState(now.add(Duration(seconds: bonus)), bonus),
+      bankedOvertime: over,
+    );
+  }
+  return (
+    next: RestTimerState(
+        current.end.add(Duration(seconds: bonus)), current.total + bonus),
+    bankedOvertime: 0,
+  );
+}
+
 final exerciseSearchProvider = StateProvider<String>((ref) => '');
 
 final filteredExercisesProvider = Provider<List<Exercise>>((ref) {
