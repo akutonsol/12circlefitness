@@ -4582,6 +4582,52 @@ The ~116 is a long tail: most anchors have **one or two** — a `Cancel`, a `Try
 `Bananas, 7`, classifies as a control here), so the true figure is lower. There is no
 remaining item of the size of the `/ai-coach` tabs or the reaction picker.
 
+## 3bs · Provenance correction — two of my commits carry another agent's work
+
+**Previous state:** commits `84e89f7` and `e3a01f3` were described as a11y work.
+
+**What is wrong with that:** both used `git add docs/`, which swept in files this session
+did not author and had explicitly been treating as *evidence to read, not work to own*.
+
+| Commit | Files that are **not this session's work** |
+|---|---|
+| `84e89f7` | the parallel audit's **16 documents** — `SCREEN_ECOSYSTEM_AUDIT.md`, `SCREEN_ECOSYSTEM_FINAL_AUDIT.md`, `MISSING_SCREEN_REGISTER.md`, `MISSING_CLIENT_SCREENS.md`, `MISSING_SCREEN_SUMMARY.md`, `FINAL_SCREEN_INVENTORY.md`/`.json`, `FINAL_NEW_SCREEN_DESIGN_COMMISSION.md`, `DESIGN_CAPABILITY_GAPS.md`, `DESIGN_IMPLEMENTATION_RECONCILIATION.md`, `DESIGN_TO_IMPLEMENTATION_FINAL_MATRIX.md`, `FUTURE_CAPABILITIES.md`, `FUTURE_SCREEN_CAPABILITIES.md`, `SCREEN_DATA_REQUIREMENTS.md`, `SCREEN_DESIGN_GAPS.md`, `SCREEN_EVIDENCE_MATRIX.md` — **~4,300 lines** |
+| `e3a01f3` | `docs/proposed/N07_assessment_access.sql` — the N-07 migration draft |
+
+**Why this is the wrong outcome rather than a tidy one:** the commit messages describe
+accessibility fixes, so the history now implies this session authored a screen-ecosystem
+audit and a security migration draft. It did not. Both were read as evidence and, in the
+case of the audit, had two of their claims independently re-derived before being acted on
+(§3bd, §3bm).
+
+**What was NOT done about it.** The files were not reverted and not deleted. Removing them
+would destroy another agent's work to tidy my own record, which is a worse error than the
+one being corrected, and rewriting published history is not available when another session
+may already have read it. They stay; the provenance is recorded here instead.
+
+**What changed going forward:** no further `git add docs/` or `git add <directory>` in this
+session — explicit paths only.
+
+**Still untracked and deliberately left alone:** `supabase/tests/security/d09-assessment-access.mjs`,
+written at 10:17 today by the same workstream. It is **not** committed here.
+
+## 3bt · A second identifier collision — `N-07` means two different things
+
+| Source | `N-07` |
+|---|---|
+| `docs/MASTER_REMEDIATION_REGISTRY.md:53` | **`EC-05 / N-07`** — *"Workout completion swallows persistence and celebrates anyway"* — **CONFIRMED**, `active_workout_screen.dart` |
+| `docs/FINAL_NEW_SCREEN_DESIGN_COMMISSION.md:105` | a **coach assessment / PAR-Q screen**, blocked on a privacy ruling |
+
+These are unrelated: one is a Dart persistence defect deferred to Wave 3B, the other is an
+unbuilt screen behind an owner decision. This is the **third** collision this programme has
+found — after `OD-30` (a calorie constant vs a PAR-Q privacy question) and my own
+`OD-33…38`. The cause is the same each time: two registers, two owners, one counter.
+
+Neither was renumbered. The repository's registry is the older and is referenced by the wave
+plan; the commission document is untracked and owned elsewhere. **Both are listed so the
+next reader disambiguates by source rather than by number**, and "N-07" on its own should be
+treated as ambiguous.
+
 ## 4 · Design package
 
 | Check | Status |
