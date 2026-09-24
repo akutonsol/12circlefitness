@@ -5232,6 +5232,72 @@ effect immediately, unrelated-coach denial, event/vendor paths, audit logging, a
 102's `user_profiles` breadth over PAR-Q. Those need `QA_SERVICE` to provision users, and
 provisioning is not something to improvise with a service-role key. → **OD-51**.
 
+## 3cc · CHK-G1 · the check-in screen wrote to a table that does not exist
+
+§3cb established live that `public.checkins` is **absent**. That turns CON-01 from a
+read-honesty problem into a plain one: **every weekly check-in this screen took was lost.**
+`_submit` called `CheckinService.saveWeeklyCheckin`, which writes to `checkins`.
+
+### The working implementation was already next to it
+
+`lib/features/checkins/data/` holds **two** services:
+
+| | writes to | state |
+|---|---|---|
+| `CheckinService` | `checkins` | **absent — every write fails** |
+| `WeeklyCheckinService` | `weekly_checkins` | exists, and already used by the check-in hub |
+
+So the feature had a working writer the whole time; the submission screen reached for the
+other one. No migration is needed to fix this, which is why it is in phase.
+
+Checked before switching, so this does not trade one broken path for another:
+
+* `submitWeeklyCheckin` writes `stress_level`, `sleep_hours_avg` and `notes` — none of which
+  are in the `000` baseline. **Migration `001` adds them** (`stress_level`, `sleep_hours`,
+  `notes`), so the writer is sound;
+* its `onConflict: 'user_id,week_start_date'` matches
+  `weekly_checkins_user_week_unique (user_id, week_start_date)` from `000:231`.
+
+### Two collected fields are not persisted, and were not before
+
+`workedOut` and `hitWaterGoal` are gathered by the form. `weekly_checkins` has no column for
+them, and the old path wrote them to a table that is not there — so **nothing that was ever
+saved is lost**. Adding columns for them is an owner decision, not a QA repair. → **OD-52**.
+
+### The gate had the same swallow one level down
+
+Routing the "already checked in?" question through `getCurrentWeekCheckin()` would have
+inherited its defect: it ends in `catch (_) {}` and then returns a **`pending`** row, so a
+failed read reads as *"you have not checked in this week"* — the §3bv defect again, in a
+different file. `weekStatus()` is the honest version: `done` / `notDone` / `unknown`, with a
+signed-out user still a real `notDone`.
+
+`upsert` means a duplicate submit overwrites rather than doubling the row, so this one is not
+data corruption — it is the user being told something untrue about their own week.
+
+### The streak is deliberately left unknown
+
+`getCheckinStreak()` still reads `checkins`, so it now returns `null` → the figure is hidden
+(§3bv). That is correct: there is **no daily check-in table**, and a "day streak" derived
+from a **weekly** table is different semantics, not a port. → **OD-52**.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/unit/checkin_table_wiring_guard_test.dart` — 4 tests, `[SOURCE]` by necessity | **PASS** |
+| Guard strength | **3 / 3 mutations killed** | **PASS** |
+| Suite | **1575 pass / 9 skipped** (was 1571) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Round trip | needs an authenticated QA session | **BLOCKED** — OD-51 |
+
+| # | Mutation | Result |
+|---|---|---|
+| CK1 | submission goes back to the absent table | **KILLED** |
+| CK2 | the gate reads the absent table again | **KILLED** |
+| CK3 | a failed week read answers "not done" again | **KILLED** |
+
+**`CheckinService` was not deleted.** It is dead to this screen but deleting a service is
+destructive and is OD-32's class; it is left in place and recorded.
+
 ## 4 · Design package
 
 | Check | Status |

@@ -3,6 +3,7 @@ import 'models/checkin_model.dart';
 import '../../notifications/data/notification_service.dart';
 import '../../coach/data/score_service.dart';
 import '../../scoring/data/score_engine.dart';
+import '../domain/checkin_known.dart';
 
 class WeeklyCheckinService {
   final _supabase = Supabase.instance.client;
@@ -63,6 +64,38 @@ class WeeklyCheckinService {
       responses: const [],
       overallScore: 0,
     );
+  }
+
+  /// Whether this week already has a submitted check-in — **honestly**.
+  ///
+  /// CON-01 (live). `getCurrentWeekCheckin()` above swallows with
+  /// `catch (_) {}` and then returns a `pending` row, so a failed read is
+  /// indistinguishable from "you have not checked in this week". The screen
+  /// branches on exactly that and opens the form, which is how a duplicate
+  /// gets written — the same defect the daily path had.
+  ///
+  /// `upsert(onConflict: 'user_id,week_start_date')` means a duplicate submit
+  /// overwrites rather than doubling the row, so this is not data corruption.
+  /// It is still the user being told something untrue about their own week.
+  Future<CheckinKnown> weekStatus() async {
+    final userId = _supabase.auth.currentUser?.id;
+    // Signed out is an answer, not a failure.
+    if (userId == null) return CheckinKnown.notDone;
+    final info = _weekInfo(DateTime.now());
+    try {
+      final data = await _supabase
+          .from('weekly_checkins')
+          .select('status')
+          .eq('user_id', userId)
+          .eq('week_start_date', info.weekStart.toIso8601String().split('T')[0])
+          .maybeSingle();
+      if (data == null) return CheckinKnown.notDone;
+      return data['status'] == 'submitted'
+          ? CheckinKnown.done
+          : CheckinKnown.notDone;
+    } catch (_) {
+      return CheckinKnown.unknown;
+    }
   }
 
   Future<bool> submitWeeklyCheckin({

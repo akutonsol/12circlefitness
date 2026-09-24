@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'widgets/checkin_pickers.dart';
+import '../data/weekly_checkin_service.dart';
 import '../domain/checkin_hub.dart';
 import '../../coach/domain/coach_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,6 +30,11 @@ class DailyCheckinScreen extends ConsumerStatefulWidget {
 
 class _WeeklyCheckinState extends ConsumerState<DailyCheckinScreen> {
   final _service    = CheckinService();
+  /// CON-01 (live): `public.checkins` does not exist — verified against the QA
+  /// database, where it answers PGRST205 exactly as a nonsense table does. The
+  /// submission below wrote there, so every weekly check-in this screen took
+  /// was lost. `weekly_checkins` DOES exist and already has a working writer.
+  final _weekly     = WeeklyCheckinService();
   final _notesCtrl  = TextEditingController();
 
   int    _mood          = 3;
@@ -54,7 +60,7 @@ class _WeeklyCheckinState extends ConsumerState<DailyCheckinScreen> {
   }
 
   Future<void> _load() async {
-    final done = await _service.hasCheckedInThisWeek();
+    final done = await _weekly.weekStatus();
     final streak = await _service.getCheckinStreak();
     if (mounted) setState(() {
       _alreadyDone = done;
@@ -67,10 +73,14 @@ class _WeeklyCheckinState extends ConsumerState<DailyCheckinScreen> {
 
   Future<void> _submit() async {
     setState(() => _saving = true);
-    final ok = await _service.saveWeeklyCheckin(
+    // Writes to `weekly_checkins`, which exists. `workedOut` and
+    // `hitWaterGoal` are not passed because that table has no column for them
+    // — and the old path did not persist them either, since it wrote to a
+    // table that is not there. Nothing that was ever saved is lost; adding
+    // columns for them is an owner decision.
+    final ok = await _weekly.submitWeeklyCheckin(
       mood: _mood, energy: _energy, stress: _stress,
-      sleepHours: _sleep, workedOut: _workedOut,
-      hitWaterGoal: _hitWaterGoal, notes: _notesCtrl.text.trim(),
+      sleepHoursAvg: _sleep, notes: _notesCtrl.text.trim(),
     );
     setState(() => _saving = false);
     if (!mounted) return;
