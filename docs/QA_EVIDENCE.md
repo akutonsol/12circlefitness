@@ -5125,6 +5125,113 @@ file, and **nothing navigates to it**.
 Screenshots: `scratchpad/android_evidence/app_launch.png`,
 `after_get_started.png`.
 
+## 3cb · LIVE SCHEMA — three questions answered against the QA database
+
+The previous wave recorded live verification as blocked on two routes, and **both are still
+blocked**: Docker is not running (so `supabase db dump --linked` cannot start) and
+`QA_URL`/`QA_ANON`/`QA_SERVICE` are unset (so `supabase/tests/security/*.mjs` will not run).
+`.env` and `.env.local` are both **0 bytes**.
+
+But the app's own committed QA config — `apps/mobile/dart_defines/qa.json`, the same file the
+device build used — carries a **QA URL and anon key**. The anon key cannot provision test
+users, so the role-boundary suites stay blocked. It is enough for three questions, and those
+three are answered here **against the live database**.
+
+The ref was checked first: QA is `eyqtldjqpgpljlqvpowh`, production is `nxdbooufqzkpslkcogxc`
+— the same guard `lib.mjs` applies. The probe is committed as
+`apps/mobile/tool/anon_least_privilege.py`: **GET only**, `limit=0` with
+`Prefer: count=exact` so a count comes back and **no row ever does**, and a fixed nonexistent
+object name for storage so no user content is touched.
+
+### 1 · No unauthenticated access to anything — **VERIFIED**
+
+All **65** tables probed with the anon key and with no key at all.
+
+```
+readable by anon : 0
+```
+
+Sixty-four answered PostgreSQL **`42501 — permission denied for table`**, with the hint
+*"Grant the required privileges to the current role with: GRANT SELECT ON public.… TO anon"*.
+
+That is **stronger than RLS**, and the distinction matters: RLS filters *rows*, so an
+RLS-only defence answers `200 []` and depends on the policy being right. A missing **GRANT**
+refuses the relation outright, before any policy is consulted. `user_profiles` — which is
+where `parq_answers` and `has_injuries` live (migration 013) — is among them.
+
+This was checked for a false positive: the key is a valid three-segment JWT, and a bad key
+returns a different error, so the 401s are role denial and not an authentication artifact.
+
+### 2 · `public.checkins` does not exist — **VERIFIED**, and it resolves OD-48
+
+PostgREST distinguishes the two cases, so this is decidable without any read privilege:
+
+| relation | response | meaning |
+|---|---|---|
+| `checkins` | **`PGRST205`** — not in the schema cache | **ABSENT** |
+| `weekly_checkins` | `42501` | exists |
+| `user_profiles` | `42501` | exists |
+| `definitely_not_a_table_xyz` *(control)* | `PGRST205` | absent |
+
+`checkins` behaves exactly like the nonsense control. **The seven Dart call sites in §3bv are
+reading and writing a relation that is not there** — so every check-in save and read in the
+app fails in QA. CON-01 is not a latent risk; it is live.
+
+This makes the §3bv read-side repair load-bearing rather than defensive: before it, a user of
+a **wholly non-functional feature** was told *"you have not checked in"* and shown a **0**
+streak.
+
+**OD-48 is answered, and the remedy is still not a rename.** There is no data to orphan, so
+repointing is the right direction — but the shapes do not meet:
+
+| the Dart writes | `weekly_checkins` has |
+|---|---|
+| `checked_in_at`, `checkin_type`, `stress_level`, `notes` | **none of these** |
+| `sleep_hours` | `sleep_hours_avg` |
+| *(nothing)* | `week_number`, `week_start_date`, `status` — all **NOT NULL** |
+
+Four missing columns and three unsatisfied NOT NULLs: that is a **schema change**, which is
+wave-governed and out of phase (§14). OD-48 is re-scoped from *"which table is right?"* to
+*"authorise the migration that makes one of them work"*.
+
+### 3 · `coach-media` is public — **SEC-VOICE-1 VERIFIED**
+
+Probed with **no credentials at all**, which is exactly what a stranger holding a URL has:
+
+| bucket | response | |
+|---|---|---|
+| **`coach-media`** | `NoSuchKey` — *"Object not found"* | **PUBLIC** — the bucket answered |
+| `exercise-media` | `NoSuchKey` | **PUBLIC** |
+| `avatars` | `NoSuchKey` | **PUBLIC** |
+| `progress-photos` | `NoSuchBucket` | private — 130 worked |
+| `chat-media` | `NoSuchBucket` | private — 130 worked |
+| `messages` | `NoSuchBucket` | private — 130 worked |
+| `no-such-bucket-xyz` *(control)* | `NoSuchBucket` | absent |
+
+The three privatised by migration 130 refuse the public route; `coach-media` serves it. §3bz
+inferred this from `036:33`; it is now observed.
+
+**Limit of the discriminator, stated:** a private bucket and an absent one both answer
+`NoSuchBucket`, so this proves *public*, not *private*. The three controls are known to exist
+from migration 130, which is what lets them stand as controls.
+
+`exercise-media` and `avatars` being public is plausibly intended — a shared exercise
+catalogue and profile pictures. **`coach-media` is not the same case**: it holds a coach's
+recorded voice and video addressed to one client.
+
+### Scope of these three results
+
+**QA only.** Production was deliberately not probed, and the probe refuses it. A table created
+by no migration is unlikely to exist in any freshly provisioned environment, but that is an
+inference and is not claimed as verified.
+
+### Still BLOCKED
+
+Everything requiring an authenticated session: coach↔client isolation, revocation taking
+effect immediately, unrelated-coach denial, event/vendor paths, audit logging, and migration
+102's `user_profiles` breadth over PAR-Q. Those need `QA_SERVICE` to provision users, and
+provisioning is not something to improvise with a service-role key. → **OD-51**.
+
 ## 4 · Design package
 
 | Check | Status |
