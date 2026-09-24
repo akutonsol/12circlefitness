@@ -308,7 +308,7 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not log meal: $e'),
+        content: Text('Could not log meal.'),
         backgroundColor: const Color(0xFFFFB4AB),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 5)));

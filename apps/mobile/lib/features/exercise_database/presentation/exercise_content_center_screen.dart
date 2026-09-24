@@ -73,7 +73,7 @@ class _State extends ConsumerState<ExerciseContentCenterScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() { _loading = false; });
-      _addLog('Failed to load stats: $e');
+      _addLog('Failed to load stats.');
     }
   }
 

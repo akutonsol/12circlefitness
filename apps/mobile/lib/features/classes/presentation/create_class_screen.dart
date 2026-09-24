@@ -63,7 +63,7 @@ class _CreateClassScreenState extends ConsumerState<CreateClassScreen> {
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not create class: $e'), backgroundColor: Colors.red));
+          SnackBar(content: Text('Could not create class.'), backgroundColor: Colors.red));
       }
     }
   }

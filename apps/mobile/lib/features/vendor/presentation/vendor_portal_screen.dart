@@ -61,7 +61,7 @@ class VendorPortalScreen extends ConsumerWidget {
         loading: () =>
             const Center(child: CircularProgressIndicator(color: _brand)),
         error: (e, _) => Center(
-            child: Text('Could not load events.\n$e',
+            child: Text('Could not load events.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: _muted))),
         data: (events) {
@@ -265,7 +265,7 @@ class EventAttendeesScreen extends ConsumerWidget {
         loading: () =>
             const Center(child: CircularProgressIndicator(color: _brand)),
         error: (e, _) => Center(
-            child: Text('Could not load attendees.\n$e',
+            child: Text('Could not load attendees.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: _muted))),
         data: (regs) {

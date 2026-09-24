@@ -28,7 +28,7 @@ class InsightsScreen extends ConsumerWidget {
         child: async.when(
           loading: () => const Center(child: CircularProgressIndicator(color: _C.brand)),
           error: (e, _) => Center(
-              child: Text('Could not load insights.\n$e',
+              child: Text('Could not load insights.',
                   textAlign: TextAlign.center, style: const TextStyle(color: _C.muted))),
           data: (d) => RefreshIndicator(
             color: _C.brand,

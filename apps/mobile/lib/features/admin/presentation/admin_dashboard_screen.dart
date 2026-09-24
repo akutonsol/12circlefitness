@@ -192,6 +192,11 @@ class AdminDashboardScreen extends ConsumerWidget {
   }
 
   Widget _errorCard(Object e) {
+    // ERR-2: the exception is PARSED here and deliberately not displayed. The
+    // card used to end `'Could not load platform stats.\n$e'`, and the
+    // `denied` branch exists precisely because non-admins reach this screen —
+    // so any error that was NOT 42501 showed raw Postgres text, table and
+    // column names included, to exactly the audience that branch is for.
     final denied = '$e'.toLowerCase().contains('not authorized') ||
         '$e'.contains('42501');
     return Container(
@@ -204,7 +209,7 @@ class AdminDashboardScreen extends ConsumerWidget {
       child: Text(
         denied
             ? 'This account is not an admin. Admin tools are restricted.'
-            : 'Could not load platform stats.\n$e',
+            : 'Could not load platform stats.',
         style: const TextStyle(color: _muted, height: 1.4),
       ),
     );

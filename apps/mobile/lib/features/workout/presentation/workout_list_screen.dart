@@ -737,10 +737,10 @@ class _AssignedErrorCard extends StatelessWidget {
               style: TextStyle(color: _C.onSurface, fontSize: 14,
                 fontWeight: FontWeight.w700))),
         ]),
-        const SizedBox(height: 6),
-        Text('$error',
-          style: TextStyle(color: _C.onSurfaceVar.withValues(alpha: 0.8),
-            fontSize: 12)),
+        // ERR-2: this second line printed the raw exception beneath the
+        // sentence above. A PostgREST error carries table, column and
+        // constraint text; the human sentence already says what happened, so
+        // the detail line is removed rather than reworded.
         const SizedBox(height: 10),
         TextButton(
           onPressed: onRetry,

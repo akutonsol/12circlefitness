@@ -63,7 +63,7 @@ class CoachPackagesScreen extends ConsumerWidget {
         ),
         body: pkgsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator(color: _brand)),
-          error: (e, _) => Center(child: Text('Could not load packages.\n$e',
+          error: (e, _) => Center(child: Text('Could not load packages.',
               textAlign: TextAlign.center, style: const TextStyle(color: _muted))),
           data: (pkgs) => ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),

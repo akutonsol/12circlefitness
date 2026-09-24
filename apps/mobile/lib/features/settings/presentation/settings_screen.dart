@@ -592,7 +592,7 @@ class _CoachingModeSheetState extends State<_CoachingModeSheet> {
       if (!mounted) return;
       setState(() => _saving = false);
       messenger.showSnackBar(SnackBar(
-        content: Text('Could not save coaching mode: $e')));
+        content: Text('Could not save coaching mode.')));
       return; // keep the sheet open so the change isn't silently lost
     }
     if (!mounted) return;

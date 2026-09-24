@@ -63,7 +63,7 @@ class EventAgendaScreen extends ConsumerWidget {
         loading: () =>
             const Center(child: CircularProgressIndicator(color: _brand)),
         error: (e, _) => Center(
-            child: Text('Could not load agenda.\n$e',
+            child: Text('Could not load agenda.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: _muted))),
         data: (sessions) {

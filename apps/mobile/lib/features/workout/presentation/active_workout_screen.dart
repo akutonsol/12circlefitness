@@ -318,7 +318,7 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
       // it. Say so rather than failing silently: a silent failure here is what
       // left an older workout as the resume candidate while the Zone showed a
       // newer one.
-      _toastSave('Could not start this workout: $e');
+      _toastSave('Could not start this workout.');
       // Session state is unknown, so the warm-up can't be looked up — ask.
       _promptWarmupIfNeeded(null);
     }
@@ -359,7 +359,7 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
         ref.read(activeWorkoutProvider.notifier).restoreFromLogs(workout, logs);
       }
     } catch (e) {
-      _toastSave('Could not restore your logged sets: $e');
+      _toastSave('Could not restore your logged sets.');
     }
   }
 
@@ -510,7 +510,7 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
         completed: completed,
       );
     } catch (e) {
-      _toastSave('Could not save set: $e');
+      _toastSave('Could not save set.');
     }
   }
 
@@ -1683,7 +1683,7 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not end the workout: $e'),
+          content: Text('Could not end the workout.'),
           backgroundColor: _error));
         return;
       }

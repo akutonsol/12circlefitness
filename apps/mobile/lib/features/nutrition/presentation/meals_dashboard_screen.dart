@@ -792,7 +792,7 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
         fat:      (f.fat     * servings).toInt());
     } catch (e) {
       setState(() { _saving = false; _selected = null; });
-      _showMealError('Could not log meal: $e');
+      _showMealError('Could not log meal.');
     }
   }
 
@@ -820,7 +820,7 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
         fat:      r.fat.toInt());
     } catch (e) {
       setState(() => _saving = false);
-      _showMealError('Could not log meal: $e');
+      _showMealError('Could not log meal.');
     }
   }
 
@@ -853,7 +853,7 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
         fat:      fat.toInt());
     } catch (e) {
       setState(() => _saving = false);
-      _showMealError('Could not log meal: $e');
+      _showMealError('Could not log meal.');
     }
   }
 

@@ -142,7 +142,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not upload photo: $e'),
+          content: Text('Could not upload photo.'),
           backgroundColor: _err, behavior: SnackBarBehavior.floating));
       }
     } finally {

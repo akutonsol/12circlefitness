@@ -59,7 +59,7 @@ class _NotificationPreferencesScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to save: $e'),
+          content: Text('Failed to save.'),
           backgroundColor: _err, behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 4)));
       }

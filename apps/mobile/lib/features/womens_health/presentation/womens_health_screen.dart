@@ -30,7 +30,7 @@ class WomensHealthScreen extends ConsumerWidget {
         ),
         body: statusAsync.when(
           loading: () => const Center(child: CircularProgressIndicator(color: _brand)),
-          error: (e, _) => Center(child: Text('Could not load.\n$e',
+          error: (e, _) => Center(child: Text('Could not load.',
               textAlign: TextAlign.center, style: const TextStyle(color: _muted))),
           data: (status) {
             final guide = phaseGuides[status.phase]!;

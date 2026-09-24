@@ -392,7 +392,7 @@ class _ProgressScreenState extends State<ProgressScreen>
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red));
+          SnackBar(content: Text('Upload failed.'), backgroundColor: Colors.red));
       }
     }
   }

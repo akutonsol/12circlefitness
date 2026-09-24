@@ -168,7 +168,7 @@ class _AiScanViewState extends State<AiScanView> {
       if (!mounted) return;
       setState(() => _stage = _ScanStage.idle);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Couldn't estimate that. Try again.\n$e"), backgroundColor: _redChip));
+        SnackBar(content: Text("Couldn't estimate that. Try again."), backgroundColor: _redChip));
     }
   }
 
@@ -184,7 +184,7 @@ class _AiScanViewState extends State<AiScanView> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Couldn't access camera/gallery: $e")),
+          SnackBar(content: Text("Couldn't access the camera or gallery.")),
         );
       }
     }
@@ -211,7 +211,7 @@ class _AiScanViewState extends State<AiScanView> {
       if (!mounted) return;
       setState(() => _stage = _ScanStage.idle);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Couldn't analyze that photo. Try again or add manually.\n$e"),
+        SnackBar(content: Text("Couldn't analyze that photo. Try again or add manually."),
           backgroundColor: _redChip));
     }
   }

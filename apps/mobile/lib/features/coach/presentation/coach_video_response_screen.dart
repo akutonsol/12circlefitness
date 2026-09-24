@@ -49,7 +49,7 @@ class _CoachVideoResponseScreenState extends State<CoachVideoResponseScreen> {
       final video = await ImagePicker().pickVideo(source: ImageSource.gallery);
       if (video != null) setState(() => _videoFile = video);
     } catch (e) {
-      _err('Could not open the video: $e');
+      _err('Could not open that video. Try another file.');
     }
   }
 

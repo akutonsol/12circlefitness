@@ -109,7 +109,7 @@ class _CoachBusinessScreenState extends State<CoachBusinessScreen>
         content: Text('Profile updated!'), backgroundColor: Color(0xFF6FFBBE)));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not save profile: $e'),
+        content: Text('Could not save profile.'),
         backgroundColor: const Color(0xFFFFB4AB)));
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -138,7 +138,7 @@ class _CoachBusinessScreenState extends State<CoachBusinessScreen>
         content: Text('Photo added'), backgroundColor: Color(0xFF6FFBBE)));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not upload photo: $e'),
+        content: Text('Could not upload photo.'),
         backgroundColor: const Color(0xFFFFB4AB)));
     }
   }
@@ -159,7 +159,7 @@ class _CoachBusinessScreenState extends State<CoachBusinessScreen>
       if (mounted) {
         setState(() => _certifications = prev);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$failMsg: $e'), backgroundColor: const Color(0xFFFFB4AB)));
+          content: Text(failMsg), backgroundColor: const Color(0xFFFFB4AB)));
       }
     }
   }

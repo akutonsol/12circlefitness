@@ -41,7 +41,7 @@ class ProgramLibraryScreen extends ConsumerWidget {
         loading: () =>
             const Center(child: CircularProgressIndicator(color: _brand)),
         error: (e, _) => Center(
-            child: Text('Could not load programs.\n$e',
+            child: Text('Could not load programs.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: _muted))),
         data: (programs) {
@@ -210,7 +210,7 @@ class ProgramBuilderScreen extends ConsumerWidget {
         loading: () =>
             const Center(child: CircularProgressIndicator(color: _brand)),
         error: (e, _) => Center(
-            child: Text('Could not load workouts.\n$e',
+            child: Text('Could not load workouts.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: _muted))),
         data: (workouts) {
