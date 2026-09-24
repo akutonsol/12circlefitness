@@ -2531,6 +2531,119 @@ enables RLS on five `ai_*` tables invisibly to a line scan — an error two sepa
 workstreams have now made) and **self-reads** (`.eq('user_id', uid)`, which would bury real
 findings in noise if flagged).
 
+## 3an · FIT-033 · the queue was the feature, and it did not exist — **1/5 → 5/5**
+
+The first anchor this programme has taken to **full** declared coverage, and it is genuine:
+all five are real named controls, not sample data.
+
+### What the board actually asks for
+
+> *"Six to review means the **flow matters more than the screen**: paged 1-of-6, and the
+> primary action is **send and open next**. The insight is drawn from data she already has,
+> and stated as a suggestion — the coach decides."*
+
+What shipped was a single-check-in form — `Review Check-In`, `Client Summary`,
+`Your Feedback`, `Submit Feedback` — with **no queue, no position and no next**. `Back` was
+the only one of five declared controls present, and a coach reviewing six check-ins returned
+to a list between every one. The anchor's whole point was missing.
+
+### The four stats, and why only one is exact
+
+| Board | Column | Built |
+|---|---|---|
+| `Nutrition 92%` | `compliance_percent` | **exactly** |
+| `Energy Steady` | `energy_level` 1–5 | `3 of 5` — **OD-16**, the mapping is an open owner decision |
+| `Sleep 5/7` | `sleep_hours` | `7.2 h avg` — the board counts **nights**, the schema stores **average hours**. Different statistics; `5/7` cannot be derived from `7.2` |
+| `Sessions 4/4` | — | **not produced.** Completed-against-prescribed is on no column of this row — **OD-24** |
+
+### Two more places the board could not be followed
+
+**`She wrote`** → **`They wrote`**. Amara is the board's example; applying a pronoun to a
+real client would misgender them. Same decision the check-in detail screen already made.
+
+**`Record`** → drawn, and honestly **disabled**. `coach_video_responses` exists since
+migration 002, but §3ad records that nothing in this app captures, uploads or plays a video.
+Wiring it to an invented flow would be worse than saying it is unavailable — **OD-25**, the
+treatment OD-10 gave FIT-016's `More`.
+
+`Adjust plan` → `/program-builder`, the route the coach nav itself uses for `Programs`.
+Checked against the router, not assumed — the lesson of §3aj.
+
+`Send and open next` reads **`Send`** on the last of the queue, because there is no next and
+a button must not promise one. `Send` is the package's own word (FIT-026's composer), not
+new vocabulary.
+
+### Three defects found by mounting the screen, which source assertions would have missed
+
+**1. The header never rendered.** `_queue()` used `ref.read` on a `FutureProvider`, so the
+first frame saw it still loading and nothing rebuilt when it resolved. `Week 14 · 1 of 6`
+would not have appeared **in production either**. A source assertion that
+`reviewHeaderLine(` is called would have passed.
+
+**2. `tester.tap` misses silently.** The actions sit below the fold, and three tests
+reported "the service was never called" when the truth was "the button was never pressed".
+Not a product defect, but indistinguishable from one until `ensureVisible` was added.
+
+**3. My disabled-state assertion could not see itself.** `isEnabled` is false both when a
+control declares `enabled: false` **and when it declares no enabled state at all**, so a
+mutation removing `enabled: false` survived. The claim being made is "this control HAS an
+enabled state and it is off" — which is what a screen reader announces as dimmed. Now
+asserted with `hasEnabledState` as well.
+
+### EC-G8 tripped, and the code changed rather than the baseline
+
+Adding the queue introduced two `.valueOrNull` reads and the ratchet went 134 → 135. Per
+the standing rule the **baseline was not moved**. `.valueOrNull` turns "the queue could not
+be loaded" into "the queue is empty", and here those have different consequences: a coach
+whose queue failed silently loses `Send and open next` and is never told why. Both reads are
+now pattern-matched, and a failed queue **says so** — `Week 14 · couldn't load your review
+queue` — while still showing the week it does know.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/coach_review_queue_test.dart` — 26 tests | **PASS** |
+| Flow | `test/widget/coach_checkin_review_flow_test.dart` — 16, **mounted**, incl. the failed-queue state | **PASS** |
+| Guard strength | **17 / 17 mutations killed** — 9 rules, 8 flow | **PASS** |
+| Coverage | FIT-033 **5 / 5** | **PASS** |
+| Suite | **1296 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Ratchets | all nine at baseline, EC-G8 back to **134** | **PASS** |
+| Runtime | **LOCALLY_VERIFIED** — see below | **OPEN** |
+
+| # | Mutation | Result |
+|---|---|---|
+| Q1–Q9 | position off-by-one · unqueued drawn as first · last still promises next · OD-16 resolved silently · the gendered heading returns · absent % becomes zero · out-of-range clamped · nameless client called `Client` · sleep hours passed off as nights | **9 / 9 KILLED** |
+| P1 | sending pops back to the list | **KILLED** |
+| P2 | the queue is read, not watched — *the defect I shipped* | **KILLED** |
+| P3 | the reply carries over to the next client | **KILLED** |
+| P4 | a refused send advances anyway, losing the reply | **KILLED** (first run was a no-op) |
+| P5 | `Record` claims to be enabled | **KILLED** (survived until the test was strengthened) |
+| P6 | `Next` is drawn on the last of the queue | **KILLED** (first run was a no-op) |
+| P7 | a failed queue renders as an empty one | **KILLED** |
+| P8 | the failure hides the week too | **KILLED** |
+
+### Why LOCALLY_VERIFIED — an environment blocker, stated plainly
+
+The volume has **1.1 GB free** against a ~2.67 GB debug build. This project's own caches are
+already cleared (`build`, `.dart_tool/flutter_build` — 95 MB combined). What remains is
+**other applications' caches** — `com.openai.codex` 1.9 GB, `Google` 1.7 GB,
+`com.microsoft.VSCode.ShipIt` 1.4 GB — and `~/.gradle/caches` at 5.2 GB, whose loss costs a
+network re-download that would break the Android build path if it failed.
+
+Deleting another tool's cache is not this programme's call, and §25 says to leave the
+environment workable. So FIT-033 is **LOCALLY_VERIFIED, not RUNTIME_VERIFIED**. Four anchors
+were device-verified earlier in this session, when 2.2–4.0 GB was free; this one is blocked
+by the machine, not by the code. **Reclaiming ~3 GB would unblock it.**
+
+### New owner decisions
+
+**OD-24 · `Sessions 4/4`.** Completed-against-prescribed is recorded nowhere on a weekly
+check-in. Either the check-in should carry it, or the review screen should join a week's
+prescription to a session count. Until then the stat is absent rather than guessed.
+
+**OD-25 · what `Record` captures.** `coach_video_responses` exists; no capture, upload or
+playback path does. Drawn and disabled until the feature exists or the control is dropped.
+
 ## 4 · Design package
 
 | Check | Status |

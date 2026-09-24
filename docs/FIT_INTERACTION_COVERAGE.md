@@ -125,7 +125,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-016 | Workout detail | `/workout-detail` | 3 | 7 | `workout_detail_screen.dart` + `domain/exercise_brief.dart` + `widgets/exercise_brief_sheet.dart` |
 | FIT-029 | Profile | `/profile` | 4 | 6 | `profile_screen.dart` |
 | FIT-030 | Settings | `/settings` | 5 | 6 | `settings_screen.dart` — sixth blocked on OD-19 |
-| FIT-033 | Check-in review | `/coach-checkin-review` | 1 | 5 | `coach_checkin_review_screen.dart` |
+| FIT-033 ✅ | Check-in review | `/coach-checkin-review` | 5 | 5 | `coach_checkin_review_screen.dart` + `domain/coach_review_queue.dart` |
 | FIT-021 ✅ | Entitlement gate | `PaywallGate wrapper (12 routes)` | **3** | 3 | `paywall_gate.dart` |
 | FIT-006 ✅ | Welcome | `/onboarding` | **2** | 2 | `onboarding_screen.dart` |
 | FIT-017 | Rest & completion | `/active-workout` | 2 | 2 | `active_workout_screen.dart` + `widgets/rest_timer_widget.dart` |
@@ -362,7 +362,7 @@ without fabricating content the brief forbids.
 | FIT-030 | Settings | `/settings` | 5/6 | `settings_screen.dart` — sixth blocked on OD-19 |
 | FIT-031 🔒 | Plans | `/upgrade` | 1/5 | `upgrade_screen.dart` — **remaining 4 blocked on OD-18** |
 | FIT-032 | Coach dashboard | `/coach-dashboard` | **6/11** | `coach_dashboard_screen.dart` + `widgets/needs_you_today.dart` + `domain/coach_triage.dart` + `core/router/app_shell.dart` — the 5 absent are 4 **sample clients** and `All 24 clients` (live count); all four row labels produced verbatim at runtime, QA_EVIDENCE §3aj |
-| FIT-033 | Check-in review | `/coach-checkin-review` | 1/5 | `coach_checkin_review_screen.dart` |
+| FIT-033 ✅ | Check-in review | `/coach-checkin-review` | **5/5** | `coach_checkin_review_screen.dart` + `domain/coach_review_queue.dart` — the queue was the feature and did not exist. OD-24, OD-25 raised. QA_EVIDENCE §3an |
 | FIT-034 | Intake welcome | `/intake` | 1/1 | `intake_flow_screen.dart` |
 | FIT-035 | Profile information | `/intake` | 1/2 | `intake_flow_screen.dart` |
 | FIT-036 | PAR-Q | `/intake` | 8/8 | `intake_flow_screen.dart` |
