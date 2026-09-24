@@ -4438,6 +4438,85 @@ content may belong on Home — but "plausible" is not a mandate to delete a scre
 **Recorded as OD-35 for the design owner**, with the intent preserved rather than
 half-built.
 
+## 3bp · FIT-065/066 · four of five reactions could be read and never written
+
+The same defect as the post type, one layer over. `ReactionType` declares five,
+`toggleReaction(postId, reactionType)` takes the type, `_parseReaction` maps all five on the
+way back — and the provider hardcoded one:
+
+```dart
+Future<void> toggleLike(String postId) async {
+  await _svc.toggleReaction(postId, 'like');   // always
+```
+
+So **four of the five could be read by this app and never written by it.** The UI offered a
+single heart. `love`, `fire`, `clap` and `strong` existed in the model, the service, the
+parser and the database, and nothing in the app could create one.
+
+### And a defect that only appears once they are reachable
+
+`toggleReaction` had two branches — *row exists → delete*, *no row → insert*. So choosing a
+**different** reaction fell into the delete branch: switching from Like to Fire removed the
+Like and left **nothing**. `post_reactions` carries `UNIQUE(post_id, user_id)`, so an insert
+could not have replaced it either. With one reaction in the UI this was invisible; with five
+it is the common case — every change of mind silently becoming a removal.
+
+The decision is now `reactionWriteFor`, in the domain where a test can reach it:
+insert / remove / **change**. No schema change — the unique constraint already said one
+reaction per person per post; the code simply did not honour it.
+
+### The tally had no name
+
+`ReactionBar` drew it as bare emoji — `👍❤️🔥` and an integer — which a screen reader reads
+as emoji characters and a number, saying nothing about what they are. The board writes the
+names with the count in them: **`Like, 12 so far`**, **`Love, 4 so far`**, and plain
+**`Fire`**, **`Clap`** where nobody has reacted. That asymmetry is the rule: a reaction with
+no tally has no tally to announce. Whether *I* reacted rides on `selected`, not on the name,
+so a reader says it in the user's own language — as `habit_row.dart` and `grocery_list.dart`
+already do.
+
+### This moves the coverage number by zero, and that is correct
+
+`Like, 12 so far` is a **composed** label: the count comes from data, so no source literal
+can match it and the resolver will always read it as ABSENT. `Fire` and `Clap` already
+measured HAVE from bare words elsewhere.
+
+**353 / 600 before, 353 / 600 after.** The work is a correctness fix and five newly
+reachable controls with accessible names. Reporting it as coverage would have meant writing
+the counts into `lib` as literals, which is the fabrication this programme refuses.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Widget | `test/widget/reaction_picker_test.dart` — 4 rendered-UI tests | **PASS** |
+| Rules | 9 more: counts, names, round-trip, and the write decision | **PASS** |
+| Guard strength | **9 / 9 mutations killed** | **PASS** |
+| Suite | **1519 pass / 9 skipped** (was 1506) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Coverage | **unchanged, by design** — see above | — |
+
+| # | Mutation | Result |
+|---|---|---|
+| R1 | the count is dropped from the name | **KILLED** |
+| R2 | an unused type is a missing key rather than zero | **KILLED** |
+| R3 | my own reaction is not marked | **KILLED** |
+| R4 | the controls go dead | **KILLED** |
+| R5 | the controls drop under the 44 dp floor | **KILLED** |
+| R6 | `clap` cannot survive a write-and-read | **KILLED** |
+| R7 | only the heart is offered again | **KILLED** |
+| R8 | switching a reaction deletes it instead | **KILLED** |
+| R9 | a first reaction is written as a switch | **KILLED** |
+
+### Left open, with the dependency named
+
+* **FIT-066's per-comment likes** (`Like Amara's comment, 4 likes`). `PostComment` carries
+  `likes` and `isLiked`, and the service hardcodes them to `0` and `false` — because
+  `post_comments` has **no likes column and no reactions table**. This needs a migration,
+  which is out of phase → **OD-37**. Nothing renders the dead fields, so no false zero ships.
+* **`Share`** does nothing but fire a haptic. There is no share dependency in
+  `pubspec.yaml` → **OD-38**.
+* **`/post-detail`** does not exist; comments expand inline in the card. Whether FIT-066 is
+  a screen or the existing inline panel is a design question, not a repair.
+
 ## 4 · Design package
 
 | Check | Status |

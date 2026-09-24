@@ -5,6 +5,7 @@ import '../data/live_community_service.dart';
 import '../data/models/post_model.dart';
 import '../../coach/data/score_service.dart';
 import '../../scoring/data/score_engine.dart';
+import 'reaction_choice.dart';
 
 final communityServiceProvider = Provider<CommunityService>((ref) => CommunityService());
 final liveCommunityServiceProvider = Provider<LiveCommunityService>((ref) => LiveCommunityService());
@@ -40,15 +41,25 @@ class PostNotifier extends StateNotifier<AsyncValue<List<CommunityPost>>> {
 
   Future<void> reload() => _load();
 
-  Future<void> toggleLike(String postId) async {
-    await _svc.toggleReaction(postId, 'like');
+  /// Kept for callers that only ever meant the heart.
+  Future<void> toggleLike(String postId) => toggleReaction(postId, ReactionType.like);
+
+  /// FIT-065/066. The provider used to hardcode `'like'`, so four of the five
+  /// reaction types could be READ by this app and never written by it.
+  Future<void> toggleReaction(String postId, ReactionType type) async {
+    await _svc.toggleReaction(postId, reactionWire(type));
     final posts = state.valueOrNull ?? [];
     state = AsyncValue.data(posts.map((p) {
       if (p.id != postId) return p;
-      final newIsLiked = !p.isLiked;
-      final newReactions = newIsLiked
-          ? [...p.reactions, PostReaction(userId: 'me', type: ReactionType.like)]
-          : p.reactions.where((r) => r.userId != 'me').toList();
+      // Optimistic: same one again takes it back, a different one switches.
+      final mine = p.reactions.where((r) => r.userId == 'me').toList();
+      final had = mine.isEmpty ? null : mine.first.type;
+      final others = p.reactions.where((r) => r.userId != 'me').toList();
+      final newReactions = had == type
+          ? others
+          : [...others, PostReaction(userId: 'me', type: type)];
+      final newIsLiked =
+          newReactions.any((r) => r.userId == 'me' && r.type == ReactionType.like);
       return CommunityPost(
         id: p.id, userId: p.userId, userName: p.userName,
         userRole: p.userRole, content: p.content, type: p.type,
