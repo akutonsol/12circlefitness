@@ -4211,6 +4211,60 @@ the branch is gone, not that the tabs behave. The behaviour is covered on the wi
 | K6 | a suggested prompt posts into a surface the user cannot see | **KILLED** |
 | K7 | the composer sits beside the goal-projection card | **KILLED** |
 
+## 3bl · The component seven call sites now trust, tested by nothing
+
+The `/ai-coach` tab test that measured 590 dp prompted a sweep of every size assertion in
+the suite. Each was checked the only way that means anything — **delete the constraint in
+`lib/` and see whether the test notices**.
+
+| Assertion | Constraint deleted | Result |
+|---|---|---|
+| `pill_tab_test` | `PillTab`'s 44 dp floor | **KILLED** — sound |
+| `zone_action_test` | `ZoneAction`'s 44 dp floor | **KILLED** — sound |
+| `grocery_item_card_test` | the row's floor (§3bd G4) | **KILLED** — sound |
+| `messaging_no_coach_test` | — | measures a text CTA, not this component |
+| **`NamedIconButton`** | its `minWidth`/`minHeight` | **nothing failed** |
+
+**Deleting `NamedIconButton`'s 44 dp floor left the entire 1,483-test suite green.** It is
+the one place the "icon-only control, done correctly" shape lives, and its three promises —
+a name, a pressable button role, and a 44 dp target around an *unchanged* chip — were
+covered only through the widgets that happen to use it.
+
+That gap mattered more the moment **seven more call sites were routed through it in this
+session's back-control work**: each gave up its own constraint and took this one on trust.
+
+| # | Mutation | Result |
+|---|---|---|
+| N1 | the 44 dp floor is deleted | **KILLED** |
+| N2 | the `Semantics` loses `onTap` — a button nobody can press (F-20) | **KILLED** |
+| N3 | `container: false` | **SURVIVED — see below** |
+| N4 | it stops announcing as a button | **KILLED** |
+| N5 | the target becomes a fixed box, shrinking a larger chip | **KILLED** |
+
+### N3 survived, and the claim was withdrawn rather than propped up
+
+`named_icon_button.dart` credits `container: true` with stopping the node absorbing adjacent
+text — F-9 measured an intake header merged into a back button, the node covering the whole
+411 × 914 dp screen.
+
+Mutating it to `false` changes **nothing** observable in a widget test: not the label, not
+the node's rect. Almost certainly because `excludeSemantics: true` already forces a node
+boundary in this shape, making the flag redundant here rather than load-bearing.
+
+Two things were *not* done: the assertion was not weakened until it passed, and the reason
+string was not left saying something the test cannot show. The test now asserts only what it
+observes — the node is the control's own and its neighbour is outside it — and says in its
+own comment that it does **not** establish which flag achieves that. F-9's evidence was a
+real semantics tree on a device. This is a widget test, and that difference is exactly what
+the `RUNTIME_VERIFIED` rung exists to mark.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Component | `test/widget/named_icon_button_test.dart` — 6 tests | **PASS** |
+| Guard strength | **4 / 5 killed**; N3 withdrawn as untestable here, not papered over | **PASS** |
+| Suite | **1489 pass / 9 skipped** (was 1483) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+
 ## 4 · Design package
 
 | Check | Status |
