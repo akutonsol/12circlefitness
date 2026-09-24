@@ -5074,6 +5074,57 @@ V2 first **SURVIVED**: the assertion checked that the method *contained* the fai
 and it still did — from the `catch` and the unsaved-row branch. It now asserts the
 `url == null` arm itself. A guard that checks a file for a string is not checking a branch.
 
+## 3ca · RUNTIME — the device build ran, and here is exactly what that proves
+
+The disk recovered to **8.0 GB** (from the 118 MB of §3bc) and the emulator was still
+booted, so the device attempt was retried under a 1 GB watchdog. **It succeeded.**
+
+```
+✓ Built build/app/outputs/flutter-apk/app-debug.apk        37.1s
+adb install -r …                                           Success
+am start com.twelvecircle.circle_fitness/.MainActivity     Started
+free_after = 3925 MB
+```
+
+### What is now genuinely `RUNTIME_VERIFIED`
+
+| Observed on `emulator-5554` | |
+|---|---|
+| The app **builds, installs and launches** on Android | ✓ |
+| `/splash` (**FIT-010**) renders — the cycling headline reached *"Stronger every rep"*, with `Get Started` and `Already a member? Sign In` | ✓ |
+| Routing works: tapping `Get Started` navigated to `/signup`, which rendered its full form — name, email, password with the reveal toggle, the `Client / Coach / Wellness Partner` selector, Terms checkbox, `Create Account`, Google and Apple | ✓ |
+| **No `E/flutter` and no `FATAL`** in logcat across launch and navigation | ✓ |
+
+### What this does NOT verify, stated plainly
+
+**None of the defects fixed in this wave.** Every one of them —
+workout completion (§3bu), the check-in read (§3bv), the stat tiles (§3bx), the paywall
+(§3by), the voice recorder (§3bz) — sits **behind authentication**, and signing in means
+entering credentials, which is not something to do on a user's behalf.
+
+So those remain **`LOCALLY_VERIFIED`**. What the device run adds is that the binary
+containing them builds, boots and navigates without crashing — which is real, and is not the
+same claim.
+
+The voice work specifically still carries its own file header's requirement: *"this needs
+on-device testing (mic permission + capture + upload + playback across web/iOS/Android)"*.
+An emulator with no signed-in coach does not satisfy it.
+
+### A contradiction I suspected and checked rather than asserted
+
+The first screen looked like **FIT-006 "Welcome"**, which the backlog marks **UNREACHABLE**
+(OD-31) — a source-derived claim apparently refuted by the app booting straight into it.
+
+It is not. The rendered screen is `SplashScreen` at `/splash` — `splash_screen.dart:26`
+carries the exact cycling phrases seen (`'Stronger\nevery rep'`) and sends `Get Started` to
+`/signup`, which is what the device did. `OnboardingScreen` at `/onboarding` is a different
+file, and **nothing navigates to it**.
+
+**FIT-006's UNREACHABLE finding stands, now corroborated from the other direction.**
+
+Screenshots: `scratchpad/android_evidence/app_launch.png`,
+`after_get_started.png`.
+
 ## 4 · Design package
 
 | Check | Status |
