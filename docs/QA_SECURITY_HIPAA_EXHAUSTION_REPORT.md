@@ -10,6 +10,41 @@
 
 ---
 
+> ## ⚠ CORRECTION — 2026-09-24, issued by the remediation phase
+>
+> **Two findings below are WRONG and are retracted.** Corrected in
+> `QA_SECURITY_HIPAA_REMEDIATION_REPORT.md` §E. The text is left in place
+> unedited so the error is legible rather than erased.
+>
+> **1. `SEC-DRIFT-1` is a FALSE POSITIVE.** §1 and §15 claim `ai_memories` /
+> `ai_profiles` isolate per user on live QA while *"no migration in the
+> repository enables RLS or creates a policy on them"*. **A migration does.**
+> `074_ai_coaching_layer.sql:73–81` runs a `DO` block that enables RLS and
+> creates `"own ai data" … FOR ALL … USING (user_id = auth.uid())` across all
+> five AI tables. The detection grep required the table name and the RLS keyword
+> on the **same line**; here the names live in a `text[]` and the statement is
+> built by `format()` with `%I`, so no single line contains both.
+>
+> Everything that followed from it is therefore also wrong: a clean database
+> rebuilt from these migrations **does** reproduce the protection, and
+> `deleteMemory`'s `delete().eq('id', id)` **is** constrained — the policy is
+> `FOR ALL`, so it covers DELETE.
+>
+> **2. `SEC-PHI-5`'s RLS half is a FALSE POSITIVE.** Counting DO-block loops,
+> **all 92 created tables** carry an RLS statement, so Privacy §7's *"row-level
+> security policies on all database tables"* is substantiated. Its TLS-1.3 /
+> AES-256 claims remain NOT_DEMONSTRATED.
+>
+> §14 of this report argues that an instrument must be shown capable of
+> producing a non-empty result before an empty one is believed. **That standard
+> was not applied to the RLS scan itself**, and the live probe that contradicted
+> it was read as evidence of drift rather than as evidence the scan was broken.
+>
+> The findings that **do** survive re-verification: `SEC-AI-1`, `SEC-VOICE-2`,
+> `SEC-PHI-1`, `SEC-PHI-4`, `SEC-PHI-AUDIT`, `SEC-MEDIA-1`, `OD-60`.
+
+---
+
 ## 1 · Executive summary
 
 Five identities were authenticated against the live QA database and used to test real
