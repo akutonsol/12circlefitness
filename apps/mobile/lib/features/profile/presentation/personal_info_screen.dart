@@ -225,6 +225,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
           child: SizedBox(height: 56, child: Row(children: [
             IconButton(
               icon: const Icon(Icons.arrow_back_ios_new, color: _pri, size: 20),
+              tooltip: 'Back',
               onPressed: () => Navigator.of(context).pop()),
             const Expanded(child: Center(child: Text('PERSONAL INFO',
               style: TextStyle(color: _pri, fontSize: 16,

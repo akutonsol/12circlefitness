@@ -7,6 +7,7 @@ import '../../coach_notes/presentation/coach_notes_sheet.dart';
 import '../../coach/data/coach_relationship_service.dart';
 import '../../coach/domain/package_provider.dart';
 import '../../scoring/domain/score_provider.dart';
+import '../../../core/widgets/named_icon_button.dart';
 
 const _bg    = Color(0xFF030303);
 const _card  = Color(0xFF0E0B16);
@@ -150,7 +151,8 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
       color: _card,
       border: Border(bottom: BorderSide(color: _brd))),
     child: Row(children: [
-      GestureDetector(
+      NamedIconButton(
+        label: 'Back',
         onTap: () => Navigator.pop(context),
         child: const Icon(Icons.arrow_back_ios, color: _wht, size: 20)),
       const SizedBox(width: 12),

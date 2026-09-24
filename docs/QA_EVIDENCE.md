@@ -3874,6 +3874,68 @@ control with no name is the defect `A-G8` exists for, and `A-G8`'s own baseline 
 not reach these. This screen's is named; the other 39 are the next item, with a ratchet,
 rather than a silent sweep here.
 
+## 3bf · BACK-G1 · the most-declared control in the package had no name
+
+`Back` is the single most declared interaction in the design package. It is always drawn as
+a bare glyph, and an `IconButton` whose child is an `Icon` and which has no `tooltip:` has
+**no accessible name at all** — a screen reader announces "button" and stops. Flutter's own
+`BackButton` takes its name from `MaterialLocalizations`; a hand-rolled
+`IconButton(icon: Icon(Icons.arrow_back))` takes nothing. A bare `GestureDetector` around
+the same glyph is worse again: no name *and* no button role.
+
+### The first count was wrong by threefold, and the previous commit repeats it
+
+The sweep reported **40 unnamed back buttons**, and the commit message for §3be says "the
+other 39". **Both are wrong.** The verified figure is **16**. Two distinct errors inflated
+it:
+
+1. it matched `IconButton(` as a **substring of `NamedIconButton(`**, so six controls this
+   programme had *already fixed* were counted as defects — precisely the "string substrings
+   being counted as controls" failure this programme watches for, committed by the sweep
+   that was looking for it;
+2. it never looked far enough out to see a `Semantics(button: true, label: 'Back')`
+   wrapper, so four more correct sites were counted too.
+
+The correction is recorded here rather than left to stand, because the inflated number is
+already in the repository's history.
+
+### What was actually wrong, and is now fixed
+
+| | Count | Fix |
+|---|---|---|
+| `IconButton`, no tooltip | **13** | `tooltip: 'Back'` |
+| bare `GestureDetector` | **3** | `NamedIconButton(label: 'Back', …)` |
+| already correct | 10 | untouched |
+
+`NamedIconButton` already existed, written earlier in this programme for exactly this shape;
+it carries the name, the button role and the 44 dp target together, so the three gesture
+sites gained a tap target as well as a name.
+
+### The guard caught itself being blinded — on the second attempt
+
+Mutation **B4 — make the "is it named?" test return `true` unconditionally — SURVIVED.** The
+floor test only counted *controls*, so a predicate that never says "no" left the ratchet
+with nothing to find and everything passing. The predicate was lifted to a top-level
+`namesBackControl` and pinned on synthetic input: a bare gesture around the glyph must
+classify as unnamed, each naming route must be recognised, and `label: 'Close'` must not
+count as naming a back control. B4 then died.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/unit/back_control_guard_test.dart` — 4 tests, baseline **0** | **PASS** |
+| Guard strength | **4 / 4 mutations killed** | **PASS** |
+| Suite | **1461 pass / 9 skipped** (was 1457) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Ratchets | **fifteen** at baseline | **PASS** |
+| Coverage | all interactions 295 → **306 / 600** | — |
+
+| # | Mutation | Result |
+|---|---|---|
+| B1 | one `IconButton` loses its tooltip | **KILLED** |
+| B2 | a `NamedIconButton` reverts to a bare `GestureDetector` | **KILLED** |
+| B3 | the detector is blinded | **KILLED** |
+| B4 | the naming predicate returns `true` unconditionally | **KILLED** (survived first) |
+
 ## 4 · Design package
 
 | Check | Status |

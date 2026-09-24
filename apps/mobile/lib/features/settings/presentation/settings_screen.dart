@@ -103,6 +103,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back_ios_new, color: _C.primary, size: 20),
+                    tooltip: 'Back',
                     onPressed: () => context.go('/profile'),
                   ),
                   const Expanded(

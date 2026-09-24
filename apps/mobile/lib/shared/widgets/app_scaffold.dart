@@ -97,6 +97,7 @@ class _AppHeader extends StatelessWidget {
           if (showBackButton)
             IconButton(
               icon: const Icon(Icons.arrow_back_ios_new, color: _C.primary, size: 20),
+              tooltip: 'Back',
               onPressed: () {
                 if (context.canPop()) {
                   context.pop();

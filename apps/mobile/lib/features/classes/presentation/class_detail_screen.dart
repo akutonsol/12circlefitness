@@ -31,6 +31,7 @@ class ClassDetailScreen extends ConsumerWidget {
             pinned: true,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: AppColors.white),
+              tooltip: 'Back',
               onPressed: () => context.pop(),
             ),
             flexibleSpace: FlexibleSpaceBar(

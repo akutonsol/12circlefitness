@@ -141,6 +141,7 @@ class _CoachCheckinReviewScreenState
               style: TextStyle(color: AppColors.white, fontWeight: FontWeight.w700)),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: AppColors.white),
+            tooltip: 'Back',
             onPressed: () => context.pop(),
           ),
         ),

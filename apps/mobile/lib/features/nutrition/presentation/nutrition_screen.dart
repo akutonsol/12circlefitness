@@ -5,6 +5,7 @@ import '../data/models/food_model.dart';
 import '../domain/nutrition_provider.dart';
 import 'widgets/coach_insight_card.dart';
 import 'widgets/food_added_dialog.dart';
+import '../../../core/widgets/named_icon_button.dart';
 
 const _bg       = Color(0xFF030303);
 const _card     = Color(0xFF0E0B16);
@@ -471,7 +472,9 @@ class _FoodDetail extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
       child: Column(children: [
         Row(children: [
-          GestureDetector(onTap: onBack,
+          NamedIconButton(
+            label: 'Back',
+            onTap: onBack,
             child: Icon(Icons.arrow_back, color: _muted.withValues(alpha: 0.6), size: 20)),
           const SizedBox(width: 10),
           Expanded(child: Text(food.name, style: const TextStyle(color: _white,

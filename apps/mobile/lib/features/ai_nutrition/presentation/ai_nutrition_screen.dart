@@ -143,6 +143,7 @@ class _AiNutritionScreenState extends ConsumerState<AiNutritionScreen> {
         backgroundColor: AppColors.bgDark,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.white),
+          tooltip: 'Back',
           onPressed: () => context.pop()),
         title: Row(children: [
           Container(
