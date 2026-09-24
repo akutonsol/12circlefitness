@@ -3004,55 +3004,85 @@ exactly one. That is the **fourth** time in this programme —
 previous fix was inline, which is how the fourth happened; this file has **one**
 `stripComments` and every assertion goes through it.
 
-## 3as · The backlog was being measured wrong — `tool/fit_backlog.dart`
+## 3as · The backlog was being measured wrong, in both directions
 
 Five times this programme has found the coverage ledger under-reporting an anchor, each by
-hand, one anchor at a time:
+hand, one at a time — FIT-001 4/9→7/9, FIT-005 4/12→6/12, FIT-028 4/10→5/10,
+FIT-014 5/12→6/12, FIT-032 5/11→6/11. The cause was structural: the ledger measured **one
+file per anchor**, and a screen is a screen, the widgets it composes, the rules those
+widgets call, and the shell that draws its nav. Nothing regenerated it, so every correction
+was manual and the next was guaranteed.
 
-| Anchor | Ledger | Actual |
-|---|---|---|
-| FIT-001 | 4/9 | 7/9 |
-| FIT-005 | 4/12 | 6/12 |
-| FIT-028 | 4/10 | 5/10 |
-| FIT-014 | 5/12 | 6/12 |
-| FIT-032 | 5/11 | 6/11 |
+`tool/fit_backlog.dart` resolves a route to the files it is actually built from. Building
+it found four measurement defects, two of them in the tool itself.
 
-The cause was structural: the ledger measured **one file per anchor**. A screen is a screen,
-the widgets it composes, the rules those widgets call, and — for any frame with a nav — the
-shell that draws it. Nothing regenerated it, so every correction was manual and the next one
-was guaranteed.
+### 1. The route resolved to a wrapper — the recorded defect, reproduced
 
-`tool/fit_backlog.dart` resolves a route to the files it is **actually built from**: the
-router's builder widget (skipping wrappers), that screen's imports one hop out, the shell for
-frames the manifest marks `hasBottomNav`, and the top nav for all of them.
+`/meals-dashboard`'s builder is `PaywallGate(required: …, child: MealsDashboardScreen())`.
+Taking the first widget after `=>` resolved the route to the **gate** — the *"route resolved
+to a redirect stub"* defect already on record against the measurement this replaces,
+reproduced on the replacement's first run. Wrappers are skipped now.
 
-### It reproduced a recorded defect on its own first run
+### 2. One hop was not far enough
 
-`/meals-dashboard`'s builder is
-`PaywallGate(required: …, child: MealsDashboardScreen())`. Taking the first widget after
-`=>` resolved the route to the **gate** — which is the *"route resolved to a redirect
-stub"* defect already recorded against the measurement this tool replaces. Wrappers are now
-skipped, and the four anchors that are **sub-surfaces** rather than screens (FIT-019's
-`_AddMealSheet`, FIT-020's scan view, FIT-021's gate, FIT-022's failure pattern) are named
-explicitly rather than guessed at.
+A composing screen reaches its rules through a widget: `classes_screen → whats_on_view →
+whats_on.dart`, where `const whatsOnSegments = ['All', 'Classes', 'Events', 'Challenges']`
+lives. One hop reported **FIT-027 as 1/10** against a screen that renders four of them. Two
+hops, scoped to `lib/features` and `lib/core`, restores it to its hand-verified 5/10.
 
-A second, smaller one: regenerating the ledger by re-parsing the tool's own aligned output
-dropped **13 of 110** anchors and produced an empty cell. The tool emits the markdown
-itself now (`--markdown`), so the ledger cannot drift from the measurement that produced it.
+*(And the first attempt at that fix silently did nothing: the filter tested
+`d.contains('/lib/features/')` against **relative** paths that carry no leading slash.)*
+
+### 3. Half the metric was a substring match
+
+**300 of 600 declared labels are ONE WORD**, and `Back` alone appears 69 times. A bare
+substring rule counted `background` as `Back` and `abandoned` as `Done`. A rendered label is
+a string literal in Dart, so one-word labels must match as one.
+
+That took the total from **352 to 280**, and **FIT-018 "Session complete" from 4/4 to 0/4**:
+
+> `Easy` and `Hard` appear **nowhere in `lib`**.
+
+All four of its interactions were coincidences, and FIT-018 was carried as complete. It is
+now the highest-value locked anchor with zero coverage.
+
+### 4. `Low` was a different scale's word
+
+FIT-004 reported `Low` present and `Steady` / `Strong` absent. `Low` is real — it is the
+**sleep** slider's label (`daily_checkin_screen.dart:370`, `≥8 Optimal / ≥6 Good / Low`) —
+and has nothing to do with the board's **energy** scale `Low / Steady / Strong`, which is
+**OD-16** and deliberately not built. Seventh false positive, same family: the tool matches
+text, and text is not a control.
+
+Worth separating from the measurement: that sleep scale is itself an **unsourced product
+judgement**. Nobody in the package chose 8 and 6 hours, or decided that under six reads
+`Low` in red. It is the same shape as OD-16 — a threshold deciding what a client is told —
+resolved silently rather than raised. Recorded as **OD-28**; nothing changed, because
+removing shipped copy is as much a product decision as adding it.
 
 ### The corrected position
 
 | Measure | Stated at the start of this cycle | **Measured** |
 |---|---|---|
-| Locked-anchor interactions | 100 / 179 | **128 / 179** |
-| Locked anchors complete | 7 | **11** |
-| All declared interactions | 299 / 600 | **352 / 600** |
+| Locked-anchor interactions | 100 / 179 | **123 / 179** |
+| Locked anchors complete | 7 | **10** |
+| All declared interactions | 299 / 600 | **280 / 600** |
 
-The difference is partly this cycle's work — F-14's resolution alone moved seven anchors —
-and partly that the old number was low. Both directions are now reproducible from one
-command, which is the point.
+The locked figure rose because the old resolver was shallow and because F-14's resolution
+moved seven anchors. The overall figure **fell**, because ~72 of the interactions it had
+been counting were substring coincidences. A measurement that only ever moves upward is not
+measuring.
 
 `docs/FIT_INTERACTION_COVERAGE.md` is generated. Edit the tool, not the table.
+
+### New owner decision
+
+**OD-28 · the sleep quality scale.** `daily_checkin_screen.dart:370` labels sleep
+`Optimal` (≥8 h), `Good` (≥6 h) or `Low`, and colours the last one red. No part of the
+design package specifies those words or those thresholds. It is the same class of decision
+as OD-16 — what a client is told about their own health data — and unlike OD-16 it was made
+silently. Decide whether to keep it, restate it as a value, or replace it with package
+wording.
 
 ## 4 · Design package
 

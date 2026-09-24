@@ -30,8 +30,13 @@
 // matter more than the number:
 //
 //   * strong evidence of ABSENCE, weak evidence of PRESENCE. A match may be a
-//     different control — six such false positives have been found so far, the
-//     most recent being `Browse coaches` matching a sentence of body copy;
+//     different control — seven such false positives have been found so far;
+//   * **one-word labels are matched as STRING LITERALS, not substrings.** Half
+//     the manifest is one word (300 of 600) and `Back` alone appears 69 times,
+//     so a bare substring rule drove half the metric: `Back` matched
+//     `background`, `Done` matched `abandoned`. Tightening it dropped the
+//     total from 352 to 280 and took FIT-018 from 4/4 to **0/4** — `Easy` and
+//     `Hard` appear nowhere in `lib`, so all four were coincidences;
 //   * comments are stripped, because writing down that something was
 //     deliberately NOT built used to make the metric report it as built;
 //   * the board's SAMPLE rows ("Priya Hit 70 kg…", "1 Back squat 4 × 6…") can
@@ -175,6 +180,12 @@ void main(List<String> args) {
   // 13 of 110 anchors and produced an empty cell, which is exactly the kind of
   // second-order measurement error the tool exists to stop.
   final markdown = args.contains('--markdown');
+  // --absent FIT-0xx : list the labels still missing for one anchor, against
+  // the SAME resolved file set the totals use.
+  final absentFor = args
+      .where((a) => a.startsWith('--absent='))
+      .map((a) => a.substring(9))
+      .firstOrNull;
 
   if (!File(manifestPath).existsSync()) {
     stderr.writeln('manifest not found: $manifestPath\n'
@@ -232,9 +243,25 @@ void main(List<String> args) {
       screen = override.first;
     }
 
+    // TWO hops, not one. A composing screen reaches its rules through a
+    // widget — `classes_screen` → `whats_on_view` → `whats_on.dart`, where
+    // `const whatsOnSegments = ['All', 'Classes', 'Events', 'Challenges']`
+    // actually lives. One hop reported FIT-027 as 1/10 against a screen that
+    // renders four of them.
+    //
+    // The second hop is scoped to `lib/features` and `lib/core`, so it picks
+    // up widgets and domain rules without walking into the whole app.
+    final direct = screen == null ? <String>[] : importsOf(screen);
+    final second = <String>[
+      for (final d in direct)
+        if (d.contains('lib/features/') || d.contains('lib/core/'))
+          ...importsOf(d),
+    ];
+
     final files = <String>{
       if (screen != null) screen,
-      if (screen != null) ...importsOf(screen),
+      ...direct,
+      ...second,
       if (a['hasBottomNav'] == true) shell,
       topNav,
     }.where((f) => File(f).existsSync()).toList();
@@ -253,7 +280,18 @@ void main(List<String> args) {
     for (final i in interactions) {
       final label = unescapeHtml(i['label'] as String).trim();
       final key = label.split(RegExp(r'\s+')).take(3).join(' ').toLowerCase();
-      if (src.contains(key)) h++;
+      // A ONE-WORD label cannot be found by substring: `Back` appears 69 times
+      // in the manifest and matches `background`, `Backup`, `callback`. Half
+      // the declared interactions (300 of 600) are one word, so that single
+      // rule drives half the metric. A rendered label is a STRING LITERAL in
+      // Dart, so short labels must match as one.
+      final present = label.split(RegExp(r'\s+')).length > 1
+          ? src.contains(key)
+          : (src.contains("'$key'") || src.contains('"$key"'));
+      if (present) h++;
+      if (absentFor == a['id']) {
+        stdout.writeln('  ${present ? "HAVE  " : "ABSENT"}  $label');
+      }
     }
 
     have += h;
