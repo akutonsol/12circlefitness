@@ -220,7 +220,17 @@ class _AiNutritionScreenState extends ConsumerState<AiNutritionScreen> {
                       ])),
                   ]));
               }
-              return AiChatBubble(message: messages[index]);
+              final m = messages[index];
+              return AiChatBubble(
+                message: m,
+                // Only the turn the conversation is currently sitting on can
+                // be re-sent; an older failure is history.
+                onRetry: m.failed && index == messages.length - 1
+                    ? () => ref
+                        .read(aiNutritionNotifierProvider.notifier)
+                        .retryLastTurn()
+                    : null,
+              );
             })),
 
         // Quick prompts

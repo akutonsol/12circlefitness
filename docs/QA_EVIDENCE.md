@@ -3936,6 +3936,64 @@ count as naming a back control. B4 then died.
 | B3 | the detector is blinded | **KILLED** |
 | B4 | the naming predicate returns `true` unconditionally | **KILLED** (survived first) |
 
+## 3bg · FIT-090 · the failure that became something the coach had said
+
+Third instance of the same root cause, and the only one with a consequence outside the
+screen. When a turn failed, `sendMessage` appended the error **as the coach**:
+
+```dart
+state = [...state, ChatMessage(
+  content: 'Sorry, I encountered an error. Please try again.',
+  isUser: false,          // <- presented as the assistant speaking
+)];
+```
+
+**On screen** that is a coach bubble — same avatar, same styling — indistinguishable from
+nutrition advice, with no way to retry but to retype.
+
+**In the next request** it is worse. `_buildHistory()` walked the whole message list and
+mapped every `isUser: false` entry to `role: 'assistant'`, so the following turn told the
+model it had previously said *"Sorry, I encountered an error"* — an apology for an error it
+never had, now part of the conversation it was asked to continue, and replayed on every
+subsequent turn for the rest of the session. **A transport failure became a fact about the
+coach.**
+
+FIT-090 — *"AI nutrition — a turn that failed"* — is a designed screen with one control:
+**`Send it again`**. It did not exist.
+
+`ChatMessage.failed` lets both readers act on the same fact: the bubble draws a notice
+rather than the coach, and `apiHistory` leaves the turn out. `retryLastTurn` drops the
+notice **and the user turn it belongs to** before re-sending, so a retry does not leave a
+duplicate of either behind.
+
+The visible sentence changed too. *"Sorry, I encountered an error"* is written in the
+coach's voice, which is part of why it read as the coach; the notice is the app speaking.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Domain + notifier | `test/unit/chat_turn_test.dart` — 12 tests, incl. a fake service asserting what the **next request actually carried** | **PASS** |
+| Guard strength | **5 / 5 mutations killed** | **PASS** |
+| Suite | **1473 pass / 9 skipped** (was 1461) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Coverage | all interactions 306 → **307 / 600** | — |
+
+| # | Mutation | Result |
+|---|---|---|
+| C1 | failed turns are replayed to the model as assistant context | **KILLED** |
+| C2 | the failure is not marked, so it renders and replays as the coach | **KILLED** |
+| C3 | the retry leaves a duplicate user turn behind | **KILLED** |
+| C4 | the retry re-sends whatever came last, not the user's turn | **KILLED** |
+| C5 | `Send it again` drifts to `Retry` | **KILLED** |
+
+### Three screens, one mistake
+
+`/meal-plan`, `/grocery-list` and `/ai-nutrition` each conflated *failed* with *content*,
+independently, in three different shapes — a `String?`, a `String?`, and a list element
+flagged by whose turn it was. In all three the design package already had the failure
+screen drawn. The pattern worth carrying forward is not "add an error state": it is that
+**a type with two states cannot carry three**, and the third one always ends up disguised
+as the second.
+
 ## 4 · Design package
 
 | Check | Status |
