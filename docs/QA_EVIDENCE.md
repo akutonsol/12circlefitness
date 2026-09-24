@@ -5557,6 +5557,64 @@ lacks one, and `118` and `122` re-run it. The detector read `CREATE FUNCTION` bo
 missed the bulk `ALTER` — the same one-layer mistake recorded in §3bx, avoided this time by
 reading the sequence.
 
+## 3cg · SEC-VOICE-1 · the deletion arm is fixed; the bucket is AUTHORED/BLOCKED
+
+The finding has two halves, and they are not equally blocked.
+
+### Fixed in code — no migration needed
+
+`clearCoachVoice()` nulled the row and **left the recording in the bucket**. It now derives
+the object path from the stored URL and **removes the object first**, then clears the row.
+Order matters: a failed delete must leave the note visible and retryable rather than the app
+claiming a deletion it did not perform.
+
+`coachVoiceObjectPath()` is deliberately strict — it returns `null` for a foreign bucket, a
+relative path, an empty tail or a malformed value, so **a delete is never issued against a
+path this code did not create**. That is tested directly, including the negative cases.
+
+Even with the bucket still public, a removed note now stops being fetchable. **The exposure
+is reduced, not closed**: objects uploaded before this remain public.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Path derivation | 3 tests incl. 6 negative cases | **PASS** |
+| Wiring | 2 `[SOURCE]` tests, incl. remove-before-clear ordering | **PASS** |
+| Guard strength | **4 / 4 mutations killed** | **PASS** |
+| Suite | **1580 pass / 9 skipped** (was 1571) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| The delete executing against QA | needs an authenticated coach session | **BLOCKED** — OD-51 |
+
+| # | Mutation | Result |
+|---|---|---|
+| SV1 | the object is no longer removed | **KILLED** |
+| SV2 | a foreign URL becomes a delete target | **KILLED** |
+| SV3 | an empty path is returned as a delete target | **KILLED** |
+| SV4 | the row is cleared without touching the object | **KILLED** |
+
+### Blocked — `docs/proposed/SEC_VOICE_1_coach_media_private.sql`, **AUTHORED**
+
+Making the bucket private is a migration. `docs/MASTER_REMEDIATION_WAVES.md` reserves
+**132+** for *"assigned at wave entry, never before"*, so the artifact carries **no migration
+number** — self-assigning one is the collision that document exists to prevent.
+
+Three things are recorded in it rather than glossed:
+
+1. **It must not be applied alone.** Three `getPublicUrl()` call sites
+   (`custom_exercise_service.dart:674`, `coach_video_response_screen.dart:78`,
+   `coach_business_screen.dart:132`) must move to `createSignedUrl()` in the same change, or
+   **every existing coach voice note and video stops loading** the moment it runs.
+2. **The read policy is an owner decision, not an oversight.** A coach's voice note is
+   *addressed to a client*, so "who may read it" is narrower than "who uploaded it" and wider
+   than "only the owner" — the client must be able to play it. Resolving that needs the
+   schema read that Docker and the service key currently block, so the arm is left explicitly
+   `<TO BE RESOLVED>` rather than guessed.
+3. **The SQL is unverified.** It was never executed: no Docker, no service role. It is
+   written from `130`'s pattern and is labelled a draft.
+
+`exercise-media` and `avatars` are also public. Those are plausibly intended — a shared
+exercise catalogue and profile pictures — and are **not** included; narrowing them is a
+product decision. → **OD-53**.
+
 ## 4 · Design package
 
 | Check | Status |

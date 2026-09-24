@@ -690,14 +690,64 @@ class CustomExerciseService {
     } catch (e) { lastError = e; return false; }
   }
 
+  /// The object path inside `coach-media` for a stored voice URL.
+  ///
+  /// `uploadCoachVoice` returns `getPublicUrl(path)`, so the path is everything
+  /// after the bucket segment. Returns null for anything that is not a
+  /// `coach-media` public URL, so a malformed or foreign value never turns into
+  /// a delete against a path this code did not create.
+  static String? coachVoiceObjectPath(String? publicUrl) {
+    if (publicUrl == null) return null;
+    const marker = '/object/public/coach-media/';
+    final i = publicUrl.indexOf(marker);
+    if (i < 0) return null;
+    final path = publicUrl.substring(i + marker.length).split('?').first;
+    return path.isEmpty ? null : path;
+  }
+
+  /// SEC-VOICE-1 (deletion arm). Clearing a voice note used to null the row's
+  /// columns and **leave the audio in place**:
+  ///
+  /// ```dart
+  /// await _db.from('coach_exercise_media').update({'voice_url': null, ...});
+  /// return true;   // the object is still in the bucket
+  /// ```
+  ///
+  /// `coach-media` is a PUBLIC bucket — verified live: it serves the public
+  /// object route unauthenticated, while `progress-photos`, `chat-media` and
+  /// `messages` refuse it. So a coach removed a voice note, the app stopped
+  /// showing it, and the recording stayed permanently fetchable by anyone who
+  /// had ever held the URL. The row even carries `voice_expires_at`, an expiry
+  /// the object never honoured.
+  ///
+  /// The object is now removed first. If that fails the row is left alone, so
+  /// the note stays visible and retryable rather than the app claiming a
+  /// deletion it did not perform.
+  ///
+  /// Making the bucket private is the other half and is a migration —
+  /// wave-governed, not taken here.
   Future<bool> clearCoachVoice(String exerciseId) async {
     try {
       final uid = _db.auth.currentUser?.id;
+      if (uid == null) return false;
+
+      final row = await _db.from('coach_exercise_media')
+          .select('voice_url')
+          .eq('coach_id', uid)
+          .eq('exercise_id', exerciseId)
+          .maybeSingle();
+      final path = coachVoiceObjectPath(row?['voice_url'] as String?);
+      if (path != null) {
+        // Deliberately NOT swallowed: if the recording cannot be removed, the
+        // app must not report the note as deleted.
+        await _db.storage.from('coach-media').remove([path]);
+      }
+
       await _db.from('coach_exercise_media').update({
         'voice_url': null, 'voice_duration_ms': null, 'voice_expires_at': null,
-      }).eq('coach_id', uid ?? '').eq('exercise_id', exerciseId);
+      }).eq('coach_id', uid).eq('exercise_id', exerciseId);
       return true;
-    } catch (_) { return false; }
+    } catch (e) { lastError = e; return false; }
   }
 
   /// Raw exercise row by id (for prefilling the edit form with all columns).
