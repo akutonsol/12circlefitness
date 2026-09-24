@@ -1038,7 +1038,21 @@ class _CoachingMemoryCardState extends State<_CoachingMemoryCard> {
               : Wrap(spacing: 8, runSpacing: 8, children: _memories.map((m) {
                   final c = _kindColor(m['kind']?.toString() ?? '');
                   return GestureDetector(
-                    onLongPress: () async { await _svc.deleteMemory(m['id'].toString()); await _load(); },
+                    // A failed delete used to be silent: the chip simply
+                    // reappeared after the refresh, which reads as a glitch
+                    // rather than "the fact your coach remembers about you is
+                    // still there". These rows include injuries.
+                    onLongPress: () async {
+                      final ok = await _svc.deleteMemory(m['id'].toString());
+                      await _load();
+                      if (!ok && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Couldn't remove that. Try again."),
+                          ),
+                        );
+                      }
+                    },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
