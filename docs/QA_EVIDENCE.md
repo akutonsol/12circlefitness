@@ -3425,6 +3425,78 @@ with no way in, and FIT-010's annotation records that the shipped splash orphans
 preserving `Get started → /signup`. Either the splash routes through Welcome, or Welcome is
 retired. The package states the conflict and does not resolve it.
 
+## 3ay · FIT-062 · one of three accessibility signals, and a write nobody asked for
+
+**1/7 → 2/7.** The five that remain are the board's sample notifications.
+
+### The board states the accessibility requirement, and its reason
+
+> *"Unread carries **a dot** and **the word "Unread"** and **full-strength ink** — three
+> signals, since a violet dot alone fails for a colour-blind member."*
+
+The screen shipped with **the dot**. That is the one signal the board names as insufficient
+on its own, and it names the member it fails. All three are now computed together by
+`unreadSignals`, precisely so a caller cannot ship one and forget the other two — which is
+what happened.
+
+### And a write the client never asked for
+
+`notifications_screen.dart` ran this in `initState`:
+
+```dart
+Future.delayed(const Duration(seconds: 2), () {
+  if (mounted) ref.read(notificationsProvider.notifier).markAllRead();
+});
+```
+
+Two seconds after the screen appeared, **every notification became read** — whether the
+client read anything or not. That:
+
+* made `Mark all read`, which the board draws as a **control**, pointless, because it had
+  already happened;
+* destroyed the state the three signals exist to convey;
+* wrote on the client's behalf without being asked.
+
+The board draws marking-read as something the client does. So it is now. This is not an
+invented product decision — it is the one the frame already makes by drawing a button.
+
+### Three more the board settles
+
+| Shipped | Board |
+|---|---|
+| `Today` / `Yesterday` / `3 days ago` / `Sep 17` in one list | `Today` / `Earlier this week` |
+| `All caught up!` · `No more notifications for now.` | `Nothing new` · `Coach replies, plan changes and check-in reminders land here.` |
+| an unnamed 38 px back circle | `aria-label="Back"` — an A-G8 site, and two pixels under the 44 dp floor |
+
+The empty copy matters more than it looks: the shipped pair says the list is empty **twice**
+and never says what would appear in it. The board's names the categories the app sends.
+
+"This week" is the **last seven days**, not the calendar week — a Monday member would
+otherwise find Sunday's coach reply under `Earlier`, which is true of the calendar and wrong
+about their week. A third group, `Earlier`, carries anything older: the board draws two
+because its sample spans five days, and a notification from last month has to go somewhere
+that is not a lie.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/notification_groups_test.dart` — 15 tests | **PASS** |
+| Guard | `test/widget/notifications_signals_test.dart` — 6, comment-stripped, detector floor | **PASS** |
+| Guard strength | **7 / 7 mutations killed** | **PASS** |
+| Coverage | FIT-062 **2 / 7** — the five are sample notifications | **PASS** |
+| Suite | **1393 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors · A-G8 at baseline | **PASS** |
+| Runtime | **LOCALLY_VERIFIED** | **OPEN** |
+
+| # | Mutation | Result |
+|---|---|---|
+| K1 | the word signal is dropped, back to a dot alone | **KILLED** |
+| K2 | full-strength ink is dropped | **KILLED** |
+| K3 | "this week" becomes the calendar week | **KILLED** |
+| K4 | an unread row loses the word in its meta line | **KILLED** |
+| K5 | the empty copy reverts | **KILLED** |
+| K6 | the 2-second auto-mark returns | **KILLED** |
+| K7 | the back control reverts to unnamed | **KILLED** |
+
 ## 4 · Design package
 
 | Check | Status |

@@ -50,7 +50,7 @@ Both corrections are now reproducible from one command, which is the point.
 |---|---|
 | FIT screens | 110 |
 | Route resolved to a screen file | 108 |
-| All declared interactions | **286 / 600** |
+| All declared interactions | **287 / 600** |
 | **Locked-anchor interactions** | **129 / 179** |
 | Locked anchors complete **and reachable** | **10** of 29 |
 | Anchors whose route has **no way in** | **6** — FIT-071, FIT-072, FIT-074, FIT-019, FIT-073, FIT-006 |
@@ -70,14 +70,14 @@ Both corrections are now reproducible from one command, which is the point.
 | **FIT-071** | — | 0/6 | 6 | Pods hub — **UNREACHABLE** | `/pods` |
 | **FIT-067** | — | 4/10 | 6 | Create post | `/community` |
 | **FIT-066** | — | 3/9 | 6 | Post detail + comments | `/community` |
-| **FIT-062** | — | 1/7 | 6 | Notifications | `/notifications` |
 | **FIT-027** | 🔒 | 5/10 | 5 | What's on | `/classes` |
-| **FIT-008** | 🔒 | 2/7 | 5 | Intake | `/intake` |
+| **FIT-072** | — | 0/5 | 5 | Pod detail — **UNREACHABLE** | `/pods` |
+| **FIT-062** | — | 2/7 | 5 | Notifications | `/notifications` |
 | **FIT-058** | — | 0/5 | 5 | Habits | `/habits` |
 | **FIT-032** | 🔒 | 6/11 | 5 | Coach dashboard | `/coach-dashboard` |
+| **FIT-008** | 🔒 | 2/7 | 5 | Intake | `/intake` |
 | **FIT-102** | — | 2/7 | 5 | AI Coach — first open | `/ai-coach` |
 | **FIT-103** | — | 0/5 | 5 | AI Coach — today | `/ai-coach` |
-| **FIT-072** | — | 0/5 | 5 | Pod detail — **UNREACHABLE** | `/pods` |
 | **FIT-088** | — | 0/5 | 5 | Cancellation — confirm → cancelled | `/class-detail` |
 | **FIT-104** | — | 0/5 | 5 | AI Coach — the week | `/ai-coach` |
 | **FIT-047** | — | 1/5 | 4 | Coaching mode | `/intake` |
