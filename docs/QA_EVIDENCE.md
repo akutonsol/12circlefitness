@@ -4265,6 +4265,87 @@ the `RUNTIME_VERIFIED` rung exists to mark.
 | Suite | **1489 pass / 9 skipped** (was 1483) | **PASS** |
 | Analyzer | 0 errors | **PASS** |
 
+## 3bm · FIT-088 · one tap gave the place away
+
+The board marks this anchor **`missing`**, and it was. `/class-detail` cancelled a booking
+on a single tap:
+
+```dart
+OutlinedButton(
+  onPressed: () async {
+    await ref.read(liveClassServiceProvider).cancelBooking(fitnessClass.id);
+    ref.read(refreshClassesProvider.notifier).state++;
+    if (context.mounted) context.pop();
+  },
+  child: const Text('Cancel Booking'))
+```
+
+**No confirmation, on an action that cannot be undone.** Cancelling frees the seat and
+`_promoteFromWaitlist` hands it straight to the next person in line — so a mis-tap does not
+merely cost the place, it **gives it away**. FIT-088 puts a step in front of exactly this,
+with two controls: **`Keep it`** and **`Cancel place`**.
+
+**The failure was invisible.** The `await` was unguarded, so a throw meant `context.pop()`
+never ran and nothing was said — the user left on the same screen, still shown as booked,
+unable to tell whether they still had a place. FIT-088 declares a `failure` state whose
+control is **`Try again`**.
+
+The confirm copy says what happens rather than asking *"are you sure?"*: *"Your place goes
+to the next person on the waitlist."* `Keep it` is drawn first and as the plain action,
+because it is the harmless one.
+
+### Two things that looked wrong and are not
+
+Both were checked against the source of truth and are recorded so they are not re-raised:
+
+* `cancelBooking` calls `_promoteFromWaitlist` unconditionally, **including when the update
+  matched no rows**. That does *not* overbook: the promotion returns early unless
+  `_confirmedCount < max_capacity`, so it only fills a seat that is genuinely free.
+* `class_bookings`' only surviving policy is
+  `FOR ALL TO authenticated USING (user_id = auth.uid())`, with **no `WITH CHECK`** — the
+  shape that is usually the F-21 defect. It is not one here: **Postgres uses the `USING`
+  expression as the check when `WITH CHECK` is omitted**, so a user still cannot write a row
+  onto someone else's `user_id`. No finding was raised, because a finding from the policy's
+  shape alone would have been wrong.
+
+### A defect in my own widget, found by the test hanging
+
+`pumpAndSettle` timed out. On success the control called back but never left
+`CancelStage.cancelling`, so the spinner animated forever. In the real screen the callback
+pops the route and the widget is disposed, which hid it — but a caller that does not
+navigate would have been left with a spinner that never stops. **The widget was fixed, not
+the test**: it returns to `idle` before handing back.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Widget | `test/widget/cancel_booking_control_test.dart` — 8 tests across all three states | **PASS** |
+| Guard strength | **6 / 6 mutations killed** | **PASS** |
+| Suite | **1497 pass / 9 skipped** (was 1489) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Coverage | FIT-088 0/5 → **3/5**; all interactions 346 → **349 / 600** | — |
+
+| # | Mutation | Result |
+|---|---|---|
+| C1 | one tap gives the place away, with no confirm step | **KILLED** |
+| C2 | a failed cancellation says nothing | **KILLED** |
+| C3 | a failed cancellation reports itself as done | **KILLED** |
+| C4 | `Keep it` cancels the booking | **KILLED** |
+| C5 | the controls stay live mid-request | **KILLED** |
+| C6 | `Cancel place` drifts back to `Cancel Booking` | **KILLED** |
+
+### The other two controls need capabilities that do not exist → OD-34
+
+FIT-088 stays at **3/5** deliberately. Its remaining two are not omissions:
+
+* **`Add to calendar`** needs a device-calendar dependency. `pubspec.yaml` has none, and
+  nothing in `lib` writes an event or an `.ics`. Adding a platform dependency and its
+  permissions is not a QA repair.
+* **`My bookings`** has **no destination**. `/appointments` is coach calls, a different
+  domain, and sits behind `PaywallGate`; class bookings have no route of their own.
+
+The design intent is preserved and the missing dependency named for the phase that owns it,
+rather than pointed at the nearest route that would make the number go up.
+
 ## 4 · Design package
 
 | Check | Status |
