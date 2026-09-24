@@ -24,6 +24,35 @@ import 'package:circle_fitness/features/workout/presentation/widgets/week_row_ti
 /// Asserted against the semantics tree and the router, never against text
 /// presence — text would pass whether or not anything were wired.
 
+/// A date N days from today, at midnight.
+///
+/// `WeekRowTile` reads the real clock — correctly, that is what production
+/// does — so the fixtures have to be relative to it. They were fixed dates
+/// (`DateTime(2026, 9, 24)`), which made this file **pass on a Wednesday and
+/// fail on a Thursday**: the 24th stopped being "Thursday" and became "today",
+/// so the chip read `Now` instead of `THU`.
+///
+/// A test whose result depends on the day it runs is not a test.
+DateTime _daysFromToday(int days) {
+  final n = DateTime.now();
+  return DateTime(n.year, n.month, n.day).add(Duration(days: days));
+}
+
+/// The next occurrence of `weekday` that is NOT today, so a fixture meant to
+/// read as a named day never collides with `Today`.
+DateTime _otherWeekday(int weekday) {
+  var d = _daysFromToday(1);
+  while (d.weekday != weekday) {
+    d = d.add(const Duration(days: 1));
+  }
+  return d;
+}
+
+const _dayNames = [
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+];
+const _dayAbbr = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
 Workout _w({
   String title = 'Conditioning',
   bool completed = false,
@@ -106,8 +135,8 @@ void main() {
 
   testWidgets('tapping opens /workout-detail with THAT workout selected',
       (tester) async {
-    final a = _w(title: 'Conditioning', on: DateTime(2026, 9, 24));
-    final b = _w(title: 'Upper body — pull', on: DateTime(2026, 9, 26));
+    final a = _w(title: 'Conditioning', on: _daysFromToday(1));
+    final b = _w(title: 'Upper body — pull', on: _daysFromToday(3));
     final container = await _pump(tester, [a, b]);
 
     expect(container.read(selectedWorkoutProvider), isNull);
@@ -122,7 +151,8 @@ void main() {
   });
 
   testWidgets('a completed row still opens for review', (tester) async {
-    final done = _w(title: 'Upper body — push', completed: true, on: DateTime(2026, 9, 21));
+    final done =
+        _w(title: 'Upper body — push', completed: true, on: _daysFromToday(-2));
     final container = await _pump(tester, [done]);
 
     await tester.tap(find.text('Upper body — push'));
@@ -145,17 +175,31 @@ void main() {
 
   testWidgets('the other chips ARE uppercased, and the day is spelled out',
       (tester) async {
+    // Derived from the fixtures rather than hardcoded. The previous version
+    // asserted `THU` / `Thursday` against a fixed `DateTime(2026, 9, 24)` and
+    // broke the day that date became today.
+    final past = _daysFromToday(-2);
+    final future = _otherWeekday(DateTime.thursday);
+
     await _pump(tester, [
-      _w(title: 'Upper body — push', completed: true, on: DateTime(2026, 9, 21), minutes: 44),
-      _w(title: 'Conditioning', on: DateTime(2026, 9, 24), minutes: 30),
+      _w(title: 'Upper body — push', completed: true, on: past, minutes: 44),
+      _w(title: 'Conditioning', on: future, minutes: 30),
     ]);
 
     expect(find.text('DONE'), findsOneWidget);
-    expect(find.text('THU'), findsOneWidget);
+    expect(find.text(_dayAbbr[future.weekday - 1]), findsOneWidget);
     // The defect: an abbreviated day beside a chip saying the same word.
-    expect(find.text('Monday · 44 min'), findsOneWidget);
-    expect(find.text('Thursday · 30 min'), findsOneWidget);
-    expect(find.text('Thu · 30 min'), findsNothing);
+    expect(find.text('${_dayNames[past.weekday - 1]} · 44 min'),
+        findsOneWidget);
+    expect(find.text('${_dayNames[future.weekday - 1]} · 30 min'),
+        findsOneWidget);
+    expect(
+        find.text(
+            '${_dayAbbr[future.weekday - 1].substring(0, 1)}'
+            '${_dayAbbr[future.weekday - 1].substring(1).toLowerCase()}'
+            ' · 30 min'),
+        findsNothing,
+        reason: 'the detail must spell the day out, not abbreviate it');
   });
 
   // The board marks an upcoming session with a hollow ring
@@ -179,7 +223,7 @@ void main() {
   testWidgets('an upcoming session draws a ring; today draws a fill',
       (tester) async {
     await _pump(tester, [
-      _w(title: 'Conditioning', on: DateTime(2026, 9, 24)),
+      _w(title: 'Conditioning', on: _daysFromToday(1)),
       _w(title: 'Lower body — strength', on: DateTime.now()),
     ]);
 

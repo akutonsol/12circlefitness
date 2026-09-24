@@ -3497,6 +3497,81 @@ that is not a lie.
 | K6 | the 2-second auto-mark returns | **KILLED** |
 | K7 | the back control reverts to unnamed | **KILLED** |
 
+## 3az · DEAD-G1 · two files, one class name — and a test that passed on Wednesday
+
+### The duplicate the register named, stated precisely
+
+`docs/MISSING_SCREEN_REGISTER.md` lists nine duplicate/dead files and records that
+`home_org.dart` "caused the FIT-001 mis-mapping". Verified independently, the sharp version
+is narrower and worse:
+
+**Exactly two public classes are declared in more than one file.**
+
+| Class | Files | Live? |
+|---|---|---|
+| `HomeScreen` | `home_org.dart` · `home_screen.dart` | the router imports **`home_screen.dart`** |
+| `DashboardScreen` | `dash_org.dart` · `dashboard_screen.dart` | **neither** — the router builds `AdminDashboardScreen`, `CoachDashboardScreen` and `MealsDashboardScreen` |
+
+Dart refuses to import both at once — that is an ambiguous-import error — so the danger is
+not an accidental double import. It is a **one-line swap**: point the router at
+`home_org.dart` and `/home` renders a different screen. Nothing fails. The analyzer is
+happy. Every test stays green.
+
+Deleting either file is destructive and is **OD-32**. `DEAD-G1` deletes nothing. It pins
+which file the router builds `/home` from, keeps the dead duplicate unreferenced, and stops
+a third appearing — which is the point, because the register's own finding is that across
+202 mobile commits **no screen file has ever been deleted**. The failure mode is accretion.
+
+| # | Mutation | Result |
+|---|---|---|
+| D1 | the router swaps `/home` to the dead duplicate | **KILLED** |
+| D2 | a **third** file declares `HomeScreen` | **KILLED** — after the guard was fixed |
+| D3 | a route builds the bare `DashboardScreen` | **KILLED** |
+| D4 | something imports the dead Home file | **KILLED** |
+
+**D2 survived its first run**, and the finding was the guard. It pinned the two duplicated
+class **names**, so a third copy of `HomeScreen` was not a *new name* and passed. Accretion
+is precisely what it guards, so it now pins the **exact file set** for each.
+
+And it failed its own first run against a **comment** in `app_scaffold.dart` that names
+`home_org.dart` while explaining why the dead nav was removed — the **fifth** detector in
+this programme to read its own prose as evidence.
+
+### A test that passed on Wednesday and failed on Thursday
+
+`week_row_tile_test.dart` asserted `THU` and `Thursday · 30 min` against a fixed
+`DateTime(2026, 9, 24)`. `WeekRowTile` reads the real clock — correctly; that is what
+production does — so on 2026-09-24 the 24th stopped being "Thursday" and became **today**,
+the chip read `Now`, and the file failed.
+
+It had nothing to do with the code under test. A test whose result depends on the day it
+runs is not a test. Its fixtures are now relative to the clock and its expectations are
+**derived from the same dates** rather than written out.
+
+A sweep for the same shape — a relative-day word asserted against a fixed date with no
+clock override — found **three** candidates and cleared two: `formatters_test.dart` passes
+the date **as an argument** to `shouldShowCheckinBanner`, and `checkin_detail_test.dart`
+asserts the absence of OD-20's copy. So this was **isolated, not systemic**, which is worth
+recording as plainly as a systemic finding would be.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/unit/duplicate_screen_class_guard_test.dart` — 5 tests, file-set pinned, detector floor | **PASS** |
+| Guard strength | **4 / 4 mutations killed** | **PASS** |
+| Suite | **1398 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Ratchets | **thirteen** at baseline | **PASS** |
+
+### On the sixteen untracked audit documents
+
+`docs/MISSING_SCREEN_REGISTER.md` and fifteen companions appeared in the working tree,
+untracked, stamped *"Baseline `fbee6d5`"* — produced by a process other than this one
+against this programme's HEAD. They are treated here as **evidence, not truth**: every claim
+acted on above was re-derived from the repository first, and doing so sharpened two of them
+(the duplicate-class mechanism, and the fact that **both** `DashboardScreen` files are dead
+rather than one). They remain uncommitted, because they are not this programme's work to
+commit.
+
 ## 4 · Design package
 
 | Check | Status |
