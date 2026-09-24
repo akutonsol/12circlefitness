@@ -3176,6 +3176,45 @@ and free-text notes are shipped and kept. Decide whether they stay.
 `workout_sessions.calories_burned` and surfaced elsewhere. It is not a measurement. Decide
 whether to compute it properly, source it from a wearable, or stop recording it.
 
+## 3au · FIT-003 · two declared header controls, and a second orphaned route
+
+**8/12 → 9/12.** The three that remain are the board's sample meals — its honest ceiling.
+
+FIT-003's header declares two icon-only controls that were **not on the screen at all**:
+
+```html
+<button class="ph ph-scan"        aria-label="Scan a meal"></button>
+<button class="ph ph-list-checks" aria-label="Meal plan"></button>
+```
+
+`Meal plan` matters beyond the label. **`/meal-plan` is a registered route that nothing in
+the app navigated to** — orphaned, the same shape `/activity` was in before FIT-001's nav
+work, found the same way. This control is its door. That is now **two** orphaned routes
+found by asking what a declared control opens.
+
+`Scan a meal` opens the add-meal sheet **already on its Scan input**. Opening it on the
+default tab would have made it a second `Log a meal`, which is the header's other control —
+the board draws them as different things and they now do different things.
+
+And the header's back control was an **unnamed 30 px chevron** — an A-G8 site on a primary
+destination. `Back` is the package's own word, declared 69 times.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/widget/nutrition_header_test.dart` — 6 tests, comment-stripped, with a detector floor | **PASS** |
+| Guard strength | **4 / 4 mutations killed** | **PASS** |
+| Coverage | FIT-003 **9 / 12** — the rest are sample meals | **PASS** |
+| Suite | **1355 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors · A-G8 at baseline | **PASS** |
+| Runtime | **LOCALLY_VERIFIED** — §3an's disk constraint unchanged | **OPEN** |
+
+| # | Mutation | Result |
+|---|---|---|
+| M1 | `Meal plan` loses its route and the orphan returns | **KILLED** |
+| M2 | `Scan a meal` opens the default tab, duplicating `Log a meal` | **KILLED** |
+| M3 | the back chevron reverts to unnamed | **KILLED** |
+| M4 | `Scan a meal` loses its declared name | **KILLED** |
+
 ## 4 · Design package
 
 | Check | Status |

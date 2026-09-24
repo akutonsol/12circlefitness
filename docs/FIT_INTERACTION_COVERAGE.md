@@ -50,8 +50,8 @@ Both corrections are now reproducible from one command, which is the point.
 |---|---|
 | FIT screens | 110 |
 | Route resolved to a screen file | 108 |
-| All declared interactions | **284 / 600** |
-| **Locked-anchor interactions** | **127 / 179** |
+| All declared interactions | **285 / 600** |
+| **Locked-anchor interactions** | **128 / 179** |
 | Locked anchors complete | **11** of 29 |
 
 ## Every anchor, by remaining gap
@@ -61,28 +61,28 @@ Both corrections are now reproducible from one command, which is the point.
 | **FIT-095** | — | 0/15 | 15 | Grocery list — built | `/grocery-list` |
 | **FIT-064** | — | 1/12 | 11 | Activity | `/activity` |
 | **FIT-080** | — | 1/12 | 11 | Classes hub + schedule | `/classes` |
-| **FIT-100** | — | 0/9 | 9 | Action items — what your coach set | `/action-items` |
 | **FIT-065** | — | 11/20 | 9 | Community hub — feed | `/community` |
+| **FIT-100** | — | 0/9 | 9 | Action items — what your coach set | `/action-items` |
 | **FIT-105** | — | 7/15 | 8 | AI Coach — how it speaks, what it knows | `/ai-coach` |
-| **FIT-089** | — | 0/7 | 7 | AI nutrition — conversation | `/ai-nutrition` |
 | **FIT-054** | — | 4/11 | 7 | Progress · Photos | `/progress` |
+| **FIT-089** | — | 0/7 | 7 | AI nutrition — conversation | `/ai-nutrition` |
 | **FIT-071** | — | 0/6 | 6 | Pods hub | `/pods` |
 | **FIT-067** | — | 4/10 | 6 | Create post | `/community` |
-| **FIT-062** | — | 1/7 | 6 | Notifications | `/notifications` |
 | **FIT-066** | — | 3/9 | 6 | Post detail + comments | `/community` |
-| **FIT-072** | — | 0/5 | 5 | Pod detail | `/pods` |
-| **FIT-104** | — | 0/5 | 5 | AI Coach — the week | `/ai-coach` |
-| **FIT-103** | — | 0/5 | 5 | AI Coach — today | `/ai-coach` |
-| **FIT-102** | — | 2/7 | 5 | AI Coach — first open | `/ai-coach` |
-| **FIT-058** | — | 0/5 | 5 | Habits | `/habits` |
+| **FIT-062** | — | 1/7 | 6 | Notifications | `/notifications` |
 | **FIT-027** | 🔒 | 5/10 | 5 | What's on | `/classes` |
-| **FIT-032** | 🔒 | 6/11 | 5 | Coach dashboard | `/coach-dashboard` |
 | **FIT-008** | 🔒 | 2/7 | 5 | Intake | `/intake` |
+| **FIT-058** | — | 0/5 | 5 | Habits | `/habits` |
+| **FIT-032** | 🔒 | 6/11 | 5 | Coach dashboard | `/coach-dashboard` |
+| **FIT-102** | — | 2/7 | 5 | AI Coach — first open | `/ai-coach` |
+| **FIT-103** | — | 0/5 | 5 | AI Coach — today | `/ai-coach` |
+| **FIT-072** | — | 0/5 | 5 | Pod detail | `/pods` |
 | **FIT-088** | — | 0/5 | 5 | Cancellation — confirm → cancelled | `/class-detail` |
-| **FIT-045** | — | 2/6 | 4 | Progress photos | `/intake` |
+| **FIT-104** | — | 0/5 | 5 | AI Coach — the week | `/ai-coach` |
 | **FIT-047** | — | 1/5 | 4 | Coaching mode | `/intake` |
 | **FIT-048** | — | 1/5 | 4 | Choose coach | `/intake` |
 | **FIT-090** | — | 0/4 | 4 | AI nutrition — a turn that failed | `/ai-nutrition` |
+| **FIT-039** | — | 2/6 | 4 | Experience | `/intake` |
 | **FIT-096** | — | 3/7 | 4 | Booking — your calls and open slots | `/appointments` |
 | **FIT-031** | 🔒 | 1/5 | 4 | Plans | `/upgrade` |
 | **FIT-085** | — | 0/4 | 4 | Events hub | `/events` |
@@ -90,61 +90,61 @@ Both corrections are now reproducible from one command, which is the point.
 | **FIT-016** | 🔒 | 3/7 | 4 | Workout detail | `/workout-detail` |
 | **FIT-014** | 🔒 | 8/12 | 4 | Workouts hub | `/train` |
 | **FIT-108** | — | 3/7 | 4 | AI Coach — conversation | `/ai-coach` |
+| **FIT-044** | — | 5/9 | 4 | Lifestyle | `/intake` |
 | **FIT-005** | 🔒 | 8/12 | 4 | Connect | `/messages` |
-| **FIT-039** | — | 2/6 | 4 | Experience | `/intake` |
-| **FIT-003** | 🔒 | 8/12 | 4 | Nutrition | `/meals-dashboard` |
 | **FIT-109** | — | 3/7 | 4 | AI Coach — a turn that failed | `/ai-coach` |
 | **FIT-110** | — | 0/4 | 4 | AI Coach — coming back | `/ai-coach` |
 | **FIT-075** | — | 1/5 | 4 | Challenges hub | `/challenges` |
 | **FIT-079** | — | 1/5 | 4 | Challenges — empty + loading | `/challenges` |
-| **FIT-044** | — | 5/9 | 4 | Lifestyle | `/intake` |
+| **FIT-045** | — | 2/6 | 4 | Progress photos | `/intake` |
 | **FIT-092** | — | 1/4 | 3 | Meal plan — built | `/meal-plan` |
-| **FIT-086** | — | 0/3 | 3 | Event ticket | `event_ticket_screen (unrouted)` |
+| **FIT-029** | 🔒 | 3/6 | 3 | Profile | `/profile` |
 | **FIT-043** | — | 2/5 | 3 | Weight goal | `/intake` |
-| **FIT-107** | — | 1/4 | 3 | AI Coach — a card that failed | `/ai-coach` |
+| **FIT-003** | 🔒 | 9/12 | 3 | Nutrition | `/meals-dashboard` |
 | **FIT-046** | — | 0/3 | 3 | Photo source | `sheet — /intake, /progress` |
 | **FIT-023** | 🔒 | 7/10 | 3 | Check-in hub | `/checkins` |
 | **FIT-051** | — | 5/8 | 3 | Selection variants | `/intake` |
 | **FIT-097** | — | 1/4 | 3 | Booking — before you have a coach | `/appointments` |
 | **FIT-056** | — | 1/4 | 3 | Log measurements | `/progress` |
-| **FIT-029** | 🔒 | 3/6 | 3 | Profile | `/profile` |
 | **FIT-063** | — | 0/3 | 3 | Women's health | `/womens-health` |
+| **FIT-107** | — | 1/4 | 3 | AI Coach — a card that failed | `/ai-coach` |
 | **FIT-004** | 🔒 | 8/11 | 3 | Check-In | `/daily-checkin` |
 | **FIT-069** | — | 8/11 | 3 | Community — empty | `/community` |
 | **FIT-076** | — | 0/3 | 3 | Challenge detail — active | `/challenge-detail` |
-| **FIT-082** | — | 0/3 | 3 | Class — full / waitlist | `/class-detail` |
 | **FIT-083** | — | 0/3 | 3 | Class — booked / live / cancelled | `/class-detail` |
-| **FIT-098** | — | 0/2 | 2 | Booking — nothing open, and loading | `/appointments` |
-| **FIT-050** | — | 4/6 | 2 | Consent | `/intake` |
+| **FIT-086** | — | 0/3 | 3 | Event ticket | `event_ticket_screen (unrouted)` |
+| **FIT-082** | — | 0/3 | 3 | Class — full / waitlist | `/class-detail` |
 | **FIT-053** | — | 5/7 | 2 | Progress · Measurements | `/progress` |
+| **FIT-098** | — | 0/2 | 2 | Booking — nothing open, and loading | `/appointments` |
 | **FIT-055** | — | 0/2 | 2 | Log weight | `/progress` |
 | **FIT-091** | — | 14/16 | 2 | Meal plan — set your targets | `/meal-plan` |
-| **FIT-028** | 🔒 | 8/10 | 2 | Connect — no coach | `/messages` |
-| **FIT-059** | — | 0/2 | 2 | Goals | `/goals` |
-| **FIT-101** | — | 0/2 | 2 | Action items — empty, loading, failed | `/action-items` |
-| **FIT-087** | — | 0/2 | 2 | Booking sheet — confirm → confirmed | `/class-detail` |
+| **FIT-093** | — | 0/2 | 2 | Meal plan — it didn’t build | `/meal-plan` |
 | **FIT-106** | — | 5/7 | 2 | Add to memory | `/ai-coach` |
+| **FIT-059** | — | 0/2 | 2 | Goals | `/goals` |
+| **FIT-081** | — | 0/2 | 2 | Class detail | `/class-detail` |
+| **FIT-028** | 🔒 | 8/10 | 2 | Connect — no coach | `/messages` |
+| **FIT-050** | — | 4/6 | 2 | Consent | `/intake` |
 | **FIT-094** | — | 1/3 | 2 | Grocery list — the two blocked states | `/grocery-list` |
 | **FIT-074** | — | 0/2 | 2 | Pods — empty + loading | `/pods` |
-| **FIT-081** | — | 0/2 | 2 | Class detail | `/class-detail` |
-| **FIT-093** | — | 0/2 | 2 | Meal plan — it didn’t build | `/meal-plan` |
-| **FIT-015** | 🔒 | 8/9 | 1 | Workouts — no plan yet | `/train` |
-| **FIT-024** | 🔒 | 1/2 | 1 | Check-in detail | `/checkin-detail` |
-| **FIT-030** | 🔒 | 5/6 | 1 | Settings | `/settings` |
+| **FIT-101** | — | 0/2 | 2 | Action items — empty, loading, failed | `/action-items` |
+| **FIT-087** | — | 0/2 | 2 | Booking sheet — confirm → confirmed | `/class-detail` |
+| **FIT-070** | — | 3/4 | 1 | Community — loading + error | `/community` |
+| **FIT-035** | — | 1/2 | 1 | Profile information | `/intake` |
 | **FIT-011** | — | 1/2 | 1 | Sign up | `/signup` |
-| **FIT-038** | — | 11/12 | 1 | Injuries | `/intake` |
-| **FIT-049** | — | 0/1 | 1 | Generating plan | `/intake` |
+| **FIT-015** | 🔒 | 8/9 | 1 | Workouts — no plan yet | `/train` |
+| **FIT-030** | 🔒 | 5/6 | 1 | Settings | `/settings` |
+| **FIT-061** | — | 0/1 | 1 | Insights | `/insights` |
 | **FIT-077** | — | 0/1 | 1 | Who else is in | `/challenge-detail` |
 | **FIT-078** | — | 0/1 | 1 | Challenge — upcoming · completed · expired | `/challenges` |
-| **FIT-020** | 🔒 | 4/5 | 1 | AI meal scan | `/log-meal (ai_scan_view)` |
-| **FIT-040** | — | 3/4 | 1 | Height | `/intake` |
-| **FIT-060** | — | 0/1 | 1 | Score | `/score` |
+| **FIT-038** | — | 11/12 | 1 | Injuries | `/intake` |
 | **FIT-034** | — | 0/1 | 1 | Intake welcome | `/intake` |
-| **FIT-061** | — | 0/1 | 1 | Insights | `/insights` |
+| **FIT-060** | — | 0/1 | 1 | Score | `/score` |
+| **FIT-024** | 🔒 | 1/2 | 1 | Check-in detail | `/checkin-detail` |
+| **FIT-049** | — | 0/1 | 1 | Generating plan | `/intake` |
 | **FIT-084** | — | 2/3 | 1 | Classes — empty + loading + error | `/classes` |
-| **FIT-070** | — | 3/4 | 1 | Community — loading + error | `/community` |
+| **FIT-040** | — | 3/4 | 1 | Height | `/intake` |
+| **FIT-020** | 🔒 | 4/5 | 1 | AI meal scan | `/log-meal (ai_scan_view)` |
 | **FIT-026** | 🔒 | 4/5 | 1 | Conversation | `/chat` |
-| **FIT-035** | — | 1/2 | 1 | Profile information | `/intake` |
 | **FIT-019** | 🔒 | 4/5 | 1 | Log a meal | `/log-meal` |
 | **FIT-057** ✅ | — | 5/5 | 0 | Progress · states | `/progress` |
 | **FIT-052** ✅ | — | 5/5 | 0 | Progress · Weight | `/progress` |

@@ -146,7 +146,9 @@ class _MealsDashboardScreenState
       body: SafeArea(
         child: Column(
           children: [
-            _Header(onAdd: () => _showAddSheet(context)),
+            _Header(
+              onAdd: () => _showAddSheet(context),
+              onScan: () => _showAddSheet(context, mode: 'ai_scan')),
             Expanded(
               child: RefreshIndicator(
                 color: _brand,
@@ -223,12 +225,12 @@ class _MealsDashboardScreenState
           ])));
   }
 
-  void _showAddSheet(BuildContext context) {
+  void _showAddSheet(BuildContext context, {String mode = 'manual'}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _AddMealSheet(onLogged: () async {
+      builder: (_) => _AddMealSheet(initialMode: mode, onLogged: () async {
         await Future.delayed(const Duration(milliseconds: 300));
         if (mounted) {
           ref.invalidate(nutritionTotalsProvider);
@@ -242,14 +244,18 @@ class _MealsDashboardScreenState
 // ── Header ─────────────────────────────────────────────────────────────────
 class _Header extends StatelessWidget {
   final VoidCallback onAdd;
-  const _Header({required this.onAdd});
+  final VoidCallback onScan;
+  const _Header({required this.onAdd, required this.onScan});
 
   @override
   Widget build(BuildContext context) => Container(
     color: _bg,
     padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
     child: Row(children: [
-      GestureDetector(
+      // Was an unnamed 30 px chevron — an A-G8 site. `Back` is the package's
+      // own word, declared 69 times.
+      NamedIconButton(
+        label: 'Back',
         onTap: () => context.canPop() ? context.pop() : context.go('/home'),
         child: const Icon(Icons.chevron_left, color: _brand, size: 30)),
       const Expanded(
@@ -257,6 +263,23 @@ class _Header extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(color: _white, fontSize: 18,
             fontWeight: FontWeight.w700))),
+      // FIT-003's header declares two icon-only controls that were not on the
+      // screen at all:
+      //
+      //   <button class="ph ph-scan"        aria-label="Scan a meal">
+      //   <button class="ph ph-list-checks" aria-label="Meal plan">
+      //
+      // `Meal plan` opens `/meal-plan`, which is REGISTERED and which nothing
+      // in the app navigated to — an orphaned route, the same shape `/activity`
+      // was in before FIT-001's nav work. This is its door.
+      NamedIconButton(
+        label: 'Scan a meal',
+        onTap: onScan,
+        child: const Icon(Icons.qr_code_scanner, color: _brand, size: 22)),
+      NamedIconButton(
+        label: 'Meal plan',
+        onTap: () => context.go('/meal-plan'),
+        child: const Icon(Icons.checklist_rtl, color: _brand, size: 22)),
       // F-22: an unnamed 44 dp circle. FIT-003 declares "Log a meal" for this
       // control, and that is what `onAdd` opens — the add-meal sheet — so the
       // name is the package's own and describes what happens.
@@ -674,7 +697,14 @@ class _EmptyMeals extends StatelessWidget {
 // ── Add Meal Sheet ─────────────────────────────────────────────────────────
 class _AddMealSheet extends ConsumerStatefulWidget {
   final VoidCallback onLogged;
-  const _AddMealSheet({required this.onLogged});
+
+  /// Which input the sheet opens on. FIT-003 declares a header `Scan a meal`
+  /// control **and** a `Scan` tab inside this sheet; the header one is the
+  /// short way to the same place, so it opens the sheet already on it rather
+  /// than asking the client to find the tab.
+  final String initialMode;
+
+  const _AddMealSheet({required this.onLogged, this.initialMode = 'manual'});
   @override
   ConsumerState<_AddMealSheet> createState() => _AddMealSheetState();
 }
@@ -682,7 +712,7 @@ class _AddMealSheet extends ConsumerStatefulWidget {
 class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
   final _svc        = NutritionService();
   final _searchCtrl = TextEditingController();
-  String _inputMode = 'manual';
+  late String _inputMode = widget.initialMode;
   Food?  _selected;
   String _mealType  = 'breakfast';
   bool   _saving    = false;
