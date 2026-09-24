@@ -192,10 +192,16 @@ final clientDetailProvider = FutureProvider.family<Map<String, dynamic>, String>
       .eq('client_id', clientId)
       .eq('is_active', true);
 
+  // `workout_sessions`, not `workout_logs`: the latter is owner-only by
+  // 003:193 and returns 200 + [] to a coach, so `client_detail_screen.dart:933`
+  // showed every client as having trained never. Coach-readable by
+  // 100_rls_harden_client_data.sql; `completed` only, because the screen reads
+  // `completed_at` and an unfinished session has none.
   final workoutLogs = await db
-      .from('workout_logs')
-      .select()
+      .from('workout_sessions')
+      .select('user_id, workout_title, completed_at, duration_seconds')
       .eq('user_id', clientId)
+      .eq('status', 'completed')
       .order('completed_at', ascending: false)
       .limit(20);
 

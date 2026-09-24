@@ -2,135 +2,203 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// SEC-G3 — a read the database has already denied must not spread.
+/// SEC-G3 — a read the database has already denied must not come back.
 ///
-/// ── THE DEFECT THIS PINS ───────────────────────────────────────────────────
-/// `workout_logs` carries exactly one policy, from `003_fk_and_rls_fixes.sql:193`:
+/// ── THE DEFECT ─────────────────────────────────────────────────────────────
+/// `workout_logs` carries exactly one policy, `003_fk_and_rls_fixes.sql:193`:
 ///
 ///   CREATE POLICY "users manage own workout logs" ON workout_logs
 ///     FOR ALL TO authenticated USING (user_id = auth.uid())
 ///
-/// No coach clause exists in any of the 131 migrations. The project knows the
-/// correct shape — `114_rls_weekly_checkins.sql` writes
-/// `user_id = (SELECT auth.uid()) OR public.is_active_coach_of(user_id)`, and
-/// `100_rls_harden_client_data.sql` applies exactly that to `workout_sessions`
-/// — it was simply never applied here.
+/// No coach clause exists in any of the 131 migrations. And an RLS-filtered
+/// SELECT is **not an error** — PostgREST answers `200` with `[]` — so three
+/// coach surfaces did not fail. They reported a confident, permanent zero:
+/// every client had trained never, and no `AsyncError` arm could catch it.
 ///
-/// ── WHY IT IS WORSE THAN A DENIAL ──────────────────────────────────────────
-/// An RLS-filtered SELECT is **not an error**. PostgREST returns `200` and an
-/// empty array, indistinguishable from "this client trained zero times". So a
-/// coach surface built on it does not fail — it reports a confident, wrong
-/// zero, permanently, and no `AsyncError` arm can catch it. The F-15 work gave
-/// these screens an error path; this defect never reaches it.
+/// ── AND THE FIX, WHICH NEEDED NO POLICY CHANGE ─────────────────────────────
+/// All three now read `workout_sessions`, which a coach **is** authorized to
+/// read (`100_rls_harden_client_data.sql`, `user_id = auth.uid() OR
+/// public.is_active_coach_of(user_id)` FOR SELECT). Both tables are written on
+/// the same completion — `active_workout_screen.dart:649` and `:653` — so
+/// nothing was lost.
 ///
-/// `docs/QA_EVIDENCE.md` §6b records the finding in prose. Nothing enforced it,
-/// so a fourth call site could ship at any time. This is that enforcement.
+/// This was never OD-14. F-21 is a policy that *claims a role it never
+/// verifies*; this was a table with **no coach policy at all**, whose
+/// authorized route already existed on another table.
 ///
-/// ── WHY IT IS *NOT* OD-14 ──────────────────────────────────────────────────
-/// F-21/OD-14 is a policy that **claims a role it never verifies** — changing it
-/// alters the authorization model, which is the owner's decision. This is the
-/// opposite: a table with **no coach policy at all**, where the authorized path
-/// already exists on a different table. Nothing here proposes a policy change.
-/// The fix is to read `workout_sessions`, which a coach is permitted to read,
-/// or `coach_client_ai_signals()`, the `SECURITY DEFINER` RPC written for
-/// precisely this purpose.
+/// ── WHAT THIS GUARD DOES NOW ───────────────────────────────────────────────
+/// The allowlist is empty, which changes what the guard can assert. It can no
+/// longer prove its detector works by finding real offenders, because there
+/// are none — so an empty result would be indistinguishable from a broken
+/// scanner, which is the H-D1 defect exactly.
+///
+/// It therefore proves the detector against **synthetic source**: a positive
+/// control it must flag, and a negative control it must not.
 void main() {
-  /// The three reads that ask `workout_logs` about somebody else. Measured
-  /// 2026-09-23 and matching the inventory in `docs/QA_EVIDENCE.md` §6b.
-  ///
-  /// This is a SHRINKING allowlist, checked in both directions: an unlisted
-  /// cross-user read fails as new, and a listed one that no longer reproduces
-  /// also fails, so a fix cannot leave a stale excuse behind.
-  const declaredDenied = <String>{
-    'lib/features/dashboard/presentation/coach_dashboard_screen.dart',
-    'lib/features/compliance/data/compliance_service.dart',
-    'lib/features/coach/domain/coach_ecosystem_provider.dart',
-  };
-
   /// A read is cross-user when it filters `user_id` by anything other than the
   /// caller's own id. `insights_provider.dart` uses `.eq('user_id', uid)` where
-  /// `uid` is the signed-in user — a self-read, permitted, and deliberately not
-  /// listed above.
-  Set<String> crossUserWorkoutLogReads() {
+  /// `uid` is the signed-in user — a self-read, permitted, and correctly not
+  /// flagged.
+  Set<String> crossUserReadsIn(Map<String, String> sources) {
     final out = <String>{};
-    for (final dir in const ['lib']) {
-      for (final f in Directory(dir)
-          .listSync(recursive: true)
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.dart'))) {
-        final src = f.readAsStringSync();
-        for (final m in RegExp(r"\.from\('workout_logs'\)").allMatches(src)) {
-          final window =
-              src.substring(m.start, (m.start + 320).clamp(0, src.length));
-          final selfRead = RegExp(r"\.eq\('user_id',\s*uid\s*\)").hasMatch(window);
-          final otherRead = RegExp(
-                  r"\.inFilter\('user_id'|\.eq\('user_id',\s*(?!uid\s*\))")
-              .hasMatch(window);
-          if (!selfRead && otherRead) out.add(f.path);
-        }
+    sources.forEach((name, src) {
+      for (final m in RegExp(r"\.from\('workout_logs'\)").allMatches(src)) {
+        final window =
+            src.substring(m.start, (m.start + 320).clamp(0, src.length));
+        final selfRead =
+            RegExp(r"\.eq\('user_id',\s*uid\s*\)").hasMatch(window);
+        final otherRead = RegExp(
+                r"\.inFilter\('user_id'|\.eq\('user_id',\s*(?!uid\s*\))")
+            .hasMatch(window);
+        if (!selfRead && otherRead) out.add(name);
       }
+    });
+    return out;
+  }
+
+  Map<String, String> repoSources() {
+    final out = <String, String>{};
+    for (final f in Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))) {
+      out[f.path] = f.readAsStringSync();
     }
     return out;
   }
 
-  test('SEC-G3 no NEW code path reads workout_logs for another user', () {
-    final found = crossUserWorkoutLogReads();
+  // ── The detector must work, with nothing real left to find ───────────────
+  group('SEC-G3 the detector still works', () {
+    const cohort = '''
+      final data = await _db
+          .from('workout_logs')
+          .select('user_id, completed_at')
+          .inFilter('user_id', clientIds);
+    ''';
+    const oneOther = '''
+      final data = await db
+          .from('workout_logs')
+          .select()
+          .eq('user_id', clientId)
+          .limit(20);
+    ''';
+    const selfRead = '''
+      final workouts = await db
+          .from('workout_logs')
+          .select('id')
+          .eq('user_id', uid);
+    ''';
+    const otherTable = '''
+      final data = await _db
+          .from('workout_sessions')
+          .select('user_id, completed_at')
+          .inFilter('user_id', clientIds)
+          .eq('status', 'completed');
+    ''';
 
-    // Detector floor — the lesson of H-D1. `found.difference(known)` is empty
-    // both when nothing was added and when the scanner has gone blind, and
-    // those are opposite facts.
-    expect(found, isNotEmpty,
-        reason: 'the scanner found no cross-user workout_logs read at all. '
-            'Either all three were fixed — in which case empty this list and '
-            'say so — or the detector is broken and proves nothing.');
+    test('it flags a cohort read', () {
+      expect(crossUserReadsIn({'x.dart': cohort}), {'x.dart'});
+    });
 
+    test('it flags a read for one OTHER user', () {
+      expect(crossUserReadsIn({'x.dart': oneOther}), {'x.dart'});
+    });
+
+    // Both halves matter. A detector that flags everything would be as
+    // useless as one that flags nothing, and would have hidden the three real
+    // sites inside a wall of noise.
+    test('it does NOT flag the caller reading their own logs', () {
+      expect(crossUserReadsIn({'x.dart': selfRead}), isEmpty);
+    });
+
+    test('it does NOT flag the authorized table', () {
+      expect(crossUserReadsIn({'x.dart': otherTable}), isEmpty);
+    });
+  });
+
+  test('SEC-G3 no code path reads workout_logs for another user', () {
+    final found = crossUserReadsIn(repoSources());
     expect(
-      found.difference(declaredDenied),
+      found,
       isEmpty,
-      reason: 'A new call site reads `workout_logs` for another user. RLS '
-          'denies it and PostgREST answers 200 + [], so this will not fail — '
-          'it will report a confident zero for every client, forever.\n'
+      reason: 'A call site reads `workout_logs` for another user. RLS denies '
+          'it and PostgREST answers 200 + [], so this will not fail — it will '
+          'report a confident zero for every client, forever.\n'
           'Read `workout_sessions` instead (100_rls_harden_client_data.sql '
           'permits `is_active_coach_of`), or call the SECURITY DEFINER RPC '
-          '`coach_client_ai_signals()`.',
-    );
-
-    expect(
-      declaredDenied.difference(found),
-      isEmpty,
-      reason: 'a recorded declared-denied read no longer reproduces — delete '
-          'it from `declaredDenied` and update docs/QA_EVIDENCE.md §6b in the '
-          'same change, rather than leaving a stale excuse behind',
+          '`coach_client_ai_signals()`.\nFound: ${found.join(', ')}',
     );
   });
 
+  // ── The three repointed sites must stay repointed ────────────────────────
+  group('SEC-G3 the fix holds', () {
+    const repointed = <String, String>{
+      'lib/features/dashboard/presentation/coach_dashboard_screen.dart':
+          'clientWorkoutLogsProvider',
+      'lib/features/compliance/data/compliance_service.dart': 'workouts',
+      'lib/features/coach/domain/coach_ecosystem_provider.dart': 'workoutLogs',
+    };
+
+    test('each reads workout_sessions, completed only', () {
+      repointed.forEach((path, anchor) {
+        final src = File(path).readAsStringSync();
+        expect(src, contains(anchor),
+            reason: '$path no longer contains `$anchor` — the anchor moved and '
+                'the assertions below would pass vacuously');
+        expect(src, contains("from('workout_sessions')"),
+            reason: '$path must read the table a coach is authorized to read');
+        expect(src, contains("eq('status', 'completed')"),
+            reason: '$path must exclude in_progress and abandoned sessions — '
+                'their completed_at is null, and an unfinished workout is not '
+                'an adherence event');
+      });
+    });
+
+    test('none of them selects every column', () {
+      // `workout_sessions` has gained five columns since 001. A bare
+      // `select()` would pull each new one into a coach surface as it lands,
+      // with nobody deciding.
+      repointed.forEach((path, _) {
+        final src = File(path).readAsStringSync();
+        final i = src.indexOf("from('workout_sessions')");
+        expect(i, greaterThan(-1));
+        final window = src.substring(i, (i + 200).clamp(0, src.length));
+        expect(window.contains('.select()'), isFalse,
+            reason: '$path selects every column of workout_sessions');
+        expect(window, contains(".select('"),
+            reason: '$path must name the columns it reads');
+      });
+    });
+  });
+
   test('SEC-G3 the authorized alternative still exists', () {
-    // If either of these disappears, the guidance above becomes wrong and the
-    // three recorded sites have nowhere correct to go.
     final harden =
         File('../../supabase/migrations/100_rls_harden_client_data.sql');
     expect(harden.existsSync(), isTrue);
     final src = harden.readAsStringSync();
-    expect(src, contains('workout_sessions'),
-        reason: 'the coach-readable session table is the sanctioned source');
-    expect(RegExp(r'is_active_coach_of').hasMatch(src), isTrue);
+    expect(src, contains('workout_sessions'));
+    expect(src, contains('is_active_coach_of'));
+    // The helper binds coach_id to auth.uid() and requires an ACTIVE row —
+    // unlike F-21's shape, the caller cannot forge what satisfies it, because
+    // 113:223 revokes `authenticated` from the relationship table outright.
+    expect(src, contains('r.coach_id = auth.uid()'));
+    expect(src, contains("r.status = 'active'"));
 
-    final rpc = File(
-        '../../supabase/migrations/079_nutrition_autoadjust_and_coach_signals.sql');
-    expect(rpc.existsSync(), isTrue);
-    final rpcSrc = rpc.readAsStringSync();
-    expect(rpcSrc, contains('coach_client_ai_signals'));
-    expect(rpcSrc, contains('security definer'),
-        reason: 'the RPC exists precisely because RLS restricts the underlying '
-            'rows to the client');
-    expect(rpcSrc, contains('workouts_7d'),
-        reason: 'the coach-visible training-frequency signal');
+    final rel = File(
+        '../../supabase/migrations/113_rls_coach_client_relationships.sql');
+    expect(rel.readAsStringSync(),
+        contains('REVOKE ALL ON public.coach_client_relationships FROM authenticated'),
+        reason: 'if `authenticated` regains write access to this table, '
+            '`is_active_coach_of` becomes forgeable and every policy built on '
+            'it — including the one this fix depends on — weakens');
   });
 
   test('SEC-G3 workout_logs still has no coach-read policy', () {
-    // The guard above is only necessary while this is true. When a coach
-    // policy lands, this fails and the whole guard should be revisited rather
-    // than silently continuing to forbid a now-legitimate read.
+    // The finding is NOT resolved. Its symptom is: nothing reads the table
+    // cross-user any more. The condition stands — the table has no coach
+    // policy — and a fourth reader would reintroduce the defect, which is
+    // what the guard above now prevents. Closing it entirely would be a false
+    // closure.
     final dir = Directory('../../supabase/migrations');
     if (!dir.existsSync()) {
       fail('Could not read supabase/migrations — SEC-G3 asserted nothing.');
@@ -154,9 +222,9 @@ void main() {
     expect(
       policies.any((p) => RegExp(r'is_active_coach_of|coach_id').hasMatch(p)),
       isFalse,
-      reason: 'a coach-read policy now exists on workout_logs. The three reads '
-          'this guard forbids may have become legitimate — re-evaluate SEC-G3 '
-          'and docs/QA_EVIDENCE.md §6b together.',
+      reason: 'a coach-read policy now exists on workout_logs. The reads this '
+          'guard forbids may have become legitimate — re-evaluate SEC-G3 and '
+          'docs/QA_EVIDENCE.md §3ah together.',
     );
   });
 }

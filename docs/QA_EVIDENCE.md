@@ -2329,6 +2329,120 @@ training session. Until it does, `protein_shake` reads as itself.
 board or app — says what it does. Edit? Delete? Nutrition detail? Until it is decided the
 row is labelled and inert.
 
+## 3al · P0 · the three denied reads now read the table a coach may see
+
+§3ah recorded the finding and `SEC-G3` ratcheted it. This **fixes** it, and it needed no
+policy change, no owner decision and no contact with F-21.
+
+### What was wrong
+
+Three coach surfaces read `workout_logs` for other users. That table carries one policy —
+`003:193`, `USING (user_id = auth.uid())` — and no coach clause exists in any of the 131
+migrations. An RLS-filtered SELECT **is not an error**: PostgREST answers `200` with `[]`.
+So none of them failed. They reported that every client had trained **never**, permanently,
+and `coach_dashboard_screen.dart:176`'s F-15 `failed` flag only trips on `AsyncError`.
+
+### The fix
+
+All three read `workout_sessions`, which `100_rls_harden_client_data.sql` makes
+coach-readable: `USING (user_id = auth.uid() OR public.is_active_coach_of(user_id))` FOR
+SELECT.
+
+Both tables are written on the **same completion** — `active_workout_screen.dart:649` calls
+`logWorkout()` and `:653` calls `completeSession()` — so nothing was lost. The two disagree
+on exactly one consumed field, `duration_minutes` against `duration_seconds`, translated at
+the boundary by `sessionAsWorkoutLog` so the four render sites are untouched.
+
+### Security assessment — four things it changed about the plan
+
+**1. `is_active_coach_of` is sound, and materially unlike F-21.** It binds
+`r.coach_id = auth.uid()` and requires `r.status = 'active'`. F-21's shape fails because the
+caller writes the column the policy trusts; here the caller cannot, because `113:223`
+**revokes `authenticated` from `coach_client_relationships` outright**. A test now asserts
+that revoke is still present, since every policy built on the helper weakens if it goes.
+
+**2. The policy is `FOR SELECT` only.** The pre-existing `"users manage own sessions"` (001)
+is `FOR ALL USING (user_id = auth.uid())`. RLS is permissive-OR, so a coach passes for
+SELECT and **only** the owner policy applies to writes. Repointing a read introduces no
+write surface.
+
+**3. `status = 'completed'` is required for correctness, not only privacy.** The table also
+holds `in_progress` and `abandoned` rows, whose `completed_at` is **null** — and the
+workouts tab does `w['completed_at'] != null ? parse : DateTime.now()`. Unfiltered, an
+abandoned session would have rendered as a workout finished **"0m ago"**.
+
+**4. Explicit columns are a forward-looking control, not bandwidth.** `workout_sessions` has
+gained five columns since 001 (`workout_name`, `total_exercises`, `total_sets`,
+`completed_sets`, `calories_burned`). A bare `select()` would have pulled each new one into
+a coach surface as it landed, with nobody deciding. `progress_data` and `workout_snapshot`
+are now never selected.
+
+### SEC-G3 rewritten, because the fix broke it — correctly
+
+The guard's allowlist was bidirectional, so the fix made it **fail**, printing the
+instruction it was written with: *"Either all three were fixed — in which case empty this
+list and say so — or the detector is broken."* That is the guard working.
+
+Emptying the list removes its ability to prove the detector works, which is the H-D1 defect
+exactly. So the detector is now proven against **synthetic source** — two positive controls
+it must flag, and two negatives it must not (a self-read, and the authorized table). Plus
+three new assertions: each site reads `workout_sessions`, each filters `completed`, and none
+uses a bare `select()`.
+
+### The finding is NOT closed
+
+Its **symptom** is resolved — nothing reads the table cross-user. Its **condition** stands:
+`workout_logs` still has no coach policy, and a fourth reader would reintroduce the defect.
+SEC-G3 now prevents that. Recording it closed would be a false closure.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Conversion | `test/unit/session_as_log_test.dart` — 8 tests | **PASS** |
+| Guard | `SEC-G3` rewritten — 9 tests incl. 4 detector controls | **PASS** |
+| Guard strength | **10 / 10 mutations killed** | **PASS** |
+| Suite | **1242 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Ratchets | all eight at baseline | **PASS** |
+| Runtime | **LOCALLY_VERIFIED, not RUNTIME_VERIFIED** — see below | **OPEN** |
+
+| # | Mutation | Result |
+|---|---|---|
+| R1 | the denied read returns at a fourth site | **KILLED** |
+| R2 | the `completed` filter is dropped | **KILLED** |
+| R3 | a site goes back to `select()` | **KILLED** |
+| R4 | blind the detector | **KILLED** |
+| R5 | the detector flags everything | **KILLED** |
+| S1 | seconds truncate instead of rounding | **KILLED** |
+| S2 | seconds pass through as minutes | **KILLED** |
+| S3 | the negative guard is dropped | **KILLED** — after the test was strengthened |
+| S4 | the translation drops every other field | **KILLED** |
+| S5 | the input map is mutated in place | **KILLED** |
+
+**S3 survived its first run**, and the cause was the test: `-10 / 60` rounds to `0` with or
+without the `<= 0` guard, so a small negative cannot tell them apart. Re-run with `-90`,
+which rounds to `-2` — a workout of minus two minutes reaching a coach's adherence count —
+it kills. Third time this session a mutation has exposed a test rather than a defect, after
+FIT-016's M1 and FIT-003's N6.
+
+**And my mutation harness misreported R2 as INCONCLUSIVE.** It classified any output
+containing `error:` as a compile failure, and the failing assertion quoted a widget's
+`error: (_, __) =>` arm back at it. The harness now matches `Compilation failed` /
+`Failed to load` specifically. A detector for detectors, with the same defect as the
+detectors.
+
+### Why LOCALLY_VERIFIED and not RUNTIME_VERIFIED
+
+These providers require an authenticated coach with active clients. Creating that fixture
+means writing `coach_client_relationships`, which `113:223` revokes from `authenticated` —
+it would need `service_role`, and §24's hygiene rules would then apply to rows on a
+security-sensitive table. That is not a fixture worth creating to confirm a query target
+that `SEC-G3` already asserts against the migrations themselves.
+
+An APK build was also not run: the volume had **1.2 GB** free against a ~2.67 GB build, and
+the only reclaimable 5 GB is the Gradle cache, whose loss costs a long dependency
+re-download. Per §25 the environment is left workable rather than stripped. The change is
+pure Dart, analyzer-clean, and the full suite compiles the whole `lib` tree.
+
 ## 4 · Design package
 
 | Check | Status |

@@ -14,6 +14,7 @@ import 'client_detail_screen.dart';
 import '../../../core/widgets/named_icon_button.dart';
 import '../domain/coach_triage_provider.dart';
 import 'widgets/needs_you_today.dart';
+import '../domain/session_as_log.dart';
 
 const _bg      = Color(0xFF030303);
 const _card    = Color(0xFF0E0B16);
@@ -118,6 +119,39 @@ final clientCheckinsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) 
   }
 });
 
+/// The coach's clients' completed sessions this week.
+///
+/// ── WHY THIS READS `workout_sessions` AND NOT `workout_logs` ──────────────
+/// `workout_logs` carries **one** policy — `003:193`,
+/// `USING (user_id = auth.uid())` — and no coach clause exists in any of the
+/// 131 migrations. An RLS-filtered SELECT is not an error: PostgREST answers
+/// `200` with `[]`. So this provider returned an empty list for **every coach,
+/// always**, and `_buildWorkoutsTab` rendered "No workouts this week" as a
+/// fact. Not a failure a retry could fix — a confident, permanent, wrong zero.
+///
+/// `workout_sessions` answers the same question and a coach is **authorized**
+/// to ask it: `100_rls_harden_client_data.sql` grants
+/// `USING (user_id = auth.uid() OR public.is_active_coach_of(user_id))`
+/// FOR SELECT. That helper binds `coach_id` to `auth.uid()` and requires an
+/// active relationship row, and `113:223` revokes `authenticated` from
+/// `coach_client_relationships` entirely — so unlike F-21's shape, the caller
+/// cannot forge the relationship that would satisfy it.
+///
+/// Both tables are written on the same completion — `active_workout_screen`
+/// calls `logWorkout()` at :649 and `completeSession()` at :653 — so nothing
+/// is lost by reading the one a coach may actually see.
+///
+/// Two deliberate narrowings:
+///
+///   * **`status = 'completed'`.** The table also holds `in_progress` and
+///     `abandoned` rows, whose `completed_at` is null. Unfiltered, the tab's
+///     `w['completed_at'] != null ? parse : DateTime.now()` fallback would
+///     render an abandoned session as "0m ago" — a workout the client did not
+///     finish, shown as one they just did.
+///   * **explicit columns.** `workout_sessions` has gained five columns since
+///     001 (`workout_name`, `total_exercises`, `total_sets`, `completed_sets`,
+///     `calories_burned`). A bare `select()` would have pulled each one into a
+///     coach surface as it landed, with nobody deciding.
 final clientWorkoutLogsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   {
     final ids = await _coachClientIds();
@@ -126,12 +160,18 @@ final clientWorkoutLogsProvider = FutureProvider<List<Map<String, dynamic>>>((re
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final start = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
     final data = await _supabase
-        .from('workout_logs')
-        .select()
+        .from('workout_sessions')
+        .select('user_id, workout_title, completed_at, duration_seconds')
         .inFilter('user_id', ids)
+        .eq('status', 'completed')
         .gte('completed_at', start.toIso8601String())
         .order('completed_at', ascending: false);
-    return List<Map<String, dynamic>>.from(data);
+    // `duration_seconds` here; `duration_minutes` on the old table. Converted
+    // at the boundary so the four call sites below are untouched.
+    return [
+      for (final row in data as List)
+        sessionAsWorkoutLog(Map<String, dynamic>.from(row as Map))
+    ];
   }
 });
 
