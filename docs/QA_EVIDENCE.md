@@ -4719,6 +4719,87 @@ One mutation had to be rewritten: the first E8 interpolated a runtime value into
 which does not compile, and the harness correctly reported **INVALID** rather than counting
 it as a kill.
 
+## 3bv · CON-01 · a failed check-in read answered "no", and the form wrote a duplicate
+
+`docs/MASTER_REMEDIATION_REGISTRY.md:54` records **CON-01 / I-CHK-01 / E-CHK-01 / M-02** as
+CONFIRMED: *"`public.checkins` is created by no migration"*. Re-derived here rather than
+taken on trust, and it holds:
+
+* **no migration creates `checkins`** — nothing in `supabase/migrations/` defines it under
+  any form, and no view or function supplies it;
+* `weekly_checkins` is the real table, `000_baseline_preexisting_tables.sql:146`;
+* **seven Dart call sites** read or write `checkins` — one in
+  `coach_dashboard_screen.dart:113`, six in `checkin_service.dart`.
+
+### What could not be established, and why the table name was NOT changed
+
+Whether the live database has a `checkins` table created out of band is **unverifiable in
+this environment**, on both available routes:
+
+| Route | Blocker |
+|---|---|
+| `supabase db dump --linked` | Docker daemon not running — `supabase` requires it |
+| `supabase/tests/security/*.mjs` | needs `QA_URL` / `QA_ANON` / `QA_SERVICE`, unset here |
+
+That fact decides the remedy, and the two remedies are opposites: if the table does not
+exist, the seven call sites must be repointed; if it exists with data in it, repointing
+**orphans real check-ins** and the schema needs codifying in a migration instead — which is
+wave-governed and out of phase. **So no call site was repointed.** → **OD-48**.
+
+### What WAS fixed, because it is wrong either way
+
+The reads did not fail — they **answered**:
+
+```dart
+Future<bool> hasCheckedInThisWeek() async {
+  try { … } catch (e) { return false; }   // "you have not checked in"
+}
+Future<int> getCheckinStreak() async {
+  try { … } catch (e) { return 0; }       // "your streak is 0"
+}
+```
+
+`false` and `0` are answers, given when the service had none — and a missing table is only
+one of the ways to get there. An RLS filter or a dropped connection produces the identical
+confident negative.
+
+**It does not stop at the display.** `daily_checkin_screen` branches on it:
+
+```dart
+child: _alreadyDone
+  ? _AlreadyDone(onGoHome: …)
+  : SingleChildScrollView( … the whole check-in form … )
+```
+
+So a failed read showed **the empty form to someone who had already checked in this week**,
+and `_submit` wrote another one. The lie produced a **duplicate weekly check-in**.
+
+`CheckinKnown { done, notDone, unknown }` gives the screen the third state it needed. Only a
+real `notDone` may open the form. The streak returns `int?`, and the screen's existing
+`if (_streak > 0)` already hides a figure it cannot support — F-15's rule reached by the
+layout that was there.
+
+The failure copy is `checkinHistoryFailure` from this feature's own `checkin_hub.dart`,
+which notes the `Could not load [noun]` pattern is rendered in fifteen places.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/checkin_known_test.dart` — 10 tests | **PASS** |
+| Wiring | 5 more, all `[SOURCE]` and labelled | **PASS** |
+| Guard strength | **6 / 6 mutations killed** | **PASS** |
+| Suite | **1554 pass / 9 skipped** (was 1539) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Runtime | `LOCALLY_VERIFIED` — device blocked (§3bc) | — |
+
+| # | Mutation | Result |
+|---|---|---|
+| K1 | unknown opens the form again — the duplicate-write path | **KILLED** |
+| K2 | unknown claims the week is already done | **KILLED** |
+| K3 | an unknown streak renders as `0` again | **KILLED** |
+| K4 | the service answers `notDone` on a failed read again | **KILLED** |
+| K5 | a failed streak read reports `0` again | **KILLED** |
+| K6 | the screen drops the unknown branch and opens the form | **KILLED** |
+
 ## 4 · Design package
 
 | Check | Status |

@@ -4,6 +4,9 @@ import '../domain/checkin_hub.dart';
 import '../../coach/domain/coach_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../domain/checkin_hub.dart';
+import '../domain/checkin_known.dart';
 import '../data/checkin_service.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
@@ -35,8 +38,11 @@ class _WeeklyCheckinState extends ConsumerState<DailyCheckinScreen> {
   bool   _workedOut     = false;
   bool   _hitWaterGoal  = false;
   bool   _saving        = false;
-  bool   _alreadyDone   = false;
-  int    _streak        = 0;
+  /// CON-01: was `bool _alreadyDone = false`, so a failed read opened the
+  /// form to someone who had already checked in and `_submit` wrote a
+  /// duplicate. Three states, because the screen needs three.
+  CheckinKnown _alreadyDone = CheckinKnown.notDone;
+  int?   _streak        = 0;
 
   static const _moodEmojis  = ['😞', '😐', '😊', '😄', '🤩'];
   static const _moodLabels  = ['Rough', 'Meh', 'Good', 'Great', 'Amazing'];
@@ -48,13 +54,11 @@ class _WeeklyCheckinState extends ConsumerState<DailyCheckinScreen> {
   }
 
   Future<void> _load() async {
-    final results = await Future.wait([
-      _service.hasCheckedInThisWeek(),
-      _service.getCheckinStreak(),
-    ]);
+    final done = await _service.hasCheckedInThisWeek();
+    final streak = await _service.getCheckinStreak();
     if (mounted) setState(() {
-      _alreadyDone = results[0] as bool;
-      _streak      = results[1] as int;
+      _alreadyDone = done;
+      _streak      = streak;
     });
   }
 
@@ -166,8 +170,15 @@ class _WeeklyCheckinState extends ConsumerState<DailyCheckinScreen> {
           child: Column(children: [
             _buildHeader(top),
             Expanded(
-              child: _alreadyDone
+              child: mayShowAlreadyDone(_alreadyDone)
                 ? _AlreadyDone(onGoHome: () => context.go('/home'))
+                : !mayOfferCheckinForm(_alreadyDone)
+                // CON-01. The read failed, so whether this week already has a
+                // check-in is unknown — and the form is how a duplicate gets
+                // written. `Could not load check-ins` is the copy this
+                // feature's own domain file carries for exactly this, noting
+                // the repository renders it in fifteen places.
+                ? _CheckinUnknown(onRetry: _load)
                 : SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
                     child: Column(
@@ -298,11 +309,11 @@ class _WeeklyCheckinState extends ConsumerState<DailyCheckinScreen> {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: _brand.withValues(alpha: 0.5))),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (_streak > 0) ...[
+              if (knownStreak(_streak) != null) ...[
                 const Icon(Icons.local_fire_department,
                   color: _brand, size: 13),
                 const SizedBox(width: 4),
-                Text('$_streak', style: const TextStyle(
+                Text('${knownStreak(_streak)}', style: const TextStyle(
                   color: _primary, fontSize: 11,
                   fontWeight: FontWeight.w700)),
                 const SizedBox(width: 4),
@@ -602,3 +613,35 @@ class _CheckinLink extends StatelessWidget {
       );
 }
 
+/// CON-01 · the week's check-in state could not be read.
+///
+/// Not an empty form: the form is how a duplicate weekly check-in gets
+/// written. Copy comes from `checkin_hub.dart`, which already carries this
+/// repository's `Could not load [noun]` pattern.
+class _CheckinUnknown extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _CheckinUnknown({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.cloud_off_rounded, color: _muted, size: 40),
+            const SizedBox(height: 14),
+            const Text(checkinHistoryFailure,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: _white, fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: onRetry,
+                child: const Text('Try again'),
+              ),
+            ),
+          ]),
+        ),
+      );
+}
