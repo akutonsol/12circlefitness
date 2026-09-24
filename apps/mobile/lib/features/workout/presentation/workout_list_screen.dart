@@ -197,7 +197,6 @@ class _WorkoutListScreenState extends ConsumerState<WorkoutListScreen> {
     final sampleWorkouts = ref.watch(workoutsProvider);
 
     return AppScaffold(
-      navIndex: 2,
       showBackButton: true,
       body: Stack(
         children: [

@@ -167,7 +167,6 @@ class _ProgressScreenState extends State<ProgressScreen>
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      navIndex: 3,
       title: 'PERFORMANCE',
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: _C.primary))

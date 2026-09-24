@@ -2900,6 +2900,110 @@ The remaining absences on both anchors are the board's **sample rows** — `Priy
 the hinge today 2h`, `Tues Lifters Sam: anyone in at 7 tomorrow? 3` — and `Workouts` /
 `Nutrition`, which are **F-14**.
 
+## 3ar · F-14 RESOLVED by the package itself — and FIT-001 reaches 9/9
+
+**F-14** has blocked `Nutrition`, `Connect` and `Workouts` across eight locked anchors
+since it was raised. It was recorded as an owner decision. It is not one: the package
+answers it, four separate ways.
+
+### The evidence, counted rather than argued
+
+Eleven frames carry a bottom nav. Parsing every one:
+
+| Declared set | Frames |
+|---|---|
+| `Home · Workouts · Nutrition · Check-In · Connect` | **10** |
+| `Directory · Home · Workouts · Nutrition · Check-In · Connect` | 1 — FIT-001, whose `Directory` is the **top bar** control |
+| `Clients · Adherence · Programs · Check-ins` | 1 — the coach bar, already implemented |
+
+There is exactly **one** client nav in the package, and FIT-001's own sub-title explains
+the two slots that looked missing: *"Activity folded in · Directory moved to the top bar."*
+
+Every difference from the shipped bar is settled by the package, not by preference:
+
+| Shipped | Resolution | Source |
+|---|---|---|
+| the animated FAB | *"Directory, chat and notifications sit in the top bar; **the animated FAB is gone**."* | FIT-001 annotation |
+| `Activity` tab | "Activity **folded in**" — and its content already IS on Home | FIT-001 sub-title |
+| `Train` / `AI Train` | *"the destination is always `/train`, **always labelled Workouts**. `coachingModeProvider` changes what renders here … **not where the tab goes**."* | FIT-014 annotation |
+
+So the bar is now `Home · Workouts · Nutrition · Check-In · Connect`, the mode-switching
+label is gone, and AI mode no longer diverts the tab to `/ai-coach`.
+
+### Two things checked before removing anything
+
+**`/directory`** was the FAB's destination. It is already in `app_top_nav.dart` — a previous
+cycle moved it there, quoting the same annotation. Removing the FAB takes nothing away.
+
+**`/activity`** was different: the tab being removed was its **only entrance in the entire
+codebase**. "Folded in" does not mean orphaned — that is OD-15's lesson — so Home's
+week-progress panel, which *is* the activity content, now opens it. The panel header is a
+named, hinted, 44 dp control rather than a bare tap target.
+
+### What this unblocks
+
+| Anchor | Before | After |
+|---|---|---|
+| **FIT-001** Home | 8/9 | **9 / 9** ✅ |
+| FIT-015 Workouts — no plan | 5/9 | **8/9** |
+| FIT-003 Nutrition | 6/12 | **8/12** |
+| FIT-014 Workouts hub | 6/12 | **8/12** |
+| FIT-005 Connect | 6/12 | **8/12** |
+| FIT-028 Connect — no coach | 6/10 | **8/10** |
+| FIT-004 Check-In | 5/11 | **8/11** |
+
+**FIT-001 is the second anchor to reach full declared coverage**, after FIT-033.
+
+### A third bottom nav, and a required parameter nobody read
+
+While tracing the live bar, two more were found:
+
+* **`AppBottomNav`** in `app_scaffold.dart` drew `Overview · Appts · Track · Messages` — a
+  third vocabulary. It was never instantiated: nothing in `lib` referenced it, and
+  `AppScaffold.build` renders a header and a body and nothing else. (`home_org.dart` holds a
+  dead fourth, already recorded.)
+* **`navIndex`** was a **required** parameter on `AppScaffold`. Nine screens computed and
+  passed a value. **No code ever read it.** That is the A-G1 defect shape exactly — a
+  required argument that is discarded tells nine authors they are configuring something.
+
+Both removed. Two were unreachable, which is the only reason a client never saw the bar
+change under them.
+
+### NAV-G1
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/unit/client_nav_contract_guard_test.dart` — 8 tests | **PASS** |
+| Guard strength | **6 / 6 mutations killed** | **PASS** |
+| Suite | **1323 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Ratchets | **eleven** at baseline | **PASS** |
+| Runtime | **LOCALLY_VERIFIED** — §3an's disk constraint unchanged | **OPEN** |
+
+| # | Mutation | Result |
+|---|---|---|
+| N1 | `Workouts` reverts to `Train` | **KILLED** |
+| N2 | `Connect` is dropped for `Activity` | **KILLED** |
+| N3 | the client FAB comes back | **KILLED** |
+| N4 | a destination that is not registered | **KILLED** |
+| N5 | the Activity entry loses its gesture | **KILLED** — after the guard was strengthened |
+| N6 | the Activity entry loses its hint | **KILLED** |
+
+**N5 survived its first run**, and the finding was the guard: it looked for the *string*
+`go('/activity')` anywhere in the file, so a mutation that killed the gesture survived
+because the `Semantics` declaration still carried one. A mention is not a door. It now
+requires both halves — the announced action and the real gesture — which is what
+`excludeSemantics` makes necessary.
+
+### And the fourth detector to read its own prose
+
+NAV-G1 failed on first run because its own header comment names `navIndex` and
+`AppBottomNav`, so the "only one bottom nav" assertion failed against a codebase that had
+exactly one. That is the **fourth** time in this programme —
+`tool/fit_coverage.dart`, the MSG-003 guard, the Connect copy guard, and now this. Each
+previous fix was inline, which is how the fourth happened; this file has **one**
+`stripComments` and every assertion goes through it.
+
 ## 4 · Design package
 
 | Check | Status |
@@ -3442,7 +3546,7 @@ whether the affordance belongs on this screen, moves elsewhere, or goes.
 | ID | Question | Evidence | Options | QA can continue without it | Blocked by it |
 |---|---|---|---|---|---|
 | **F-12** | Should role authorization move into the router? | Route entry weak (verified); backend sound in every path tested (6 probes, 2 mutations, no change) | (a) router-level role guard; (b) keep widget guards, extend to the 4 unguarded routes; (c) accept, document as defence-in-depth gap | **everything** — no data exposure demonstrated | nothing |
-| **F-14** | Adopt the mandated 5 tabs (Home/Workouts/Nutrition/Check-In/Connect)? | Shipped nav has 4 labelled destinations; Nutrition and Connect absent; `/directory` FAB is the **sole** entry to `/events` | (a) adopt 5 tabs and re-home `/directory`'s destinations; (b) keep shipped nav, record design deviation; (c) hybrid | all non-nav work | `/events` reachability, FIT-003/005 integration |
+| ~~**F-14**~~ **RESOLVED — by the package, see §3ar** | ~~Adopt the mandated 5 tabs?~~ | Shipped nav has 4 labelled destinations; Nutrition and Connect absent; `/directory` FAB is the **sole** entry to `/events` | (a) adopt 5 tabs and re-home `/directory`'s destinations; (b) keep shipped nav, record design deviation; (c) hybrid | all non-nav work | `/events` reachability, FIT-003/005 integration |
 | **F-13** | Keep PaywallGate failing open on provider error? | `paywall_gate.dart:45`, deliberate + commented | (a) keep; (b) fail closed; (c) fail closed with retry | everything | nothing |
 | **OD-1** | Landscape: lock portrait, or support it? | 39 px overflow on `splash_screen.dart:109`; design GAP-06 "Tablet and landscape are not designed. Phone widths only." | (a) lock portrait (1 line, matches comparators); (b) design landscape | all portrait work | F-5 |
 | **OD-2** | GAP-07 AI error states the backend cannot reach | manifest `implementationGaps` | owner-defined | all reachable states | those states |

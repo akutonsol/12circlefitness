@@ -707,9 +707,35 @@ class _PanelWeekProgress extends ConsumerWidget {
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.end, children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("This Week's Progress",
-              style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.8),
-                fontSize: 13, fontWeight: FontWeight.w600)),
+            // FIT-001 folds Activity into Home — "Activity folded in ·
+            // Directory moved to the top bar" — and the bottom bar no longer
+            // carries an Activity tab. That tab was `/activity`'s ONLY
+            // entrance, and a 1,089-line screen losing its last door is not
+            // what "folded in" means (OD-15). This panel IS the activity
+            // content on Home, so it is where the full screen opens from.
+            Semantics(
+              button: true,
+              label: "This Week's Progress",
+              hint: 'Opens your activity',
+              excludeSemantics: true,
+              onTap: () => context.go('/activity'),
+              child: GestureDetector(
+                onTap: () => context.go('/activity'),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  alignment: Alignment.centerLeft,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text("This Week's Progress",
+                      style: TextStyle(color: _C.onSurfVar.withValues(alpha: 0.8),
+                        fontSize: 13, fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 4),
+                    Icon(Icons.chevron_right,
+                        color: _C.onSurfVar.withValues(alpha: 0.5), size: 16),
+                  ]),
+                ),
+              ),
+            ),
             if (week.nudge != null) ...[
               const SizedBox(height: 2),
               Text(week.nudge!,

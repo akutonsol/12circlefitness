@@ -35,7 +35,6 @@ class EventsScreen extends ConsumerWidget {
     final eventsAsync = ref.watch(whatsOnEventsProvider);
 
     return AppScaffold(
-      navIndex: 2,
       showBackButton: true,
       body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // ── Header ──

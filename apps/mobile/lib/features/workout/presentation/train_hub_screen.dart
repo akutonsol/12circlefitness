@@ -77,7 +77,6 @@ class _TrainHubScreenState extends ConsumerState<TrainHubScreen> {
     );
 
     return AppScaffold(
-      navIndex: 2,
       body: Stack(children: [
         // Atmospheric background
         Positioned.fill(

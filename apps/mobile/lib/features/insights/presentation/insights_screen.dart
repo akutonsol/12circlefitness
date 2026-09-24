@@ -24,7 +24,6 @@ class InsightsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(insightsProvider);
     return AppScaffold(
-      navIndex: 3,
       body: SizedBox.expand(
         child: async.when(
           loading: () => const Center(child: CircularProgressIndicator(color: _C.brand)),

@@ -164,7 +164,6 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      navIndex: 1,
       body: Stack(
         children: [
           SingleChildScrollView(
