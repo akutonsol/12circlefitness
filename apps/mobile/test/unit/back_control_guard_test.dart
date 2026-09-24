@@ -126,6 +126,40 @@ void main() {
     return out;
   }
 
+  // ── A floor the detector does not compute ────────────────────────────────
+  //
+  // The v1 regex found 30 of 41 and the floor, being set to 30, agreed with
+  // it. H-D1 and A-G8 failed the same way. A floor derived from the detector's
+  // own output cannot contradict it.
+  //
+  // So this counts the glyph by a DIFFERENT mechanism — plain substring
+  // splitting, no regex, no knowledge of which suffixes exist — and requires
+  // the two to agree. A pattern that silently stops matching one spelling now
+  // disagrees with a count that never knew about spellings at all.
+  test('BACK-G1 the regex agrees with a count computed without it', () {
+    var literal = 0;
+    for (final f in Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))) {
+      final src = f
+          .readAsStringSync()
+          .split('\n')
+          .map((l) {
+            final i = l.indexOf('//');
+            return i < 0 ? l : l.substring(0, i);
+          })
+          .join('\n');
+      literal += src.split('Icons.arrow_back').length - 1;
+    }
+
+    expect(scan().length, literal,
+        reason: 'the pattern matched a different number of back glyphs than a '
+            'plain substring count found. That is how the first version of '
+            'this guard shipped blind to `Icons.arrow_back_ios_new_rounded`: '
+            'it matched 30 where the substring count would have said 41.');
+  });
+
   test('BACK-G1 the detector can still see back controls at all', () {
     // An absent result must not read as "everything is named" — the H-D1
     // lesson, which this suite has been bitten by repeatedly.

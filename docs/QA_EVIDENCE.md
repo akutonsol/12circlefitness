@@ -4092,6 +4092,54 @@ and BACK-G1. In each case the floor test existed and passed. The common cause is
 floor derived from the detector's own output cannot contradict it; a floor has to come from
 something the detector does not compute.
 
+## 3bj · Auditing every ratchet for the defect BACK-G1 had
+
+Three guards have now been found blind **after** being declared at baseline. Rather than
+assume the other twelve are sound, each one's detector was blinded — every `RegExp` literal
+replaced with a pattern that cannot match — and the guard re-run. A guard that still passes
+with its patterns dead has no floor: it would certify a codebase it can no longer read.
+
+| Guard file | regexes | blinded → | verdict |
+|---|---|---|---|
+| `client_nav_contract_guard_test.dart` | 5 | FAIL | floor holds |
+| `declared_denied_read_guard_test.dart` | 5 | FAIL | floor holds |
+| `duplicate_screen_class_guard_test.dart` | 2 | FAIL | floor holds |
+| `icon_control_naming_guard_test.dart` | 5 | FAIL | floor holds |
+| `intake_advance_label_guard_test.dart` | 3 | FAIL | floor holds |
+| `presentation_drift_guard_test.dart` | 17 | FAIL | floor holds |
+| `rls_bypassing_view_guard_test.dart` | 5 | FAIL | floor holds |
+| `rls_policy_shape_guard_test.dart` | 7 | FAIL | floor holds |
+| `touch_target_guard_test.dart` | 1 | FAIL | floor holds |
+| `ui_error_surface_guard_test.dart` | 5 | FAIL | floor holds |
+| `orphan_route_guard_test.dart` | 0 | — | floor is a named route set (`/events`, `/home`, >50 routes), which the detector does not compute |
+| `back_control_guard_test.dart` | 2 | did not compile | verified by hand — B3 kills |
+
+**All thirteen fail when blinded.** The sweep is committed as `tool/blind_sweep.sh` so the
+claim is repeatable rather than a one-off assertion.
+
+### What the sweep does not catch, stated plainly
+
+It tests **total** blindness. All three real failures were **partial** — the detector read
+most of the codebase and missed a slice, so a floor asserting *"it found something"* passes
+comfortably. H-D1 detected 5 of 20. BACK-G1 found 30 of 41.
+
+Partial blindness is only caught by a floor the detector **does not compute**. BACK-G1 now
+has one: a second count of the same glyph by plain substring splitting — no regex, no
+knowledge of which suffixes exist — which the pattern's count must equal. A pattern that
+quietly stops matching one spelling now disagrees with a count that never knew about
+spellings.
+
+That is the generalisable fix, and it is recorded here rather than retrofitted across all
+thirteen in one sweep, because each guard needs a genuinely independent second measure and
+inventing one mechanically would reproduce the original error in a new place.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Sweep | `tool/blind_sweep.sh` — 13 guards, **0 without a floor** | **PASS** |
+| Cross-check | BACK-G1 regex count == independent substring count | **PASS** |
+| Suite | **1474 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+
 ## 4 · Design package
 
 | Check | Status |
