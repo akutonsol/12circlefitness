@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/post_model.dart';
+import '../domain/post_type_choice.dart';
 import '../../notifications/data/notification_service.dart';
 
 class LiveCommunityService {
@@ -202,11 +203,10 @@ class LiveCommunityService {
     }
   }
 
-  PostType _parseType(String t) => switch (t) {
-    'progress' => PostType.progress,
-    'achievement' => PostType.achievement,
-    _ => PostType.text,
-  };
+  // Was a three-arm switch that sent `photo` and `workout` to `text`, so two
+  // of the five enum values could not survive a write-and-read. One mapping,
+  // shared with the UI — see `post_type_choice.dart`.
+  PostType _parseType(String t) => parsePostType(t);
 
   ReactionType _parseReaction(String r) => switch (r) {
     'fire' => ReactionType.fire,

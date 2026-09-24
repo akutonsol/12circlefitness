@@ -4346,6 +4346,98 @@ FIT-088 stays at **3/5** deliberately. Its remaining two are not omissions:
 The design intent is preserved and the missing dependency named for the phase that owns it,
 rather than pointed at the nearest route that would make the number go up.
 
+## 3bn · FIT-067 · the post type was lost three different ways
+
+The board marks this anchor **`missing`** and names the capability it should be using:
+`addPost(content, postType)`. `post_model.dart` already declares
+`enum PostType { text, photo, progress, workout, achievement }` — **exactly the five the
+board draws as radios**. Every layer between that enum and the database dropped it somewhere
+else.
+
+**1 · The chips were dead.** Three of the five, each handed an empty callback:
+
+```dart
+_buildPostTypeChip('📸 Photo', () {}),
+_buildPostTypeChip('🏆 Achievement', () {}),
+_buildPostTypeChip('💪 Workout', () {}),
+```
+
+They looked selectable, highlighted nothing, and were read by nothing. To a screen reader
+they were three unrelated buttons, not a choice. They could not have worked even if wired:
+the sheet's body was built inside `_CommunityScreenState`, where a `setState` does not
+rebuild what `showModalBottomSheet` has already handed to the overlay — there was nowhere
+for a selection to live.
+
+**2 · The write ignored it.** `addPost(text)` was called with no `postType:`, so **every
+post this app has ever created was stored as the default `'general'`**, whatever the user
+tapped.
+
+**3 · The read could not recover it.** `_parseType` mapped `progress` and `achievement` and
+sent everything else to `text`, so `photo` and `workout` **could not survive a
+write-and-read** even after the first two were fixed. One mapping now serves the UI and the
+service, and `'general'` still reads as `text` so existing rows are not re-typed.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Widget | `test/widget/create_post_sheet_test.dart` — 6 rendered-UI tests | **PASS** |
+| Round-trip | every `PostType` survives write-then-read; `'general'`/`null` stay `text` | **PASS** |
+| Guard strength | **7 / 7 mutations killed** | **PASS** |
+| Suite | **1506 pass / 9 skipped** (was 1497) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Coverage | FIT-067 4/10 → **8/10**; all interactions 349 → **353 / 600** | — |
+
+| # | Mutation | Result |
+|---|---|---|
+| P1 | `photo` and `workout` cannot survive a write-and-read | **KILLED** |
+| P2 | existing `'general'` rows are re-typed | **KILLED** |
+| P3 | the five chips are unrelated buttons again | **KILLED** |
+| P4 | the chips are handed empty callbacks again | **KILLED** |
+| P5 | the chosen type never reaches the caller | **KILLED** |
+| P6 | an empty post can be published | **KILLED** |
+| P7 | the chips drop under the 44 dp floor | **KILLED** |
+
+### Two measurement corrections, both mine
+
+**`What's on your mind?` read ABSENT while rendering correctly.** Written
+`'What\'s on your mind?'`, the *source* contains a backslash, and the resolver matches
+rendered labels as string literals. Double-quoted, the source and the rendered text agree.
+The escape was the only difference — the user saw the right words throughout.
+
+**`Add a photo` measured HAVE, and nothing rendered it.** I had declared `addPhotoLabel` as
+a constant while building no picker. The resolver reads the screen's file set for string
+literals and cannot tell a *declared* name from a *drawn* one — the identical false positive
+`sessionDoneLabel` produced for FIT-018, where the measurement said `Done` and the button
+said `Submit`. The constant was **deleted**. FIT-067 therefore drops to 8/10 rather than
+sitting at 9/10 on a name nobody can tap.
+
+`Add a photo` needs an image picker and a storage path for post images; `createPost` takes
+`imageUrls` but nothing in `lib` uploads one → **OD-36**. `Tues Lifters` is a group name —
+data, not a control.
+
+## 3bo · `/activity` · the design and the implementation are different screens → OD-35
+
+FIT-064 draws `/activity` as a **chronological timeline** — *"Logged 62.4 kg · 07:20"*,
+*"Breakfast · 420 kcal · 08:05"*, *"Lower body — strength · 51 min · 18 sets"* — filtered by
+`All` / `Training` / `Food` / `Check-ins`.
+
+`activity_screen.dart` is a **1,192-line metrics dashboard**: daily workout, streak, water,
+performance rings, steps, calories, a nutrition grid. Not a worse timeline — a different
+screen, with different content, for the same route.
+
+This was **not** implemented, and the reason is not difficulty:
+
+* replacing it means deleting a large working screen, which is destructive and is the kind
+  of decision this programme does not take on its own;
+* the filter strip on its own is meaningless — `All`/`Training`/`Food`/`Check-ins` filter a
+  stream, and there is no stream to filter;
+* building the stream's domain layer *without* the screen would add unused code, which is
+  the accretion `DEAD-G1` exists to catch.
+
+FIT-001's *"Activity folded in"* makes the timeline reading plausible — the dashboard's
+content may belong on Home — but "plausible" is not a mandate to delete a screen.
+**Recorded as OD-35 for the design owner**, with the intent preserved rather than
+half-built.
+
 ## 4 · Design package
 
 | Check | Status |
