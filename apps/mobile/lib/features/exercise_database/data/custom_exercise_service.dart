@@ -4,7 +4,11 @@ import 'models/exercise_detail_model.dart';
 import '../../workout/data/models/video_variant_model.dart';
 
 class CustomExerciseService {
-  final _db = Supabase.instance.client;
+  // Resolved on use, not in the constructor — the same rule WorkoutService
+  // states for itself. An eager field meant merely CONSTRUCTING this service
+  // required an initialised Supabase instance, which put every screen that
+  // holds one out of reach of widget tests.
+  SupabaseClient get _db => Supabase.instance.client;
 
   String? get _uid => _db.auth.currentUser?.id;
 

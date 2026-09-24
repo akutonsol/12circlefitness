@@ -22,6 +22,7 @@ import '../../coach/data/score_service.dart';
 import '../../scoring/data/score_engine.dart';
 import '../../auth/domain/auth_provider.dart';
 import '../domain/session_complete.dart';
+import '../domain/workout_save.dart';
 
 const _bg       = Color(0xFF030303);
 const _card     = Color(0xFF0E0B16);
@@ -133,9 +134,22 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
   bool _paused = false;
   Timer? _timer;
   bool _saving = false;
+
+  /// EC-05 / N-07: an essential write did not land, so the workout is not
+  /// filed and the screen must not say it is.
+  bool _saveFailedCompleting = false;
   final _workoutService = WorkoutService();
   final _scrollController = ScrollController();
-  final _db = Supabase.instance.client;
+  /// Resolved on USE, not in the field initializer.
+  ///
+  /// `WorkoutService` in this same feature already does this, deliberately —
+  /// "constructing the service must not require an initialised Supabase
+  /// instance". This State did the opposite, so merely CONSTRUCTING it threw
+  /// outside a Supabase app, which is why EC-05's completion path had no
+  /// widget test: the screen could not be pumped at all with a workout
+  /// selected. Both uses are inside async handlers that already require a
+  /// live client.
+  SupabaseClient get _db => Supabase.instance.client;
   /// Resolved once in initState so dispose() can persist elapsed time without
   /// reaching for `ref` during teardown.
   late final WorkoutSessionManager _sessions;
@@ -647,9 +661,20 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
       notes: '',
     );
 
-    await _workoutService.logWorkout(log);
+    // EC-05 / N-07. Every one of these was either unguarded — so a throw left
+    // `_saving` true and the Complete button permanently dead — or swallowed
+    // with `catch (_) {}`, so a failed `completeSession` still reset the sets
+    // and raised the celebration over a session the server never marked
+    // complete.
+    var logWritten = false;
+    try {
+      await _workoutService.logWorkout(log);
+      logWritten = true;
+    } catch (_) {}
 
+    bool? sessionCompleted;
     if (_sessionId != null) {
+      sessionCompleted = false;
       try {
         await _sessions.completeSession(
               sessionId: _sessionId!,
@@ -657,11 +682,38 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
               idleSeconds: _idleSeconds,
               caloriesBurned: log.caloriesBurned ?? 0,
             );
+        sessionCompleted = true;
       } catch (_) {}
     }
 
-    await ScoreService().addWorkoutPoints();
-    await ScoreEngine().workoutCompleted(workout.id);
+    // Derived, and recomputable: worth recording, not worth making someone
+    // retry a finished workout for.
+    var scored = false;
+    try {
+      await ScoreService().addWorkoutPoints();
+      await ScoreEngine().workoutCompleted(workout.id);
+      scored = true;
+    } catch (_) {}
+
+    final outcome = workoutSaveOutcome(
+      logWritten: logWritten,
+      sessionCompleted: sessionCompleted,
+      scored: scored,
+    );
+
+    if (!mayFinishWorkout(outcome)) {
+      // Nothing is reset and nothing is invalidated: the local sets are the
+      // only remaining copy of what the user did, and resetting them to show a
+      // celebration would destroy it.
+      if (mounted) {
+        setState(() {
+          _saveFailedCompleting = true;
+          _saving = false;
+        });
+      }
+      return;
+    }
+    if (mounted) setState(() => _saveFailedCompleting = false);
     // Captured before the reset below wipes it — FIT-018's stats come from
     // here, and reading them after would make every session read 0 sets.
     final completedSets = ref
@@ -912,7 +964,29 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
             decoration: const BoxDecoration(
               color: _card,
               border: Border(top: BorderSide(color: _border))),
-            child: SizedBox(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // EC-05 / N-07. Nothing said a word when the writes failed: the
+            // sets were reset and the celebration went up regardless. Voice
+            // and recovery match `_RestoreFailedView` and the feedback
+            // sheet's `_saveFailed` row — this screen's existing failure
+            // language — and the exception is NOT interpolated (F-2/F-16).
+            if (_saveFailedCompleting) ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(children: [
+                  const Icon(Icons.cloud_off_rounded, color: _error, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(workoutSaveFailedMessage,
+                        style: TextStyle(
+                            color: _error.withValues(alpha: 0.9),
+                            fontSize: 12,
+                            height: 1.4)),
+                  ),
+                ]),
+              ),
+            ],
+            SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
@@ -930,9 +1004,11 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
                         size: 18),
                       const SizedBox(width: 8),
                       Text(
-                        completedSets == totalSets ? 'Complete Workout' : 'Finish Early ($completedSets/$totalSets sets)',
+                        _saveFailedCompleting
+                          ? workoutSaveRetryLabel
+                          : completedSets == totalSets ? 'Complete Workout' : 'Finish Early ($completedSets/$totalSets sets)',
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-                    ]))))
+                    ])))]))
         ]),
         ]),
         ),

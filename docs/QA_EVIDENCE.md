@@ -4628,6 +4628,97 @@ plan; the commission document is untracked and owned elsewhere. **Both are liste
 next reader disambiguates by source rather than by number**, and "N-07" on its own should be
 treated as ambiguous.
 
+## 3bu · EC-05 / N-07 · completion swallowed persistence and celebrated anyway
+
+`docs/MASTER_REMEDIATION_REGISTRY.md:53` records this as **CONFIRMED** and the wave plan
+defers it to 3B *"because they are Dart, not policy"*. It is Dart, it touches no migration
+number and no shared contract, so the Dart half is done here; **the wave owner still owns the
+registry entry** and this session has not edited it.
+
+### What `_completeWorkout` did
+
+```dart
+await _workoutService.logWorkout(log);            // UNGUARDED
+if (_sessionId != null) {
+  try { await _sessions.completeSession(…); }
+  catch (_) {}                                    // SWALLOWED
+}
+await ScoreService().addWorkoutPoints();          // UNGUARDED
+await ScoreEngine().workoutCompleted(workout.id); // UNGUARDED
+ref.read(activeWorkoutProvider.notifier).reset(); // sets wiped
+… showDialog(WorkoutCompleteDialog(…))            // celebration
+```
+
+**Two failures, in opposite directions.**
+
+A throw from an **unguarded** call propagated out of `_completeWorkout`, so the trailing
+`setState(() => _saving = false)` never ran. The Complete button is bound to
+`onPressed: _saving ? null : _completeWorkout` — so it was **permanently dead**. No dialog,
+no message, no second attempt: a finished workout the user could not file and no way to try.
+
+A throw from **`completeSession` was discarded**. Execution continued: the sets were reset,
+the session providers invalidated, and the celebration raised with full stats — over a row
+the server still had as `in_progress`.
+
+**The second crosses a boundary.** `workout_sessions` is the table a coach can read
+(migration 100), and the coach surfaces filter on `status = 'completed'` — the same repoint
+this programme made earlier. So a swallowed failure means **the coach never sees a session
+the client actually finished**, and neither of them can tell.
+
+### The rule
+
+`WorkoutSave { failed, saved, scored }`, modelled on `FeedbackDelivery` in this same file —
+*"the notes are safe and the screen must not claim a delivery"*. One level up: do not claim a
+workout is filed until it is. Score writes are **derived and recomputable**, so their failure
+gives `saved`, not `failed` — making someone retry a finished workout for a points row would
+be the opposite mistake.
+
+On `failed`, nothing is reset and nothing invalidated: **the local sets are the only
+remaining copy of what the user did.**
+
+### Two testability defects fixed on the way, and one that is not a defect
+
+`ActiveWorkoutScreen` could not be pumped with a workout selected — merely constructing the
+State threw. Two eager field initializers were the cause, and both now resolve on use, which
+is the rule `WorkoutService` in this same feature **already states for itself**
+(*"constructing the service must not require an initialised Supabase instance"*):
+
+* `final _db = Supabase.instance.client` on `_ActiveWorkoutViewState`
+* the same line in `CustomExerciseService`
+
+The third obstacle was **not** a defect and was left alone: `initState` calls `_startSession`,
+which reads `_db.auth.currentUser`. Starting a session on mount is what the screen is for.
+
+**Consequence, stated rather than glossed:** the screen-level assertions here are `[SOURCE]`,
+labelled as such in every test name. They prove the guard is **wired**, not that it behaves.
+The behaviour is pinned one layer down on rules a test can reach. Closing that gap needs a
+**Supabase-backed widget harness with a signed-in user**, which does not exist in this
+repository → **OD-47**.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rule | `test/unit/workout_save_test.dart` — 10 tests | **PASS** |
+| Wiring | `test/widget/workout_completion_honesty_test.dart` — 7, all `[SOURCE]` | **PASS** |
+| Guard strength | **8 / 8 mutations killed** | **PASS** |
+| Suite | **1539 pass / 9 skipped** (was 1522) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Runtime | **NOT** runtime-verified — see §3bc | `LOCALLY_VERIFIED` |
+
+| # | Mutation | Result |
+|---|---|---|
+| E1 | a failed `completeSession` is treated as success again | **KILLED** |
+| E2 | a failed `logWorkout` is treated as success | **KILLED** |
+| E3 | a failed save may still reset the sets and celebrate | **KILLED** |
+| E4 | a derived score failure throws away a filed workout | **KILLED** |
+| E5 | having no session to complete is read as a failure | **KILLED** |
+| E6 | the screen no longer gates the finish on the outcome | **KILLED** |
+| E7 | the failure leaves the Complete button dead | **KILLED** |
+| E8 | the exception is interpolated into the message (F-2/F-16) | **KILLED** |
+
+One mutation had to be rewritten: the first E8 interpolated a runtime value into a `const`,
+which does not compile, and the harness correctly reported **INVALID** rather than counting
+it as a kill.
+
 ## 4 · Design package
 
 | Check | Status |
