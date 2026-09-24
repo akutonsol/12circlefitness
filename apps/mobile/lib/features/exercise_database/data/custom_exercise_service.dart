@@ -675,6 +675,51 @@ class CustomExerciseService {
     } catch (e) { lastError = e; return null; }
   }
 
+  /// A short-lived URL for a stored coach voice note.
+  ///
+  /// SEC-VOICE-1 (prerequisite). `uploadCoachVoice` stores a
+  /// `getPublicUrl(...)` value, which is permanent and unauthenticated. The
+  /// repository's own rule for protected media is the opposite — see
+  /// `chat_media_path.dart`: *"The bucket is PRIVATE. Nothing in the app may
+  /// call `getPublicUrl()` on it"*, with display going through
+  /// `createSignedUrl()` at render time. `progress-photos` and `chat-media`
+  /// already do exactly that with a 3600s expiry.
+  ///
+  /// Signing works on a public bucket too, so this lands safely **now** and is
+  /// the change `docs/proposed/SEC_VOICE_1_coach_media_private.sql` says must
+  /// accompany the migration — without it, privatising the bucket stops every
+  /// existing voice note from loading.
+  ///
+  /// Accepts either a stored public URL (legacy rows) or a bare object path,
+  /// because `coachVoiceObjectPath` normalises both. Returns `null` when the
+  /// value is not a `coach-media` reference, so a foreign URL is never signed.
+  /// Which object path, if any, a stored value may be signed for.
+  ///
+  /// Pure and separate so the negative cases can be asserted directly: a
+  /// mutation that let ANY value through survived a source-level check,
+  /// because the method's `catch` also contains `return null`. A guard that
+  /// greps a method body for a token is not checking a branch.
+  static String? coachVoiceSigningPath(String? stored) {
+    if (stored == null || stored.isEmpty) return null;
+    final fromUrl = coachVoiceObjectPath(stored);
+    if (fromUrl != null) return fromUrl;
+    // A bare object path this code wrote itself. Anything else — another
+    // bucket, a foreign host, a relative fragment — is not signable.
+    if (stored.startsWith('voice/') && !stored.contains('://')) return stored;
+    return null;
+  }
+
+  Future<String?> signedCoachVoiceUrl(String stored) async {
+    final path = coachVoiceSigningPath(stored);
+    if (path == null) return null;
+    try {
+      return await _db.storage.from('coach-media').createSignedUrl(path, 3600);
+    } catch (e) {
+      lastError = e;
+      return null;
+    }
+  }
+
   /// Attach/replace the coach's voice note on their overlay (with expiry).
   Future<bool> setCoachVoice(String exerciseId, String url, int durationMs, DateTime? expiresAt) async {
     try {

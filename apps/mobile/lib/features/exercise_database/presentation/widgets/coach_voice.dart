@@ -197,6 +197,7 @@ class CoachVoicePlayer extends StatefulWidget {
 
 class _CoachVoicePlayerState extends State<CoachVoicePlayer> {
   final _player = AudioPlayer();
+  final _svc = CustomExerciseService();
   bool _playing = false;
   double _progress = 0; // 0..1
   Duration _total = Duration.zero;
@@ -220,7 +221,13 @@ class _CoachVoicePlayerState extends State<CoachVoicePlayer> {
     if (_playing) { await _player.pause(); setState(() => _playing = false); return; }
     try {
       if (_progress == 0) {
-        await _player.play(UrlSource(widget.url));
+        // SEC-VOICE-1: sign at render time rather than replaying the stored
+        // public URL. A signed URL expires; the stored one never does. The
+        // fallback keeps legacy rows playable while the bucket is still
+        // public — once it is private, an unsigned URL cannot play and the
+        // fallback becomes a no-op rather than a silent bypass.
+        final signed = await _svc.signedCoachVoiceUrl(widget.url);
+        await _player.play(UrlSource(signed ?? widget.url));
       } else {
         await _player.resume();
       }

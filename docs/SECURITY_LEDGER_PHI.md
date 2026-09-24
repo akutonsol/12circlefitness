@@ -75,7 +75,7 @@ Probe: `apps/mobile/tool/anon_least_privilege.py`.
 | **Access path** | `036_client_plan_and_coach_media.sql:33` creates it `public = true`; `130_private_storage_buckets.sql` privatised `chat-media`, `messages`, `progress-photos` and **not** this one. Three `getPublicUrl()` call sites. |
 | **Evidence (live, no credentials at all)** | `coach-media` → `NoSuchKey` (**the bucket served the request**); `progress-photos` / `chat-media` / `messages` → `NoSuchBucket`; nonexistent-bucket control → `NoSuchBucket`. `exercise-media` and `avatars` are also public. |
 | **Status** | **FAILED — STORAGE PRIVACY** (bucket). **Deletion arm RESOLVED** — `clearCoachVoice()` now removes the object before clearing the row; 4/4 mutations killed. |
-| **Remediation** | `docs/proposed/SEC_VOICE_1_coach_media_private.sql` — **AUTHORED, unnumbered**. Must not be applied alone: three `getPublicUrl()` sites must move to `createSignedUrl()` in the same change or existing media stops loading. |
+| **Remediation** | Two halves. **(a) Dart prerequisite — DONE:** voice playback now signs at render time via `signedCoachVoiceUrl()` (`createSignedUrl(path, 3600)`), so the migration can land without stopping existing notes from loading. Signing works on a public bucket, so this was safe to land first. **(b) Bucket — `docs/proposed/SEC_VOICE_1_coach_media_private.sql`, AUTHORED, unnumbered.** Still blocked. Two `getPublicUrl()` sites remain on the *video* path (`coach_video_response_screen.dart:78`, `coach_business_screen.dart:132`) and must move with it. |
 | **Governance blocker** | Migration number + owner sign-off; the read policy is an owner decision (a client must be able to play a note addressed to them). |
 
 ### SEC-PHI-AUDIT — no PHI access logging exists
