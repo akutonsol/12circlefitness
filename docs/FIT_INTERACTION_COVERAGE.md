@@ -50,7 +50,7 @@ Both corrections are now reproducible from one command, which is the point.
 |---|---|
 | FIT screens | 110 |
 | Route resolved to a screen file | 108 |
-| All declared interactions | **287 / 600** |
+| All declared interactions | **288 / 600** |
 | **Locked-anchor interactions** | **129 / 179** |
 | Locked anchors complete **and reachable** | **10** of 29 |
 | Anchors whose route has **no way in** | **6** — FIT-071, FIT-072, FIT-074, FIT-019, FIT-073, FIT-006 |
@@ -65,27 +65,27 @@ Both corrections are now reproducible from one command, which is the point.
 | **FIT-065** | — | 11/20 | 9 | Community hub — feed | `/community` |
 | **FIT-100** | — | 0/9 | 9 | Action items — what your coach set | `/action-items` |
 | **FIT-105** | — | 7/15 | 8 | AI Coach — how it speaks, what it knows | `/ai-coach` |
-| **FIT-054** | — | 4/11 | 7 | Progress · Photos | `/progress` |
 | **FIT-089** | — | 0/7 | 7 | AI nutrition — conversation | `/ai-nutrition` |
+| **FIT-054** | — | 4/11 | 7 | Progress · Photos | `/progress` |
 | **FIT-071** | — | 0/6 | 6 | Pods hub — **UNREACHABLE** | `/pods` |
 | **FIT-067** | — | 4/10 | 6 | Create post | `/community` |
 | **FIT-066** | — | 3/9 | 6 | Post detail + comments | `/community` |
 | **FIT-027** | 🔒 | 5/10 | 5 | What's on | `/classes` |
 | **FIT-072** | — | 0/5 | 5 | Pod detail — **UNREACHABLE** | `/pods` |
 | **FIT-062** | — | 2/7 | 5 | Notifications | `/notifications` |
-| **FIT-058** | — | 0/5 | 5 | Habits | `/habits` |
-| **FIT-032** | 🔒 | 6/11 | 5 | Coach dashboard | `/coach-dashboard` |
 | **FIT-008** | 🔒 | 2/7 | 5 | Intake | `/intake` |
+| **FIT-032** | 🔒 | 6/11 | 5 | Coach dashboard | `/coach-dashboard` |
 | **FIT-102** | — | 2/7 | 5 | AI Coach — first open | `/ai-coach` |
 | **FIT-103** | — | 0/5 | 5 | AI Coach — today | `/ai-coach` |
-| **FIT-088** | — | 0/5 | 5 | Cancellation — confirm → cancelled | `/class-detail` |
 | **FIT-104** | — | 0/5 | 5 | AI Coach — the week | `/ai-coach` |
+| **FIT-088** | — | 0/5 | 5 | Cancellation — confirm → cancelled | `/class-detail` |
+| **FIT-045** | — | 2/6 | 4 | Progress photos | `/intake` |
 | **FIT-047** | — | 1/5 | 4 | Coaching mode | `/intake` |
 | **FIT-048** | — | 1/5 | 4 | Choose coach | `/intake` |
 | **FIT-090** | — | 0/4 | 4 | AI nutrition — a turn that failed | `/ai-nutrition` |
-| **FIT-039** | — | 2/6 | 4 | Experience | `/intake` |
 | **FIT-096** | — | 3/7 | 4 | Booking — your calls and open slots | `/appointments` |
 | **FIT-031** | 🔒 | 1/5 | 4 | Plans | `/upgrade` |
+| **FIT-058** | — | 1/5 | 4 | Habits | `/habits` |
 | **FIT-085** | — | 0/4 | 4 | Events hub | `/events` |
 | **FIT-037** | — | 4/8 | 4 | Medical history | `/intake` |
 | **FIT-016** | 🔒 | 3/7 | 4 | Workout detail | `/workout-detail` |
@@ -97,7 +97,7 @@ Both corrections are now reproducible from one command, which is the point.
 | **FIT-110** | — | 0/4 | 4 | AI Coach — coming back | `/ai-coach` |
 | **FIT-075** | — | 1/5 | 4 | Challenges hub | `/challenges` |
 | **FIT-079** | — | 1/5 | 4 | Challenges — empty + loading | `/challenges` |
-| **FIT-045** | — | 2/6 | 4 | Progress photos | `/intake` |
+| **FIT-039** | — | 2/6 | 4 | Experience | `/intake` |
 | **FIT-092** | — | 1/4 | 3 | Meal plan — built | `/meal-plan` |
 | **FIT-107** | — | 1/4 | 3 | AI Coach — a card that failed | `/ai-coach` |
 | **FIT-043** | — | 2/5 | 3 | Weight goal | `/intake` |

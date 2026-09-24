@@ -3572,6 +3572,73 @@ acted on above was re-derived from the repository first, and doing so sharpened 
 rather than one). They remain uncommitted, because they are not this programme's work to
 commit.
 
+## 3ba · FIT-058 · one sentence in the board named four defects
+
+> *"**Tapping the row is the whole interaction** — no separate checkbox to hit — with
+> **`role="checkbox"`** so the state is announced."*
+
+`habit_card.dart` violated every clause of that sentence:
+
+1. **the tap target was a 32 × 32 circle**, not the row — and 32 is under the 44 dp floor.
+   FIT-100's annotation measures the same thing independently: *"Toggle is 44px — the source
+   has 32"*;
+2. **there was no `Semantics` at all.** No role, no state, no name. A screen reader
+   announced nothing about whether a habit was done;
+3. a completed habit rendered a plain `Container` rather than a control, so **it could not
+   be un-toggled** — a one-way action, on a screen whose entire content is a daily yes/no.
+   A habit ticked by accident stayed ticked;
+4. the week — `6 of 7 this week`, the figure the board puts on the row — was **not shown**,
+   though `completedDates` has always carried it.
+
+The row is now the control, `Semantics(checked:)` gives it the checkbox role, the mark is
+excluded so the row announces once, and the tap works in both directions. `Back` was also
+absent — the screen is reached by a push and had no way out but the system gesture.
+
+### Two mutations survived, and both found the test rather than the code
+
+**B2** nulled the `GestureDetector`'s `onTap` for a completed habit and survived: the
+assertion read `SemanticsAction.tap`, which `Semantics(onTap:)` supplies **either way**. A
+declared action is not a working one — the same "a mention is not a door" weakness NAV-G1
+hit. The test now reads the real gesture out of the widget tree.
+
+And the first version asserted against `find.byType(HabitCard)`, whose root data does **not**
+merge the `checked` flag up from the `Semantics` inside the `Stack`. It reported no checkbox
+role on a widget that has one. Asserting against the wrong node is its own false negative.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/habit_row_test.dart` — 10 tests | **PASS** |
+| Widget | `test/widget/habit_card_test.dart` — 7, **mounted**, against the semantics tree | **PASS** |
+| Guard strength | **6 / 6 mutations killed** (B2 after the test was fixed) | **PASS** |
+| Coverage | FIT-058 **1 / 5** — the four are sample habits | **PASS** |
+| Suite | **1415 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors · A-G8 at baseline | **PASS** |
+| Runtime | **LOCALLY_VERIFIED** | **OPEN** |
+
+| # | Mutation | Result |
+|---|---|---|
+| B1 | the checkbox role is dropped | **KILLED** |
+| B2 | a completed habit loses its gesture | **KILLED** — after the test read the gesture |
+| B3 | the week line leaves the row | **KILLED** |
+| B4 | two entries on one day count twice | **KILLED** |
+| B5 | the week window slips to eight days | **KILLED** |
+| B6 | the state is written into the accessible name | **KILLED** |
+
+### FIT-064 Activity — assessed, not started
+
+`/activity` is reachable now (FIT-001's nav work gave it a door from Home's week panel, and
+FIT-064's annotation confirms that is right: *"Home's summary links here rather than
+absorbing it"*). But the board draws a **reverse-chronological stream with a type filter**
+— `All / Training / Food / Check-ins` — and what ships is a **dashboard of stat cards**
+(`_StreakCard`, `_WaterTrackerCard`, `_PerformanceCard`, `_StepsCard`, `_CaloriesCard`,
+`_NutritionGrid`).
+
+That is not a gap to fill; it is a different screen. The data exists across
+`workout_sessions`, `nutrition_logs`, `weekly_checkins` and `weight_logs`, so it **is**
+buildable from sanctioned paths — as a merge, the shape `mergeWhatsOn` already uses for
+FIT-027 — but it is a feature build, not an interaction fix. Recorded as **Class C**, the
+largest single executable item left in the non-locked backlog.
+
 ## 4 · Design package
 
 | Check | Status |
