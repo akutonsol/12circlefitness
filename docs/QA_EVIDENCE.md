@@ -3720,6 +3720,89 @@ is a statement about the machine, not about the code.
 
 **Reclaiming ~3 GB would unblock it.** That is an owner action.
 
+## 3bd · FIT-094/095 · the screen that showed nothing when it had failed
+
+### The defect, and why nobody could see it
+
+`GroceryListNotifier` is a `StateNotifier<String?>`, and on failure it writes the error
+**into the same slot the list lives in**:
+
+```dart
+state = 'Error generating grocery list. Please try again.';
+```
+
+The screen then *parsed that string*. `_parseGroceryList` keeps only lines ending in `:` or
+beginning with `-`; the error sentence matches neither, so it returned `[]` and the screen
+drew **its header over nothing**. No error, no retry, no explanation — a failed request and
+an empty one were the same screen.
+
+This was found in `docs/…/12CIRCLE-FITNESS-WAVE-3-AUDIT.md`, which had already named it. I
+re-derived it from the provider rather than taking the claim, and it holds.
+
+### The design already said what belongs there
+
+**FIT-094 — "Grocery list — the two blocked states"** declares states `failure` and
+`locked`, a `ph-warning` icon, and exactly three controls: `Back`, **`Build a meal plan`**,
+**`Try again`**. Neither blocked state existed. Neither button existed — the dependency
+state said *"Create Meal Plan"*, and there was no retry anywhere on the screen.
+
+### Why the fix does not match the error string
+
+The obvious repair is to compare against that sentence. `groceryOutcome` does not, because
+the sentence is not the only way to reach a blank: a truncated or reworded model response
+parses to nothing just as silently. The rule is the **observable** one —
+
+> raw output that yields no categories is a failure, whatever it says
+
+— which is strictly wider than a sentinel and cannot drift when the copy is reworded.
+
+### Two more defects on the same rows
+
+* **No `Semantics` at all**, though the board marks every item `role="checkbox"` — the same
+  defect FIT-058's habit row had, found independently, and repaired the same way (Semantics
+  outside, gesture inside, `onTap` re-declared because `excludeSemantics` drops child
+  actions — F-20).
+* **Ticks were keyed by list index.** `_checkedItems` held `Set<int>` of positions and the
+  card carried no `key`, so a rebuild reused the `State` **by position**. After "Rebuild the
+  list" a tick placed on *Spinach* sat on whatever became first. Keyed by the item's text,
+  it cannot migrate.
+
+### An honest limit of my own guard
+
+The row's target was ~34 dp — a 22 dp circle with 6 dp either side — and **TAP-G1 does not
+catch it.** TAP-G1 looks for a tappable wrapping a *fixed* `Container`; this wrapped a
+`Padding` whose height is implied. The guard's reach is narrower than its name suggests, and
+this is recorded rather than quietly patched.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Domain | `test/unit/grocery_list_test.dart` — 12 tests | **PASS** |
+| Widget | `test/widget/grocery_item_card_test.dart` — 4 tests | **PASS** |
+| Guard strength | **5 / 5 mutations killed** | **PASS** |
+| Suite | **1434 pass / 9 skipped** (was 1418) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Coverage | FIT-094 **3/3**; all interactions 288 → **292 / 600** | — |
+
+| # | Mutation | Result |
+|---|---|---|
+| G1 | unreadable output renders as an empty ready list | **KILLED** |
+| G2 | ticks keyed by list index | **KILLED** |
+| G3 | the checkbox announces no tap action | **KILLED** |
+| G4 | the row falls back under the 44 dp floor | **KILLED** |
+| G5 | `Rebuild the list` drifts back to `Refresh` | **KILLED** |
+
+### FIT-095 stays at 2/15, deliberately
+
+Its other thirteen "interactions" are `Spinach, 2 bags`, `Broccoli, 3 heads`, `Eggs, 18` —
+the board's **sample groceries**, captured as control labels because the design renders each
+row as a `<button>`. Closing them means hardcoding a shopping list into `lib/`. They are a
+data ceiling, not a gap, and the same is true of FIT-100's seven rows, several of which are
+visibly truncated mid-word by the capture (`"…Nadia has times open Thursday Overdu"`).
+
+**The denominator of 600 contains rows of this kind.** They are counted here rather than
+quietly excluded, because excluding them is a measurement change and belongs in one
+deliberate pass, not in the middle of a feature.
+
 ## 4 · Design package
 
 | Check | Status |
