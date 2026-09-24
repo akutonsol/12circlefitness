@@ -98,6 +98,29 @@ Probe: `apps/mobile/tool/anon_least_privilege.py`.
 | **Correction to the record** | `OD-25` left the check-in board's `Record` button inert citing QA_EVIDENCE §3ad: *"NOTHING in this app sends or renders a video — no capture path, no upload, no player."* **Two of those three clauses were false when written** — the capture (`ImagePicker().pickVideo`) and upload both exist, in a screen that even accepts the `checkinId` that board would pass. Only *no player* holds. The OD-25 **outcome survives** (wiring the button would add a second entrance to a dead end) but the stated reason did not, and the in-code comment has been corrected. |
 | **Owner decision** | Build the player (and give `coach_video` a route), or remove the feature and its notification. Either is a product call. |
 
+### OD-59 — `workout_feedback` is write-only, and the coach is told to tap (OWNER DECISION)
+| | |
+|---|---|
+| **Type** | Design/feature gap — the second instance of OD-57's shape |
+| **Evidence** | `active_workout_screen.dart:1966` inserts a client's rating, energy, difficulty and free-text **notes** into `workout_feedback`, then notifies the coach *"A client rated their workout n/5 — **tap to view**."* The table is **read nowhere** in `lib/`, and no coach surface renders it (the `rating` hits under `features/coach/` are marketplace **reviews**, a different table). A notification tap marks read and navigates nowhere. |
+| **Impact** | The client writes notes to their coach that the coach cannot read. Rows about identifiable people accumulate with no surface that justifies them — a **data minimisation** problem as well as a dead feature. |
+| **Owner decision** | Build the coach-side view, or stop writing the row and the notification. |
+
+### The class, and what now guards it
+Two confirmed write-only tables (`coach_video_responses`, `workout_feedback`), both
+announced to a user with a tap promise the app cannot keep. Ratcheted by **WO-G1**
+(`test/unit/write_only_table_guard_test.dart`), a **bidirectional shrinking allowlist** —
+it fails if a third appears *and* if a listed one gains a reader. **4/4 mutations killed.**
+
+> **False positives this sweep had to survive.** The first pass reported **four** tables.
+> `accountability_pod_members` is read through PostgREST's **embedded resource** syntax
+> (`select('*, accountability_pod_members!inner(...)')`, no `from()` of its own) and
+> `weekly_feedback` through a **dynamic table name** (`avgOf('weekly_feedback', …)`).
+> Both would have been filed as defects by a detector that only understood
+> `from('x').select`. Separately, the notification **type** `'type': 'workout_feedback'`
+> made a genuinely dead table read as live, which would have *hidden* OD-59 behind a
+> passing test. Both confounds are handled, and asserted against, in the guard.
+
 ### OD-58 — `transformation_photo_urls` on a public bucket (OWNER DECISION)
 | | |
 |---|---|
