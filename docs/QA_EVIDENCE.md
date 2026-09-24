@@ -3639,6 +3639,87 @@ buildable from sanctioned paths — as a merge, the shape `mergeWhatsOn` already
 FIT-027 — but it is a feature build, not an interaction fix. Recorded as **Class C**, the
 largest single executable item left in the non-locked backlog.
 
+## 3bb · TAP-G1 · the design package measured the same defect twice, and nothing guarded it
+
+`A-G8` ratchets whether an icon control has a **name**. Nothing ratcheted its **size** — and
+the package keeps finding that defect by hand, on separate anchors:
+
+* **FIT-058** — *"Tapping the row is the whole interaction"*; the shipped target was a
+  **32 × 32** circle;
+* **FIT-100** — *"Toggle is 44px — **the source has 32**."*
+
+Two anchors, independently, measuring the same 32 px.
+
+### The first count was wrong, and tightening it mattered
+
+A loose first pass — any `width:`/`height:` within 520 characters of a tappable — reported
+**44 sites across 30 files**. Most of the extra were **decorative boxes inside** a large
+tappable: a 12 × 12 dot, an 18 × 18 icon. Restricting to the tappable's **immediate**
+`Container` child — which, under the default `deferToChild` hit behaviour, *is* the hit area
+— gave **17**, and two spot-checks confirmed those are real:
+
+```dart
+GestureDetector(
+  onTap: () => context.go('/profile'),
+  child: Container(width: 42, height: 42, …)   // app_top_nav.dart — the hit area
+```
+
+Asserting 44 would have been a regex finding, not a measurement.
+
+### One fixed, the rest pinned
+
+`app_top_nav.dart`'s avatar is **the most-shown touch target in the app** — it renders in
+every screen's top bar — and it was **42 × 42**, two dp under. The ring keeps its 42 dp
+look; the hit area is lifted to 44 around it with `HitTestBehavior.opaque`, without which
+the lifted box is not itself tappable. Baseline **16**.
+
+### What this guard deliberately does not claim
+
+**Source cannot measure a touch target.** A target sized by its parent, by padding, or by
+`IconButton`'s own 48 dp default is invisible to it, and a fixed box inside a larger
+`InkWell` can be perfectly fine. **F-6/F-6b** are the record of why runtime is authoritative:
+the password toggle *looked* correct in source and measured **19.8 × 20.2 dp** on the device.
+
+So TAP-G1 is a **candidate ratchet**, in the same spirit as A-G8's recorded overstatement.
+It may fall; it may not rise.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/unit/touch_target_guard_test.dart` — 3 tests, detector floor, named sites | **PASS** |
+| Guard strength | **3 / 3 mutations killed** | **PASS** |
+| Suite | **1418 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Ratchets | **fourteen** at baseline | **PASS** |
+
+| # | Mutation | Result |
+|---|---|---|
+| T1 | the avatar loses its 44 dp floor | **KILLED** |
+| T2 | a 17th sub-44 tappable ships | **KILLED** |
+| T3 | blind the detector | **KILLED** |
+
+## 3bc · Environment — the disk is now a hard constraint
+
+The volume reached **352 MB free** mid-cycle and a `flutter test` run **stalled past ten
+minutes** rather than failing — the symptom recorded in memory as a disk check, not a test
+hang. Clearing `build/` (95 MB) recovered it and the suite completed normally.
+
+What is left is not this programme's to take:
+
+| Location | Size | Status |
+|---|---|---|
+| `apps/mobile/build` | ~95 MB–1.3 GB | project-owned, cleared automatically |
+| `apps/mobile/.dart_tool` | 170 MB | project-owned, **in use by the running suite** |
+| `~/Library/Caches/com.openai.codex` | 1.9 GB | another application's — **not mine to delete** |
+| `~/Library/Caches/Google` | 1.7 GB | another application's — **not mine to delete** |
+| `~/.gradle/caches` | 5.2 GB | regenerable, but its loss costs a network re-download that would break the Android build path if it failed |
+
+**Consequence, stated honestly:** host-side QA continues at ~450 MB, but **device
+verification cannot run** — a debug build needs ~2.7 GB. Work completed since the last
+device run is therefore `LOCALLY_VERIFIED`, not `RUNTIME_VERIFIED`, and that classification
+is a statement about the machine, not about the code.
+
+**Reclaiming ~3 GB would unblock it.** That is an owner action.
+
 ## 4 · Design package
 
 | Check | Status |
