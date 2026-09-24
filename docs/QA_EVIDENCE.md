@@ -4832,6 +4832,85 @@ text. `F-J-01` in particular needed four migrations read in order — `116` buil
 `119` re-created the public name without it, `122` repinned `search_path` only, and `124`
 restored it — because any one of them read alone gives the wrong answer.
 
+## 3bx · A-G5 was green while guarding a branch nothing could reach
+
+A sweep for the pattern this programme keeps finding — **a failure answering with a confident
+value** — turned up 106 `catch` blocks returning a definite value across `lib`. Most are
+benign: an *action* returning `false` for "it did not work" is correct.
+
+Filtering to **query** methods (`has…`, `get…`, `count…`) that return `bool`/`int`/`double`
+left **six**, and they are all the same defect:
+
+```dart
+Future<int> getCurrentStreak() async {
+  …
+  } catch (_) { return 0; }
+}
+```
+
+### The part that matters
+
+`train_hub_screen.dart` **already renders these correctly**:
+
+```dart
+value: streakAsync.when(
+  data: (v) => '$v', loading: () => '—', error: (_, __) => '—')),
+```
+
+and carries the note *"Showing '0' told the member their streak was broken when the app had
+simply failed to ask."*
+
+**That `error:` arm could never run.** The service caught the failure and returned `0`, so
+the `FutureProvider` was **always** `AsyncData(0)`. The member was still told their streak
+was zero. The repair had been made at the presentation layer, over a service that destroyed
+the signal it needed.
+
+And **`A-G5` — the ratchet for exactly this — has been passing**, because it only ever reads
+the widget. `presentation_drift_guard_test.dart:214`: *"no AsyncValue error branch returns a
+bare numeral"*. True, and irrelevant: nothing could deliver an error to that branch.
+
+> A guard that checks one layer of a two-layer defect reports the half it can see.
+
+This is the prompt's own false-positive rule in the wild — *test passes ≠ test tests the
+intended behaviour* — and it is the **fourth** guard in this programme found to be measuring
+less than its name claims, after H-D1, A-G8 and BACK-G1.
+
+### The fix, and what was deliberately left
+
+The five workout stat reads no longer catch. The exception reaches the `FutureProvider`,
+which makes an `AsyncError`, which the four tiles already render as `—`.
+
+* **A signed-out user still returns `0`.** That is a real answer, not a failure, and A-G6
+  asserts it stays.
+* The other consumers — `home_screen.dart:348` and `ai_insights.dart:28` — use
+  `.valueOrNull ?? 0` and then gate on `> 0`, so an error hides the figure rather than
+  claiming one. No regression, and more honest than before.
+* **`getUnreadCount` was left alone.** Its only consumers also do `.valueOrNull ?? 0`, so the
+  badge is hidden either way and changing it would alter nothing observable.
+
+**A-G6** is the new ratchet, and it guards *both* halves: no stat read may answer its own
+failure with a figure, **and** the tiles must keep the placeholder that failure now reaches.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/unit/stat_failure_reaches_ui_guard_test.dart` — 4 tests | **PASS** |
+| Guard strength | **4 / 4 mutations killed** | **PASS** |
+| Suite | **1558 pass / 9 skipped** (was 1554) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Ratchets | **seventeen** at baseline | **PASS** |
+
+| # | Mutation | Result |
+|---|---|---|
+| A1 | `getCurrentStreak` swallows its failure into `0` again | **KILLED** |
+| A2 | `getCompletionRate` swallows into `0` | **KILLED** |
+| A3 | the tiles lose the placeholder the error now reaches | **KILLED** |
+| A4 | the signed-out real zero is removed | **KILLED** |
+
+**A second harness gap closed.** A2 first reported SURVIVED because its mutation *script*
+threw and left the tree unmutated — a non-mutation read as a finding. The runner now requires
+the mutation step to exit 0 and reports **INVALID** otherwise, alongside the compile check
+added earlier.
+
 ## 4 · Design package
 
 | Check | Status |

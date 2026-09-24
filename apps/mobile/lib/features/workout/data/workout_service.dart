@@ -274,77 +274,80 @@ class WorkoutService {
   }
 
   // ── Stats ─────────────────────────────────────────────────────────────────
+  // A-G5 (root cause). `train_hub_screen` already renders
+  // `error: (_, __) => '—'` for these tiles, with the note: "Showing '0' told
+  // the member their streak was broken when the app had simply failed to ask."
+  //
+  // That arm could never run. This catch turned the failure into `0` before it
+  // reached the FutureProvider, so the AsyncValue was always `AsyncData(0)` —
+  // the repair had been made at the presentation layer, over a service that
+  // destroyed the signal it needed. A-G5 has been green while guarding a
+  // branch nothing could reach.
+  //
+  // A signed-out user is still `0`: that is a real answer, not a failure.
 
   Future<int> getWeeklyWorkoutCount() async {
     final uid = _uid;
     if (uid == null) return 0;
-    try {
-      final now = DateTime.now();
-      final start = DateTime(now.year, now.month, now.day - now.weekday + 1);
-      final data = await _supabase
-          .from('workout_logs')
-          .select('id')
-          .eq('user_id', uid)
-          .gte('completed_at', start.toIso8601String());
-      return (data as List).length;
-    } catch (_) { return 0; }
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day - now.weekday + 1);
+    final data = await _supabase
+        .from('workout_logs')
+        .select('id')
+        .eq('user_id', uid)
+        .gte('completed_at', start.toIso8601String());
+    return (data as List).length;
   }
 
   Future<int> getCurrentStreak() async {
     final uid = _uid;
     if (uid == null) return 0;
-    try {
-      final data = await _supabase
-          .from('workout_logs')
-          .select('completed_at')
-          .eq('user_id', uid)
-          .order('completed_at', ascending: false)
-          .limit(30);
-      if ((data as List).isEmpty) return 0;
-      int streak = 0;
-      DateTime checkDate = DateTime.now();
-      for (final log in data) {
-        final logDate = DateTime.parse(log['completed_at']);
-        final logDay = DateTime(logDate.year, logDate.month, logDate.day);
-        final checkDay = DateTime(checkDate.year, checkDate.month, checkDate.day);
-        final diff = checkDay.difference(logDay).inDays;
-        if (diff == 0 || diff == 1) {
-          streak++;
-          checkDate = logDay.subtract(const Duration(days: 1));
-        } else {
-          break;
-        }
+    final data = await _supabase
+        .from('workout_logs')
+        .select('completed_at')
+        .eq('user_id', uid)
+        .order('completed_at', ascending: false)
+        .limit(30);
+    if ((data as List).isEmpty) return 0;
+    int streak = 0;
+    DateTime checkDate = DateTime.now();
+    for (final log in data) {
+      final logDate = DateTime.parse(log['completed_at']);
+      final logDay = DateTime(logDate.year, logDate.month, logDate.day);
+      final checkDay = DateTime(checkDate.year, checkDate.month, checkDate.day);
+      final diff = checkDay.difference(logDay).inDays;
+      if (diff == 0 || diff == 1) {
+        streak++;
+        checkDate = logDay.subtract(const Duration(days: 1));
+      } else {
+        break;
       }
-      return streak;
-    } catch (_) { return 0; }
+    }
+    return streak;
   }
 
   Future<int> getTotalWorkoutCount() async {
     final uid = _uid;
     if (uid == null) return 0;
-    try {
-      final data = await _supabase.from('workout_logs').select('id').eq('user_id', uid);
-      return (data as List).length;
-    } catch (_) { return 0; }
+    final data = await _supabase.from('workout_logs').select('id').eq('user_id', uid);
+    return (data as List).length;
   }
 
   /// Completion rate over last 30 days: completed / (completed + abandoned)
   Future<double> getCompletionRate() async {
     final uid = _uid;
     if (uid == null) return 0;
-    try {
-      final cutoff = DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
-      final rows = await _supabase
-          .from('workout_sessions')
-          .select('status')
-          .eq('user_id', uid)
-          .gte('started_at', cutoff)
-          .inFilter('status', ['completed', 'abandoned']);
-      final all = (rows as List);
-      if (all.isEmpty) return 0;
-      final completed = all.where((r) => r['status'] == 'completed').length;
-      return completed / all.length;
-    } catch (_) { return 0; }
+    final cutoff = DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
+    final rows = await _supabase
+        .from('workout_sessions')
+        .select('status')
+        .eq('user_id', uid)
+        .gte('started_at', cutoff)
+        .inFilter('status', ['completed', 'abandoned']);
+    final all = (rows as List);
+    if (all.isEmpty) return 0;
+    final completed = all.where((r) => r['status'] == 'completed').length;
+    return completed / all.length;
   }
 
   /// Program adherence: workouts done this week / target days per week
@@ -379,17 +382,15 @@ class WorkoutService {
   Future<double> getTotalVolumeLifted() async {
     final uid = _uid;
     if (uid == null) return 0;
-    try {
-      final data = await _supabase
-          .from('workout_set_logs')
-          .select('weight_kg, reps')
-          .eq('user_id', uid);
-      double total = 0;
-      for (final row in (data as List)) {
-        total += ((row['weight_kg'] as num?)?.toDouble() ?? 0) * ((row['reps'] as int?) ?? 0);
-      }
-      return total;
-    } catch (_) { return 0; }
+    final data = await _supabase
+        .from('workout_set_logs')
+        .select('weight_kg, reps')
+        .eq('user_id', uid);
+    double total = 0;
+    for (final row in (data as List)) {
+      total += ((row['weight_kg'] as num?)?.toDouble() ?? 0) * ((row['reps'] as int?) ?? 0);
+    }
+    return total;
   }
 
   // ── Coach: client stats ───────────────────────────────────────────────────
