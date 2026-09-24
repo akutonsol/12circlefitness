@@ -226,6 +226,23 @@ service-role key. → **OD-51.**
 
 ---
 
+## 4b · Classes swept this wave, with their negative results
+
+Recorded because a sweep that finds nothing is only worth something if the detector was
+shown capable of finding something. Each of these was validated against a planted or
+known instance **before** its result was accepted.
+
+| Class | Result | How the detector was proven non-vacuous |
+|---|---|---|
+| `setState` after `await` with no `mounted` guard | **54 sites fixed** — LIFE-G1, 4/4 mutations killed | The first, line-based sweep said 135; brace-scoping each `async` body gave 54. The detector asserts it still fires on an unguarded fixture and stays silent on a guarded one. |
+| Raw exception shown to a user | **38 sites fixed** — ERR-G2, 5/5 mutations killed | An early version matching `${e.key}` reported 59 for 38 real. Mutation testing then found the guard's allowlist was file-granular and blind inside listed files. |
+| Tables written and never read | **2 confirmed** (OD-57, OD-59) — WO-G1, 4/4 killed | The first pass reported 4; two were reads the detector could not see (embedded resource, dynamic table name). |
+| App reads a relation no migration creates | **0 new** | Reproduced **exactly** the set QA Workstream I already registers (`checkins`/I-CHK-01, `coach_tips`/I-LEG-03) plus one storage-bucket false positive. Independent corroboration; **no competing guard added.** |
+| Controller fields never disposed | **0 genuine** | First regex required an explicit type and found **1** field in the whole app — vacuous. Corrected to match inference (89 fields), which flagged 6; all 6 are disposed in a `for (final c in [...]) c.dispose()` loop. |
+| `catch` → bare default (`[]`/`null`/`0`/`false`) | **101 sites — NOT remediated, stays OD-8** | Converting these requires an error state in the UI that mostly does not exist, so it is a product decision, not a QA one. An attempt to isolate the provable subset — the A-G6 shape, a dead `error:` arm over a swallowing service — returned **0**, and the two candidates it did surface were false (`getTotalVolumeLifted`'s `return 0` is the signed-out answer; `getCheckinStreak`'s only match was inside a doc comment quoting the old code). Stated as *not found by this method*, not as *none exist*. |
+
+---
+
 ## 5 · Governance
 
 Nothing in this ledger was remediated in schema. Two proposals are **AUTHORED and
