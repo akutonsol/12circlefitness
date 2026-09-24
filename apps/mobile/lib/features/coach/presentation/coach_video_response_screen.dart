@@ -100,7 +100,12 @@ class _CoachVideoResponseScreenState extends State<CoachVideoResponseScreen> {
     } catch (e) {
       setState(() => _uploading = false);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+        // ERR-2: was `Text('Error: \$e')`. A Postgres/Storage error carries
+        // table, column and constraint text; a coach does not need it and
+        // should not be shown it. Copy matches this repository's own
+        // `Failed to … Try again.` pattern.
+        const SnackBar(content: Text('Failed to send your response. Try again.'),
+            backgroundColor: Colors.red));
     }
   }
 

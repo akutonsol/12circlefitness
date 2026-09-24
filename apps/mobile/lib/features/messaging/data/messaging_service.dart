@@ -214,7 +214,7 @@ class MessagingService {
   Future<int> getUnreadCount() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return 0;
-    try {
+    {
       final convs = await supabase
           .from('conversations')
           .select('id')
@@ -229,9 +229,15 @@ class MessagingService {
           .neq('sender_id', userId)
           .inFilter('conversation_id', convIds);
       return (data as List).length;
-    } catch (e) {
-      return 0;
     }
+    // ERR-3: no `catch` here. A failed read used to answer `0`, which is
+    // "you have no unread messages" — the A-G5 class. Both consumers do
+    // `.valueOrNull ?? 0`, so the badge is hidden either way TODAY; what
+    // changes is that the error now reaches the provider instead of being
+    // destroyed, so a consumer that wants to render it can. Destroying the
+    // signal is what left `train_hub`'s `error: → '—'` arm unreachable.
+    //
+    // Signed out still returns 0 above: that is an answer, not a failure.
   }
 
   List<Map<String, dynamic>> getSampleMessages() {

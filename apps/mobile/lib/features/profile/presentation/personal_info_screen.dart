@@ -194,7 +194,10 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'),
+          // ERR-2: this screen edits name, gender and DATE OF BIRTH. A raw
+          // database error rendered here is the SEC-PHI-2 shape on a screen
+          // holding personal data.
+          content: const Text('Failed to save. Please try again.'),
           backgroundColor: _err, behavior: SnackBarBehavior.floating));
       }
     } finally {

@@ -378,7 +378,9 @@ class _AddSlotSheetState extends State<_AddSlotSheet> {
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+        // ERR-2: see coach_video_response_screen.
+        const SnackBar(content: Text('Failed to save availability. Try again.'),
+            backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
