@@ -4911,6 +4911,81 @@ threw and left the tree unmutated — a non-mutation read as a finding. The runn
 the mutation step to exit 0 and reports **INVALID** otherwise, alongside the compile check
 added earlier.
 
+## 3by · FIT-021 · the gate said "fail open" and the app failed closed
+
+The dead-error-arm sweep from §3bx was generalised — every provider whose service swallows
+**and** whose error arm is rendered — and it found one more. It is the most consequential
+instance in the codebase, because it decides what a **paying member** can reach.
+
+`PaywallGate` states its own policy, in its own comment:
+
+```dart
+error: (_, __) => child, // fail open rather than lock a paying user out
+```
+
+**That arm could never run.** `PaymentService.clientPlan()` caught the failure and answered
+`'free'`:
+
+```dart
+} catch (_) { return 'free'; }
+```
+
+so `clientPlanProvider` was **always** `AsyncData(ClientPlan.free)`, the gate's earlier
+`plan != null` branch took the early return, `atLeast(coachGuided)` was false, and a paying
+**Coach-Guided** member whose entitlement read failed was shown **`PaywallLocked`** for a
+feature they had paid for.
+
+The gate said fail open. The app failed closed. Nothing tested it.
+
+### This is not a security relaxation, and the distinction matters
+
+Letting the exception out makes the **written** policy effective; it does not invent one, and
+it does not widen any server-side boundary. `PaywallGate` decides whether a **screen is
+offered**; every read inside it is still filtered by RLS. A free user who slips past the gate
+on a failed read sees a screen the server will not fill.
+
+What is deliberately preserved: a **successful** read returning a non-String is still
+`'free'` — that is an answer, not a failure — and `A real "free" still locks` pins it, so the
+repair cannot be mistaken for removing the paywall.
+
+### My own test had the same two-layer flaw, and the mutation caught it
+
+**PW1 — restore the swallow — SURVIVED twice.**
+
+* First version: all five tests overrode `clientPlanProvider` directly, so they proved what
+  the *gate* does with an `AsyncError` and nothing about whether anything produces one.
+* Second version added a fake `PaymentService` that throws — which bypasses the **real**
+  `clientPlan()`, so the swallow was still invisible.
+
+`_db` is `Supabase.instance.client` and is not injectable, so the real catch cannot be driven
+in a test at all. A `[SOURCE]` assertion is the only thing that closes it, and it is labelled
+as such.
+
+Reproducing, inside the commit that diagnoses it, the exact blindness being diagnosed is
+worth recording plainly: **a test that stubs the layer under test proves nothing about that
+layer.**
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Gate behaviour | `test/widget/paywall_fail_open_test.dart` — 5 rendered-UI tests | **PASS** |
+| Service → provider | 2 tests over a throwing fake | **PASS** |
+| Real method | 1 `[SOURCE]` assertion, labelled | **PASS** |
+| Guard strength | **2 / 2 mutations killed** (PW1 only after the third attempt) | **PASS** |
+| Suite | **1566 pass / 9 skipped** (was 1558) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+
+| # | Mutation | Result |
+|---|---|---|
+| PW1 | `clientPlan` swallows into `'free'` again — the gate fails closed | **KILLED** |
+| PW2 | the gate's error arm locks instead of opening | **KILLED** |
+
+### Left alone, with the reason
+
+`activeMembership()` also catches into `null`, and `null` reads as "no membership". Its only
+consumers are `manage_subscription_screen` and `hasActiveMembershipProvider` — and **that
+provider has no consumers at all**. Changing it would alter nothing observable, so it is
+recorded rather than churned. → **OD-50**.
+
 ## 4 · Design package
 
 | Check | Status |
