@@ -5429,6 +5429,134 @@ from scratch does not fit on this volume**.
 **The cheapest unblock is not more disk: it is not wiping that cache.** ~4 GB of headroom
 plus a warm cache was enough; ~8 GB with a cold one was not.
 
+## 3cf · Security/privacy wave — PHI inventory, live authorization, and two failed controls
+
+All live work is **read-only** against the QA project (`eyqtldjqpgpljlqvpowh`; production
+`nxdbooufqzkpslkcogxc` is refused by every probe). Nothing was inserted, updated or deleted.
+No credential, token, email or PHI **value** appears in any probe output or committed file —
+only status codes, row counts, and whether a column is present.
+
+### PHASE 1 · PHI inventory
+
+**Schema side.** `013_health_assessment.sql` puts the intake record on **`user_profiles`**:
+`parq_answers` (jsonb), `medical_conditions`, `has_injuries`, `injury_locations`,
+`injury_description`, `experience_level`, `sleep_hours`, `stress_level`, `occupation`,
+`dietary_restrictions`, `food_allergies`, `consent_agreed/date`, and `115` adds
+`risk_score` / `risk_level` / `risk_flags`.
+
+| Table | PHI it carries |
+|---|---|
+| **`user_profiles`** | the whole intake/PAR-Q record above, plus `date_of_birth`, weight |
+| **`cycle_symptoms`** | `symptoms[]`, `flow`, `energy`, `mood`, `notes` — **reproductive health** |
+| **`cycle_logs`**, **`cycle_settings`** | menstrual cycle tracking (`033_womens_health.sql`) |
+| `weekly_checkins` | `sleep_hours`, `stress_level`, `weight_kg`, `notes` |
+| `coach_notes` | free text on a client, `tag` includes **`injury`** |
+| `progress_photo_logs` | body photography |
+| `weight_logs`, `workout_set_logs`, `weekly_feedback` | body metrics |
+| `ai_conversations`, `conversations`, `messages` | free text that may contain health information |
+| `exercise_modifications`, `exercise_intelligence` | `condition`, `joint_stress` |
+
+**Views:** `public_profiles`, `conversation_participant_profiles`, `coach_client_workout_stats`.
+**Functions:** 60 `SECURITY DEFINER`. **Buckets:** 6.
+
+### PHASE 2/3 · anonymous reach — **VERIFIED DENIED**
+
+| Surface | Result |
+|---|---|
+| **65 tables**, with the anon key and with no key | **0 readable.** 64 answer `42501 permission denied for table` |
+| **3 views** — all `security_invoker = off`, i.e. RLS-bypassing by design | **3/3 denied** (`42501`) |
+| **13 RPCs** incl. `admin_recent_users`, `admin_platform_stats`, `derive_parq_risk` | **0 reachable** — `401` (no EXECUTE) or `404` (not exposed) |
+
+`42501` is a **missing GRANT**, which is stronger than RLS: RLS filters rows and answers
+`200 []`; a missing grant refuses the relation before any policy runs. Checked against a
+false positive — the key is a valid JWT, and a bad key returns a different error.
+
+RPCs were probed with **GET only**. PostgREST refuses `GET` on a `VOLATILE` function with
+`405` *without executing it*, so `admin_set_user_role` and friends could not have been
+invoked by this probe.
+
+### PHASE 4 · authenticated boundaries — **VERIFIED for every arm that exists**
+
+Signing in needs only the anon key (`/auth/v1/token`), and `ids.json` already holds four
+provisioned identities — so this did **not** need the service role.
+
+| # | Boundary | Result |
+|---|---|---|
+| 8 | **client → own PHI** | **200, 1 row, 6/6 PHI columns** — works |
+| 9 | client → **another client's** PHI | **0 rows**, and symmetric in both directions |
+| 4 | **former coach → previously assigned client** (relationship `cancelled`) | **0 rows** — **revocation is effective** |
+| 10 | **admin → a client's PHI** | **0 rows** — admin has no back door to the base table |
+| — | attacker → `weekly_checkins`, `cycle_symptoms`, `cycle_logs`, `progress_photo_logs`, `coach_notes` | **0 rows** each |
+| — | **the narrow view leaks nothing**: `public_profiles` returns 21 columns, **0 of 12 PHI columns**; naming `parq_answers` on it fails at SQL level (`42703`) | **VERIFIED** |
+
+### SEC-PHI-1 re-classified — **PARTIAL, not proven exploitable**
+
+The previous wave recorded the `is_team_lead_of` / `hosts_event_for` arms as "live". That was
+too strong, and the live data corrects it:
+
+```
+coach -> user_profiles (no filter)   : 1 row — its OWN row only
+coach -> coach_team_members          : 0 rows
+coach -> events (as vendor)          : 0 rows
+coach -> coach_client_relationships  : 1 row, status = cancelled
+```
+
+**Every arm except `id = auth.uid()` is unexercisable in the current QA dataset.** So:
+
+* **VERIFIED**: RLS is row-level, no column-level `GRANT`/`REVOKE` exists on `user_profiles`
+  in 131 migrations, and the policy names those two arms. *If* an arm is satisfied, the whole
+  PHI row follows — that consequence is certain from SQL semantics.
+* **BLOCKED**: whether a team lead or event host can actually come to satisfy it. Proving it
+  needs a `coach_team_members` row or an `event_registrations` row — **a mutation**, which
+  this phase forbids.
+* **Not disproven.** No non-owner read of PHI succeeded in any test, and the one arm that
+  could be observed (coach, cancelled) correctly denied.
+
+### PHASE 6 · SEC-VOICE-1 — **FAILED CONTROL**, and worse than recorded
+
+`coach-media` is **public**, verified with no credentials: it answers `NoSuchKey` for a
+missing object while `progress-photos` / `chat-media` / `messages` answer `NoSuchBucket`.
+
+The codebase already has the right pattern and does not use it here:
+
+| Bucket | Access |
+|---|---|
+| `progress-photos`, `chat-media` | **`createSignedUrl(path, 3600)`** — 1-hour expiry, 5 files |
+| **`coach-media`** | **`getPublicUrl`** in 3 places — permanent, unauthenticated |
+
+**And deletion does not delete.** `clearCoachVoice()` nulls `voice_url`,
+`voice_duration_ms` and `voice_expires_at` on the row — and **never removes the stored
+object**. The only `storage.remove()` in the whole app is `chat_screen.dart:244`, for the
+private chat bucket.
+
+So a coach records a voice note for a client, later removes it, the app stops showing it —
+and **the audio remains permanently fetchable by anyone who ever held the URL.** The row even
+models an expiry (`voice_expires_at`) that the object does not honour.
+
+### PHASE 7 · technical controls
+
+| Control | Status |
+|---|---|
+| Service-role key absent from client code | **VERIFIED** — 0 hits in `lib/` |
+| PHI absent from `print`/`debugPrint`/`log` | **VERIFIED** — 0 hits |
+| PHI absent from URLs / query parameters | **VERIFIED** — 0 hits |
+| Anonymous least privilege (tables, views, RPCs) | **VERIFIED** |
+| Access revocation (cancelled relationship) | **VERIFIED** |
+| Column-limited view for community/messaging | **VERIFIED** |
+| `SECURITY DEFINER` `search_path` safety | **VERIFIED** — see the correction below |
+| **Storage privacy for `coach-media`** | **FAILED** |
+| **Media deletion / revocation** | **FAILED** — the object outlives the row |
+| Audit logging of PHI access | **BLOCKED** — no `pg_proc`/log visibility without service role |
+| The two wide `user_profiles` arms | **PARTIAL / OWNER DECISION** |
+
+**A false positive I caught before reporting it.** A static sweep flagged **23**
+`SECURITY DEFINER` functions with no `SET search_path` in their `CREATE` bodies. They are
+**not** a defect: `116_rpc_execution_security.sql:77` runs a catch-all loop over `pg_proc`
+pinning `search_path = public, pg_temp` on *every* SECURITY DEFINER function in `public` that
+lacks one, and `118` and `122` re-run it. The detector read `CREATE FUNCTION` bodies and
+missed the bulk `ALTER` — the same one-layer mistake recorded in §3bx, avoided this time by
+reading the sequence.
+
 ## 4 · Design package
 
 | Check | Status |
