@@ -4517,6 +4517,71 @@ the counts into `lib` as literals, which is the fabrication this programme refus
 * **`/post-detail`** does not exist; comments expand inline in the card. Whether FIT-066 is
   a screen or the existing inline panel is a design question, not a repair.
 
+## 3bq · BACK-G2 · five screens the design draws a `Back` on, and none had one
+
+`BACK-G1` ratchets whether a back control that **exists** carries a name. It says nothing
+about a screen with no back control at all — and five had none:
+
+`/goals` · `/score` · `/womens-health` · `/challenges` · `/action-items`
+
+The design package declares every one of them **`hasBottomNav: false`** — a full-height page
+with a `Back` control. The router puts all five inside the `ShellRoute`, so they get the
+bottom bar instead, and not one of them had any back affordance whatsoever.
+
+### Why "nobody is stranded" is not the end of it
+
+The bottom bar is a way out, so this is not the `/pods` class of defect and is not recorded
+as one. But all five are reached with **`context.go`** from `/directory` or `/home`, and a
+bottom bar only ever returns the user to a **tab root** — never to the screen they came
+from. `context.go` replaces rather than pushes, so `canPop()` is usually false here and the
+system back gesture does not retrace the path either.
+
+`backLeading` follows the idiom already in this codebase — `canPop() ? pop() : go(fallback)`
+— because a bare `pop()` would do nothing on exactly these screens and a bare `go()` would
+throw away a real history when there is one. The fallback is `/directory`, which is where
+all five are actually linked from, not a guess.
+
+### What the guard does not claim
+
+It reads source: it proves the control is **constructed**, not that it is reachable, sized
+or announced. `named_icon_button_test.dart` covers what `backLeading` builds — name, button
+role, 44 dp target — and `BACK-G1` covers naming across the app. All three together remain
+weaker than one device run, which is what F-6/F-6b are the record of.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/unit/back_affordance_guard_test.dart` — 3 tests, 5 screens pinned | **PASS** |
+| Guard strength | **3 / 3 mutations killed** | **PASS** |
+| Suite | **1522 pass / 9 skipped** (was 1519) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Ratchets | **sixteen** at baseline | **PASS** |
+| Coverage | all interactions 353 → **360 / 600** | — |
+
+| # | Mutation | Result |
+|---|---|---|
+| BB1 | one screen loses its back control again | **KILLED** |
+| BB2 | back always jumps to the fallback, discarding real history | **KILLED** |
+| BB3 | the shared control loses its name | **KILLED** |
+
+## 3br · What is actually left, measured rather than asserted
+
+Every remaining ABSENT label was classified by shape:
+
+| Kind | Count |
+|---|---|
+| data / composed row labels (`Spinach, 2 bags`, `Like, 12 so far`) | **126** |
+| date-derived tabs (`TUE 9` … `SAT 13`) | **5** |
+| genuine controls | **~116**, across 62 anchors |
+
+The 131 in the first two rows **cannot be closed without writing sample data or dates into
+`lib` as string literals**, which is the fabrication this programme refuses. They are a
+ceiling, not a backlog.
+
+The ~116 is a long tail: most anchors have **one or two** — a `Cancel`, a `Try again`, a
+`Refresh`, a specific label. It is over-counted (a two-word label containing a digit, like
+`Bananas, 7`, classifies as a control here), so the true figure is lower. There is no
+remaining item of the size of the `/ai-coach` tabs or the reaction picker.
+
 ## 4 · Design package
 
 | Check | Status |

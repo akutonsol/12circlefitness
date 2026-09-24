@@ -8,6 +8,7 @@ import '../../classes/domain/whats_on.dart';
 import '../data/models/challenge_model.dart';
 import '../../../shared/theme/app_background.dart';
 import 'widgets/challenge_card.dart';
+import '../../../core/widgets/back_leading.dart';
 
 class ChallengesScreen extends ConsumerStatefulWidget {
   const ChallengesScreen({super.key});
@@ -60,8 +61,21 @@ class _ChallengesScreenState extends ConsumerState<ChallengesScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Challenges', style: TextStyle(color: AppColors.white, fontSize: 28, fontWeight: FontWeight.bold))
-                        .fadeSlideIn(),
+                    // FIT-075/078/079 draw a Back control; this screen is
+                    // declared `hasBottomNav: false` by the design and had no
+                    // back affordance at all. A custom header, so the control
+                    // sits beside the title rather than in an AppBar.
+                    Row(children: [
+                      backLeading(context),
+                      const SizedBox(width: 4),
+                      const Expanded(
+                        child: Text('Challenges',
+                            style: TextStyle(
+                                color: AppColors.white,
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ]).fadeSlideIn(),
                     const SizedBox(height: 4),
                     // F-15: on a failed read this said "0 active challenges" —
                     // a number the screen cannot support, the same class as

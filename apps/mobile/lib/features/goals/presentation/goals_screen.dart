@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/theme/app_background.dart';
 import '../data/models/goal.dart';
 import '../domain/goal_provider.dart';
+import '../../../core/widgets/back_leading.dart';
 
 class GoalsScreen extends ConsumerWidget {
   const GoalsScreen({super.key});
@@ -17,6 +18,7 @@ class GoalsScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: backLeading(context),
         title: const Text('My Goals',
             style: TextStyle(color: AppColors.white, fontWeight: FontWeight.bold)),
         iconTheme: const IconThemeData(color: AppColors.white),

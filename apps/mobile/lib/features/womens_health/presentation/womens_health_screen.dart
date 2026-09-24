@@ -4,6 +4,7 @@ import '../../../shared/theme/app_background.dart';
 import '../../../core/widgets/blood_drop.dart';
 import '../domain/cycle_phase.dart';
 import '../domain/cycle_provider.dart';
+import '../../../core/widgets/back_leading.dart';
 
 const _card  = Color(0xFF0E0B16);
 const _brd   = Color(0xFF1A1020);
@@ -22,6 +23,7 @@ class WomensHealthScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: Colors.transparent, elevation: 0,
+          leading: backLeading(context),
           iconTheme: const IconThemeData(color: _white),
           title: const Text("Women's Health",
               style: TextStyle(color: _white, fontWeight: FontWeight.w700)),
