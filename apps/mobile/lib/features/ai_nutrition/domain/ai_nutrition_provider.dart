@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/ai_nutrition_service.dart';
+import 'ai_text.dart';
 
 final aiNutritionServiceProvider = Provider<AiNutritionService>(
   (ref) => AiNutritionService(),
@@ -98,9 +99,9 @@ final aiNutritionNotifierProvider = StateNotifierProvider<AiNutritionNotifier, L
   (ref) => AiNutritionNotifier(ref.watch(aiNutritionServiceProvider)),
 );
 
-class MealPlanNotifier extends StateNotifier<String?> {
+class MealPlanNotifier extends StateNotifier<AiText> {
   final AiNutritionService _service;
-  MealPlanNotifier(this._service) : super(null);
+  MealPlanNotifier(this._service) : super(const AiText.idle());
 
   bool isLoading = false;
 
@@ -122,22 +123,23 @@ class MealPlanNotifier extends StateNotifier<String?> {
         dietaryRestrictions: restrictions,
         days: days,
       );
-      state = plan;
+      state = AiText.ready(plan);
     } catch (e) {
-      state = 'Error generating meal plan. Please try again.';
+      // NOT written into the content slot. FIT-093 is a screen of its own.
+      state = const AiText.failed();
     } finally {
       isLoading = false;
     }
   }
 }
 
-final mealPlanNotifierProvider = StateNotifierProvider<MealPlanNotifier, String?>(
+final mealPlanNotifierProvider = StateNotifierProvider<MealPlanNotifier, AiText>(
   (ref) => MealPlanNotifier(ref.watch(aiNutritionServiceProvider)),
 );
 
-class GroceryListNotifier extends StateNotifier<String?> {
+class GroceryListNotifier extends StateNotifier<AiText> {
   final AiNutritionService _service;
-  GroceryListNotifier(this._service) : super(null);
+  GroceryListNotifier(this._service) : super(const AiText.idle());
 
   bool isLoading = false;
 
@@ -145,15 +147,15 @@ class GroceryListNotifier extends StateNotifier<String?> {
     isLoading = true;
     try {
       final list = await _service.generateGroceryList(mealPlan: mealPlan);
-      state = list;
+      state = AiText.ready(list);
     } catch (e) {
-      state = 'Error generating grocery list. Please try again.';
+      state = const AiText.failed();
     } finally {
       isLoading = false;
     }
   }
 }
 
-final groceryListNotifierProvider = StateNotifierProvider<GroceryListNotifier, String?>(
+final groceryListNotifierProvider = StateNotifierProvider<GroceryListNotifier, AiText>(
   (ref) => GroceryListNotifier(ref.watch(aiNutritionServiceProvider)),
 );

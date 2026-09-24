@@ -3803,6 +3803,77 @@ visibly truncated mid-word by the capture (`"…Nadia has times open Thursday Ov
 quietly excluded, because excluding them is a measurement change and belongs in one
 deliberate pass, not in the middle of a feature.
 
+## 3be · FIT-092/093 · the error was the content, on both AI surfaces
+
+### One root cause, two screens
+
+`MealPlanNotifier` and `GroceryListNotifier` were both `StateNotifier<String?>`, and both
+wrote their error **into the slot the content lives in**. A nullable string has two states
+and the screens needed three: with `null` meaning *"not asked yet"*, there was nowhere left
+to put *"asked, and it failed"* — so the failure was stored as content, and every consumer
+downstream treated it as content.
+
+On `/meal-plan` that produced a section headed **"Your Meal Plan"** whose plan read
+*"Error generating meal plan. Please try again."* — and because both routes onward were
+gated on `mealPlan != null`, which a failure satisfies, the screen offered **two** ways to
+build a shopping list out of an error message. `/grocery-list` then parsed it, kept nothing,
+and drew its header over an empty column (§3bd).
+
+`AiText` gives the three states names. A failure carries `content == null`; there is
+nowhere to put the sentence.
+
+### The design had both screens already
+
+* **FIT-093 — "Meal plan — it didn't build"**, one control: **`Try building it again`**.
+  The screen had no retry at all.
+* **FIT-092** names **`Turn this into a grocery list`** (the screen said *"Generate Grocery
+  List"*) and **`Build a different plan`**, which had no equivalent — the only way to ask
+  for another plan was to scroll back up to the original button.
+
+### The mutation run caught my own test, and then caught my harness
+
+**M1 — putting the error sentence back into the content slot — SURVIVED.** Every test
+constructed `AiText` by hand, so the notifier's `catch` branch, which is where the defect
+actually lived, was never executed. Four tests were added that drive
+`generateMealPlan`/`generateGroceryList` against a throwing service.
+
+Then the re-run reported **6/6 killed — and that was wrong too.** My edit had put `library;`
+after the imports, so the file did not compile; `flutter test` exited non-zero for every
+mutation and the harness read each one as a kill. A compile error is not a caught defect.
+The harness now greps for `Compilation failed` / `Failed to load` and reports **INVALID**
+instead, which immediately exposed a second bad mutation (M3 relied on type promotion that
+does not hold). Both were rewritten and re-run.
+
+This is the fourth time this programme's mutation harness has misreported. It is recorded
+because the fix — never let a non-zero exit stand in for an assertion failure — is the same
+each time.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Domain + notifier | `test/unit/meal_plan_outcome_test.dart` — 18 tests | **PASS** |
+| Rendered state | `test/widget/meal_plan_failure_test.dart` — 5 tests | **PASS** |
+| Guard strength | **6 / 6 mutations killed**, all verified to compile | **PASS** |
+| Suite | **1457 pass / 9 skipped** (was 1434) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Coverage | FIT-092 3/4 · FIT-093 2/2 · all interactions 292 → **295 / 600** | — |
+
+| # | Mutation | Result |
+|---|---|---|
+| M1 | the error is stored as the plan again | **KILLED** |
+| M2 | a failed plan can still reach the grocery list | **KILLED** |
+| M3 | FIT-093's branch is dropped — a failure renders nothing | **KILLED** |
+| M4 | a whitespace-only plan renders as a plan | **KILLED** |
+| M5 | `groceryOutcome` ignores an outright failure | **KILLED** |
+| M6 | `Try building it again` drifts to `Retry` | **KILLED** |
+
+### Found in passing, not yet fixed: 40 unnamed back buttons
+
+`Back` measured ABSENT on both anchors. The cause is general: `lib/` contains **41**
+`Icons.arrow_back` buttons and, before this change, **one** carried a name. An icon-only
+control with no name is the defect `A-G8` exists for, and `A-G8`'s own baseline plainly does
+not reach these. This screen's is named; the other 39 are the next item, with a ratchet,
+rather than a silent sweep here.
+
 ## 4 · Design package
 
 | Check | Status |

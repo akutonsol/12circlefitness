@@ -24,7 +24,7 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
   bool _isLoading = false;
 
   Future<void> _generateList() async {
-    final mealPlan = ref.read(mealPlanNotifierProvider);
+    final mealPlan = ref.read(mealPlanNotifierProvider).content;
     if (mealPlan == null) return;
     setState(() => _isLoading = true);
     await ref
@@ -35,9 +35,11 @@ class _GroceryListScreenState extends ConsumerState<GroceryListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final list = ref.watch(groceryListNotifierProvider);
     final outcome = groceryOutcome(
-      mealPlan: ref.watch(mealPlanNotifierProvider),
-      rawList: ref.watch(groceryListNotifierProvider),
+      mealPlan: ref.watch(mealPlanNotifierProvider).content,
+      rawList: list.content,
+      listFailed: list.failed,
     );
 
     return Scaffold(

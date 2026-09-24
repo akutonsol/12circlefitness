@@ -97,11 +97,16 @@ List<GroceryCategory> parseGroceryList(String raw) {
 
 /// The whole decision, in one place, so the screen cannot render a header over
 /// nothing again.
+/// [listFailed] is the notifier saying so outright — see `ai_text.dart`. The
+/// empty-parse rule is kept as a **second** net: the request can succeed and
+/// still return something unreadable, and that used to render as a blank.
 GroceryOutcome groceryOutcome({
   required String? mealPlan,
   required String? rawList,
+  bool listFailed = false,
 }) {
   if (mealPlan == null) return const GroceryNeedsMealPlan();
+  if (listFailed) return const GroceryFailed();
   if (rawList == null) return const GroceryNotBuilt();
   final categories = parseGroceryList(rawList);
   if (categories.isEmpty) return const GroceryFailed();
