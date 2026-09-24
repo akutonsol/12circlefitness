@@ -5298,6 +5298,87 @@ from a **weekly** table is different semantics, not a port. → **OD-52**.
 **`CheckinService` was not deleted.** It is dead to this screen but deleting a service is
 destructive and is OD-32's class; it is left in place and recorded.
 
+## 3cd · SEC-PHI-1 · registering for an event may disclose your medical history
+
+**Severity P1 (privacy).** Recorded, **not fixed**: the remedy is an authorization policy
+change, which needs a migration number and owner authorization.
+
+### The policy
+
+`102_restrict_user_profiles.sql:165`:
+
+```sql
+ON public.user_profiles FOR SELECT TO authenticated
+USING (
+  id = auth.uid()
+  OR public.is_active_coach_of(id)
+  OR public.is_team_lead_of(id)
+  OR public.hosts_event_for(id)
+);
+```
+
+### What is on the row it grants
+
+`013_health_assessment.sql` adds to `user_profiles`: **`parq_answers`** (jsonb),
+**`medical_conditions`**, `has_injuries`, `injury_locations`, **`injury_description`**,
+`sleep_hours`, `stress_level`, `occupation` — and `115` adds `risk_score` / `risk_level` /
+`risk_flags`.
+
+**RLS grants rows, not columns.** Anything satisfying *any* arm receives **all of it**.
+
+### Why the last two arms are the problem
+
+The migration's own header explains why they exist, and it is not a clinical reason:
+
+> *"Two access paths read profile columns that are deliberately NOT in the `public_profiles`
+> view (**email**), so they cannot be served by the view and need their own policies instead:
+> a head coach viewing their own team roster … an event host viewing their attendee list."*
+
+So the requirement was **an email address for a roster and an attendee list**, and the
+mechanism chosen hands over the PAR-Q.
+
+```sql
+hosts_event_for(target_user)  -- true for ANY vendor whose event the user registered for
+is_team_lead_of(target_user)  -- true for ANY coach with a coach_team_members row
+```
+
+**An event host is not a care relationship.** Registering for a class or a workshop should
+not disclose your medical conditions and injury history to the organiser.
+
+The same migration shows the correct shape twice, for exactly this reason — it refused to
+widen the base table for messaging and community and gave each a column-limited path instead
+(`conversation_participant_profiles`, `public_profiles`). The two arms above are the cases
+where that discipline was not applied.
+
+### Verification status, split honestly
+
+| Claim | How |
+|---|---|
+| The policy text is as quoted | source, `102:165` |
+| PAR-Q and medical columns are on `user_profiles` | source, `013:5-14` |
+| **No column-level `GRANT`/`REVOKE` exists on `user_profiles`** anywhere in 131 migrations | source, searched |
+| No later migration narrows the SELECT policy | source, searched `11*`–`13*` |
+| `coach_team_members`, `event_registrations`, `events` **all exist in QA** — so both arms are live, not inert | **live** (`42501`, not `PGRST205`) |
+| A vendor can actually read a registrant's `parq_answers` end to end | **NOT VERIFIED** — needs two authenticated sessions and an event registration → **OD-51** |
+
+The structural facts are verified; the exploit path is **inferred from them** and is labelled
+as such rather than asserted.
+
+### Remedy direction (for the security phase, not taken here)
+
+Two column-limited views mirroring what `102` already did for messaging and community — a
+roster view and an attendee view exposing display columns plus `email` — then drop
+`is_team_lead_of` and `hosts_event_for` from the base-table policy. That is a migration:
+**wave-governed, and an authorization change needing owner sign-off.**
+
+### Relationship to N-07
+
+This is the blocker the continuation directive named. **N-07 (the coach assessment surface)
+cannot be built on `user_profiles` reads while this policy stands**, because the screen would
+inherit the same breadth. `docs/proposed/N07_assessment_access.sql` and
+`supabase/tests/security/d09-assessment-access.mjs` remain **authored, not verified**, and
+are another workstream's files — untouched here.
+
 ## 4 · Design package
 
 | Check | Status |
