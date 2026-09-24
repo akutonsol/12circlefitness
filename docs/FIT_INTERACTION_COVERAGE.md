@@ -107,14 +107,14 @@ everything else. Where anything disagrees, they win."*
 
 | FIT | Screen | Route | Present | Declared | Implementation |
 |---|---|---|--:|--:|---|
-| FIT-005 | Connect | `/messages` | 4 | 12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
+| FIT-005 | Connect | `/messages` | 6 | 12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
 | FIT-004 | Check-In | `/daily-checkin` | 5 | 11 | `daily_checkin_screen.dart` + `widgets/checkin_pickers.dart` + `domain/checkin_hub.dart` |
 | FIT-023 | Check-in hub | `/checkins` | 4 | 10 | `checkin_screen.dart` + `checkin_hub_sections.dart` + `domain/checkin_hub.dart` |
 | FIT-003 | Nutrition | `/meals-dashboard` | 6 | 12 | `meals_dashboard_screen.dart` + `widgets/meal_row_tile.dart` |
 | FIT-014 | Workouts hub | `/train` | 6 | 12 | `train_hub_screen.dart` + `widgets/week_row_tile.dart` + `core/router/app_shell.dart` |
 | FIT-027 | What's on | `/classes` | 5 | 10 | `classes_screen.dart` + `whats_on_view.dart` + `domain/whats_on.dart` |
 | FIT-032 | Coach dashboard | `/coach-dashboard` | 6 | 11 | `coach_dashboard_screen.dart` + `widgets/needs_you_today.dart` + `core/router/app_shell.dart` |
-| FIT-028 | Connect — no coach | `/messages` | 4 | 10 | `messaging_screen.dart` |
+| FIT-028 | Connect — no coach | `/messages` | 6 | 10 | `messaging_screen.dart` |
 | FIT-001 | Home | `/home` | 8 | 9 | `home_screen.dart` + `domain/home_session_card.dart` + `core/widgets/app_top_nav.dart` |
 | FIT-008 | Intake | `/intake` | 2 | 7 | `intake_flow_screen.dart` — blocked on OD-26/OD-27 |
 | FIT-019 | Log a meal | `/log-meal` | 4 | 5 | `meals_dashboard_screen.dart` (`_AddMealSheet`) + `widgets/pill_tab.dart` |
@@ -334,7 +334,7 @@ without fabricating content the brief forbids.
 | FIT-002 ✅ | Active Workout | `/active-workout` | **5/5** | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
 | FIT-003 | Nutrition | `/meals-dashboard` | **6/12** | `meals_dashboard_screen.dart` + `widgets/meal_row_tile.dart` + `domain/meal_row.dart` + `core/router/app_shell.dart` — 3 absent are **sample meals**; `Workouts`/`Connect` are **F-14**. OD-22, OD-23 raised. QA_EVIDENCE §3ak |
 | FIT-004 | Check-In | `/daily-checkin` | 5/11 | `daily_checkin_screen.dart` + `widgets/checkin_pickers.dart` + `domain/checkin_hub.dart` |
-| FIT-005 | Connect | `/messages` | 4/12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
+| FIT-005 | Connect | `/messages` | **6/12** | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
 | FIT-006 ✅ | Welcome | `/onboarding` | **2/2** | `onboarding_screen.dart` |
 | FIT-007 | Sign in | `/login` | 1/1 | `login_screen.dart` |
 | FIT-008 | Intake | `/intake` | 2/7 **blocked** | `intake_flow_screen.dart` — the 4 archetypes and `Skip this` are **OD-26/OD-27**: goal values drive calorie targets and rep ranges via migration 047. QA_EVIDENCE §3ao |
@@ -357,7 +357,7 @@ without fabricating content the brief forbids.
 | FIT-025 | Awaiting reply | `/checkin-detail` | 1/1 | `checkin_detail_screen.dart` |
 | FIT-026 | Conversation | `/chat` | 4/5 | `chat_screen.dart` — fifth is a **video feature gap** |
 | FIT-027 | What's on | `/classes` | 5/10 | `classes_screen.dart` + `whats_on_view.dart` + `domain/whats_on.dart` |
-| FIT-028 | Connect — no coach | `/messages` | 4/10 | `messaging_screen.dart` |
+| FIT-028 | Connect — no coach | `/messages` | **6/10** | `messaging_screen.dart` |
 | FIT-029 | Profile | `/profile` | 4/6 | `profile_screen.dart` |
 | FIT-030 | Settings | `/settings` | 5/6 | `settings_screen.dart` — sixth blocked on OD-19 |
 | FIT-031 🔒 | Plans | `/upgrade` | 1/5 | `upgrade_screen.dart` — **remaining 4 blocked on OD-18** |

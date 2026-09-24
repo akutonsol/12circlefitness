@@ -2816,6 +2816,90 @@ named for assistive technology, which it was not.
 | H6 | the board's label drifts back to `Start` | **KILLED** |
 | H7 | the two empty states collapse into one word | **KILLED** |
 
+## 3aq · FIT-005 / FIT-028 · Connect sold the plan on the screen told not to
+
+Two locked anchors on `/messages`. **FIT-005 4/12 → 6/12, FIT-028 4/10 → 6/10.**
+
+### The copy that nobody in the package wrote
+
+FIT-028's sub-title is *"the state that sells the plan honestly"*, and its annotation says
+what that means:
+
+> *"Without a coach the slot is not empty — pods and what's on still fill it. **'Self-guided
+> works' is said plainly before the upgrade**, which is the difference between an honest
+> prompt and a nag."*
+
+The board's copy:
+
+> **You're training self-guided, which works. A coach adds someone who reads your check-ins
+> and adjusts the plan.**
+
+What shipped:
+
+> Browse coaches, compare plans and get matched.
+
+A sales sentence, on the one anchor the package explicitly asked not to sell on. The board
+validates the client's current choice **first**, then describes what a coach *adds* rather
+than what the client lacks. Replaced verbatim.
+
+### One control existed twice, and the other not at all
+
+The board's markup is unambiguous:
+
+```html
+<button class="ph ph-compass" aria-label="Find a coach"></button>
+<button class="fc-btn2">Browse coaches</button>
+```
+
+Two different controls — a header compass and the primary button. The screen had
+**`Find a coach` on the primary button** and **no `Browse coaches` anywhere**.
+
+And the coverage tool reported `Browse coaches` **present**, because those two words opened
+the sales sentence in the body copy. Removing that sentence made the false positive visible
+— the metric went `Browse coaches` HAVE → ABSENT while the screen got *better*.
+
+**Sixth defect found in this measurement**, after counting comments, resolving a route to a
+redirect stub, failing on HTML entities, matching a word inside an icon constant, and
+resolving a declared interaction against a different screen's control. Every one is the same
+thing: **the tool matches text, and text is not a control.**
+
+### And a section named for half of itself
+
+FIT-028 declares `What's on this week`; the teaser row said `What's on`. The window is part
+of the label. (FIT-005's `This week` heads the *full* list under the coach card — a
+different component, not a competing name, which is why both can be right.)
+
+### A guard that read its own explanation
+
+The new copy guard failed on first run: the fix's comment **quotes the sentence it
+replaced**, so matching raw source found `compare plans and get matched` and reported the
+sales line still present. Comments are now stripped before matching — the **third** time in
+this programme a detector has read its own prose as evidence, after `tool/fit_coverage.dart`
+and the MSG-003 guard.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guards | `connect_sections_view_test.dart` — 2 new, comment-stripped, with detector floors | **PASS** |
+| Widget | `messaging_no_coach_test.dart` — updated to the board's two controls | **PASS** |
+| Guard strength | **6 / 6 mutations killed** | **PASS** |
+| Coverage | FIT-005 **6/12**, FIT-028 **6/10** | **PASS** |
+| Suite | **1315 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Runtime | **LOCALLY_VERIFIED** — the §3an disk constraint is unchanged | **OPEN** |
+
+| # | Mutation | Result |
+|---|---|---|
+| C1 | the sales line comes back | **KILLED** |
+| C2 | the section label reverts to `What's on` | **KILLED** |
+| C3 | the no-coach state is removed (detector floor) | **KILLED** |
+| C4 | the primary button reverts to `Find a coach` | **KILLED** |
+| C5 | the header compass loses its declared name | **KILLED** |
+| C6 | the button is named but not labelled visibly (WCAG 2.5.3) | **KILLED** |
+
+The remaining absences on both anchors are the board's **sample rows** — `Priya Hit 70 kg on
+the hinge today 2h`, `Tues Lifters Sam: anyone in at 7 tomorrow? 3` — and `Workouts` /
+`Nutrition`, which are **F-14**.
+
 ## 4 · Design package
 
 | Check | Status |

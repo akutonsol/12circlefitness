@@ -41,7 +41,10 @@ class ConnectSectionsView extends ConsumerWidget {
       _Section(
         // FIT-027's screen name, reused so the two never disagree about what
         // "what's on" means.
-        title: "What's on",
+        // FIT-028 declares this section "What's on this week" — the window
+        // is part of the label, not decoration. FIT-027's own screen is
+        // "What's on"; this row says which slice of it is being teased.
+        title: "What's on this week",
         state: whatsOn.state,
         // The merged list already knows which of its three sources failed; a
         // teaser cannot say which without repeating that logic, so it borrows

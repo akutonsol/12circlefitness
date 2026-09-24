@@ -46,6 +46,16 @@ class MessagingScreen extends ConsumerWidget {
               const Expanded(
                 child: Text("Messages",
                   style: TextStyle(color: _white, fontSize: 19, fontWeight: FontWeight.w700))),
+              // FIT-005 and FIT-028 both declare `Find a coach`, and the
+              // board draws it as an icon-only compass in the header —
+              // `<button class="ph ph-compass" aria-label="Find a coach">`.
+              // It was not on the screen at all; the coverage tool reported it
+              // present because the words appeared in a sentence of body copy.
+              _HeaderAction(
+                icon: Icons.explore_outlined,
+                label: 'Find a coach',
+                onTap: () => context.go('/coach-marketplace')),
+              const SizedBox(width: 12),
               _HeaderAction(
                 icon: Icons.refresh,
                 label: 'Refresh',
@@ -286,12 +296,28 @@ class _NoCoachState extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(color: _white, fontSize: 17, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            Text('Browse coaches, compare plans and get matched.',
+            // FIT-028's own words, verbatim. The shipped line —
+            // "Browse coaches, compare plans and get matched." — was a sales
+            // sentence nobody in the package wrote, on the anchor whose
+            // sub-title is "the state that sells the plan honestly".
+            //
+            // The board's annotation says why the difference matters:
+            // *"'Self-guided works' is said plainly before the upgrade, which
+            // is the difference between an honest prompt and a nag."* So the
+            // client's current choice is validated BEFORE the alternative is
+            // offered, and the offer describes what a coach adds rather than
+            // what the client lacks.
+            Text(
+                "You're training self-guided, which works. A coach adds "
+                'someone who reads your check-ins and adjusts the plan.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: _muted.withValues(alpha: 0.7), fontSize: 13, height: 1.5)),
             const SizedBox(height: 22),
             Semantics(
               button: true,
+              label: 'Browse coaches',
+              excludeSemantics: true,
+              onTap: () => context.go('/coach-marketplace'),
               child: GestureDetector(
                 onTap: () => context.go('/coach-marketplace'),
                 behavior: HitTestBehavior.opaque,
@@ -303,7 +329,11 @@ class _NoCoachState extends StatelessWidget {
                     color: _brand,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text('Find a coach',
+                  // The board's primary control here is `Browse coaches`
+                  // (`fc-btn2`); `Find a coach` is the header compass above.
+                  // This button said `Find a coach`, so the screen had one of
+                  // the two declared controls twice and the other not at all.
+                  child: const Text('Browse coaches',
                       style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500)),
                 ),
               ),

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -21,6 +22,7 @@ import 'package:circle_fitness/features/messaging/presentation/connect_sections_
 /// nothing acts on it" fails rather than survives — the mutation that got
 /// through on `/profile` and was only caught by running it.
 void main() {
+  _noCoachCopy();
   CommunityPost post({String user = 'Priya', String content = 'Hit 70 kg'}) =>
       CommunityPost(
         id: 'p1',
@@ -79,14 +81,18 @@ void main() {
   testWidgets('FIT-005 the three declared sections are present, in order',
       (t) async {
     await mount(t);
-    // Feed, Groups and What's on are all labels the design package declares.
-    for (final title in ['Feed', 'Groups', "What's on"]) {
+    // Feed, Groups and What's on this week are all labels the design package
+    // declares. The third is FIT-028's, verbatim: its manifest interaction is
+    // `What's on this week 3`, and the window is part of the label rather than
+    // decoration. (FIT-005's `This week` heads the FULL list under the coach
+    // card — a different component, not a competing name for this row.)
+    for (final title in ['Feed', 'Groups', "What's on this week"]) {
       expect(find.text(title), findsOneWidget);
     }
     expect(t.getTopLeft(find.text('Feed')).dy,
         lessThan(t.getTopLeft(find.text('Groups')).dy));
     expect(t.getTopLeft(find.text('Groups')).dy,
-        lessThan(t.getTopLeft(find.text("What's on")).dy));
+        lessThan(t.getTopLeft(find.text("What's on this week")).dy));
   });
 
   testWidgets('FIT-005 a post and a group render as the anchor draws them',
@@ -156,7 +162,7 @@ void main() {
       final handle = t.ensureSemantics();
       await mount(t);
 
-      for (final title in ['Feed', 'Groups', "What's on"]) {
+      for (final title in ['Feed', 'Groups', "What's on this week"]) {
         final finder = find.bySemanticsLabel('Open $title');
         expect(finder, findsOneWidget,
             reason: 'a screen reader must hear WHICH of the three it is');
@@ -170,7 +176,7 @@ void main() {
 
     testWidgets('and clears the 44 dp target floor', (t) async {
       await mount(t);
-      for (final title in ['Feed', 'Groups', "What's on"]) {
+      for (final title in ['Feed', 'Groups', "What's on this week"]) {
         final size = t.getSize(find
             .ancestor(
                 of: find.text('Open $title'), matching: find.byType(GestureDetector))
@@ -186,7 +192,7 @@ void main() {
     final handle = t.ensureSemantics();
     await mount(t);
 
-    for (final title in ['Feed', 'Groups', "What's on"]) {
+    for (final title in ['Feed', 'Groups', "What's on this week"]) {
       expect(
           t.getSemantics(find.text(title)).getSemanticsData()
               .hasFlag(SemanticsFlag.isHeader),
@@ -194,5 +200,84 @@ void main() {
           reason: '$title must be a heading');
     }
     handle.dispose();
+  });
+}
+
+// ── FIT-028's honest no-coach copy ────────────────────────────────────────
+//
+// The anchor's sub-title is "the state that sells the plan honestly", and its
+// annotation is explicit about why: *"'Self-guided works' is said plainly
+// before the upgrade, which is the difference between an honest prompt and a
+// nag."*
+//
+// What shipped was "Browse coaches, compare plans and get matched." — a sales
+// sentence nobody in the package wrote, on the one screen the package asked
+// not to sell on.
+void _noCoachCopy() {
+  test('FIT-028 the no-coach state validates the client before it offers', () {
+    // Comments stripped before matching. The fix's own comment QUOTES the
+    // sentence it replaced, so matching raw source made this guard fail
+    // against the very change it exists to protect — the third time in this
+    // programme a detector has read its own prose as evidence (see
+    // `tool/fit_coverage.dart`, and the MSG-003 guard).
+    final src = File(
+            'lib/features/messaging/presentation/messaging_screen.dart')
+        .readAsStringSync()
+        .split('\n')
+        .map((l) {
+          final i = l.indexOf('//');
+          return i < 0 ? l : l.substring(0, i);
+        })
+        .join('\n');
+
+    // The detector must be looking at the right thing.
+    expect(src, contains('No coach yet'),
+        reason: 'the no-coach state is not in this file — the assertions '
+            'below would pass vacuously');
+
+    expect(src, contains("You're training self-guided, which works."),
+        reason: "FIT-028's own words. The client's current choice is "
+            'validated BEFORE the alternative is offered.');
+    expect(src, contains('A coach adds'),
+        reason: 'the offer describes what a coach ADDS, not what the client '
+            'lacks');
+
+    expect(src.contains('compare plans and get matched'), isFalse,
+        reason: 'invented sales copy on the anchor whose whole point is not '
+            'to sell');
+  });
+
+  // FIT-005 and FIT-028 both declare TWO coach controls, and the board draws
+  // them as different things:
+  //
+  //   <button class="ph ph-compass" aria-label="Find a coach">   header icon
+  //   <button class="fc-btn2">Browse coaches</button>            primary
+  //
+  // The screen had `Find a coach` on the primary button and no `Browse
+  // coaches` control at all — and the coverage tool reported `Browse coaches`
+  // PRESENT, because those two words opened the sales sentence in the body
+  // copy. Removing that sentence turned the false positive visible.
+  test('FIT-028 both declared coach controls exist, and are not the same one',
+      () {
+    final src = File(
+            'lib/features/messaging/presentation/messaging_screen.dart')
+        .readAsStringSync()
+        .split('\n')
+        .map((l) {
+          final i = l.indexOf('//');
+          return i < 0 ? l : l.substring(0, i);
+        })
+        .join('\n');
+
+    expect(src, contains("label: 'Find a coach'"),
+        reason: 'the header compass the board draws');
+    expect(src, contains("label: 'Browse coaches'"),
+        reason: 'the primary control under the honest copy');
+    expect(src, contains("Text('Browse coaches'"),
+        reason: 'and it must be the visible label too — WCAG 2.5.3');
+
+    // The old shape: `Find a coach` as the primary button.
+    expect(src.contains("Text('Find a coach'"), isFalse,
+        reason: 'that is the header icon control, not the primary button');
   });
 }

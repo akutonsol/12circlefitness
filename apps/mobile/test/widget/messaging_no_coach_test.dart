@@ -17,7 +17,7 @@ import 'package:circle_fitness/features/messaging/presentation/messaging_screen.
 /// **only on proof**, because the two ways of getting it wrong are both
 /// user-visible harms:
 ///
-///  * showing "No coach yet · Find a coach" to a member who already pays a
+///  * showing "No coach yet · Browse coaches" to a member who already pays a
 ///    coach, because the coach lookup happened to fail (the error-to-empty
 ///    collapse recorded as F-15); and
 ///  * showing it to a coach who simply has no client messages yet.
@@ -66,10 +66,14 @@ void main() {
 
     expect(find.text(pitch), findsOneWidget);
     expect(find.text(neutral), findsNothing);
-    // The destination and the label are both already shipped elsewhere in this
-    // repository (manage_subscription_screen.dart, directory_screen.dart), so
-    // no copy was invented for this state.
-    expect(find.text('Find a coach'), findsOneWidget);
+    // `Browse coaches`, not `Find a coach`. FIT-028 declares BOTH and the
+    // board draws them as different controls — a header compass
+    // (`aria-label="Find a coach"`) and the primary button (`fc-btn2`,
+    // `Browse coaches`). This screen had `Find a coach` on the primary and no
+    // `Browse coaches` anywhere; see QA_EVIDENCE §3aq.
+    expect(find.text('Browse coaches'), findsOneWidget);
+    // And the header control the board also declares.
+    expect(find.bySemanticsLabel('Find a coach'), findsOneWidget);
   });
 
   testWidgets('FIT-028 a FAILED coach lookup does not become "no coach"',
@@ -168,7 +172,7 @@ void main() {
     await t.pump();
 
     final size = t.getSize(find.ancestor(
-      of: find.text('Find a coach'),
+      of: find.text('Browse coaches'),
       matching: find.byType(Container),
     ).first);
     expect(size.height, greaterThanOrEqualTo(44.0));
