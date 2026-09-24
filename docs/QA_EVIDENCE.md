@@ -5615,6 +5615,91 @@ Three things are recorded in it rather than glossed:
 exercise catalogue and profile pictures — and are **not** included; narrowing them is a
 product decision. → **OD-53**.
 
+## 3ch · N-07 is BUILT AND SHIPPED — the commission document is stale
+
+**Previous conclusion** (`docs/FINAL_NEW_SCREEN_DESIGN_COMMISSION.md:105`, another
+workstream's file): N-07 "Coach client assessment (intake / PAR-Q)" is a **P0 missing
+screen**, *"`client_detail_screen.dart:204,414` shows rollups only"*, **blocked by OD-30**
+(privacy).
+
+**Why it is wrong.** `client_detail_screen.dart` carries:
+
+```dart
+_tabs = TabController(length: 4, vsync: this);
+…
+tabs: const [ Tab(text: 'Overview'), Tab(text: 'Assessment'),
+              Tab(text: 'PAR-Q'),    Tab(text: 'Progress') ],
+…
+children: [ _OverviewTab(…), _AssessmentTab(detail: detail),
+            _ParqHealthTab(detail: detail), _ProgressTab(…) ],
+```
+
+`_ParqHealthTab` renders `parq_answers`, `medical_conditions`, `has_injuries`,
+`injury_locations`, `injury_description`, `risk_level`, `risk_score` and `risk_flags`, with
+the nine PAR-Q questions spelled out in the file. The screen consumes **39** keys from
+`clientDetailProvider`, fourteen of them PHI. This is a live `TabBarView`, not dead code.
+
+**Corrected conclusion: N-07 is not a missing screen. It is a shipped PHI viewer whose
+authorization model is the open question.**
+
+### This changes the severity of SEC-PHI-1
+
+SEC-PHI-1 was recorded as a risk to a screen that did not yet exist. It is not:
+
+```dart
+final clientDetailProvider = FutureProvider.family<…, String>((ref, clientId) async {
+  final profile = await db.from('user_profiles').select('*').eq('id', clientId).maybeSingle();
+```
+
+`select('*')`, on `user_profiles`, for an **arbitrary `clientId`**, gated only by migration
+102's four-arm RLS policy. So whatever can satisfy `is_team_lead_of` or `hosts_event_for`
+reaches a **rendered PAR-Q tab**, today, in shipped code — not a future screen.
+
+The Dart is not the defect: the screen is *for* coaches reading assigned clients, and RLS is
+what is supposed to scope it. The defect remains the policy's breadth. But the blast radius
+is now known to be a working UI rather than a hypothetical one.
+
+*(`select('*')` also pulls `email`, `phone` and the `stripe_*` identifiers, which the screen
+never reads — a minimisation point, recorded, not fixed here: the screen genuinely consumes
+almost everything else, so this is a narrow trim and not the finding.)*
+
+**The commission document was NOT edited** — it is another workstream's file (§3bs). This is
+recorded here and flagged. → **OD-54.**
+
+## 3ci · SEC-PHI-2 · the PAR-Q screen printed the database error into itself
+
+```dart
+error: (e, _) => Center(child: Text('Error: $e', …)),   // client_detail_screen.dart:132
+error: (e, _) => Text('Error: $e', …),                  // :1620
+```
+
+A PostgREST/Postgres error is not opaque: it carries table and column names, constraint text,
+and on a unique violation the **conflicting value** — rendered on the page whose subject is
+somebody's medical history. This is the F-2/F-16 class, on the one screen where it discloses.
+
+Both now use the repository's own `Could not load [noun]` pattern (`Could not load this
+client`, `Could not load programs`), which it already renders in fifteen places — no copy
+invented.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/unit/phi_screen_error_disclosure_guard_test.dart` — 3 tests | **PASS** |
+| Guard strength | **3 / 3 mutations killed** | **PASS** |
+| Suite | **1583 pass / 9 skipped** (was 1580) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+
+| # | Mutation | Result |
+|---|---|---|
+| PD1 | the client-detail error leaks the raw exception again | **KILLED** |
+| PD2 | the programs error leaks the raw exception again | **KILLED** |
+| PD3 | the PAR-Q tab is renamed — the guard must notice it lost its anchor | **KILLED** |
+
+**Scope stated, not implied.** Five other sites still interpolate the exception —
+`coach_video_response_screen.dart:103`, `coach_availability_screen.dart:381`,
+`coach_marketplace_screen.dart:150`, and two in `admin_dashboard_screen.dart` (the latter
+*parse* the error rather than display it, which is legitimate). None renders PHI. The guard
+pins the PHI screens and names the rest rather than pretending to cover them. → **OD-55.**
+
 ## 4 · Design package
 
 | Check | Status |

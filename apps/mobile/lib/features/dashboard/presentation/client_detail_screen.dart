@@ -129,7 +129,15 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen>
           _tabBar(),
           Expanded(child: detailAsync.when(
             loading: () => const Center(child: CircularProgressIndicator(color: _brand)),
-            error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: _mut))),
+            // SEC-PHI-2. This screen's Assessment and PAR-Q tabs render a
+            // client's intake record, and the raw exception was printed into
+            // it. A PostgREST error carries table and column names, constraint
+            // text and — on a unique violation — the conflicting VALUE. The
+            // repository's own `Could not load [noun]` pattern says what
+            // happened without quoting the database back at the user (F-2/F-16).
+            error: (e, _) => const Center(
+                child: Text('Could not load this client',
+                    style: TextStyle(color: _mut))),
             data: (detail) => TabBarView(
               controller: _tabs,
               children: [
@@ -1617,7 +1625,8 @@ class _AssignProgramSheetState extends ConsumerState<_AssignProgramSheet> {
         const SizedBox(height: 20),
         programsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator(color: _brand)),
-          error: (e, _) => Text('Error: $e', style: const TextStyle(color: _mut)),
+          error: (e, _) => const Text('Could not load programs',
+              style: TextStyle(color: _mut)),
           data: (programs) => programs.isEmpty
             ? const Text('No programs yet. Create a program first.',
                 style: TextStyle(color: _mut))
