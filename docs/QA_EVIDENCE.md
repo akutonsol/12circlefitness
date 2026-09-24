@@ -2443,6 +2443,94 @@ the only reclaimable 5 GB is the Gradle cache, whose loss costs a long dependenc
 re-download. Per §25 the environment is left workable rather than stripped. The change is
 pure Dart, analyzer-clean, and the full suite compiles the whole `lib` tree.
 
+## 3am · SEC-G4 · the two views that bypass RLS on purpose
+
+§3al fixed one denied read. The obvious next question is whether there are others, so
+every cross-user read in `lib` was swept against the **resolved** RLS state of the table it
+targets — and the sweep is now a repository tool, `tool/cross_user_read_sweep.dart`, so this
+is not rediscovered a third time.
+
+**65 cross-user reads. 6 flagged. None of them a new defect** — but two produced work.
+
+| Flagged | Verdict |
+|---|---|
+| `checkins` × 1 | already **I-CHK-01** — the table exists in no migration, guarded bidirectionally |
+| `community_posts` × 1 | **false positive.** `qa_suites.dart:360` is a reachability probe, `select('id').limit(1)`, no user filter. A readable community feed is the product |
+| `public_profiles` × 3, `conversation_participant_profiles` × 1 | **VIEWS.** Not defects — see below |
+
+### Views have no RLS of their own, and these two bypass it deliberately
+
+A view declared `WITH (security_invoker = off)` runs with the **view owner's** privileges
+and reads the underlying table **regardless of its RLS**. Both of these read
+`user_profiles` — the table `102_restrict_user_profiles.sql` exists to restrict.
+
+Both are sound, and both are right:
+
+* **`public_profiles`** (`101`, re-declared by `110`) is a **curated projection** — display
+  names and coach-marketplace fields — with `REVOKE ALL FROM PUBLIC, anon` and
+  `GRANT SELECT TO authenticated`. A directory cannot work if every row is invisible; the
+  bypass is the design.
+* **`conversation_participant_profiles`** (`102`) bypasses too, but carries its **own
+  predicate**, `WHERE public.shares_conversation_with(p.id)`, so the bypass is bounded to
+  people the caller already shares a thread with. It is also `security_barrier = true`,
+  which stops a cheap user-supplied function being evaluated ahead of the predicate.
+
+I checked the predicate function itself: it binds to `auth.uid()`, not to a
+caller-supplied parameter. That is the distinction from F-21.
+
+### So what is the gap, and why it is worth a ratchet
+
+The safety of both rests entirely on **two comments**:
+
+> `'Never add medical, contact, billing or intake columns to this view.'`
+> `'never drop the shares_conversation_with() predicate'`
+
+Nothing enforced either — and `110` already **re-declares `public_profiles`**, adding two
+columns. So these views demonstrably change as the product grows, and a re-declaration that
+adds `email`, `phone` or `address`, or drops the predicate, would publish it to **every
+authenticated account** with no failing test anywhere.
+
+`SEC-G4` is the enforcement those comments ask for. It changes nothing and proposes
+nothing. It reads the **last** definition of each view — because `CREATE OR REPLACE` means
+a later migration silently supersedes an earlier one, and reading only `101` would miss what
+`110` did — and pins:
+
+* the exact projected column set, **bidirectionally**;
+* that nothing from a 23-name forbidden list is projected;
+* that the predicate and `security_barrier` are still there;
+* that the predicate function still binds `auth.uid()`;
+* that `anon` is still revoked.
+
+| Mutation | Result |
+|---|---|
+| V1 · `email` added to `public_profiles` | **KILLED** |
+| V2 · the `shares_conversation_with` predicate dropped | **KILLED** |
+| V3 · a later migration re-declares the view unnoticed | **KILLED** |
+| V4 · `security_barrier` removed | **KILLED** |
+| V5 · blind the view parser | **KILLED** (first run was a no-op; re-run validly) |
+| V6 · widen the recorded set to make it pass | **KILLED** |
+
+**V3 and V6 are the two that matter.** V3 added a new migration file declaring a wider
+view, which is exactly how this would happen in practice. V6 tried the lazy fix — adding
+`email`, `phone`, `address` to the recorded allowlist — and the bidirectional check killed
+it, because those columns are not actually projected. A baseline cannot be widened into
+meaninglessness here.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/unit/rls_bypassing_view_guard_test.dart` — 12 tests incl. 4 detector controls | **PASS** |
+| Guard strength | **6 / 6 mutations killed** | **PASS** |
+| Sweep | `tool/cross_user_read_sweep.dart` — 6 flagged of 65, all triaged above | **PASS** |
+| Suite | **1254 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors (`lib`, `test`, `tool`) | **PASS** |
+| Ratchets | **nine** — A-G8, EC-G7, EC-G8, SEC-G1/G2/G3/**G4**, H-D1, H-D2 | **PASS** |
+
+The sweep tool handles the two things a grep gets wrong here, both of which have already
+cost this programme a false positive: **dynamic SQL** (`074`'s `foreach … execute format`
+enables RLS on five `ai_*` tables invisibly to a line scan — an error two separate
+workstreams have now made) and **self-reads** (`.eq('user_id', uid)`, which would bury real
+findings in noise if flagged).
+
 ## 4 · Design package
 
 | Check | Status |
