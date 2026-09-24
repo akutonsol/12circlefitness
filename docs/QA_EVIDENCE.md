@@ -5700,6 +5700,54 @@ invented.
 *parse* the error rather than display it, which is legitimate). None renders PHI. The guard
 pins the PHI screens and names the rest rather than pretending to cover them. → **OD-55.**
 
+## 3cj · N-07 authorization — verified live; auditability **FAILED**
+
+With N-07 established as shipped (§3ch), its model was tested against QA with the existing
+harness identities. **No identity was created and nothing was mutated.**
+
+| # | N-07 rule | Result |
+|---|---|---|
+| 1 | **active assigned coach → client assessment = ALLOWED** | **BLOCKED** — no active relationship exists to test with |
+| 2 | **unassigned coach → client = DENIED** | **VERIFIED DENIED** — 0 rows |
+| 3 | **former coach → ex-client = DENIED** | **VERIFIED DENIED** — 0 rows, relationship `cancelled` |
+| 3b | the same, using **`select('*')`** exactly as `clientDetailProvider` does | **VERIFIED DENIED** — 0 rows |
+| 4 | unrelated **event host** → attendee | **BLOCKED** — no harness identity owns an event (3 exist, all seed-owned) |
+| 5 | unrelated **vendor** → attendee | **BLOCKED** — same |
+| 6 | **team lead** → client | **BLOCKED** — `coach_team_members` is empty for every identity |
+| 7 | **client → own assessment = ALLOWED** | **VERIFIED ALLOWED** — 6/6 PHI columns |
+| 8 | **client → another client = DENIED** | **VERIFIED DENIED** — 0 rows, both directions |
+| 9 | **anon → assessment = DENIED** | **VERIFIED DENIED** — `42501`, no GRANT |
+
+Rule 3b matters more than it looks: it confirms the **production query shape** is filtered,
+not merely the narrow probe I wrote. The screen's own `select('*')` returns nothing to a
+former coach.
+
+### Access logging — **FAILED CONTROL**
+
+| Probe | Result |
+|---|---|
+| `assessment_access_log` | **ABSENT** (`PGRST205`) |
+| `audit_log` | **ABSENT** |
+| `phi_access_log` | **ABSENT** |
+| app-side writes to any audit table | **0** |
+| control: `user_profiles` | `42501` — exists |
+
+**No migration creates an access log**, and the app writes to none. A coach opens a client's
+PAR-Q tab and **nothing records that it happened** — no actor, no subject, no timestamp.
+
+This is not an oversight the proposal missed; it is the proposal's own first section.
+`docs/proposed/N07_assessment_access.sql:54` reads *"1. The audit log. Append-only."* and
+defines `assessment_access_log` with a `client_id, accessed_at DESC` index. **It has never
+been applied**, so the control it provides does not exist.
+
+That is the precise status: the **authorization** half of N-07 behaves correctly for every
+arm that can be tested, and the **auditability** half does not exist at all. A screen that
+renders PAR-Q with no access trail is the gap, not the unbuilt screen the commission document
+describes.
+
+→ **OD-56**: applying the N-07 proposal needs a wave-entry migration number and owner
+sign-off. It is **AUTHORED**, not implemented, and this session did not touch it.
+
 ## 4 · Design package
 
 | Check | Status |
