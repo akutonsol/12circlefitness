@@ -236,6 +236,115 @@ All four lift with **`QA_SERVICE`** plus three seed rows.
 
 ---
 
+## 9b · PHASE 2 ADDENDUM — correction rights, storage revocation, injection
+
+**Baseline at close:** 1,625 pass / 9 skipped / 0 analyzer errors / 36 guards.
+**Git:** `0fc5f5e` on `chore/qa-environments-secure-ai-backend`; tree clean except
+another workstream's untracked `d09-assessment-access.mjs`; second worktree
+`wrk02-negative-control` untouched. **Disk 788 MiB (96 %) — runtime still blocked.**
+
+### Findings discovered this phase
+
+| ID | Finding | Status |
+|---|---|---|
+| **SEC-PHI-9** | **A coach keeps access to a client's PROGRESS PHOTOGRAPHS after the relationship ends.** `029:36` tests only that a relationship *row exists* — no status predicate — so `pending`, `declined` and `cancelled` all satisfy it, and the row is never deleted, only set to `cancelled`. | **FAILED — VERIFIED LIVE** |
+| **SEC-PHI-10** | `score_events` "coach reads client events" (`035:183`) has the identical missing predicate. | **INCONCLUSIVE** (fixture has 0 rows) |
+| **SEC-PHI-8** | **The correction right exists in the database and is unreachable in the app.** | **FAILED (product surface)** |
+| `user_badges` `USING (true)` | Any authenticated member could read another's achievements. | **INCONCLUSIVE** (no data) |
+
+**SEC-PHI-9 live evidence** — throwaway object uploaded by the owner, probed,
+removed; net state change none:
+
+| Actor | Sign the object | Note |
+|---|---|---|
+| owner | **200 SIGNED** | baseline |
+| attacker | 400 not_found | denied ✓ |
+| **coach (`cancelled`)** | **200 SIGNED** | **the finding** |
+| admin | 400 not_found | denied ✓ |
+| anon (public route) | Bucket not found | **`progress-photos` is PRIVATE** — resolves a prior NOT TESTABLE |
+| attacker DELETE | 400 Unauthorized | ✓ |
+| owner DELETE | 200, verified gone | cleanup ✓ |
+
+→ `docs/proposed/SEC_PHI_9_progress_photo_revocation.sql` (AUTHORED, UNNUMBERED),
+covering both policies and documenting the **cast hazard** migration 130 records:
+`is_active_coach_of` takes `uuid`, and a raising cast on a path segment aborts
+every read of the bucket for every user. Two safe alternatives are set out.
+
+### SEC-PHI-8 — the correction right, category by category
+
+**Live-verified with reversible writes; every row restored (`MATCHES ORIGINAL: True`).**
+
+| Category | DB permits correction? | App exposes it? |
+|---|---|---|
+| first/last name | ✓ | ✓ |
+| gender, date_of_birth, phone | ✓ | **set only — cannot be cleared** |
+| height, weight, goal weight | ✓ | **set only — cannot be cleared** |
+| **email** | ✓ (DB) | **✗ no path anywhere** (`auth.updateUser` is password-only) |
+| **PAR-Q, medical_conditions, dietary_restrictions, food_allergies** | **✓ all permitted** | **✗ intake-only; `/intake` is unreachable post-onboarding** |
+| weight_logs, body_measurements, nutrition_logs, cycle_logs, cycle_symptoms | UPDATE ✓, **DELETE ✓** | **✗ neither offered** |
+| weekly_checkins | UPDATE ✓, **DELETE denied `42501`** | update only — **a deliberate, correct exception** |
+| ai_memories | ✓ | ✓ (long-press only — OD-60) |
+
+The guarded-write pattern is the mechanism:
+`if (_phoneCtrl.text.trim().isNotEmpty) payload['phone'] = …` — clearing a wrong
+value writes nothing and the old value persists. **Erasure is part of
+correction.**
+
+Answering the directive's questions 8 and 9 directly: the capability is
+**implemented but unreachable**, not intentionally withheld.
+`enforce_profile_privilege` deliberately blocks role/billing/Stripe columns
+while permitting every health field, and `weekly_checkins` DELETE is
+deliberately denied — the schema author *did* reason about this, which makes
+the remaining grants look intended rather than accidental.
+
+**End-to-end erasure proof** (net state change none, 1 row → 1 row):
+member INSERT own record → **201**; **attacker DELETE on the member's real row
+→ 0 rows deleted**; owner DELETE → **1 row deleted**. RLS enforces on DELETE,
+not only SELECT.
+
+### Controls VERIFIED this phase
+
+| Control | Evidence |
+|---|---|
+| Cross-user DELETE isolation | attacker deleted **0** of the owner's real rows |
+| Storage cross-user read | attacker and admin both denied; owner permitted |
+| Storage cross-user delete | attacker `400 Unauthorized` |
+| `progress-photos` is private | anon public route refused on an object known to exist |
+| **PostgREST filter injection** | comma, paren+`or`, quote, null-byte payloads all return **0 rows** (literal text); `weekly_checkins` stays 0 **regardless of filter** |
+| Deep-link surface | **none** — 2 intent-filters, both `MAIN`/`LAUNCHER`; no custom scheme/host; no id-bearing routes |
+| Search surfaces | `.ilike` hits are exercise/food **catalogues**; `.or()` filters self-scope to `auth.currentUser.id` |
+| Admin boundary | admin reads **0** of the member's PHI and is denied their storage objects |
+| Signed-URL lifetime | uniformly 3600 s across voice, chat, progress photos |
+
+### Retracted / not reported this phase
+
+- **`badges` `USING (true)`** — a catalogue of 11 badge definitions, not user
+  data. **FALSE POSITIVE.**
+- **`%`/`*` returning 621 rows** — legitimate wildcard on a public catalogue;
+  identical to the unfiltered count, so no escalation.
+- A third "missing status" policy — the sweep found exactly five inline
+  relationship policies; **three correctly check status**.
+
+### Mutation testing
+
+**REVOKE-G1 — 5/5 killed:** a third policy losing its status check; the helper
+dropping `status='active'`; the helper dropping `coach_id = auth.uid()`; a known
+offender fixed but left in the allowlist; **an offender hidden by commenting it
+out** (the guard strips line comments first, because commented rollback SQL has
+been mistaken for active SQL in this programme before).
+
+### Tests that could NOT be performed
+
+| Test | Blocker |
+|---|---|
+| ACTIVE-coach storage read (SEC-PHI-9 regression) | no `status='active'` fixture → **`QA_SERVICE`** |
+| `score_events` / `user_badges` exposure | fixture has 0 rows → **`QA_SERVICE`** |
+| Team-lead / event-host arms | driving tables empty → **`QA_SERVICE`** |
+| Schema/policy introspection | **Docker down** |
+| Any app runtime | **disk 788 MiB** |
+
+---
+
 ## 10 · Exhaustion assessment
 
 This phase ran further sweeps across authorization, media, AI, data-subject
@@ -250,6 +359,44 @@ positives. Two detectors in this phase had to be tightened before their output
 was usable, and one candidate count (~342 a11y) was discarded as unreliable
 rather than reported.
 
-**Status: SECURITY QA EXHAUSTED FOR THIS PHASE — OPEN FINDINGS REMAIN.**
-Not "all findings fixed". The next meaningful increment requires `QA_SERVICE`,
-a migration number, or a runtime environment — not more static sweeping.
+**Status after Phase 1: SECURITY QA EXHAUSTED FOR THAT PHASE.**
+
+### Phase 2 re-assessment
+
+That status was premature. Phase 2 produced **four more findings**, one of them
+the most serious authorization failure found in the whole programme
+(**SEC-PHI-9**, verified live), plus nine newly verified controls. Static
+sweeping was *not* exhausted; what was missing was a different question —
+"does revocation hold for **storage** as it does for tables?" — which no prior
+sweep had asked.
+
+The signal now: this phase's last four probes (deep links, search surfaces,
+filter injection, admin boundary) all returned **VERIFIED SAFE or FALSE
+POSITIVE**, and the remaining untested items are blocked on credentials or
+environment rather than on analysis.
+
+**Every executable class in this environment is now examined or explicitly
+classified.** What remains needs a capability, not more sweeping:
+
+| Unblocks | What it would enable |
+|---|---|
+| **`QA_SERVICE` + 3 seed rows** (one `active` relationship, one `coach_team_members`, one `event_registrations`) | SEC-PHI-9 regression test, SEC-PHI-10, `user_badges`, the three `102` arms, 22 undemonstrated tables |
+| **Docker** | schema/policy introspection; direct RLS flag reads |
+| **~10 GiB disk** | all app runtime verification |
+| **Wave entry (`132+`)** | SEC-PHI-9/10, SEC-PHI-1, SEC-VOICE-1(b), N-07, SEC-PHI-AUDIT |
+
+**SECURITY / HIPAA QA EXECUTABLY EXHAUSTED — OPEN FINDINGS REMAIN.**
+
+Not "all findings fixed", and not a claim of HIPAA compliance. **SEC-PHI-9 is
+an unmitigated live authorization failure on body photographs** and should lead
+the next remediation wave.
+
+### Recommended next QA phase
+
+1. Obtain `QA_SERVICE`; seed the three fixture rows. This is the single highest-
+   leverage action available and it gates six open items.
+2. Wave-entry numbering for `SEC_PHI_9_progress_photo_revocation.sql` — but
+   **resolve the cast hazard and seed an active relationship first**, or the fix
+   may break legitimate coach access with no test able to detect it.
+3. Then SEC-PHI-1, SEC-VOICE-1(b), N-07 + audit log.
+4. Owner decisions, SEC-AI-1 first.
