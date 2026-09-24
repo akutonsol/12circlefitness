@@ -127,6 +127,18 @@ void main() {
     handle.dispose();
   });
 
+  // The board's primary action. `Done` measured PRESENT while the button said
+  // `Submit`, because `sessionDoneLabel` is a const in the same resolved file
+  // set — a false positive this programme introduced itself, caught by the
+  // device test.
+  testWidgets('the primary action is the board\'s word, on screen',
+      (tester) async {
+    await _pump(tester);
+    expect(find.text(sessionDoneLabel), findsOneWidget);
+    expect(find.text('Done'), findsOneWidget);
+    expect(find.text('Submit'), findsNothing);
+  });
+
   testWidgets('each answer clears the 44 dp target floor', (tester) async {
     await _pump(tester);
     for (final e in SessionEffort.values) {

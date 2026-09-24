@@ -36,7 +36,11 @@ void main() {
   const delivered = 'Feedback sent to your coach!';
   const saved = 'Feedback saved.';
 
-  /// The dialog is taller than the default 800x600 test surface, so Submit
+  /// The primary action is `Done` — FIT-018's word. It said `Submit` until
+  /// that anchor was built; the honesty properties below are unchanged, only
+  /// the label moved. See QA_EVIDENCE §3at.
+  ///
+  /// The dialog is taller than the default 800x600 test surface, so Done
   /// falls outside it and a tap silently misses — which is exactly how a
   /// trivially-passing test gets written.
   ///
@@ -80,13 +84,13 @@ void main() {
     await t.pumpAndSettle();
   }
 
-  /// Submit is disabled until an overall rating is given, so every test has to
+  /// Done is disabled until an overall rating is given, so every test has to
   /// rate first. One star is enough.
   Future<void> rateAndSubmit(WidgetTester t) async {
     await t.tap(find.byIcon(Icons.star_border_rounded).first);
     await t.pumpAndSettle();
-    await t.ensureVisible(find.text('Submit'));
-    await t.tap(find.text('Submit'));
+    await t.ensureVisible(find.text('Done'));
+    await t.tap(find.text('Done'));
     await t.pumpAndSettle();
   }
 
@@ -112,7 +116,7 @@ void main() {
     expect(find.text('How was the workout?'), findsOneWidget);
     // And the action says what it now does.
     expect(find.text('Try Again'), findsOneWidget);
-    expect(find.text('Submit'), findsNothing);
+    expect(find.text('Done'), findsNothing);
   });
 
   testWidgets('F-23 the raw exception is never shown', (t) async {
@@ -181,7 +185,7 @@ void main() {
     expect(find.text(saved), findsNothing);
   });
 
-  testWidgets('F-23 Submit stays disabled until the client actually rates',
+  testWidgets('F-23 Done stays disabled until the client actually rates',
       (t) async {
     // Pre-existing behaviour the change must not have loosened: an unrated
     // submit would write a row that says nothing.
@@ -203,8 +207,8 @@ void main() {
     ));
     await t.pumpAndSettle();
 
-    await t.ensureVisible(find.text('Submit'));
-    await t.tap(find.text('Submit'));
+    await t.ensureVisible(find.text('Done'));
+    await t.tap(find.text('Done'));
     await t.pumpAndSettle();
     expect(submits, 0);
     expect(find.text(delivered), findsNothing);
@@ -233,8 +237,8 @@ void main() {
     // Fourth star of the "Overall" row.
     await t.tap(find.byIcon(Icons.star_border_rounded).at(3));
     await t.pumpAndSettle();
-    await t.ensureVisible(find.text('Submit'));
-    await t.tap(find.text('Submit'));
+    await t.ensureVisible(find.text('Done'));
+    await t.tap(find.text('Done'));
     await t.pumpAndSettle();
 
     expect(seen, 4);

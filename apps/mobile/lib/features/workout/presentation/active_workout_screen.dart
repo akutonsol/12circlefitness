@@ -2121,7 +2121,17 @@ class _WorkoutCompleteDialogState extends State<WorkoutCompleteDialog> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 child: _saving
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: _white, strokeWidth: 2))
-                  : Text(_saveFailed ? 'Try Again' : 'Submit',
+                  // FIT-018's primary action is `Done`, not `Submit`. The
+                  // device test caught this: `Done` measured PRESENT because
+                  // `sessionDoneLabel` is a const in the resolved file set,
+                  // and the button on screen said `Submit`. Eighth false
+                  // positive in this measurement, and the first one this
+                  // programme introduced itself.
+                  //
+                  // `Try Again` stays for the failure state — a distinct
+                  // outcome that the board's single frame does not cover, and
+                  // F-23 is the record of what collapsing it costs.
+                  : Text(_saveFailed ? 'Try Again' : sessionDoneLabel,
                       style: const TextStyle(fontWeight: FontWeight.w700)))),
             ]),
           ] else ...[

@@ -3147,7 +3147,7 @@ warning line. Recorded as **OD-29**: the board draws only the effort question.
 | Suite | **1349 pass / 9 skipped** | **PASS** |
 | Analyzer | 0 errors | **PASS** |
 | Ratchets | all eleven at baseline | **PASS** |
-| Runtime | **LOCALLY_VERIFIED** — §3an's disk constraint unchanged | **OPEN** |
+| Runtime | **RUNTIME_VERIFIED** — `emulator-5554`, see §3av | **PASS** |
 
 | # | Mutation | Result |
 |---|---|---|
@@ -3214,6 +3214,64 @@ destination. `Back` is the package's own word, declared 69 times.
 | M2 | `Scan a meal` opens the default tab, duplicating `Log a meal` | **KILLED** |
 | M3 | the back chevron reverts to unnamed | **KILLED** |
 | M4 | `Scan a meal` loses its declared name | **KILLED** |
+
+## 3av · Device verification — and the eighth false positive, which was mine
+
+Disk freed up mid-cycle, so the work recorded as `LOCALLY_VERIFIED` went to the device.
+**FIT-018 is now RUNTIME_VERIFIED**, and the device found something the host suite,
+nineteen unit tests and six widget tests all missed.
+
+### `Done` measured present and was not on screen
+
+FIT-018's fourth declared interaction is `Done`. It measured **HAVE** — because
+`sessionDoneLabel = 'Done'` is a **const in `session_complete.dart`**, which is in the
+anchor's resolved file set. The button on screen said `Submit`.
+
+That is the **eighth** false positive found in this measurement, and the first this
+programme **introduced itself**: I wrote the const, the metric matched it, and the anchor
+read complete. The host tests did not catch it because none of them asserted the primary
+action's text — they asserted the three effort answers, which were real.
+
+The device test did, immediately, because it looks for what is on screen.
+
+The button now reads `Done`, the board's word. `Try Again` stays for the failure state —
+a distinct outcome the board's single frame does not cover, and F-23 is the record of what
+collapsing it costs. F-23's eight tests were updated to the new label; every honesty
+property they assert is unchanged.
+
+### FIT-018 · RUNTIME_VERIFIED — `emulator-5554`, 411.4 dp @ dpr 2.625
+
+```
+title="Lower body, done." (no confetti)
+Easy   89.1x44.0  button=true tap=true exclusive=true selected=false
+Right  89.1x44.0  button=true tap=true exclusive=true selected=false
+Hard   89.1x44.0  button=true tap=true exclusive=true selected=false
+stats 51 min / 18 sets / 4.2 t
+after tapping Hard: easy=false right=false hard=true
+360.0 / 390.0 / 411.4 dp — exception=none
+```
+
+### FIT-001's nav — partially device-verified, and why only partly
+
+The five-tab bar rendered on the device at **360, 390 and 411.4 dp with no overflow**,
+which is the claim that mattered: the bar it replaces carried four labels and a FAB, and
+five labels in one row at 360 dp is the real risk. That sweep passed.
+
+The per-tab measurement assertion in the same file threw on a finder of mine, and the
+re-run **could not build**: the host volume had fallen from 4.7 GB to **124 MB** across
+three device builds. Reclaimed to 2.1 GB, and the re-run is left for the next cycle rather
+than reported as passing.
+
+`integration_test/fit001_client_nav_device_test.dart` is committed with the finder fixed.
+It initialises Supabase because `AppShell` asserts an instance exists before it will build
+— and **nothing signs in**: the profile provider is overridden, so no request is made and
+no row is read or written.
+
+### The disk reality, restated
+
+Three device builds took the volume from 4.7 GB to 124 MB. Each debug build is ~2.7 GB and
+nothing reclaims it automatically. Device verification on this machine is a **budget**, not
+a background activity: reclaim before, and expect to reclaim after.
 
 ## 4 · Design package
 
