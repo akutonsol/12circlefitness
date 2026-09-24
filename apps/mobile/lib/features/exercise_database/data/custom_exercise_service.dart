@@ -663,7 +663,23 @@ class CustomExerciseService {
   }
 
   // ── Coach audio (voice note on an exercise) ───────────────────────────────
-  /// Upload recorded audio bytes to coach-media, return the public URL.
+  /// Upload recorded audio bytes to coach-media, return the **object path**.
+  ///
+  /// SEC-VOICE-2. This returned `getPublicUrl(path)`, and `setCoachVoice`
+  /// persisted that into `coach_exercise_media.voice_url` — a permanent,
+  /// unauthenticated URL to a recording of a coach's voice, on a bucket
+  /// confirmed public by live probe. Render-time signing was added in the
+  /// previous wave and the Dart prerequisite recorded DONE, but only the
+  /// *display* half had been done: what was **stored** was still a public URL,
+  /// so every existing row is a live unauthenticated link.
+  ///
+  /// The path is what is stored now, matching SEC-VIDEO-1's treatment of the
+  /// sibling video path and this repository's own rule for protected media in
+  /// `chat_media_path.dart`: *"The bucket is PRIVATE. Nothing in the app may
+  /// call `getPublicUrl()` on it"*.
+  ///
+  /// Both readers normalise either form via `coachVoiceSigningPath`, so legacy
+  /// rows keep working and no migration is required to land this.
   Future<String?> uploadCoachVoice(String exerciseId, Uint8List bytes, {String ext = 'm4a'}) async {
     try {
       final uid = _db.auth.currentUser?.id;
@@ -671,14 +687,16 @@ class CustomExerciseService {
       final path = 'voice/$uid/$exerciseId-${DateTime.now().millisecondsSinceEpoch}.$ext';
       await _db.storage.from('coach-media').uploadBinary(path, bytes,
           fileOptions: const FileOptions(contentType: 'audio/mp4', upsert: true));
-      return _db.storage.from('coach-media').getPublicUrl(path);
+      return path;
     } catch (e) { lastError = e; return null; }
   }
 
   /// A short-lived URL for a stored coach voice note.
   ///
-  /// SEC-VOICE-1 (prerequisite). `uploadCoachVoice` stores a
-  /// `getPublicUrl(...)` value, which is permanent and unauthenticated. The
+  /// SEC-VOICE-1 (prerequisite) / SEC-VOICE-2. `uploadCoachVoice` **used to**
+  /// store a `getPublicUrl(...)` value, which is permanent and unauthenticated
+  /// — rows written before SEC-VOICE-2 still hold one, which is why this
+  /// resolver must keep accepting that form. The
   /// repository's own rule for protected media is the opposite — see
   /// `chat_media_path.dart`: *"The bucket is PRIVATE. Nothing in the app may
   /// call `getPublicUrl()` on it"*, with display going through
@@ -735,12 +753,17 @@ class CustomExerciseService {
     } catch (e) { lastError = e; return false; }
   }
 
-  /// The object path inside `coach-media` for a stored voice URL.
+  /// The object path inside `coach-media` for a stored voice **URL**.
   ///
-  /// `uploadCoachVoice` returns `getPublicUrl(path)`, so the path is everything
-  /// after the bucket segment. Returns null for anything that is not a
-  /// `coach-media` public URL, so a malformed or foreign value never turns into
-  /// a delete against a path this code did not create.
+  /// Parses the public-URL form ONLY — everything after the bucket segment.
+  /// Returns null for anything that is not a `coach-media` public URL, so a
+  /// malformed or foreign value never turns into a delete against a path this
+  /// code did not create.
+  ///
+  /// SEC-VOICE-2: `uploadCoachVoice` no longer returns a public URL, so this
+  /// now handles **legacy rows only**. Callers that resolve a *stored* value
+  /// must use `coachVoiceSigningPath`, which accepts both forms — using this
+  /// one directly silently skips every row written after SEC-VOICE-2.
   static String? coachVoiceObjectPath(String? publicUrl) {
     if (publicUrl == null) return null;
     const marker = '/object/public/coach-media/';
@@ -781,7 +804,19 @@ class CustomExerciseService {
           .eq('coach_id', uid)
           .eq('exercise_id', exerciseId)
           .maybeSingle();
-      final path = coachVoiceObjectPath(row?['voice_url'] as String?);
+      // SEC-VOICE-2. This resolved the delete target with
+      // `coachVoiceObjectPath`, which ONLY parses a full public URL. Once
+      // `uploadCoachVoice` began storing a bare object path, that returned
+      // null, the `remove()` below was skipped, the row was nulled and this
+      // method returned `true` — silently restoring the very defect it was
+      // written to fix: the app reports the note deleted and the recording
+      // stays in the bucket.
+      //
+      // `coachVoiceSigningPath` normalises BOTH forms, so legacy rows holding
+      // a public URL and new rows holding a path both resolve. It is the same
+      // normalisation the render path uses, which is the point: one stored
+      // value, one resolver.
+      final path = coachVoiceSigningPath(row?['voice_url'] as String?);
       if (path != null) {
         // Deliberately NOT swallowed: if the recording cannot be removed, the
         // app must not report the note as deleted.

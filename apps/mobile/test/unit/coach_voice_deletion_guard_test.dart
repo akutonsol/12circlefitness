@@ -61,20 +61,42 @@ void main() {
           .readAsStringSync();
     });
 
-    test('clearCoachVoice removes the object', () {
+    /// The method body, to its closing brace — NOT a fixed character window.
+    ///
+    /// This was `substring(start, start + 1400)`. Adding a comment to the
+    /// method pushed `.remove([path])` outside the window and the guard failed
+    /// on a change that altered no behaviour. A guard that a comment can break
+    /// is a guard that will be edited to pass.
+    String clearBody() {
       final start = src.indexOf('Future<bool> clearCoachVoice(');
-      expect(start, greaterThan(0));
-      final body = src.substring(start, start + 1400);
+      expect(start, greaterThan(0), reason: 'clearCoachVoice has moved');
+      final end = src.indexOf('\n  }', start);
+      expect(end, greaterThan(start), reason: 'could not find the method end');
+      return src.substring(start, end);
+    }
+
+    test('clearCoachVoice removes the object', () {
+      final body = clearBody();
 
       expect(body, contains("storage.from('coach-media').remove("),
           reason: 'the recording is left in a public bucket again');
-      expect(body, contains('coachVoiceObjectPath('),
-          reason: 'the path must be derived, not guessed');
+
+      // SEC-VOICE-2. It must be `coachVoiceSigningPath`, NOT
+      // `coachVoiceObjectPath`. The latter parses the public-URL form ONLY, so
+      // once `uploadCoachVoice` began storing a bare object path it returned
+      // null for every new row, `remove()` was skipped, the row was nulled and
+      // the method still returned `true` — the app reporting a deletion it had
+      // not performed, which is the defect this whole guard exists for.
+      expect(body, contains('coachVoiceSigningPath('),
+          reason: 'the delete target must be resolved by the normaliser that '
+              'accepts BOTH a legacy public URL and a stored object path; '
+              'coachVoiceObjectPath silently skips every post-SEC-VOICE-2 row');
+      expect(body.contains('coachVoiceObjectPath('), isFalse,
+          reason: 'the URL-only parser is back in the delete path');
     });
 
     test('the removal is not swallowed', () {
-      final start = src.indexOf('Future<bool> clearCoachVoice(');
-      final body = src.substring(start, start + 1400);
+      final body = clearBody();
       // A swallowed remove would let the app claim a deletion it did not do.
       final removeAt = body.indexOf('.remove([path])');
       final updateAt = body.indexOf("'voice_url': null");
