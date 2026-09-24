@@ -1,0 +1,169 @@
+# PHI / HIPAA-relevant security ledger
+
+Live evidence in this ledger was gathered **read-only** against the QA project
+(`eyqtldjqpgpljlqvpowh`; production `nxdbooufqzkpslkcogxc` is refused by every probe).
+Nothing was inserted, updated or deleted. No credential, token, email address or PHI
+**value** appears here — only status codes, row counts, and whether a column is present.
+
+Probe: `apps/mobile/tool/anon_least_privilege.py`.
+
+> **This is a technical control assessment. It is not a HIPAA compliance certification.**
+
+---
+
+## 1 · Findings
+
+### SEC-PHI-1 — a single policy serves both display data and PHI
+| | |
+|---|---|
+| **Severity** | High (privacy) |
+| **Area** | RLS · `user_profiles` |
+| **Affected role** | `is_team_lead_of`, `hosts_event_for` |
+| **Affected data** | `parq_answers`, `medical_conditions`, `has_injuries`, `injury_locations`, `injury_description`, `risk_score/level/flags`, `dietary_restrictions`, `food_allergies`, `sleep_hours`, `stress_level`, `occupation`, `date_of_birth` |
+| **Access path** | `102_restrict_user_profiles.sql:165` — `USING (id = auth.uid() OR is_active_coach_of(id) OR is_team_lead_of(id) OR hosts_event_for(id))`. RLS grants **rows, not columns**, and no column-level `GRANT`/`REVOKE` on `user_profiles` exists in 131 migrations. |
+| **Current behaviour** | Any principal satisfying any arm receives the entire row, PHI included. 102's own header says the last two arms exist to read **`email`** for a team roster and an attendee list. |
+| **Expected** | A roster/attendee need is a display need. Clinical columns should follow the clinical relationship only. |
+| **Evidence** | Policy text; `013_health_assessment.sql:5-23`; absence of column grants; `coach_team_members`, `event_registrations`, `events` all **exist live** (`42501`, not `PGRST205`). |
+| **Status** | **PARTIAL — not proven exploitable.** No harness identity can satisfy either arm (see §3), so the arms could not be exercised. The consequence is certain from SQL semantics *if* an arm is satisfied; reachability is **BLOCKED**. |
+| **Remediation** | Column-limited views for roster and attendee, mirroring what `102` already did for messaging and community, then drop the two arms. |
+| **Governance blocker** | Migration number + owner sign-off. |
+| **Attribution** | **Not novel.** Independently identified first in `docs/N07_IMPLEMENTATION_STATUS.md` §2, *"The authorization finding (owner decision required)"*, by another workstream. This ledger's contribution is the **live evidence** and the convergence of two independent analyses. |
+
+### SEC-PHI-2 — the PAR-Q screen printed the database error into itself — **FIXED**
+| | |
+|---|---|
+| **Severity** | Medium (information disclosure) |
+| **Area** | Client · `client_detail_screen.dart` |
+| **Access path** | `error: (e, _) => Text('Error: $e')` at `:132` and `:1620`, on the screen whose Assessment and PAR-Q tabs render a client's intake record. |
+| **Current behaviour (was)** | A PostgREST/Postgres error carries table and column names, constraint text, and on a unique violation the conflicting **value**. |
+| **Evidence** | Source; guard `test/unit/phi_screen_error_disclosure_guard_test.dart`; **3/3 mutations killed**. |
+| **Status** | **RESOLVED** — replaced with the repository's own `Could not load [noun]` pattern. |
+| **Residual** | Five non-PHI sites still interpolate (`coach_video_response_screen.dart:103`, `coach_availability_screen.dart:381`, `coach_marketplace_screen.dart:150`, and two in `admin_dashboard_screen.dart` which *parse* rather than display). → OD-55. |
+
+### SEC-PHI-3 — applying N-07 would not change what the shipped screen reads *(new)*
+| | |
+|---|---|
+| **Severity** | Medium (remediation gap) |
+| **Area** | Integration · `coach_ecosystem_provider.dart` ↔ `docs/proposed/N07_assessment_access.sql` |
+| **Access path** | `clientDetailProvider` = `db.from('user_profiles').select('*').eq('id', clientId)` — the **base table**, gated only by 102's four arms. The proposal adds `get_client_assessment(uuid)`, a narrow RPC admitting only the active assigned coach and writing `assessment_access_log`. |
+| **Current behaviour** | Applying the proposal adds a safe, audited door **beside** the wide one. The shipped Assessment/PAR-Q tabs keep reading the base table, so neither the narrowing nor the audit trail would take effect. |
+| **Expected** | The assessment surface reads the audited path; the base-table read is removed or reduced. |
+| **Evidence** | `coach_ecosystem_provider.dart:119-124`; proposal §"Instead it adds a dedicated, narrow read path"; the status doc's next-steps list does not include repointing the provider. |
+| **Status** | **OPEN — REMEDIATION REQUIRED**, and it is *code*, not schema, so it is not migration-blocked. It is blocked on the migration landing first, since the RPC must exist before the Dart can call it. |
+| **Governance blocker** | Ordering only: migration first, then the Dart repoint. |
+
+### SEC-VOICE-1 — `coach-media` is a public bucket
+| | |
+|---|---|
+| **Severity** | Medium–High (storage privacy) |
+| **Affected data** | Coach **voice notes** and **video responses** addressed to a specific client |
+| **Access path** | `036_client_plan_and_coach_media.sql:33` creates it `public = true`; `130_private_storage_buckets.sql` privatised `chat-media`, `messages`, `progress-photos` and **not** this one. Three `getPublicUrl()` call sites. |
+| **Evidence (live, no credentials at all)** | `coach-media` → `NoSuchKey` (**the bucket served the request**); `progress-photos` / `chat-media` / `messages` → `NoSuchBucket`; nonexistent-bucket control → `NoSuchBucket`. `exercise-media` and `avatars` are also public. |
+| **Status** | **FAILED — STORAGE PRIVACY** (bucket). **Deletion arm RESOLVED** — `clearCoachVoice()` now removes the object before clearing the row; 4/4 mutations killed. |
+| **Remediation** | `docs/proposed/SEC_VOICE_1_coach_media_private.sql` — **AUTHORED, unnumbered**. Must not be applied alone: three `getPublicUrl()` sites must move to `createSignedUrl()` in the same change or existing media stops loading. |
+| **Governance blocker** | Migration number + owner sign-off; the read policy is an owner decision (a client must be able to play a note addressed to them). |
+
+### SEC-PHI-AUDIT — no PHI access logging exists
+| | |
+|---|---|
+| **Severity** | High (auditability) |
+| **Evidence** | `assessment_access_log`, `audit_log`, `phi_access_log` → all **ABSENT** live (`PGRST205`); **0** app-side writes to any audit table; no migration creates one. |
+| **Current behaviour** | A coach opens a client's PAR-Q tab and nothing records actor, subject or time. |
+| **Status** | **SECURITY GAP — REMEDIATION REQUIRED.** The table is defined in the N-07 proposal (§"1. The audit log. Append-only.") and has never been applied. |
+| **Governance blocker** | Migration number + owner sign-off (OD-56). |
+
+---
+
+## 2 · RPC exposure matrix — anonymous role
+
+**54 SECURITY DEFINER functions probed** with the anon key, **GET only**. PostgREST refuses
+`GET` on a `VOLATILE` function with `405` *without executing it*, so no mutating function was
+invoked.
+
+| Result | Count |
+|---|---|
+| `404` — not exposed to anon | 41 |
+| `401` — `42501`, no `EXECUTE` for anon | 13 |
+| **executed / returned data** | **0** |
+
+**No function carries an explicit `GRANT EXECUTE … TO anon`** anywhere in 131 migrations
+(34 have explicit grants, 28 explicit revokes). → **VERIFIED SAFE.**
+
+### PHI-touching functions — deep inspection
+
+21 of the 56 read a PHI table. Those that accept a UUID and are not triggers:
+
+| Function | Execute | Returns | RLS | Internal authz | Arbitrary UUID | Status |
+|---|---|---|---|---|---|---|
+| `is_coach_profile(uuid)` | `authenticated` (revoked from PUBLIC) | **`boolean`** only — `role = 'coach'` | bypassed (definer) | none | yes | **VERIFIED SAFE** — a bare predicate; `role` is already in `public_profiles` |
+| `get_or_create_conversation(uuid)` | `authenticated` (revoked PUBLIC, anon) | `uuid` | bypassed | **binds participant 1 to `auth.uid()`**, raises `42501` unauthenticated, rejects self | yes, as *other* party only | **VERIFIED SAFE** — identity cannot be forged |
+| `admin_recent_users(int)` | `authenticated` | 7 cols incl. `email` — **no PHI** | bypassed | **`is_admin()`, raises `42501`** | n/a | **VERIFIED SAFE** — tested both ways |
+| `admin_platform_stats()` | `authenticated` | 13 aggregate cols | bypassed | **`is_admin()`, raises `42501`** | n/a | **VERIFIED SAFE** — tested both ways |
+| `marketplace_coaches()` | `authenticated` | `RETURNS TABLE` 17 display cols — **0 PHI** | bypassed | none needed | n/a | **VERIFIED SAFE** — return type is the limiter |
+| 12 × `trg_notify_*`, `handle_new_user`, `set_relationship_client_source` | — | `trigger` | — | — | — | **NOT RPC-CALLABLE** — PostgREST does not expose trigger functions |
+
+**Positive/negative evidence** for the two `is_admin()`-gated functions (bodies read first and
+confirmed to contain no `INSERT`/`UPDATE`/`DELETE`, so invocation cannot mutate):
+
+```
+admin_recent_users   anon 401 · attacker 403 · coach 403 · victim 403 · admin 200 rows=3 cols=7
+admin_platform_stats anon 401 · attacker 403 · coach 403 · victim 403 · admin 200 rows=1 cols=13
+```
+
+Every denial is `42501`, raised **before** any data is returned. → **VERIFIED CONTROL.**
+
+---
+
+## 3 · Role-boundary results
+
+| Boundary | Result |
+|---|---|
+| anon → any of 65 tables | **VERIFIED DENIED** — 0 readable, 64 × `42501` |
+| anon → 3 RLS-bypassing views (`security_invoker = off`) | **VERIFIED DENIED** — `42501` |
+| anon → 54 SECURITY DEFINER functions | **VERIFIED DENIED** |
+| client → own PHI | **VERIFIED ALLOWED** — 6/6 PHI columns |
+| client → another client's PHI | **VERIFIED DENIED** — 0 rows, both directions |
+| client → another client's `weekly_checkins`, `cycle_symptoms`, `cycle_logs`, `progress_photo_logs`, `coach_notes` | **VERIFIED DENIED** — 0 rows each |
+| unassigned coach → client PHI | **VERIFIED DENIED** — 0 rows |
+| former coach (`cancelled`) → ex-client PHI | **VERIFIED DENIED** — 0 rows |
+| the same, using `select('*')` **as the screen does** | **VERIFIED DENIED** — 0 rows |
+| admin → a client's PHI | **VERIFIED DENIED** — 0 rows (own row only) |
+| narrow view `public_profiles` → PHI | **VERIFIED DENIED** — 21 cols, **0 of 12** PHI; naming `parq_answers` fails `42703` |
+| **active assigned coach → client PHI** | **BLOCKED** — no active relationship exists |
+| **team lead → client PHI** | **BLOCKED** — `coach_team_members` empty for every identity |
+| **event host / vendor → attendee PHI** | **BLOCKED** — 3 events exist, none owned by a harness identity |
+
+Provisioning any of the last three requires a **write**, and creating identities requires the
+service-role key. → **OD-51.**
+
+---
+
+## 4 · Other controls
+
+| Control | Status | Evidence |
+|---|---|---|
+| Service-role key absent from client code | **VERIFIED** | 0 hits in `lib/` |
+| PHI absent from `print`/`debugPrint`/`log` | **VERIFIED** | 0 hits |
+| PHI absent from URLs / query parameters | **VERIFIED** | 0 hits |
+| `SECURITY DEFINER` `search_path` pinned | **VERIFIED** | `116:77` catch-all `pg_proc` loop, re-run by `118` and `122` |
+| Signed URLs for private media | **VERIFIED** | `createSignedUrl(path, 3600)` in 5 files for `progress-photos` / `chat-media` |
+| Access revocation | **VERIFIED** | former coach denied, live |
+| Storage object **enumeration** | **NOT TESTABLE** | every bucket lists `200 []` — but `progress_photo_logs` is `*/0`, i.e. QA holds no media, so the listing proves nothing |
+| PHI access logging | **FAILED** | no table, no writes |
+| `coach-media` privacy | **FAILED** | public, live-verified |
+| Account deletion / data export paths | **EVIDENCE REQUIRED** | not yet inspected |
+| Notification payload contents | **EVIDENCE REQUIRED** | not yet inspected |
+| Local persistence / cache of PHI | **EVIDENCE REQUIRED** | not yet inspected |
+
+---
+
+## 5 · Governance
+
+Nothing in this ledger was remediated in schema. Two proposals are **AUTHORED and
+unnumbered** — `docs/proposed/SEC_VOICE_1_coach_media_private.sql` and the pre-existing
+`docs/proposed/N07_assessment_access.sql`. `docs/MASTER_REMEDIATION_WAVES.md` reserves
+**132+** for *"assigned at wave entry, never before"*.
+
+Files owned by the other workstream — `docs/N07_IMPLEMENTATION_STATUS.md`,
+`docs/proposed/N07_assessment_access.sql`, `supabase/tests/security/d09-assessment-access.mjs`,
+`docs/FINAL_NEW_SCREEN_DESIGN_COMMISSION.md` — were **read as evidence and not modified**.

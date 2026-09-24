@@ -5748,6 +5748,80 @@ describes.
 → **OD-56**: applying the N-07 proposal needs a wave-entry migration number and owner
 sign-off. It is **AUTHORED**, not implemented, and this session did not touch it.
 
+## 3ck · Phase B completed, and an attribution correction I owe
+
+### The exposure matrix is finished
+
+`docs/SECURITY_LEDGER_PHI.md` now carries the full ledger. The anon sweep was already done
+(§3cb); what was missing was the **per-function** analysis, and it is complete:
+
+* **54** SECURITY DEFINER functions probed anonymously, GET-only — **0 executable, 0 returned
+  data**. No explicit `GRANT … TO anon` exists anywhere in 131 migrations.
+* **21** touch a PHI table. Of those, **12 are triggers** (`RETURNS trigger`) which PostgREST
+  does not expose at all, and the rest were read line by line.
+* Only **two** non-trigger functions take a UUID and read PHI, and both are sound:
+  `is_coach_profile(uuid)` returns a **bare boolean** (`role = 'coach'`, already public via
+  `public_profiles`), and `get_or_create_conversation(uuid)` **binds participant 1 to
+  `auth.uid()`** — the caller cannot forge identity.
+* `marketplace_coaches()` — the one PHI-touching function granted to `authenticated` with no
+  internal check — is `RETURNS TABLE` with 17 named display columns. The return type *is* the
+  column limiter. **0 PHI**, in both the `041` and `046` definitions.
+
+**Positive and negative cases, not just negative.** `admin_recent_users` and
+`admin_platform_stats` were invoked after reading their bodies and confirming they contain no
+`INSERT`/`UPDATE`/`DELETE`:
+
+```
+anon 401 · attacker 403 · coach 403 · victim 403 · admin 200
+```
+
+Every denial is `42501`, raised before any row is produced. `is_admin()` is enforced
+server-side — **VERIFIED CONTROL**, demonstrated in both directions.
+
+### An honest correction: SEC-PHI-1 is not my finding
+
+`docs/N07_IMPLEMENTATION_STATUS.md` §2 — *"The authorization finding (owner decision
+required)"* — records migration 102's breadth over PHI, written by the other workstream at
+10:18 today, **before** §3cd. My §3cd presented it as a finding. It is a **re-derivation**.
+
+What this programme did add is the part they could not: **live evidence**. That the two wide
+arms are currently unexercisable, that revocation demonstrably works, that the narrow view
+leaks nothing, and that the assessment screen is already shipped. Two independent analyses
+converging on the same policy is corroboration, and it is worth more than either alone —
+but the finding is theirs, and the ledger now says so.
+
+### SEC-PHI-3 — the part that is new
+
+Their proposal is explicit that it **does not** touch 102's policy:
+
+> *"Instead it adds a dedicated, narrow read path for assessment data which admits ONLY the
+> active assigned coach — not team leads, not event hosts — and which records every access."*
+
+That is the right call. But the shipped screen reads the **base table**:
+
+```dart
+final profile = await db.from('user_profiles').select('*').eq('id', clientId).maybeSingle();
+```
+
+So applying the N-07 migration would add a safe, audited door **beside** the wide one, and
+the Assessment and PAR-Q tabs would keep using the wide one. Neither the narrowing nor the
+audit trail takes effect until `clientDetailProvider` is repointed at
+`get_client_assessment()`. Their next-steps list does not include that repoint — reasonably,
+since their doc records `client_detail_screen.dart` as *"being modified by a concurrent
+session right now"*, which was this one.
+
+**This is code, not schema**, so it is not migration-blocked — only ordered behind the
+migration, because the RPC must exist before Dart can call it. Recorded as **SEC-PHI-3**, the
+next free id (existing: SEC-01…12, SEC-020…031, SEC-R1…R3, SEC-PHI-1/2, SEC-VOICE-1).
+
+### Storage enumeration — NOT TESTABLE, stated rather than claimed
+
+Every bucket answers `200 []` to a list request, from anon and from an authenticated client
+alike — including the three known-private ones. That is the ambiguous shape, not a denial.
+`progress_photo_logs` is `*/0`: **QA holds no media at all**, so the listing proves nothing
+about policy either way. The *public* finding stands regardless, because its discriminator
+(`NoSuchKey` vs `NoSuchBucket`) does not depend on content.
+
 ## 4 · Design package
 
 | Check | Status |
