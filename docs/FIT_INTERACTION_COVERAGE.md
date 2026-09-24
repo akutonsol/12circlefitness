@@ -52,7 +52,8 @@ Both corrections are now reproducible from one command, which is the point.
 | Route resolved to a screen file | 108 |
 | All declared interactions | **286 / 600** |
 | **Locked-anchor interactions** | **129 / 179** |
-| Locked anchors complete | **11** of 29 |
+| Locked anchors complete **and reachable** | **10** of 29 |
+| Anchors whose route has **no way in** | **6** — FIT-071, FIT-072, FIT-074, FIT-019, FIT-073, FIT-006 |
 
 ## Every anchor, by remaining gap
 
@@ -66,7 +67,7 @@ Both corrections are now reproducible from one command, which is the point.
 | **FIT-105** | — | 7/15 | 8 | AI Coach — how it speaks, what it knows | `/ai-coach` |
 | **FIT-054** | — | 4/11 | 7 | Progress · Photos | `/progress` |
 | **FIT-089** | — | 0/7 | 7 | AI nutrition — conversation | `/ai-nutrition` |
-| **FIT-071** | — | 0/6 | 6 | Pods hub | `/pods` |
+| **FIT-071** | — | 0/6 | 6 | Pods hub — **UNREACHABLE** | `/pods` |
 | **FIT-067** | — | 4/10 | 6 | Create post | `/community` |
 | **FIT-066** | — | 3/9 | 6 | Post detail + comments | `/community` |
 | **FIT-062** | — | 1/7 | 6 | Notifications | `/notifications` |
@@ -76,7 +77,7 @@ Both corrections are now reproducible from one command, which is the point.
 | **FIT-032** | 🔒 | 6/11 | 5 | Coach dashboard | `/coach-dashboard` |
 | **FIT-102** | — | 2/7 | 5 | AI Coach — first open | `/ai-coach` |
 | **FIT-103** | — | 0/5 | 5 | AI Coach — today | `/ai-coach` |
-| **FIT-072** | — | 0/5 | 5 | Pod detail | `/pods` |
+| **FIT-072** | — | 0/5 | 5 | Pod detail — **UNREACHABLE** | `/pods` |
 | **FIT-088** | — | 0/5 | 5 | Cancellation — confirm → cancelled | `/class-detail` |
 | **FIT-104** | — | 0/5 | 5 | AI Coach — the week | `/ai-coach` |
 | **FIT-047** | — | 1/5 | 4 | Coaching mode | `/intake` |
@@ -124,7 +125,7 @@ Both corrections are now reproducible from one command, which is the point.
 | **FIT-028** | 🔒 | 8/10 | 2 | Connect — no coach | `/messages` |
 | **FIT-029** | 🔒 | 4/6 | 2 | Profile | `/profile` |
 | **FIT-094** | — | 1/3 | 2 | Grocery list — the two blocked states | `/grocery-list` |
-| **FIT-074** | — | 0/2 | 2 | Pods — empty + loading | `/pods` |
+| **FIT-074** | — | 0/2 | 2 | Pods — empty + loading — **UNREACHABLE** | `/pods` |
 | **FIT-050** | — | 4/6 | 2 | Consent | `/intake` |
 | **FIT-101** | — | 0/2 | 2 | Action items — empty, loading, failed | `/action-items` |
 | **FIT-087** | — | 0/2 | 2 | Booking sheet — confirm → confirmed | `/class-detail` |
@@ -145,11 +146,11 @@ Both corrections are now reproducible from one command, which is the point.
 | **FIT-040** | — | 3/4 | 1 | Height | `/intake` |
 | **FIT-020** | 🔒 | 4/5 | 1 | AI meal scan | `/log-meal (ai_scan_view)` |
 | **FIT-026** | 🔒 | 4/5 | 1 | Conversation | `/chat` |
-| **FIT-019** | 🔒 | 4/5 | 1 | Log a meal | `/log-meal` |
+| **FIT-019** | 🔒 | 4/5 | 1 | Log a meal — **UNREACHABLE** | `/log-meal` |
 | **FIT-057** ✅ | — | 5/5 | 0 | Progress · states | `/progress` |
 | **FIT-052** ✅ | — | 5/5 | 0 | Progress · Weight | `/progress` |
 | **FIT-042** ✅ | — | 2/2 | 0 | Target weight | `/intake` |
-| **FIT-073** ✅ | — | 0/0 | 0 | Pods — joined vs not joined | `/pods` |
+| **FIT-073** ✅ | — | 0/0 | 0 | Pods — joined vs not joined — **UNREACHABLE** | `/pods` |
 | **FIT-041** ✅ | — | 4/4 | 0 | Weight | `/intake` |
 | **FIT-001** ✅ | 🔒 | 9/9 | 0 | Home | `/home` |
 | **FIT-036** ✅ | — | 8/8 | 0 | PAR-Q | `/intake` |
@@ -165,6 +166,6 @@ Both corrections are now reproducible from one command, which is the point.
 | **FIT-010** ✅ | — | 1/1 | 0 | Splash | `/splash` |
 | **FIT-009** ✅ | 🔒 | 1/1 | 0 | Intake complete | `/intake` |
 | **FIT-007** ✅ | 🔒 | 1/1 | 0 | Sign in | `/login` |
-| **FIT-006** ✅ | 🔒 | 2/2 | 0 | Welcome | `/onboarding` |
+| **FIT-006** ✅ | 🔒 | 2/2 | 0 | Welcome — **UNREACHABLE** | `/onboarding` |
 | **FIT-002** ✅ | 🔒 | 5/5 | 0 | Active Workout | `/active-workout` |
 | **FIT-068** ✅ | — | 0/0 | 0 | Post types | `/community` |

@@ -51,6 +51,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'orphan_route_sweep.dart'
+    show registeredRoutes, navigatedRoutes, externallyEntered;
+
 String stripComments(String src) {
   final out = StringBuffer();
   var i = 0;
@@ -194,8 +197,22 @@ void main(List<String> args) {
   }
 
   final routerPath = 'lib/core/router/app_router.dart';
-  final builders = routeBuilders(File(routerPath).readAsStringSync());
+  final routerSrc = File(routerPath).readAsStringSync();
+  final builders = routeBuilders(routerSrc);
   final routerImports = importsOf(routerPath);
+
+  // A screen nobody can open is not implemented, whatever its labels say.
+  // FIT-006 "Welcome" measured 2/2 while `/onboarding` had NO caller at all —
+  // the router's own comment says the splash hands off to it, and the splash
+  // goes to `/signup`. Presence is not reachability.
+  final registered = registeredRoutes(routerSrc).toSet();
+  final navigated = navigatedRoutes(Directory('lib'));
+  bool unreachable(String? route) =>
+      route != null &&
+      registered.contains(route) &&
+      !navigated.contains(route) &&
+      !externallyEntered.containsKey(route) &&
+      !navigated.any((n) => n.startsWith('$route/'));
 
   final anchors = <Map<String, dynamic>>[];
   void walk(Object? n) {
@@ -304,6 +321,7 @@ void main(List<String> args) {
       (a['name'] as String?) ?? '',
       route ?? '—',
       screen == null ? 'UNRESOLVED' : '${files.length} files',
+      unreachable(route),
     ]);
   }
 
@@ -319,8 +337,10 @@ void main(List<String> args) {
   }
 
   final lockedAnchors = rows.where((r) => r[1] == true).length;
-  final lockedDone =
-      rows.where((r) => r[1] == true && r[2] == r[3]).length;
+  final lockedDone = rows
+      .where((r) => r[1] == true && r[2] == r[3] && r[7] != true)
+      .length;
+  final unreachableAnchors = rows.where((r) => r[7] == true).toList();
 
   if (markdown) {
     stdout.writeln('## Headline\n');
@@ -330,8 +350,13 @@ void main(List<String> args) {
     stdout.writeln('| Route resolved to a screen file | $resolved |');
     stdout.writeln('| All declared interactions | **$have / $total** |');
     stdout.writeln('| **Locked-anchor interactions** | **$lh / $lt** |');
-    stdout.writeln('| Locked anchors complete | **$lockedDone** of '
-        '$lockedAnchors |');
+    stdout.writeln('| Locked anchors complete **and reachable** | '
+        '**$lockedDone** of $lockedAnchors |');
+    if (unreachableAnchors.isNotEmpty) {
+      stdout.writeln('| Anchors whose route has **no way in** | '
+          '**${unreachableAnchors.length}** — '
+          '${unreachableAnchors.map((r) => r[0]).join(', ')} |');
+    }
     stdout.writeln('\n## Every anchor, by remaining gap\n');
     stdout.writeln('| Anchor | Locked | Covered | Gap | Name | Route |');
     stdout.writeln('|---|---|---|---|---|---|');
@@ -341,7 +366,8 @@ void main(List<String> args) {
       if (gapsOnly && gap == 0) continue;
       stdout.writeln('| **${r[0]}**${gap == 0 ? ' ✅' : ''} '
           '| ${r[1] == true ? '🔒' : '—'} '
-          '| ${r[2]}/${r[3]} | $gap | ${r[4]} | `${r[5]}` |');
+          '| ${r[2]}/${r[3]} | $gap | ${r[4]}'
+          '${r[7] == true ? ' — **UNREACHABLE**' : ''} | `${r[5]}` |');
     }
     return;
   }
@@ -355,7 +381,8 @@ void main(List<String> args) {
         '${r[1] == true ? ' 🔒 ' : '    '} '
         '${'${r[2]}/${r[3]}'.padLeft(6)} '
         '${gap.toString().padLeft(4)}  '
-        '${(r[4] as String).padRight(30)} ${r[5]}  [${r[6]}]');
+        '${(r[4] as String).padRight(30)} ${r[5]}  [${r[6]}]'
+        '${r[7] == true ? '  <-- NO WAY IN' : ''}');
   }
 
   stdout.writeln('\n${'─' * 64}');
@@ -363,5 +390,9 @@ void main(List<String> args) {
       '(route resolved to a screen file: $resolved)');
   stdout.writeln('ALL interactions   $have / $total');
   stdout.writeln('LOCKED             $lh / $lt   '
-      '($lockedAnchors anchors, $lockedDone complete)');
+      '($lockedAnchors anchors, $lockedDone complete AND reachable)');
+  if (unreachableAnchors.isNotEmpty) {
+    stdout.writeln('UNREACHABLE        ${unreachableAnchors.length}   '
+        '${unreachableAnchors.map((r) => r[0]).join(', ')}');
+  }
 }

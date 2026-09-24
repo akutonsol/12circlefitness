@@ -3341,6 +3341,90 @@ coach/client boundary, **no new writes**. Nothing to escalate.
 **embeds the sample count**, so a live figure can never match it. Composed-label ceiling,
 same as the board's sample rows.
 
+## 3ax · ROUTE-G1 · six screens nobody can open, two of them locked anchors
+
+Three orphaned routes were found in one cycle — `/activity`, `/meal-plan`, `/goals` — each
+by hand, each by asking what a declared FIT interaction opens. The coverage metric cannot
+see an orphan: it reads labels, and a missing control has none to read. **The only reason
+those three surfaced is that the design happened to declare a control for each. Nothing
+would have found a fourth.**
+
+`tool/orphan_route_sweep.dart` asks the question once, for all 91 registered routes.
+
+### What counts as a way in, and why the first answer was wrong
+
+A literal scan for `context.go('/x')` reported **13** orphans. Three of those are not:
+
+* `/events` is reached through a **data-driven** list — `_Module(route: '/events', …)` in
+  `directory_screen.dart`. A literal-call scan cannot see it;
+* `/splash`, `/login` and the two Stripe redirect URLs are entered from **outside `lib`**.
+  They are **named** with a reason, because "no caller" and "entered from elsewhere" are
+  different facts and guessing which is which is how a real orphan gets excused.
+
+The honest count is **seven routes**, carrying **six anchors**.
+
+### Two of them are locked anchors, and one was measuring complete
+
+**FIT-006 "Welcome" measured 2/2 and no client can reach it.** `/onboarding` has no caller;
+the router's own comment says *"the splash hands off to /onboarding itself"* and the splash
+goes to `/signup`.
+
+And the design package **documents this itself**. FIT-010's annotation:
+
+> *"Destinations preserved from source: Get started → `/signup`, Sign in → `/login`. See the
+> report — the shipped implementation is a different screen entirely, and **it orphans
+> locked Welcome**."*
+
+So the package declares Welcome as a locked screen **and** preserves a splash that bypasses
+it. That is a contradiction with no authoritative resolution — **OD-31**, not a defect to
+fix here. Wiring the splash through Welcome would be choosing a product flow the package
+deliberately left as it found it.
+
+**FIT-019 "Log a meal"**: `/log-meal` builds a 23-line screen whose `initState` immediately
+`context.go('/meals-dashboard')`. A redirect stub with no caller — and the literal instance
+of the *"route resolved to a redirect stub"* defect the original coverage ledger named
+without locating.
+
+### The measurement now counts reachability
+
+`fit_backlog.dart` marks an anchor **UNREACHABLE** when its route has no door, and such an
+anchor is **not counted complete**. Locked complete falls **11 → 10**, because FIT-006 was
+being counted.
+
+> Presence is not reachability. A screen nobody can open is not implemented, whatever its
+> labels say.
+
+That is the **ninth** defect found in this measurement.
+
+| Route | What it is |
+|---|---|
+| `/coach` | a duplicate alias of `/train` — both build `TrainHubScreen` |
+| `/log-meal` | a redirect stub to `/meals-dashboard` — FIT-019, **locked** |
+| `/onboarding` | FIT-006 Welcome — **locked**, and **OD-31** |
+| `/pods` | `PodsScreen` — FIT-071…074, all non-locked |
+| `/coach-business`, `/food-search`, `/nutrition-overview` | screens with no entry point |
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/unit/orphan_route_guard_test.dart` — 5 tests, bidirectional allowlist, detector floor | **PASS** |
+| Guard strength | **3 / 3 mutations killed** | **PASS** |
+| Suite | **1372 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Ratchets | **twelve** at baseline | **PASS** |
+
+| # | Mutation | Result |
+|---|---|---|
+| O1 | a new route is registered with no door | **KILLED** |
+| O2 | a recorded orphan gains a door but stays listed | **KILLED** |
+| O3 | blind the navigated-route detector | **KILLED** |
+
+### New owner decision
+
+**OD-31 · does Welcome enter the flow?** FIT-006 is a **locked** screen at `/onboarding`
+with no way in, and FIT-010's annotation records that the shipped splash orphans it while
+preserving `Get started → /signup`. Either the splash routes through Welcome, or Welcome is
+retired. The package states the conflict and does not resolve it.
+
 ## 4 · Design package
 
 | Check | Status |
