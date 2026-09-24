@@ -24,13 +24,17 @@ class _AiNutritionScreenState extends ConsumerState<AiNutritionScreen> {
   bool _isListening = false;
   bool _speechReady = false;
 
+  /// FIT-089 draws exactly these three chips. The screen shipped six, in a
+  /// different voice ("Analyze my breakfast", "Generate a 7-day meal plan").
+  ///
+  /// The three the board dropped are not capabilities that disappear — every
+  /// one of them is a sentence the user can still type, and the meal planner
+  /// and grocery list have their own routes in the overflow menu. What changes
+  /// is which three the screen offers first, and that is the board's call.
   final List<String> _quickPrompts = [
-    'Analyze my breakfast',
-    'Generate a 7-day meal plan',
-    'Create a grocery list',
-    'High protein meal ideas',
-    'Pre-workout nutrition tips',
-    'Help me hit my macros',
+    'Plan my week',
+    'Read my plate',
+    'Rest-day meals',
   ];
 
   @override
@@ -162,6 +166,9 @@ class _AiNutritionScreenState extends ConsumerState<AiNutritionScreen> {
         ]),
         actions: [
           PopupMenuButton(
+            // FIT-089 names this. Without it the control falls back to
+            // MaterialLocalizations' generic "Show menu".
+            tooltip: 'More options',
             icon: const Icon(Icons.more_vert, color: AppColors.white),
             color: AppColors.surfaceDark,
             itemBuilder: (_) => [
@@ -299,7 +306,7 @@ class _AiNutritionScreenState extends ConsumerState<AiNutritionScreen> {
                   style: const TextStyle(color: AppColors.white),
                   maxLines: null,
                   decoration: InputDecoration(
-                    hintText: _isListening ? 'Listening...' : 'Ask your nutrition coach...',
+                    hintText: _isListening ? 'Listening...' : 'Ask about your nutrition',
                     hintStyle: TextStyle(
                       color: _isListening ? AppColors.purple : AppColors.textTertiary),
                     border: InputBorder.none,

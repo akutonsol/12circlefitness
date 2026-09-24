@@ -3994,6 +3994,41 @@ screen drawn. The pattern worth carrying forward is not "add an error state": it
 **a type with two states cannot carry three**, and the third one always ends up disguised
 as the second.
 
+## 3bh · FIT-089 · the chips, the menu and the input line
+
+Three controls on `/ai-nutrition` carried names the board does not use, and one carried no
+useful name at all:
+
+* the overflow menu was a bare `PopupMenuButton`, so its name fell back to
+  `MaterialLocalizations`' generic **"Show menu"**. FIT-089 calls it **`More options`**;
+* the input read *"Ask your nutrition coach…"*; the board reads **`Ask about your
+  nutrition`**;
+* the quick chips shipped **six**, in a different voice — *"Analyze my breakfast"*,
+  *"Generate a 7-day meal plan"* — where FIT-089 draws **three**: `Plan my week`,
+  `Read my plate`, `Rest-day meals`.
+
+On the chips: the three the board dropped are not capabilities that disappear. Every one is
+a sentence the user can still type, and the meal planner and grocery list have their own
+routes in the same overflow menu. What changes is which three the screen offers first, and
+that is the board's call, not a preference exercised here.
+
+### One anchor left open on purpose — two anchors name the same control
+
+`Add a photo of your meal` stays ABSENT. That control already carries **`Scan a meal`**,
+named earlier in this programme from **FIT-003**, which declares that word for exactly this
+action. Two anchors name one control two ways.
+
+Renaming it would move a point from FIT-003 to FIT-089 and change nothing for anyone using
+the app; giving it both names would leave a screen reader announcing two. So it keeps the
+name it has, FIT-089 sits at **6/7**, and the conflict is recorded rather than resolved by
+preference. **Which word wins is the design owner's call.** → **OD-33**.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Suite | **1473 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Coverage | FIT-089 0/7 → **6/7**; all interactions 307 → **313 / 600** | — |
+
 ## 4 · Design package
 
 | Check | Status |
