@@ -13,14 +13,19 @@ import '../../coaching_mode/domain/coaching_mode_provider.dart';
 import 'widgets/food_added_dialog.dart';
 import 'widgets/ai_scan_view.dart';
 import 'widgets/barcode_scan_view.dart';
+import 'nutrition_palette.dart';
+import 'widgets/meal_row_tile.dart';
 
 // ── Colors ─────────────────────────────────────────────────────────────────
-const _bg    = Color(0xFF050510);
-const _card  = Color(0xFF111120);
-const _brand = Color(0xFFA855F7);
-const _white = Colors.white;
-const _grey  = Color(0xFF888898);
-const _blue  = Color(0xFF60A5FA);
+// The palette moved to `nutrition_palette.dart` so `MealRowTile` could be
+// extracted without copying it into a 78th file that declares its own colours
+// (H-D2). Aliased so the 1,490 lines below are untouched.
+const _bg    = nutBg;
+const _card  = nutCard;
+const _brand = nutBrand;
+const _white = nutWhite;
+const _grey  = nutGrey;
+const _blue  = nutBlue;
 
 // ── Providers ──────────────────────────────────────────────────────────────
 final _svcProvider = Provider<NutritionService>((ref) => NutritionService());
@@ -116,7 +121,7 @@ class _MealsDashboardScreenState
         return Column(
           children: logs.map((m) => Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: _MealCard(meal: m))).toList());
+            child: MealRowTile(meal: m))).toList());
       }));
     items.add(const SizedBox(height: 16));
     return items;
@@ -636,91 +641,6 @@ class _WaterCard extends StatelessWidget {
 }
 
 // ── Meal card ──────────────────────────────────────────────────────────────
-class _MealCard extends StatelessWidget {
-  final Map<String, dynamic> meal;
-  const _MealCard({required this.meal});
-
-  IconData get _icon {
-    final n = (meal['food_name'] as String? ?? '').toLowerCase();
-    if (n.contains('salad') || n.contains('egg')) return Icons.eco;
-    if (n.contains('shake') || n.contains('protein')) return Icons.local_drink;
-    if (n.contains('chicken') || n.contains('bowl')) return Icons.rice_bowl;
-    if (n.contains('avocado')) return Icons.brunch_dining;
-    return Icons.restaurant;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final name    = meal['food_name'] as String? ?? 'Meal';
-    final cal     = (meal['calories'] as num?)?.toDouble() ?? 0;
-    final protein = (meal['protein']  as num?)?.toDouble() ?? 0;
-    final fat     = (meal['fat']      as num?)?.toDouble() ?? 0;
-    final carbs   = (meal['carbs']    as num?)?.toDouble() ?? 0;
-    final maxVal  = [protein, fat, carbs, 1.0].reduce((a, b) => a > b ? a : b);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(16)),
-      child: Column(children: [
-        Row(children: [
-          Container(
-            width: 52, height: 52,
-            decoration: BoxDecoration(
-              color: _brand.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(12)),
-            child: Icon(_icon, color: _brand, size: 28)),
-          const SizedBox(width: 12),
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name,
-                style: const TextStyle(color: _white, fontSize: 16,
-                  fontWeight: FontWeight.w700)),
-              Text('${cal.toInt()} kcal',
-                style: const TextStyle(color: _grey, fontSize: 12)),
-            ])),
-          Icon(Icons.more_horiz, color: _grey.withValues(alpha: 0.6), size: 20),
-        ]),
-        const SizedBox(height: 14),
-        _MealMacro('Protein', protein, maxVal),
-        const SizedBox(height: 8),
-        _MealMacro('Fats',    fat,     maxVal),
-        const SizedBox(height: 8),
-        _MealMacro('Carbs',   carbs,   maxVal),
-      ]));
-  }
-}
-
-class _MealMacro extends StatelessWidget {
-  final String label;
-  final double value, maxVal;
-  const _MealMacro(this.label, this.value, this.maxVal);
-
-  @override
-  Widget build(BuildContext context) => Row(children: [
-    SizedBox(width: 60,
-      child: Text(label,
-        style: const TextStyle(color: _white, fontSize: 14))),
-    Expanded(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(3),
-        child: LinearProgressIndicator(
-          value: maxVal == 0 ? 0 : (value / maxVal).clamp(0.0, 1.0),
-          backgroundColor: Colors.white.withValues(alpha: 0.08),
-          valueColor: const AlwaysStoppedAnimation(_brand),
-          minHeight: 6))),
-    const SizedBox(width: 10),
-    SizedBox(width: 32,
-      child: Text('${value.toInt()}g',
-        textAlign: TextAlign.right,
-        style: const TextStyle(color: _white, fontSize: 14,
-          fontWeight: FontWeight.w600))),
-  ]);
-}
-
-// ── Empty state ────────────────────────────────────────────────────────────
 class _EmptyMeals extends StatelessWidget {
   final String mealType;
   final VoidCallback onAdd;

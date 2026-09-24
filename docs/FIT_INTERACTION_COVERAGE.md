@@ -110,7 +110,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-005 | Connect | `/messages` | 4 | 12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
 | FIT-004 | Check-In | `/daily-checkin` | 5 | 11 | `daily_checkin_screen.dart` + `widgets/checkin_pickers.dart` + `domain/checkin_hub.dart` |
 | FIT-023 | Check-in hub | `/checkins` | 4 | 10 | `checkin_screen.dart` + `checkin_hub_sections.dart` + `domain/checkin_hub.dart` |
-| FIT-003 | Nutrition | `/meals-dashboard` | 5 | 12 | `meals_dashboard_screen.dart` |
+| FIT-003 | Nutrition | `/meals-dashboard` | 6 | 12 | `meals_dashboard_screen.dart` + `widgets/meal_row_tile.dart` |
 | FIT-014 | Workouts hub | `/train` | 6 | 12 | `train_hub_screen.dart` + `widgets/week_row_tile.dart` + `core/router/app_shell.dart` |
 | FIT-027 | What's on | `/classes` | 5 | 10 | `classes_screen.dart` + `whats_on_view.dart` + `domain/whats_on.dart` |
 | FIT-032 | Coach dashboard | `/coach-dashboard` | 6 | 11 | `coach_dashboard_screen.dart` + `widgets/needs_you_today.dart` + `core/router/app_shell.dart` |
@@ -332,7 +332,7 @@ without fabricating content the brief forbids.
 |---|---|---|--:|---|
 | FIT-001 | Home | `/home` | 4/9 | `home_screen.dart` |
 | FIT-002 ✅ | Active Workout | `/active-workout` | **5/5** | `active_workout_screen.dart` + `widgets/{zone_action,set_tracker_row}.dart` |
-| FIT-003 | Nutrition | `/meals-dashboard` | 5/12 | `meals_dashboard_screen.dart` |
+| FIT-003 | Nutrition | `/meals-dashboard` | **6/12** | `meals_dashboard_screen.dart` + `widgets/meal_row_tile.dart` + `domain/meal_row.dart` + `core/router/app_shell.dart` — 3 absent are **sample meals**; `Workouts`/`Connect` are **F-14**. OD-22, OD-23 raised. QA_EVIDENCE §3ak |
 | FIT-004 | Check-In | `/daily-checkin` | 5/11 | `daily_checkin_screen.dart` + `widgets/checkin_pickers.dart` + `domain/checkin_hub.dart` |
 | FIT-005 | Connect | `/messages` | 4/12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
 | FIT-006 ✅ | Welcome | `/onboarding` | **2/2** | `onboarding_screen.dart` |

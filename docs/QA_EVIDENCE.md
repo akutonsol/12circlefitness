@@ -2228,6 +2228,107 @@ No fixture was created and nothing was written. The `Assign` rule is exercised, 
 recorded in §3ai — **nothing here claims the assignment behind it is authentic**. That
 remains F-21/OD-14.
 
+## 3ak · FIT-003 · the line that was never rendered, and a test that could not see it
+
+FIT-003 is **locked**. It measures **6/12** and stays there: the three absent rows are
+sample meals, and `Workouts` / `Connect` are **F-14**. The defect was in the row itself.
+
+### The board's middle line was simply missing
+
+The board draws a **row**: `Greek yoghurt, berries, seeds / Breakfast · 07:20 / 380`.
+What shipped was a **card** — a 52 dp tinted icon, the name, `380 kcal`, three macro
+**progress bars**, and an inert `more_horiz` with no name and no action.
+
+The board's annotation rejects that shape in as many words:
+
+> *"Today, what you ate, what's left, coach guidance — in that order. Macros read as three
+> figures against their targets on one rule, **not three progress cards**."*
+
+And the meal's **type and time were not rendered at all**, though `nutrition_logs` has
+carried `meal_type` and `logged_at` since **migration 012**. The data was there the whole
+time; nothing read it.
+
+### A mutation that survived, and what it proved about the test
+
+`MealRowTile` began as a private `_MealCard` inside a 1,490-line screen, so it was asserted
+against **committed source** — the shape `presentation_drift_guard_test.dart` uses. The test
+checked that `mealRowDetail(` appeared in the widget.
+
+**N6 wrapped the render in `if (false)` and the test passed.** The call was still in the
+source; the line was gone from the screen.
+
+A source assertion can prove a value is **computed**. It cannot prove it is **rendered**,
+and computed is not what a client sees. This is the same family as the directive's
+"text-presence as proof of wiring", one level up — and it is the second time this session a
+mutation has exposed a test rather than a defect (the first was FIT-016's M1). So the row
+was extracted, the way `PillTab` and `WeekRowTile` were and for the same reason, and the
+test now mounts it. N6 re-run: **KILLED**.
+
+### Two places the board could not be followed
+
+**OD-22 · `After training`.** The board's third row reads `After training · 18:10`.
+`nutrition_logs.meal_type` is a CHECK over exactly five values —
+`breakfast | lunch | dinner | snack | protein_shake` — and *"after training"* is not one. It
+is a claim about **when a meal was taken relative to a session**, and nothing in this
+product links a nutrition log to a workout. Rendering it would assert a training session
+that may not have happened, so `protein_shake` reads as **`Protein shake`** and a test
+asserts the board's phrase is produced by nothing — the same treatment OD-16 got.
+
+**OD-23 · the row is not a button.** The manifest declares `el: "button"`. The board draws
+no destination, and this app has **no edit or delete path for a logged meal** — the old
+card's `more_horiz` opened nothing. So the row is labelled but **not** declared a button:
+announcing an affordance with nothing behind it is precisely the defect FIT-016 and FIT-014
+both carried. Same reasoning as OD-10 kept FIT-016's `More` inert.
+
+### And a third palette relocation
+
+Extracting the row would have made a **78th** file declaring its own colours, breaking
+H-D2 one commit after it was written. The palette moved to `nutrition_palette.dart` and the
+screen aliases it — one declaration, two consumers, population unchanged at 77.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/meal_row_test.dart` — 16 tests | **PASS** |
+| Widget | `test/widget/meal_row_render_test.dart` — 8, **mounted**, against the semantics tree | **PASS** |
+| Guard strength | **9 / 9 mutations killed** (N6 survived as a source assertion; killed once the row was mounted) | **PASS** |
+| Suite | **1229 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Ratchets | A-G8, EC-G7, EC-G8, SEC-G1/G2/G3, H-D1, H-D2 | **PASS** |
+| Runtime | `integration_test/fit003_meal_rows_device_test.dart` | **RUNTIME_VERIFIED** |
+
+| # | Mutation | Result |
+|---|---|---|
+| N1 | `protein_shake` reads as the board's `After training` | **KILLED** |
+| N2 | an unknown meal type gets title-cased | **KILLED** |
+| N3 | the hour loses its leading zero | **KILLED** |
+| N4 | a zero calorie goal counts as a goal | **KILLED** |
+| N5 | thousands stop being separated | **KILLED** |
+| N6 | the row stops rendering type and time | **KILLED** — after the test was rewritten |
+| N7 | the row claims to be a button again | **KILLED** |
+| N8 | the row renders the raw `meal_type` | **KILLED** |
+| N9 | a nameless log is called `Meal` again | **KILLED** |
+
+### Runtime — `emulator-5554`, 411.4 dp @ dpr 2.625
+
+```
+row0 379.4x69.0 button=false "Greek yoghurt, berries, seeds Breakfast · 07:20 380 kcal"
+row1 379.4x69.0 button=false "Chicken, rice, greens Lunch · 12:45 640 kcal"
+row2 379.4x69.0 button=false "Protein shake, banana Protein shake · 18:10 620 kcal"
+360.0 / 390.0 / 411.4 dp — exception=none
+```
+
+`kcal` is spoken though the row does not draw it: the board can let the header carry the
+unit, but a bare `380` at the end of a spoken sentence tells a screen-reader user nothing.
+
+### New owner decisions
+
+**OD-22 · `After training`.** Whether a nutrition log should record its relation to a
+training session. Until it does, `protein_shake` reads as itself.
+
+**OD-23 · what a logged meal row opens.** The manifest declares it a button and nothing —
+board or app — says what it does. Edit? Delete? Nutrition detail? Until it is decided the
+row is labelled and inert.
+
 ## 4 · Design package
 
 | Check | Status |
