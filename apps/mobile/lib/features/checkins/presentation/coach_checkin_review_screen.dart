@@ -54,6 +54,7 @@ class _CoachCheckinReviewScreenState
       recommendations: _recommendations,
       coachName: coachName,
     );
+    if (!mounted) return;
     setState(() => _saving = false);
 
     if (!mounted) return;

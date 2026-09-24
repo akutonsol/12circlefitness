@@ -38,7 +38,7 @@ class _CoachVideoResponseScreenState extends State<CoachVideoResponseScreen> {
     try {
       final video = await ImagePicker().pickVideo(
         source: ImageSource.camera, maxDuration: const Duration(minutes: 5));
-      if (video != null) setState(() => _videoFile = video);
+      if (video != null && mounted) setState(() => _videoFile = video);
     } catch (e) {
       _err('Recording not available here — try “From Gallery”.');
     }
@@ -47,7 +47,7 @@ class _CoachVideoResponseScreenState extends State<CoachVideoResponseScreen> {
   Future<void> _pickVideo() async {
     try {
       final video = await ImagePicker().pickVideo(source: ImageSource.gallery);
-      if (video != null) setState(() => _videoFile = video);
+      if (video != null && mounted) setState(() => _videoFile = video);
     } catch (e) {
       _err('Could not open that video. Try another file.');
     }
@@ -72,6 +72,7 @@ class _CoachVideoResponseScreenState extends State<CoachVideoResponseScreen> {
         final mime = ext == 'mov' ? 'video/quicktime' : ext == 'webm' ? 'video/webm' : 'video/mp4';
         final bytes = await _videoFile!.readAsBytes();
         final path = 'coach-videos/$uid/${widget.clientId}/${DateTime.now().millisecondsSinceEpoch}.$ext';
+        if (!mounted) return;
         setState(() => _progress = 0.3);
         await _db.storage.from('coach-media').uploadBinary(path, bytes,
           fileOptions: FileOptions(contentType: mime, upsert: true));
@@ -90,6 +91,7 @@ class _CoachVideoResponseScreenState extends State<CoachVideoResponseScreen> {
         // player, so this change repairs the storage of the value without
         // pretending the feature works.
         videoUrl = path;
+        if (!mounted) return;
         setState(() => _progress = 0.7);
       }
 
@@ -110,8 +112,10 @@ class _CoachVideoResponseScreenState extends State<CoachVideoResponseScreen> {
         'read': false,
       });
 
+      if (!mounted) return;
       setState(() { _progress = 1.0; _done = true; _uploading = false; });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _uploading = false);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         // ERR-2: was `Text('Error: \$e')`. A Postgres/Storage error carries

@@ -311,7 +311,7 @@ class _ChoosePackageScreenState extends ConsumerState<ChoosePackageScreen> {
           onTap: () async {
             final t = await showTimePicker(
                 context: context, initialTime: _dayTimes[i] ?? _time);
-            if (t != null) setState(() { _dayTimes[i] = t; _time = t; });
+            if (t != null && mounted) setState(() { _dayTimes[i] = t; _time = t; });
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

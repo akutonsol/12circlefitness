@@ -81,6 +81,7 @@ class _CoachBusinessScreenState extends State<CoachBusinessScreen>
         _specialties = List<String>.from(p['specialties'] as List? ?? []);
         _certifications = List<String>.from(p['certifications'] as List? ?? []);
       }
+      if (!mounted) return;
       setState(() {
         _profile = p;
         _team = List<Map<String, dynamic>>.from(team as List);
@@ -88,6 +89,7 @@ class _CoachBusinessScreenState extends State<CoachBusinessScreen>
         _loading = false;
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() => _loading = false);
     }
   }

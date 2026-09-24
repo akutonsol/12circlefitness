@@ -176,6 +176,7 @@ class _AiScanViewState extends State<AiScanView> {
     try {
       final file = await _picker.pickImage(source: source, imageQuality: 80);
       if (file == null) return;
+      if (!mounted) return;
       setState(() {
         _image = file;
         _stage = _ScanStage.scanning;

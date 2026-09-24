@@ -73,6 +73,7 @@ class _AiNutritionScreenState extends ConsumerState<AiNutritionScreen> {
     _messageController.clear();
     setState(() => _isLoading = true);
     await ref.read(aiNutritionNotifierProvider.notifier).sendMessage(message, image: image);
+    if (!mounted) return;
     setState(() => _isLoading = false);
     _scrollToBottom();
   }
@@ -118,8 +119,10 @@ class _AiNutritionScreenState extends ConsumerState<AiNutritionScreen> {
     }
     if (_isListening) {
       await _speech.stop();
+      if (!mounted) return;
       setState(() => _isListening = false);
     } else {
+      if (!mounted) return;
       setState(() => _isListening = true);
       await _speech.listen(
         onResult: (result) {
@@ -127,6 +130,7 @@ class _AiNutritionScreenState extends ConsumerState<AiNutritionScreen> {
           _messageController.selection = TextSelection.fromPosition(
             TextPosition(offset: _messageController.text.length));
           if (result.finalResult) {
+            if (!mounted) return;
             setState(() => _isListening = false);
           }
         },

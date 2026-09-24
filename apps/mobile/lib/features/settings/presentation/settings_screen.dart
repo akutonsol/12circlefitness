@@ -569,6 +569,7 @@ class _CoachingModeSheetState extends State<_CoachingModeSheet> {
       if (coaches.isNotEmpty) {
         final confirmed = await _confirmEndCoaching(coaches);
         if (confirmed != true) return; // kept their coach → abort the switch
+        if (!mounted) return;
         setState(() => _saving = true);
         final svc = CoachRelationshipService();
         for (final c in coaches) {
@@ -583,6 +584,7 @@ class _CoachingModeSheetState extends State<_CoachingModeSheet> {
       }
     }
 
+    if (!mounted) return;
     setState(() => _saving = true);
     try {
       await widget.ref

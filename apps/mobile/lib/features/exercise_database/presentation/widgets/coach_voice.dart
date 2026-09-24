@@ -90,8 +90,10 @@ class _CoachVoiceRecorderState extends State<CoachVoiceRecorder> {
         await _rec.stop();
         return;
       }
+      if (!mounted) return;
       setState(() { _recording = true; _elapsed = 0; });
       _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (!mounted) return;
         setState(() => _elapsed++);
         if (_elapsed >= _maxSeconds) _stop();
       });
@@ -218,7 +220,7 @@ class _CoachVoicePlayerState extends State<CoachVoicePlayer> {
   void dispose() { _player.dispose(); super.dispose(); }
 
   Future<void> _toggle() async {
-    if (_playing) { await _player.pause(); setState(() => _playing = false); return; }
+    if (_playing) { await _player.pause(); if (mounted) setState(() => _playing = false); return; }
     try {
       if (_progress == 0) {
         // SEC-VOICE-1: sign at render time rather than replaying the stored
@@ -231,6 +233,7 @@ class _CoachVoicePlayerState extends State<CoachVoicePlayer> {
       } else {
         await _player.resume();
       }
+      if (!mounted) return;
       setState(() => _playing = true);
     } catch (_) {}
   }

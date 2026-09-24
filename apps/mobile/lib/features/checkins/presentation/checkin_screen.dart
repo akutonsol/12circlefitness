@@ -144,6 +144,7 @@ class _CheckinScreenState extends ConsumerState<CheckinScreen> {
       // Mark week dots for days that have calls
       final now2 = DateTime.now();
       final monday = now2.subtract(Duration(days: now2.weekday - 1));
+      if (!mounted) return;
       setState(() {
         _appointments = appts;
         _hasDot = List.generate(7, (i) =>

@@ -82,6 +82,7 @@ class _WeeklyCheckinState extends ConsumerState<DailyCheckinScreen> {
       mood: _mood, energy: _energy, stress: _stress,
       sleepHoursAvg: _sleep, notes: _notesCtrl.text.trim(),
     );
+    if (!mounted) return;
     setState(() => _saving = false);
     if (!mounted) return;
     if (ok) {

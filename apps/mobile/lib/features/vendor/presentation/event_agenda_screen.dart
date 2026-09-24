@@ -356,6 +356,7 @@ class _SessionEditorSheetState extends State<_SessionEditorSheet> {
         initialTime:
             (isStart ? _start : _end) ?? const TimeOfDay(hour: 9, minute: 0));
     if (t == null) return;
+    if (!mounted) return;
     setState(() => isStart ? _start = t : _end = t);
   }
 

@@ -120,9 +120,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           _coachBio         = c['bio'] as String?;
           _coachSpecialties = c['specialties'] as String?;
           _pendingAt        = c['pending_at'] as String?;
+          if (!mounted) return;
           setState(() => _state = _BookingState.pending);
           return;
         }
+        if (!mounted) return;
         setState(() => _state = _BookingState.noCoach);
         return;
       }

@@ -46,12 +46,13 @@ class _CoachAvailabilityScreenState extends State<CoachAvailabilityScreen> {
           .gte('scheduled_at', DateTime.now().toIso8601String())
           .order('scheduled_at');
 
+      if (!mounted) return;
       setState(() {
         _slots = List<Map<String, dynamic>>.from(data);
         _sessions = List<Map<String, dynamic>>.from(calls);
         _loading = false;
       });
-    } catch (_) { setState(() => _loading = false); }
+    } catch (_) { if (mounted) setState(() => _loading = false); }
   }
 
   Future<void> _delete(String id) async {

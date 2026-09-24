@@ -44,6 +44,7 @@ class _EventTicketScreenState extends State<EventTicketScreen> {
           .eq('user_id', uid)
           .maybeSingle();
       if (reg != null) {
+        if (!mounted) return;
         setState(() {
           _registered = true;
           _ticketCode = reg['qr_code'] as String?;
@@ -64,6 +65,7 @@ class _EventTicketScreenState extends State<EventTicketScreen> {
         'qr_code': code,
         'status': 'confirmed',
       });
+      if (!mounted) return;
       setState(() { _registered = true; _ticketCode = code; });
     } catch (_) {
       // I-COM-01 / DAT-4. This block used to invent a demo ticket code and set

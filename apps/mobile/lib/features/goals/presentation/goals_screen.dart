@@ -357,7 +357,7 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
               firstDate: DateTime.now(),
               lastDate: DateTime.now().add(const Duration(days: 730)),
             );
-            if (picked != null) setState(() => _date = picked);
+            if (picked != null && mounted) setState(() => _date = picked);
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

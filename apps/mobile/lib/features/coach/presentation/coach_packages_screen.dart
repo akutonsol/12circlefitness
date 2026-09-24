@@ -242,7 +242,7 @@ class _PackageEditorState extends ConsumerState<_PackageEditor> {
       };
       await svc.saveSessionTiers(tiers);
     } else {
-      if (_name.text.trim().isEmpty) { setState(() => _saving = false); return; }
+      if (_name.text.trim().isEmpty) { if (mounted) setState(() => _saving = false); return; }
       await svc.savePackage(
         id: widget.existing?['id'] as String?,
         type: _type,

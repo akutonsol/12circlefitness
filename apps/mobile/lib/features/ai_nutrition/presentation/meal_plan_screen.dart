@@ -48,6 +48,7 @@ class _MealPlanScreenState extends ConsumerState<MealPlanScreen> {
       restrictions: _restrictions,
       days: _days,
     );
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 

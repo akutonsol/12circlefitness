@@ -43,12 +43,14 @@ class _PodsScreenState extends State<PodsScreen> {
             .eq('status', 'open')
             .limit(10),
       ]);
+      if (!mounted) return;
       setState(() {
         _myPods = List<Map<String, dynamic>>.from(mine as List);
         _openPods = List<Map<String, dynamic>>.from(open as List);
         _loading = false;
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() { _loading = false; });
     }
   }

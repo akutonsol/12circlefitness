@@ -791,6 +791,7 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
         carbs:    (f.carbs   * servings).toInt(),
         fat:      (f.fat     * servings).toInt());
     } catch (e) {
+      if (!mounted) return;
       setState(() { _saving = false; _selected = null; });
       _showMealError('Could not log meal.');
     }

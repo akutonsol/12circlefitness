@@ -458,6 +458,7 @@ class _DailyInsightCardState extends State<_DailyInsightCard> {
     // Auto-generate today's brief on open if it doesn't exist yet (bounded to
     // once per day by the per-date dedup), so it's just there each morning.
     if (today == null) { await _generate(); return; }
+    if (!mounted) return;
     setState(() { _insight = today; _loading = false; });
   }
 
@@ -624,6 +625,7 @@ class _WeeklyReviewCardState extends State<_WeeklyReviewCard> {
     // Auto-generate weekly if there's no review from the last 7 days.
     final stale = r == null || _staleEnd(r['period_end']?.toString());
     if (stale) { await _generate(); return; }
+    if (!mounted) return;
     setState(() { _review = r; _loading = false; });
   }
   bool _staleEnd(String? end) {

@@ -459,6 +459,7 @@ class _EventEditorSheetState extends State<_EventEditorSheet> {
     if (!mounted) return;
     final t = await showTimePicker(
         context: context, initialTime: TimeOfDay.fromDateTime(_date));
+    if (!mounted) return;
     setState(() {
       _date = DateTime(d.year, d.month, d.day, t?.hour ?? 9, t?.minute ?? 0);
     });
