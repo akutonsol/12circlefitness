@@ -3273,6 +3273,74 @@ Three device builds took the volume from 4.7 GB to 124 MB. Each debug build is ~
 nothing reclaims it automatically. Device verification on this machine is a **budget**, not
 a background activity: reclaim before, and expect to reclaim after.
 
+## 3aw · FIT-029 · a third orphaned route, and a count that must not lie
+
+**4/6 → 5/6.** The sixth is **OD-18** — the board's `£79 monthly` against live Stripe
+prices in dollars.
+
+FIT-029's "You" list declares `Goals` and `Connected apps` between `Personal information`
+and the plan row. Neither was on the screen.
+
+### `/goals` had no door
+
+Registered, and **nothing in the app navigated to it**. That is the **third** orphaned route
+this cycle has found by the same method — asking what a declared control opens:
+
+| Route | Found via | Door |
+|---|---|---|
+| `/activity` | FIT-001's nav | Home's week-progress panel |
+| `/meal-plan` | FIT-003's header | the `Meal plan` icon control |
+| `/goals` | FIT-029's You list | the `Goals` row |
+
+Three registered screens with no way in, each surfaced by taking a declared interaction
+seriously rather than treating its absence as cosmetic. A route the router knows about and
+nothing opens is dead product, and the coverage metric cannot see it — it reads labels, and
+these had none to read.
+
+### The count must not lie
+
+`Connected apps` carries a live figure from `user_integrations`, the same rows the
+integrations screen reads, so the row and the screen behind it cannot disagree.
+
+The screen it opens ends its own read `catch (_)`, which shows every provider as
+disconnected on any failure. This row does not repeat that. **No badge** in three cases:
+
+* nothing connected — the board draws a count, not a `0`;
+* still loading — a number that appears a moment later is worse than one that appears once;
+* the read **failed** — the client has no idea how many apps are connected, and neither do
+  we. `0` would be a fabricated fact of exactly the F-15 kind.
+
+A stale value carried on an `AsyncError` is deliberately not shown either: it is a number
+the database did not just confirm.
+
+### Security
+
+`user_integrations` is `FOR ALL USING (auth.uid() = user_id)` (`011:57`) and `goals` is
+`client_id = auth.uid()` with a matching `WITH CHECK` (`018:65`). Both self-scoped, no
+coach/client boundary, **no new writes**. Nothing to escalate.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/connected_apps_test.dart` — 6 tests | **PASS** |
+| Guard | `test/widget/profile_rows_test.dart` — 5, comment-stripped, with a detector floor | **PASS** |
+| Guard strength | **5 / 5 mutations killed** | **PASS** |
+| Coverage | FIT-029 **5 / 6** — the sixth is OD-18 | **PASS** |
+| Suite | **1367 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Runtime | **LOCALLY_VERIFIED** | **OPEN** |
+
+| # | Mutation | Result |
+|---|---|---|
+| P1 | a failed read renders as `0` | **KILLED** |
+| P2 | a stale value survives a failure | **KILLED** |
+| P3 | zero is rendered as a badge | **KILLED** |
+| P4 | `Goals` loses its route and the orphan returns | **KILLED** |
+| P5 | the count becomes a literal matching the board | **KILLED** |
+
+`Connected apps 2` stays ABSENT in the measurement, and correctly: the declared label
+**embeds the sample count**, so a live figure can never match it. Composed-label ceiling,
+same as the board's sample rows.
+
 ## 4 · Design package
 
 | Check | Status |

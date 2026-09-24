@@ -9,6 +9,7 @@ import '../../auth/domain/auth_provider.dart';
 import '../../coach/domain/coach_provider.dart';
 import '../../coaching_mode/domain/coaching_mode_provider.dart';
 import '../../payments/domain/entitlements.dart';
+import '../domain/connected_apps.dart';
 
 class _C {
   static const bg                  = Color(0xFF0A0A0B);
@@ -370,6 +371,42 @@ class ProfileScreen extends ConsumerWidget {
                   hasBorder: true,
                   onTap: () => context.push('/personal-info'),
                 ),
+                // FIT-029's "You" list declares `Goals` and `Connected apps`
+                // between `Personal information` and the plan row. Neither was
+                // on the screen.
+                //
+                // `/goals` is REGISTERED and nothing in the app navigated to
+                // it — the third orphaned route this cycle has found by asking
+                // what a declared control opens, after `/activity` and
+                // `/meal-plan`. This row is its door.
+                _ProfileRow(
+                  icon: Icons.flag_outlined,
+                  label: 'Goals',
+                  hasBorder: true,
+                  onTap: () => context.push('/goals'),
+                ),
+                // The count is live, from the same `user_integrations` rows
+                // the integrations screen reads, so the row and the screen
+                // behind it cannot disagree. No badge when nothing is
+                // connected, while it loads, or if the read fails — see
+                // `connectedAppsBadge`.
+                Consumer(builder: (context, ref, _) {
+                  final badge =
+                      connectedAppsBadge(ref.watch(connectedAppsCountProvider));
+                  return _ProfileRow(
+                    icon: Icons.watch_outlined,
+                    label: 'Connected apps',
+                    hasBorder: true,
+                    trailing: badge == null
+                        ? null
+                        : Text(badge,
+                            style: const TextStyle(
+                                color: _C.onSurfaceVar,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600)),
+                    onTap: () => context.push('/integrations'),
+                  );
+                }),
                 _ProfileRow(
                   icon: Icons.notifications_outlined,
                   label: 'Notifications',

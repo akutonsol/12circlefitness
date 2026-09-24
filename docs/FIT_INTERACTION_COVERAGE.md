@@ -50,8 +50,8 @@ Both corrections are now reproducible from one command, which is the point.
 |---|---|
 | FIT screens | 110 |
 | Route resolved to a screen file | 108 |
-| All declared interactions | **285 / 600** |
-| **Locked-anchor interactions** | **128 / 179** |
+| All declared interactions | **286 / 600** |
+| **Locked-anchor interactions** | **129 / 179** |
 | Locked anchors complete | **11** of 29 |
 
 ## Every anchor, by remaining gap
@@ -98,7 +98,7 @@ Both corrections are now reproducible from one command, which is the point.
 | **FIT-079** | — | 1/5 | 4 | Challenges — empty + loading | `/challenges` |
 | **FIT-045** | — | 2/6 | 4 | Progress photos | `/intake` |
 | **FIT-092** | — | 1/4 | 3 | Meal plan — built | `/meal-plan` |
-| **FIT-029** | 🔒 | 3/6 | 3 | Profile | `/profile` |
+| **FIT-107** | — | 1/4 | 3 | AI Coach — a card that failed | `/ai-coach` |
 | **FIT-043** | — | 2/5 | 3 | Weight goal | `/intake` |
 | **FIT-003** | 🔒 | 9/12 | 3 | Nutrition | `/meals-dashboard` |
 | **FIT-046** | — | 0/3 | 3 | Photo source | `sheet — /intake, /progress` |
@@ -107,13 +107,12 @@ Both corrections are now reproducible from one command, which is the point.
 | **FIT-097** | — | 1/4 | 3 | Booking — before you have a coach | `/appointments` |
 | **FIT-056** | — | 1/4 | 3 | Log measurements | `/progress` |
 | **FIT-063** | — | 0/3 | 3 | Women's health | `/womens-health` |
-| **FIT-107** | — | 1/4 | 3 | AI Coach — a card that failed | `/ai-coach` |
 | **FIT-004** | 🔒 | 8/11 | 3 | Check-In | `/daily-checkin` |
 | **FIT-069** | — | 8/11 | 3 | Community — empty | `/community` |
+| **FIT-082** | — | 0/3 | 3 | Class — full / waitlist | `/class-detail` |
 | **FIT-076** | — | 0/3 | 3 | Challenge detail — active | `/challenge-detail` |
 | **FIT-083** | — | 0/3 | 3 | Class — booked / live / cancelled | `/class-detail` |
 | **FIT-086** | — | 0/3 | 3 | Event ticket | `event_ticket_screen (unrouted)` |
-| **FIT-082** | — | 0/3 | 3 | Class — full / waitlist | `/class-detail` |
 | **FIT-053** | — | 5/7 | 2 | Progress · Measurements | `/progress` |
 | **FIT-098** | — | 0/2 | 2 | Booking — nothing open, and loading | `/appointments` |
 | **FIT-055** | — | 0/2 | 2 | Log weight | `/progress` |
@@ -123,9 +122,10 @@ Both corrections are now reproducible from one command, which is the point.
 | **FIT-059** | — | 0/2 | 2 | Goals | `/goals` |
 | **FIT-081** | — | 0/2 | 2 | Class detail | `/class-detail` |
 | **FIT-028** | 🔒 | 8/10 | 2 | Connect — no coach | `/messages` |
-| **FIT-050** | — | 4/6 | 2 | Consent | `/intake` |
+| **FIT-029** | 🔒 | 4/6 | 2 | Profile | `/profile` |
 | **FIT-094** | — | 1/3 | 2 | Grocery list — the two blocked states | `/grocery-list` |
 | **FIT-074** | — | 0/2 | 2 | Pods — empty + loading | `/pods` |
+| **FIT-050** | — | 4/6 | 2 | Consent | `/intake` |
 | **FIT-101** | — | 0/2 | 2 | Action items — empty, loading, failed | `/action-items` |
 | **FIT-087** | — | 0/2 | 2 | Booking sheet — confirm → confirmed | `/class-detail` |
 | **FIT-070** | — | 3/4 | 1 | Community — loading + error | `/community` |
