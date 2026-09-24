@@ -1073,6 +1073,17 @@ were complete, which is the part of the result worth having.
 
 ## 3o · F-15 — the inventory is closed
 
+> **CORRECTION (see §3bx).** *Previous conclusion:* all nine were fixed. *Why it was wrong:*
+> the `/train` row below was fixed **only at the widget**. Its `'—'` could not render,
+> because `WorkoutService`'s five stat reads caught the failure and returned `0`, so the
+> `FutureProvider` was always `AsyncData(0)` and the `error:` arm was unreachable. *New
+> evidence:* the service source, and mutation A1/A2. *Corrected conclusion:* **eight of nine
+> were genuinely closed; `/train` was closed at one layer of two** and is now closed at both
+> (§3bx, ratchet **A-G6**). The other eight were checked and are sound — several say so
+> explicitly in the table ("*a swallowing service → per-source failure named*",
+> "*`catch (e) { return []; }` in the service → propagates*"), and `/home`'s
+> `weeklyActivityProvider` propagates.
+
 Nine error→empty collapses were recorded in §6c. **All nine are now fixed, and none of
 them needed new product copy.**
 
