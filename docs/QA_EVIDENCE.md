@@ -5379,6 +5379,56 @@ inherit the same breadth. `docs/proposed/N07_assessment_access.sql` and
 `supabase/tests/security/d09-assessment-access.mjs` remain **authored, not verified**, and
 are another workstream's files — untouched here.
 
+## 3ce · Device re-verification regressed to BLOCKED — and it was not the code
+
+§3ca recorded a **successful** device run. Re-running it after this wave's changes failed,
+and the cause is worth recording precisely so the next agent does not read it as a code
+regression.
+
+```
+java.nio.file.NoSuchFileException:
+  ~/.gradle/caches/9.1.0/transforms/493234490dfd7d02cd90b43082e13f41/transformed/original/gradle-1.0.0.jar
+```
+
+**Not the app.** The failure is in `settings.gradle.kts` applying
+`dev.flutter.flutter-plugin-loader`, before any project code compiles. Independently:
+analyzer is at **0 errors** and **1,575 tests pass**, which compiles all of `lib`.
+
+### What it actually was, after four wrong guesses
+
+| Tried | Result |
+|---|---|
+| Delete the named transform directory | it did not exist — the index pointed at a pruned entry |
+| Clear `md-rule` / `md-supplier` / `journal-1` | same failure, **535 ms** |
+| Clear the project's `android/.gradle`, `.gradle`, `build` | same failure |
+| Delete **all** of `~/.gradle/caches/9.1.0` | same failure, same hash, **3 s** |
+| **Stop the Gradle daemons and clear `~/.gradle/daemon`** | **fixed it** — the build finally started doing real work |
+
+A **stale Gradle daemon** was holding the pruned transform in memory. Deleting the cache
+underneath a live daemon changes nothing, which is why four increasingly aggressive cache
+deletions all failed in under three seconds: the daemon never re-read disk.
+
+### And then disk ran out anyway
+
+With the daemon cleared, Gradle began legitimately re-deriving the transforms cache from
+zero — `~/.gradle/caches/9.1.0` grew 0 → 2.4 GB → beyond — and the watchdog stopped it at
+**505 MB free**, from a starting **8.0 GB**.
+
+The successful run in §3ca worked because that cache was already **warm**. Something wiped it
+(the directory was recreated at 14:29, outside this session's actions), and **re-deriving it
+from scratch does not fit on this volume**.
+
+### Status, stated exactly
+
+| | |
+|---|---|
+| This wave's code changes | **`LOCALLY_VERIFIED`** — analyzer 0, 1,575 tests |
+| The app boots and navigates on Android | **`VERIFIED`**, but on the build from §3ca, **before** this wave's changes |
+| This wave's changes on a device | **`BLOCKED`** — a cold Gradle transforms cache needs more disk than is free |
+
+**The cheapest unblock is not more disk: it is not wiping that cache.** ~4 GB of headroom
+plus a warm cache was enough; ~8 GB with a cold one was not.
+
 ## 4 · Design package
 
 | Check | Status |
