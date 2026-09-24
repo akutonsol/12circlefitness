@@ -4997,6 +4997,83 @@ consumers are `manage_subscription_screen` and `hasActiveMembershipProvider` —
 provider has no consumers at all**. Changing it would alter nothing observable, so it is
 recorded rather than churned. → **OD-50**.
 
+## 3bz · VOICE-G1 · the voice note, and a public bucket holding it
+
+§11 of the continuation directive names voice as existing capability and lists what to check:
+permissions, lifecycle, cancellation, upload failure, cleanup, and **privacy of recorded
+audio**. Four defects, and one security finding.
+
+### Four defects in `coach_voice.dart`
+
+**1 · A refused microphone did nothing at all.**
+
+```dart
+if (!await _rec.hasPermission()) return;
+```
+
+The coach holds the button, nothing happens, no message. A denied permission and a broken
+button are indistinguishable.
+
+**2 · A failed send looked exactly like a successful one.** `uploadCoachVoice` reports
+failure by **returning `null`** — it catches internally and stashes `lastError` — and the
+caller fell straight through that case. The method then ended in a bare `catch (_) {}`. The
+coach released the button, the control reset, and nothing was saved.
+
+**3 · An unattached note reported success.** `setCoachVoice`'s `bool` was discarded, so a
+note could upload and never be attached to the exercise while `onRecorded()` fired anyway.
+
+**4 · The capture was never removed.** Every hold wrote a real audio file of the coach's
+voice to the device's temp directory — `coach-voice-<ms>.m4a` — and nothing deleted it,
+**including the sub-800 ms taps that were discarded and never uploaded**. They accumulated
+for the life of the install. Cleanup now runs in a `finally`, which is where it matters:
+the failure paths are exactly where a capture gets left behind.
+
+Also fixed: `_start` called `setState` after two awaits with no `mounted` check — a coach who
+releases and leaves the screen disposed the widget mid-await.
+
+### SECURITY · `coach-media` is a public bucket → **SEC-VOICE-1**
+
+**Severity P2.** Not fixed here: the remedy is a migration, which is wave-governed and out of
+phase (§14).
+
+| Evidence | |
+|---|---|
+| `supabase/migrations/036_client_plan_and_coach_media.sql:33` | `VALUES ('coach-media', 'coach-media', true)` — **`public = true`** |
+| `migrations/130_private_storage_buckets.sql` | privatises `chat-media`, `messages`, `progress-photos` — **`coach-media` is not among them** |
+| `custom_exercise_service.dart:674` | `storage.from('coach-media').getPublicUrl(path)` for voice |
+| `coach_video_response_screen.dart:78`, `coach_business_screen.dart:132` | the same bucket for coach **video responses** |
+
+**The repository already holds the rule it breaks.** `chat_media_path.dart:14`:
+
+> *"The bucket is PRIVATE. Nothing in the app may call `getPublicUrl()` on it"*
+
+That sweep reached chat media and missed `coach-media`, which carries a coach's recorded
+voice and video addressed to a particular client. A public Supabase bucket serves objects
+**without authentication**: the path embeds UUIDs so it is not trivially enumerable, but a
+leaked URL grants permanent, unauthenticated, non-expiring access.
+
+Not raised as HIPAA: this is coaching content, not a clinical record. It is raised as a media
+privacy boundary inconsistent with the app's own stated rule, for the security phase.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/unit/coach_voice_guard_test.dart` — 5 tests, all `[SOURCE]` by necessity | **PASS** |
+| Guard strength | **4 / 4 mutations killed** | **PASS** |
+| Suite | **1571 pass / 9 skipped** (was 1566) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Runtime | the file's own header requires on-device audio testing — **not done** | `LOCALLY_VERIFIED` |
+
+| # | Mutation | Result |
+|---|---|---|
+| V1 | a refused microphone is silent again | **KILLED** |
+| V2 | a failed upload falls through without a word | **KILLED** |
+| V3 | the capture is left on the device | **KILLED** |
+| V4 | an unsaved note still reports success | **KILLED** |
+
+V2 first **SURVIVED**: the assertion checked that the method *contained* the failure message,
+and it still did — from the `catch` and the unsaved-row branch. It now asserts the
+`url == null` arm itself. A guard that checks a file for a string is not checking a branch.
+
 ## 4 · Design package
 
 | Check | Status |
