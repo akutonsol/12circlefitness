@@ -3004,6 +3004,56 @@ exactly one. That is the **fourth** time in this programme —
 previous fix was inline, which is how the fourth happened; this file has **one**
 `stripComments` and every assertion goes through it.
 
+## 3as · The backlog was being measured wrong — `tool/fit_backlog.dart`
+
+Five times this programme has found the coverage ledger under-reporting an anchor, each by
+hand, one anchor at a time:
+
+| Anchor | Ledger | Actual |
+|---|---|---|
+| FIT-001 | 4/9 | 7/9 |
+| FIT-005 | 4/12 | 6/12 |
+| FIT-028 | 4/10 | 5/10 |
+| FIT-014 | 5/12 | 6/12 |
+| FIT-032 | 5/11 | 6/11 |
+
+The cause was structural: the ledger measured **one file per anchor**. A screen is a screen,
+the widgets it composes, the rules those widgets call, and — for any frame with a nav — the
+shell that draws it. Nothing regenerated it, so every correction was manual and the next one
+was guaranteed.
+
+`tool/fit_backlog.dart` resolves a route to the files it is **actually built from**: the
+router's builder widget (skipping wrappers), that screen's imports one hop out, the shell for
+frames the manifest marks `hasBottomNav`, and the top nav for all of them.
+
+### It reproduced a recorded defect on its own first run
+
+`/meals-dashboard`'s builder is
+`PaywallGate(required: …, child: MealsDashboardScreen())`. Taking the first widget after
+`=>` resolved the route to the **gate** — which is the *"route resolved to a redirect
+stub"* defect already recorded against the measurement this tool replaces. Wrappers are now
+skipped, and the four anchors that are **sub-surfaces** rather than screens (FIT-019's
+`_AddMealSheet`, FIT-020's scan view, FIT-021's gate, FIT-022's failure pattern) are named
+explicitly rather than guessed at.
+
+A second, smaller one: regenerating the ledger by re-parsing the tool's own aligned output
+dropped **13 of 110** anchors and produced an empty cell. The tool emits the markdown
+itself now (`--markdown`), so the ledger cannot drift from the measurement that produced it.
+
+### The corrected position
+
+| Measure | Stated at the start of this cycle | **Measured** |
+|---|---|---|
+| Locked-anchor interactions | 100 / 179 | **128 / 179** |
+| Locked anchors complete | 7 | **11** |
+| All declared interactions | 299 / 600 | **352 / 600** |
+
+The difference is partly this cycle's work — F-14's resolution alone moved seven anchors —
+and partly that the old number was low. Both directions are now reproducible from one
+command, which is the point.
+
+`docs/FIT_INTERACTION_COVERAGE.md` is generated. Edit the tool, not the table.
+
 ## 4 · Design package
 
 | Check | Status |
