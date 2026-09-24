@@ -52,6 +52,21 @@ Probe: `apps/mobile/tool/anon_least_privilege.py`.
 | **Status** | **OPEN — REMEDIATION REQUIRED**, and it is *code*, not schema, so it is not migration-blocked. It is blocked on the migration landing first, since the RPC must exist before the Dart can call it. |
 | **Governance blocker** | Ordering only: migration first, then the Dart repoint. |
 
+### SEC-PHI-4 — the app promises data-subject controls it does not have *(new)*
+| | |
+|---|---|
+| **Severity** | Medium (compliance-relevant accuracy; not a technical exposure) |
+| **Area** | Client · policy screens |
+| **Affected role** | every user |
+| **Affected data** | the right of access, portability and erasure over their own record, PHI included |
+| **Access path** | `terms_of_service_screen.dart` §9 — *"You may delete your account at any time from **Profile → Settings → Account**"*; `privacy_policy_screen.dart` §5 Access — *"You may request a full export of your data at any time from **Profile → Settings → Account**"* |
+| **Current behaviour** | That screen's Account section holds exactly three rows — **Profile, Subscription, Connected Apps**. There is no deletion control and no export control; the app contains **zero** export controls anywhere. |
+| **Expected** | Either the controls exist, or the copy describes the real channel. |
+| **Evidence** | `settings_screen.dart:134-190`; a codebase-wide scan for an export control returns **0**. |
+| **What is already correct** | Two of the three screens are accurate and say so plainly: `privacy_policy_screen.dart` §5 Deletion and `help_center_screen.dart` both state *"Deleting your account from inside the app is not available yet"* and give an email channel. **The app contradicts itself** — the Terms is the outlier. |
+| **Status** | **OWNER DECISION.** Remediation is either building the controls or editing user-facing legal copy; neither is a QA decision. |
+| **Guard** | `test/unit/data_rights_claims_guard_test.dart` (**RIGHTS-G1**), baseline **2**, 3/3 mutations killed. Pins the current state so a third promise cannot be added and the count must fall when one is honoured. |
+
 ### SEC-VOICE-1 — `coach-media` is a public bucket
 | | |
 |---|---|
@@ -151,9 +166,9 @@ service-role key. → **OD-51.**
 | Storage object **enumeration** | **NOT TESTABLE** | every bucket lists `200 []` — but `progress_photo_logs` is `*/0`, i.e. QA holds no media, so the listing proves nothing |
 | PHI access logging | **FAILED** | no table, no writes |
 | `coach-media` privacy | **FAILED** | public, live-verified |
-| Account deletion / data export paths | **EVIDENCE REQUIRED** | not yet inspected |
-| Notification payload contents | **EVIDENCE REQUIRED** | not yet inspected |
-| Local persistence / cache of PHI | **EVIDENCE REQUIRED** | not yet inspected |
+| Account deletion / data export paths | **FAILED** | promised at a path that has no such control — SEC-PHI-4 |
+| Notification payload contents | **VERIFIED** | 0 PHI references in any notification body |
+| Local persistence / cache of PHI | **VERIFIED** | 0 PHI written to SharedPreferences/Hive/sqflite |
 
 ---
 
