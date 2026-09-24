@@ -4140,6 +4140,77 @@ inventing one mechanically would reproduce the original error in a new place.
 | Suite | **1474 pass / 9 skipped** | **PASS** |
 | Analyzer | 0 errors | **PASS** |
 
+## 3bk · FIT-102…110 · one message made half of `/ai-coach` unreachable
+
+**Nine** anchors are drawn on `/ai-coach`, and every one carries the same three controls:
+`Back`, a **`Coaching`** tab and a **`Conversation`** tab. Four describe the coaching
+surface, three describe the conversation. Both are always reachable.
+
+There were no tabs. Both surfaces existed, but they were mutually exclusive on an
+implementation detail:
+
+```dart
+child: _messages.length <= 1
+    ? ListView( … the eight intelligence cards … )
+    : ListView.builder( … the conversation … )
+```
+
+**Send one message and the cards were gone.** The daily brief, the weekly review, the goal
+projection, the risk card, the meal ideas, the progress insight, the persona picker and the
+coaching memory — and the last two are **the only write surfaces on the screen** — became
+unreachable for the rest of the session, with no control anywhere that brought them back.
+`_messages.length <= 1` is not a user-facing idea; it is a counter deciding which half of a
+screen exists.
+
+The composer moved with them. FIT-108/109 declare the `General`/`Nutrition`/`Workout` chips
+and the input on the conversation anchors only — a composer beside a goal-projection card
+answers nothing — so both now render on that surface alone, and sending from a suggested
+prompt takes the user to where the reply will appear.
+
+### Two tests that were not testing anything
+
+**K4 — delete the 44 dp floor — SURVIVED.** The test measured
+`find.ancestor(of: text, matching: GestureDetector)`, which climbed past the tab to an
+enclosing detector and reported **590 dp**, with or without the constraint. The target is
+now keyed, and the test also asserts the height is **under 200 dp**, so a finder that climbs
+out again fails instead of passing loudly.
+
+Fixing that exposed a second one: with the constraint keyed and removed, the box still
+measured 590, because a `Container` with `alignment:` **expands to fill bounded
+constraints** — and the harness had put the tabs in a full-height `body:`. In the real
+screen they sit in a `Column`, where the height is unbounded and the floor is what decides
+it. The harness now uses a `Column` too. A widget test whose layout differs from production
+measures the harness.
+
+### Covered as behaviour, and one part only as source
+
+`CoachSurfaceTabs` is extracted so the tabs can be pumped on their own. `AICoachScreen`
+reaches Supabase on build through all eight cards, so a whole-screen test would assert
+against the harness — the same reason `MealRowTile` was extracted after N6. The claim that
+the **screen** no longer branches on the message count is therefore a **source** assertion,
+labelled `[SOURCE]` in the test name, and worth what a source assertion is worth: it proves
+the branch is gone, not that the tabs behave. The behaviour is covered on the widget.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Widget | `test/widget/ai_coach_surfaces_test.dart` — 3 rendered-UI tests | **PASS** |
+| Domain | 3 rule tests | **PASS** |
+| Source (labelled) | 3 assertions that the screen's branch is gone | **PASS** |
+| Guard strength | **7 / 7 mutations killed** | **PASS** |
+| Suite | **1483 pass / 9 skipped** (was 1474) | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Coverage | all interactions 328 → **346 / 600** | — |
+
+| # | Mutation | Result |
+|---|---|---|
+| K1 | the tabs are not a mutually exclusive group | **KILLED** |
+| K2 | the tab announces itself but cannot be pressed | **KILLED** |
+| K3 | every tab reports itself selected | **KILLED** |
+| K4 | the tab drops under the 44 dp floor | **KILLED** (survived twice first) |
+| K5 | the screen picks the body from the message count again | **KILLED** |
+| K6 | a suggested prompt posts into a surface the user cannot see | **KILLED** |
+| K7 | the composer sits beside the goal-projection card | **KILLED** |
+
 ## 4 · Design package
 
 | Check | Status |

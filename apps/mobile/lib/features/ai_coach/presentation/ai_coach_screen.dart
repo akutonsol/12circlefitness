@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../domain/coach_surface.dart';
+import 'widgets/coach_surface_tabs.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/ai_coach_service.dart';
 
@@ -25,6 +27,10 @@ class AICoachScreen extends ConsumerStatefulWidget {
 }
 
 class _AICoachScreenState extends ConsumerState<AICoachScreen> {
+  /// Which of the board's two surfaces is showing. Before this, the screen
+  /// chose for the user with `_messages.length <= 1`.
+  CoachSurface _surface = CoachSurface.coaching;
+
   final _svc = AICoachService();
   final _ctrl = TextEditingController();
   final _scroll = ScrollController();
@@ -74,6 +80,9 @@ class _AICoachScreenState extends ConsumerState<AICoachScreen> {
     setState(() {
       _messages.add(_Message(text, isUser: true));
       _loading = true;
+      // A suggested prompt is tapped on the coaching surface; the answer
+      // arrives on the other one, so the user has to be taken there.
+      _surface = surfaceAfterSending(_surface);
     });
     _scrollToBottom();
 
@@ -146,8 +155,18 @@ class _AICoachScreenState extends ConsumerState<AICoachScreen> {
         ],
       ),
       body: Column(children: [
-        // ── Mode chips ───────────────────────────────────────────────────────
-        Container(
+        // ── The board's two surfaces ─────────────────────────────────────────
+        CoachSurfaceTabs(
+          selected: _surface,
+          onSelect: (s) => setState(() => _surface = s),
+          background: _card,
+          accent: _brand,
+          border: _brd,
+          selectedText: _wht,
+          unselectedText: _mut,
+        ),
+        // ── Mode chips — conversation only (FIT-108/109 declare them there) ──
+        if (showsComposer(_surface)) Container(
           color: _card,
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
           child: SingleChildScrollView(
@@ -176,7 +195,7 @@ class _AICoachScreenState extends ConsumerState<AICoachScreen> {
         ),
         // ── Coach home (intelligence cards) when chat is empty, else messages ──
         Expanded(
-          child: _messages.length <= 1
+          child: _surface == CoachSurface.coaching
               ? ListView(padding: const EdgeInsets.only(top: 4, bottom: 16), children: [
                   const _DailyInsightCard(),
                   const _MealIdeasCard(),
@@ -198,8 +217,8 @@ class _AICoachScreenState extends ConsumerState<AICoachScreen> {
                   },
                 ),
         ),
-        // ── Input ────────────────────────────────────────────────────────────
-        Container(
+        // ── Input — conversation only ────────────────────────────────────────
+        if (showsComposer(_surface)) Container(
           padding: EdgeInsets.only(
             left: 16, right: 16, top: 12,
             bottom: MediaQuery.of(context).viewInsets.bottom + 12,
@@ -217,7 +236,7 @@ class _AICoachScreenState extends ConsumerState<AICoachScreen> {
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _send(),
                 decoration: InputDecoration(
-                  hintText: 'Ask your AI coach...',
+                  hintText: askYourCoachHint,
                   hintStyle: const TextStyle(color: _mut),
                   filled: true, fillColor: _bg,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
