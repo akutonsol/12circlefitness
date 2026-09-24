@@ -2742,6 +2742,80 @@ skipping is not merely a UI affordance. Today an unset goal falls to `else 0` �
 12 reps — which is a silent default rather than a decision. Decide whether the step is
 genuinely skippable and what the generator should do when it is.
 
+## 3ap · FIT-001 · the front door was showing a demo workout as the client's own
+
+The largest-impact defect found this cycle, on the screen every client opens first.
+**7/9 → 8/9**; the one remaining is `Connect`, which is **F-14**.
+
+*(The ledger recorded 4/9. That was measured against `home_screen.dart` alone —
+`Directory`, `Messages` and `Notifications` live in `app_top_nav.dart`. Measuring the files
+the screen is actually built from gives 7/9 before this change.)*
+
+### What the card was doing
+
+```dart
+final assigned = ref.watch(assignedWorkoutsProvider).valueOrNull ?? const [];
+final sample   = ref.watch(workoutsProvider);
+final workouts = assigned.isNotEmpty ? assigned : sample;
+final firstTitle = workouts.isNotEmpty ? workouts.first.title : 'Full Body Strength';
+...
+final subtitle = isCoach ? 'Assigned by your coach' : …;
+```
+
+A coach-guided client with **nothing assigned** was shown a workout from the **demo
+library**, captioned *"Assigned by your coach"*. That is **F-20** — a workout the user did
+not choose, presented as theirs — on `/home`.
+
+And it is worse than F-20 was, because of the `.valueOrNull`: a **failed** assignment read
+also produced an empty list, fell through the same branch, and was likewise replaced with a
+sample workout. The error was not swallowed — it was **substituted**.
+
+Three more, all on the same card:
+
+| Shipped | Truth |
+|---|---|
+| `'45 min'` | a literal. `Workout.estimatedDuration` exists and was ignored |
+| `'550 kcal'` | a literal. Energy expenditure is recorded nowhere on a `Workout` |
+| `'2.0K steps'` | a literal. Step count likewise |
+| `Start` / `AI Train` / `Start Circle` | the board says **`Begin session`**, on FIT-001 and FIT-014 alike |
+
+The coach-guided branch of `onStart` went to `/workouts` — so a button reading `Start`
+started nothing.
+
+### What it does now
+
+Every line comes from `workout/domain/plan_summary.dart`, the rules FIT-014's hero card
+already uses — `todaysSession`, `todayPillLabel`, `workoutSummaryLine`. The same session is
+no longer described two different ways on two screens.
+
+The library is **not consulted**. With nothing assigned the card says
+`No session assigned for today` and sends the client to their plan; with a failed read it
+says `Couldn't load your plan`. Three states, three answers, because a client can act on
+only one of them.
+
+Badges carry only what the workout states — `48 min`, `6 exercises` — and the button is
+named for assistive technology, which it was not.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/home_session_card_test.dart` — 14 tests | **PASS** |
+| Guard strength | **7 / 7 mutations killed** | **PASS** |
+| Coverage | FIT-001 **8 / 9** — `Connect` is F-14 | **PASS** |
+| Suite | **1313 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Ratchets | all ten at baseline | **PASS** |
+| Runtime | **LOCALLY_VERIFIED** — the disk constraint in §3an is unchanged | **OPEN** |
+
+| # | Mutation | Result |
+|---|---|---|
+| H1 | a failed read becomes an empty plan again | **KILLED** |
+| H2 | loading is treated as an empty plan | **KILLED** |
+| H3 | a completed session is offered again | **KILLED** |
+| H4 | the hardcoded badges come back | **KILLED** |
+| H5 | a zero duration renders as `0 min` | **KILLED** |
+| H6 | the board's label drifts back to `Start` | **KILLED** |
+| H7 | the two empty states collapse into one word | **KILLED** |
+
 ## 4 · Design package
 
 | Check | Status |

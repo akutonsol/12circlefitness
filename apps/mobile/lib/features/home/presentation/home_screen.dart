@@ -18,6 +18,7 @@ import '../../ai_coach/domain/ai_insights.dart';
 import '../../ai_coach/presentation/ai_briefing_sheet.dart';
 import '../../../core/widgets/app_top_nav.dart';
 import '../../../core/widgets/blood_drop.dart';
+import '../domain/home_session_card.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 class _C {
@@ -991,43 +992,33 @@ class _FitnessSessionCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isAI    = mode == CoachingMode.aiGuided;
-    final isCoach = mode == CoachingMode.coachGuided;
+    final isAI = mode == CoachingMode.aiGuided;
 
-    // Prefer the user's generated/assigned program; fall back to the sample
-    // library only when no program exists yet (e.g. legacy accounts).
-    final assigned  = ref.watch(assignedWorkoutsProvider).valueOrNull ?? const [];
-    final sample    = ref.watch(workoutsProvider);
-    final workouts   = assigned.isNotEmpty ? assigned : sample;
-    final firstTitle = workouts.isNotEmpty ? workouts.first.title : 'Full Body Strength';
+    // FIT-001's Today card. The rules — and the four defects they replace —
+    // are in `domain/home_session_card.dart`. The short version: this read
+    // `assigned.isNotEmpty ? assigned : sample` and captioned a DEMO workout
+    // "Assigned by your coach", which is F-20 on the front door.
+    final session = homeSession(ref.watch(assignedWorkoutsProvider));
+    final badges = homeSessionBadges(session.workout);
 
-    final title    = isAI    ? 'AI Workout Plan'
-                   : isCoach ? 'Today\'s Session'
-                   :           firstTitle;
-    final subtitle = isAI    ? 'Personalised by your AI coach'
-                   : isCoach ? 'Assigned by your coach'
-                   :           'Workout Session';
-    final btnLabel = isAI    ? 'AI Train'
-                   : isCoach ? 'Start'
-                   :           'Start Circle';
-    final kcalText = isAI    ? 'AI Optimised' : '550 kcal';
-    final kcalIcon = isAI    ? Icons.auto_awesome : Icons.local_fire_department_rounded;
+    final title    = session.title ?? session.emptyLine;
+    final subtitle = session.context ??
+        (isAI ? 'Personalised by your AI coach' : 'Today');
+    // One label, because it is one action. The board gives it on FIT-001 and
+    // FIT-014 alike; the card had three words depending on coaching mode.
+    const btnLabel = HomeSession.beginLabel;
 
     void onStart() {
-      if (isAI) {
-        context.go('/ai-coach');
+      // A session that exists is started. Nothing else is invented: with no
+      // assignment the card sends the client to their plan rather than
+      // starting a workout that is not theirs.
+      final w = session.workout;
+      if (w != null) {
+        ref.read(selectedWorkoutProvider.notifier).state = w;
+        context.go('/active-workout');
         return;
       }
-      if (isCoach) {
-        context.go('/workouts');
-        return;
-      }
-      final assignedNow = ref.read(assignedWorkoutsProvider).valueOrNull ?? const [];
-      final startList = assignedNow.isNotEmpty ? assignedNow : ref.read(workoutsProvider);
-      if (startList.isNotEmpty) {
-        ref.read(selectedWorkoutProvider.notifier).state = startList.first;
-      }
-      context.go('/active-workout');
+      context.go(isAI ? '/ai-coach' : '/train');
     }
 
     // Start button gradient — purple in the design (blue tint for AI mode).
@@ -1068,17 +1059,22 @@ class _FitnessSessionCard extends ConsumerWidget {
                 colors: [Colors.transparent, Color(0x000A0A0B), Color(0xB80C0911)],
                 stops: [0.0, 0.5, 1.0],
                 begin: Alignment.topCenter, end: Alignment.bottomCenter))),
-            Positioned(left: 14, right: 14, bottom: 13,
-              child: Row(children: [
-                _SessionBadge(icon: Icons.schedule_rounded,
-                  text: '45 min', iconColor: _C.primary),
-                const SizedBox(width: 8),
-                _SessionBadge(icon: kcalIcon, text: kcalText,
-                  iconColor: isAI ? const Color(0xFF06B6D4) : const Color(0xFF4ADE80)),
-                const SizedBox(width: 8),
-                const _SessionBadge(icon: Icons.directions_walk_rounded,
-                  text: '2.0K steps', iconColor: _C.primary),
-              ])),
+            // Only what the workout states. `45 min`, `550 kcal` and
+            // `2.0K steps` were literals presented as this session's stats;
+            // duration is a real field, the other two are recorded nowhere.
+            if (badges.isNotEmpty)
+              Positioned(left: 14, right: 14, bottom: 13,
+                child: Row(children: [
+                  for (final b in badges) ...[
+                    _SessionBadge(
+                      icon: b.contains('min')
+                          ? Icons.schedule_rounded
+                          : Icons.fitness_center_rounded,
+                      text: b,
+                      iconColor: _C.primary),
+                    const SizedBox(width: 8),
+                  ],
+                ])),
           ])),
           // Title + Start section.
           Padding(
@@ -1096,7 +1092,12 @@ class _FitnessSessionCard extends ConsumerWidget {
                     fontWeight: FontWeight.w800, height: 1.05, letterSpacing: -0.2)),
               ])),
               const SizedBox(width: 12),
-              GestureDetector(
+              Semantics(
+                button: true,
+                label: session.canBegin ? btnLabel : 'Go to your plan',
+                excludeSemantics: true,
+                onTap: onStart,
+                child: GestureDetector(
                 onTap: onStart,
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(19, 11, 16, 11),
@@ -1109,12 +1110,12 @@ class _FitnessSessionCard extends ConsumerWidget {
                       color: btnGradient.last.withValues(alpha: 0.45),
                       blurRadius: 18, offset: const Offset(0, 6))]),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text(btnLabel,
+                    Text(session.canBegin ? btnLabel : 'Go to your plan',
                       style: const TextStyle(color: Colors.white, fontSize: 15,
                         fontWeight: FontWeight.w700)),
                     const SizedBox(width: 6),
                     const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
-                  ]))),
+                  ])))),
             ])),
         ]),
       ),
