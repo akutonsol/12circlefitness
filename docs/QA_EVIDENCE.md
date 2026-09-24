@@ -4021,7 +4021,7 @@ action. Two anchors name one control two ways.
 Renaming it would move a point from FIT-003 to FIT-089 and change nothing for anyone using
 the app; giving it both names would leave a screen reader announcing two. So it keeps the
 name it has, FIT-089 sits at **6/7**, and the conflict is recorded rather than resolved by
-preference. **Which word wins is the design owner's call.** → **OD-33**.
+preference. **Which word wins is the design owner's call.** → **OD-41**.
 
 | Layer | Evidence | Status |
 |---|---|---|
@@ -4333,7 +4333,7 @@ the test**: it returns to `idle` before handing back.
 | C5 | the controls stay live mid-request | **KILLED** |
 | C6 | `Cancel place` drifts back to `Cancel Booking` | **KILLED** |
 
-### The other two controls need capabilities that do not exist → OD-34
+### The other two controls need capabilities that do not exist → OD-42
 
 FIT-088 stays at **3/5** deliberately. Its remaining two are not omissions:
 
@@ -4411,10 +4411,10 @@ said `Submit`. The constant was **deleted**. FIT-067 therefore drops to 8/10 rat
 sitting at 9/10 on a name nobody can tap.
 
 `Add a photo` needs an image picker and a storage path for post images; `createPost` takes
-`imageUrls` but nothing in `lib` uploads one → **OD-36**. `Tues Lifters` is a group name —
+`imageUrls` but nothing in `lib` uploads one → **OD-44**. `Tues Lifters` is a group name —
 data, not a control.
 
-## 3bo · `/activity` · the design and the implementation are different screens → OD-35
+## 3bo · `/activity` · the design and the implementation are different screens → OD-43
 
 FIT-064 draws `/activity` as a **chronological timeline** — *"Logged 62.4 kg · 07:20"*,
 *"Breakfast · 420 kcal · 08:05"*, *"Lower body — strength · 51 min · 18 sets"* — filtered by
@@ -4435,7 +4435,7 @@ This was **not** implemented, and the reason is not difficulty:
 
 FIT-001's *"Activity folded in"* makes the timeline reading plausible — the dashboard's
 content may belong on Home — but "plausible" is not a mandate to delete a screen.
-**Recorded as OD-35 for the design owner**, with the intent preserved rather than
+**Recorded as OD-43 for the design owner**, with the intent preserved rather than
 half-built.
 
 ## 3bp · FIT-065/066 · four of five reactions could be read and never written
@@ -4511,9 +4511,9 @@ the counts into `lib` as literals, which is the fabrication this programme refus
 * **FIT-066's per-comment likes** (`Like Amara's comment, 4 likes`). `PostComment` carries
   `likes` and `isLiked`, and the service hardcodes them to `0` and `false` — because
   `post_comments` has **no likes column and no reactions table**. This needs a migration,
-  which is out of phase → **OD-37**. Nothing renders the dead fields, so no false zero ships.
+  which is out of phase → **OD-45**. Nothing renders the dead fields, so no false zero ships.
 * **`Share`** does nothing but fire a haptic. There is no share dependency in
-  `pubspec.yaml` → **OD-38**.
+  `pubspec.yaml` → **OD-46**.
 * **`/post-detail`** does not exist; comments expand inline in the card. Whether FIT-066 is
   a screen or the existing inline panel is a design question, not a repair.
 
@@ -4555,16 +4555,100 @@ files in the matrix.
 
 ## 6 · Owner decisions — open
 
+**This table was four rows short of a quarter of the real list.** It carried OD-1…7 while
+OD-8…40 had been recorded inline across this file and across the parallel audit's documents,
+so a reader asking *"what needs me?"* saw eight items instead of thirty-odd. Consolidated
+below.
+
+### 6.0 · Two numbering faults, recorded rather than quietly renumbered
+
+**`OD-30` means two different things.** In this file it is *"the calorie figure —
+`_elapsedSeconds ~/ 60 * 8`"*. In `docs/FINAL_NEW_SCREEN_DESIGN_COMMISSION.md` it is
+***"May a coach read a client's PAR-Q / medical history?"*** — a privacy and authorization
+question, and much the more serious of the two. An owner resolving "OD-30" would not know
+which they had resolved. **Neither was renumbered here**, because renumbering someone
+else's live document is how a third meaning gets created; both are listed, qualified by
+source, and the collision is the thing to fix.
+
+**I created six more of these and have corrected them.** Sections 3bh–3bp originally
+allocated OD-33…38, which the parallel audit had already used for Pods reachability, the
+`/log-meal` stub, commissioning missing designs, the disk blocker, session sequencing and
+the reference PNGs. The audit's documents are untracked but were written first, so **mine
+were renumbered to OD-41…46**, not theirs. Two ids were checked and are genuinely clear:
+**OD-5 is withdrawn** (recorded in `DESIGN_INTAKE_REPORT.md`) and **OD-13 was never
+assigned**.
+
+### 6.1 · From this file
+
 | Id | Question | Blocks | Can continue without |
 |---|---|---|---|
 | OD-1 | Landscape: lock to portrait, or design and support it? | F-5 | everything portrait |
 | OD-2 | GAP-07 — AI error states the backend cannot reach | those states | all reachable states |
 | OD-3 | GAP-08 — Score frame semantics (`ScoreService` vs `ScoreEngine`) | one screen | all others |
 | OD-4 | GAP-09 — navigation entry for the event ticket | F-10 | all others |
-| OD-6 | Display weight: the design says w300; Schibsted Grotesk ships no w300 via `google_fonts` 8.1.0; the board renders w400 | display/metric type only | colour, shape, spacing, motion, geometry |
+| ~~OD-5~~ | ~~Component denominator~~ — **WITHDRAWN**, resolved by the `shipped` field | — | — |
+| OD-6 | Display weight: the design says w300; Schibsted Grotesk ships no w300 | display type only | colour, shape, spacing, motion |
 | OD-7 | Font delivery — bundle the family or accept runtime fetch (F-11) | offline fidelity | online behaviour |
-| D-2 | Adoption of design tokens by screens (now partially answered by IMPLEMENT-THIS) | per-screen migration | foundation done |
-| D-3 | Accessibility copy for icon-only controls | F-6, F-8 | sizes, which are mechanical |
+| OD-8 | Coach-assignment copy: a failure must not read as a denial | `/profile` section | rest of profile |
+| OD-9 | A surface the package draws that the app has no way to discover | that surface | all others |
+| OD-10 | `More` left inert rather than wired to an invented destination | one control | the screen |
+| OD-11 | Content the app cannot open — a product-content question | that content | the screen |
+| OD-12 | (recorded inline, single mention) | — | — |
+| ~~OD-13~~ | **never assigned** | — | — |
+| **OD-14** | **F-21 · authorization change required** | the finding | everything else |
+| OD-15 | The coach's "New Class" affordance — a frame omitting a capability is not a removal | one affordance | the screen |
+| OD-16 | Check-in review: position, queueing, and the resolved-silently case | FIT-033 detail | the screen |
+| OD-17 | FIT-019's third pill is `Recent`; the app's is `Barcode` — different features | one pill | the screen |
+| OD-18 | FIT-031's prices (£19/£39/£79) are not the product's prices | pricing copy | the screen |
+| OD-19 | FIT-030 declares a privacy control with no data model | that control | the screen |
+| OD-20 | (copy whose absence a guard now asserts) | — | — |
+| OD-21 | The two triage thresholds — how many days of silence make a client "at risk" | thresholds | the screen |
+| OD-22 | `After training` — should a nutrition log record its relation to a session? | one field | logging |
+| OD-23 | The row is not a button: the manifest says `el: "button"`, the board draws otherwise | one row | the screen |
+| OD-24 | `Sessions 4/4` — completed-against-prescribed is on no column of this row | one stat | the row |
+| OD-25 | A control left unavailable rather than wired to an invented flow | one control | the screen |
+| OD-26 | The goal archetypes — FIT-008 draws four, the flow ships six | intake copy | the flow |
+| OD-27 | What `Skip this` means for a goal, given it feeds a calorie calculation | one branch | the flow |
+| OD-28 | (resolved silently upstream; recorded, nothing changed) | — | — |
+| OD-29 | The rest of the feedback dialog — FIT-018 draws one question | extra questions | the dialog |
+| OD-30 ⚠ | **(this file)** the calorie figure `_elapsedSeconds ~/ 60 * 8` | one number | the screen |
+| OD-31 | Does Welcome enter the flow? FIT-006 is locked at `/onboarding` and unreachable | FIT-006 | everything else |
+| OD-32 | Deleting a duplicate/dead screen file is destructive | 9 dead surfaces | all live ones |
+| **OD-41** | `Add a photo of your meal` (FIT-089) vs `Scan a meal` (FIT-003) — **two anchors name one control two ways** | FIT-089 7/7 | the control works |
+| **OD-42** | FIT-088 `Add to calendar` needs a device-calendar dependency; `My bookings` has no destination | FIT-088 5/5 | cancelling works |
+| **OD-43** | `/activity`: FIT-064 draws a **timeline**, the app ships a **1,192-line metrics dashboard** — different screens, same route | FIT-064 | both screens work |
+| **OD-44** | FIT-067 `Add a photo` — `createPost` takes `imageUrls`, nothing in `lib` uploads one | FIT-067 10/10 | posting works |
+| **OD-45** | FIT-066 per-comment likes — `post_comments` has no likes column; needs a **migration**, which is out of phase | FIT-066 | reactions work |
+| **OD-46** | `Share` fires a haptic and nothing else; no share dependency in `pubspec.yaml` | one control | the card |
+
+### 6.2 · From the parallel audit's documents (untracked, recorded here for one list)
+
+These are **that process's** allocations, restated so the owner has a single place to look.
+They are data from another workstream, not findings re-derived here.
+
+| Id | Question |
+|---|---|
+| OD-30 ⚠ | **(commission doc)** May a coach read a client's PAR-Q / medical history? — **collides with OD-30 above** |
+| OD-33 | Pods (FIT-071…074) are built, designed and **unreachable** — `/pods` is orphaned |
+| OD-34 | `/log-meal` is a 23-line redirect stub while FIT-019 is locked at 4/5 — build it, or re-anchor |
+| OD-35 | Commission the six missing-design surfaces (MCS-05…10)? Two are store-review gates |
+| OD-36 | Reclaim disk so tests and device runtime can execute — **see the note below** |
+| OD-37 | Pause or sequence the concurrent session so screen work has a single owner |
+| OD-38 | Generate the 110 reference PNGs — **marked RESOLVED** in that document |
+| OD-39 | Where should the regenerated baseline images live durably? |
+| OD-40 | Is admin/vendor tooling (7 routes) in design scope at all? |
+
+**Two of those touch this session directly, and the second is a correction.**
+
+**OD-37** names concurrent session `d1740817` — this one. That process recorded that screen
+work has two owners. This session has not edited any of those sixteen untracked documents;
+it has read them as evidence and re-derived their claims before acting (§3bd, §3bm).
+
+**OD-36 is recorded there as having "cleared on its own: 5.6 GB free, 76% used".** That is
+no longer true and was not true during this session's device attempt: the volume fell from
+**3.4 GB to 118 MB** in under ten seconds of Gradle work, and the build failed on a cache
+lock. The Gradle 9.1.0 artifact-transform cache alone is **3.5 GB**. Device verification
+remains blocked — see §3bc.
 
 ## 6b · Phase A/B findings — navigation, authorization and state coverage
 
