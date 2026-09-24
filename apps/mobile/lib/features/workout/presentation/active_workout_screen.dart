@@ -21,6 +21,7 @@ import '../../../core/utils/rest_alarm.dart';
 import '../../coach/data/score_service.dart';
 import '../../scoring/data/score_engine.dart';
 import '../../auth/domain/auth_provider.dart';
+import '../domain/session_complete.dart';
 
 const _bg       = Color(0xFF030303);
 const _card     = Color(0xFF0E0B16);
@@ -661,6 +662,13 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
 
     await ScoreService().addWorkoutPoints();
     await ScoreEngine().workoutCompleted(workout.id);
+    // Captured before the reset below wipes it — FIT-018's stats come from
+    // here, and reading them after would make every session read 0 sets.
+    final completedSets = ref
+        .read(activeWorkoutProvider)
+        .values
+        .where((st) => st['completed'] == true)
+        .toList(growable: false);
     ref.read(activeWorkoutProvider.notifier).reset();
     // The session id is spent for logging purposes, but the feedback sheet
     // still has to name the session it is rating, so hand it the captured id.
@@ -681,6 +689,19 @@ class _ActiveWorkoutViewState extends ConsumerState<_ActiveWorkoutView> {
           calories: log.caloriesBurned ?? 0,
           idleSeconds: _idleSeconds,
           sessionId: finishedSessionId,
+          // FIT-018's three figures, from what the client actually logged.
+          // `completedSets` is captured BEFORE the notifier is reset above —
+          // reading it after would report every finished session as zero sets
+          // and zero volume.
+          elapsedSeconds: _elapsedSeconds,
+          setsLogged: completedSets.length,
+          volumeKg: sessionVolumeKg([
+            for (final st in completedSets)
+              (
+                reps: (st['reps'] as num?)?.toInt() ?? 0,
+                weightKg: (st['weight'] as num?)?.toDouble(),
+              ),
+          ]),
           // Both exits — Skip and Submit — come through here.
           onDone: () {
             Navigator.pop(context);
@@ -1775,6 +1796,13 @@ class WorkoutCompleteDialog extends StatefulWidget {
   final String? sessionId;
   final VoidCallback onDone;
 
+  /// FIT-018's three figures. Passed in rather than read here so the dialog
+  /// stays testable — it already carries an injection seam for the same
+  /// reason (F-23).
+  final int elapsedSeconds;
+  final int setsLogged;
+  final double volumeKg;
+
   /// Injection seam. Null uses the real Supabase path below.
   final Future<FeedbackDelivery> Function({
     required int rating,
@@ -1787,6 +1815,7 @@ class WorkoutCompleteDialog extends StatefulWidget {
     super.key,
     required this.title, required this.duration,
     required this.calories, this.idleSeconds = 0, this.sessionId,
+    this.elapsedSeconds = 0, this.setsLogged = 0, this.volumeKg = 0,
     required this.onDone, this.submit});
   @override
   State<WorkoutCompleteDialog> createState() => _WorkoutCompleteDialogState();
@@ -1906,37 +1935,145 @@ class _WorkoutCompleteDialogState extends State<WorkoutCompleteDialog> {
               border: Border.all(color: _brand.withValues(alpha: 0.4))),
             child: const Icon(Icons.emoji_events_rounded, color: _brand, size: 34)),
           const SizedBox(height: 16),
-          const Text('Workout Complete!',
+          // FIT-018: "rewarding, not celebratory ... No confetti."
+          // `Workout Complete!` with an exclamation mark is the confetti.
+          Text(sessionDoneTitle(widget.title),
             style: TextStyle(color: _white, fontSize: 20, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text(widget.title, style: TextStyle(color: _primary.withValues(alpha: 0.8), fontSize: 13)),
           const SizedBox(height: 20),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-            _DialogStat(icon: Icons.timer_outlined, label: 'Duration', value: widget.duration, color: _primary),
-            _DialogStat(icon: Icons.local_fire_department_outlined, label: 'Calories', value: '${widget.calories}kcal', color: _tertiary),
-            _DialogStat(
-              icon: Icons.hourglass_bottom_rounded,
-              label: 'Idle',
-              value: '${(widget.idleSeconds ~/ 60).toString().padLeft(2, '0')}:${(widget.idleSeconds % 60).toString().padLeft(2, '0')}',
-              color: widget.idleSeconds > 0 ? _error : _tertiary),
-          ]),
+          // FIT-018 draws THREE figures — Duration, Sets logged, Volume —
+          // and the row this replaces drew Duration, Calories and Idle.
+          //
+          // `Calories` was `_elapsedSeconds ~/ 60 * 8`: a flat 8 kcal a minute,
+          // the same number for every person, every load and every movement.
+          // A fabricated figure presented as a measurement, on the screen that
+          // closes a session. It goes because the locked design does not draw
+          // it, not because of a preference here — and the `calories_burned`
+          // column it also writes is untouched, so nothing else changes.
+          // Recorded as OD-30.
+          //
+          // `Idle` goes too, but its warning line survives immediately below,
+          // which is where the rest-overrun finding is actually stated.
           if (widget.idleSeconds > 0) ...[
             const SizedBox(height: 8),
             Text('${widget.idleSeconds ~/ 60}m ${widget.idleSeconds % 60}s of rest overrun — tighten it up next time.',
               textAlign: TextAlign.center,
               style: TextStyle(color: _error.withValues(alpha: 0.8), fontSize: 11)),
           ],
+          const SizedBox(height: 20),
+
+          // FIT-018's three figures: `51 min Duration · 18 Sets logged ·
+          // 4.2 t Volume`. Each is omitted when the session does not support
+          // it — a bodyweight session has no volume, and `0.0 t` on a finished
+          // workout is worse than two stats.
+          Builder(builder: (_) {
+            final stats = sessionStats(
+              elapsedSeconds: widget.elapsedSeconds,
+              setsLogged: widget.setsLogged,
+              volumeKg: widget.volumeKg,
+            );
+            if (stats.isEmpty) return const SizedBox.shrink();
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final st in stats)
+                  Semantics(
+                    container: true,
+                    label: st.spoken,
+                    excludeSemantics: true,
+                    child: Column(children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(st.value,
+                              style: const TextStyle(
+                                  color: _white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700)),
+                          if (st.unit.isNotEmpty) ...[
+                            const SizedBox(width: 2),
+                            Text(st.unit,
+                                style: const TextStyle(
+                                    color: _muted, fontSize: 12)),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(st.label,
+                          style:
+                              const TextStyle(color: _muted, fontSize: 11)),
+                    ]),
+                  ),
+              ],
+            );
+          }),
+
           const SizedBox(height: 24),
           if (!_submitted) ...[
             const Divider(color: Color(0xFF1A1020)),
+            const SizedBox(height: 16),
+
+            // FIT-018 asks ONE question with three answers — "the effort
+            // question is asked while it's fresh — it's what the coach reads
+            // next week." The 1–5 Difficulty row it replaces asked the same
+            // thing in a shape the board rejects ("one real fact rather than
+            // a score"). `Overall`, `Energy` and the notes field are KEPT:
+            // the board not drawing something is not the design saying to
+            // delete it (OD-15), and they are recorded as OD-29.
+            const Text(effortQuestion,
+                style: TextStyle(
+                    color: _white, fontSize: 15, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 10),
+            Row(children: [
+              for (final e in SessionEffort.values) ...[
+                Expanded(
+                  child: Semantics(
+                    button: true,
+                    inMutuallyExclusiveGroup: true,
+                    selected: _difficulty == e.difficulty,
+                    label: e.label,
+                    excludeSemantics: true,
+                    onTap: () => setState(() => _difficulty = e.difficulty),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _difficulty = e.difficulty),
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 44),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: _difficulty == e.difficulty
+                              ? _primary.withValues(alpha: 0.18)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: _difficulty == e.difficulty
+                                  ? _primary
+                                  : const Color(0xFF1A1020)),
+                        ),
+                        child: Text(e.label,
+                            style: TextStyle(
+                                color: _difficulty == e.difficulty
+                                    ? _primary
+                                    : _muted,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ),
+                ),
+                if (e != SessionEffort.values.last) const SizedBox(width: 8),
+              ],
+            ]),
             const SizedBox(height: 16),
             const Text('How was the workout?', style: TextStyle(color: _white, fontSize: 15, fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
             _StarRow(label: 'Overall', value: _rating, onChanged: (v) => setState(() => _rating = v)),
             const SizedBox(height: 8),
             _StarRow(label: 'Energy', value: _energy, onChanged: (v) => setState(() => _energy = v)),
-            const SizedBox(height: 8),
-            _StarRow(label: 'Difficulty', value: _difficulty, onChanged: (v) => setState(() => _difficulty = v)),
             const SizedBox(height: 12),
             TextField(
               controller: _notes,
@@ -2023,25 +2160,6 @@ class _StarRow extends StatelessWidget {
   ]);
 }
 
-class _DialogStat extends StatelessWidget {
-  final IconData icon;
-  final String label, value;
-  final Color color;
-  const _DialogStat({required this.icon, required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(children: [
-      Icon(icon, color: color, size: 22),
-      const SizedBox(height: 6),
-      Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w800)),
-      const SizedBox(height: 2),
-      Text(label, style: TextStyle(color: _muted.withValues(alpha: 0.5), fontSize: 11)),
-    ]);
-  }
-}
-
-// ── Animated guide (book) icon — swells/glows so it reads as tappable ─────────
 class _GuideIconPulse extends StatefulWidget {
   const _GuideIconPulse();
   @override

@@ -3084,6 +3084,98 @@ as OD-16 — what a client is told about their own health data — and unlike OD
 silently. Decide whether to keep it, restate it as a value, or replace it with package
 wording.
 
+## 3at · FIT-018 · the anchor that was carried as complete and was not built — **0/4 → 4/4**
+
+§3as found it: all four of FIT-018's declared interactions are **one word** — `Easy`,
+`Right`, `Hard`, `Done` — and the old measurement matched one-word labels as substrings.
+`Done` found `abandoned`; `Right` found `Alignment.centerRight`. **`Easy` and `Hard` appear
+nowhere in `lib`.** It read 4/4 and was 0/4.
+
+### What the board asks for
+
+> *"One real fact rather than a score: the personal best is stated because it happened, and
+> the effort question is asked while it's fresh — it's what the coach reads next week. No
+> confetti."*
+
+```
+Lower body, done.
+51 min Duration    18 Sets logged    4.2 t Volume
+How did it feel?
+[ Easy ]  [ Right ]  [ Hard ]
+[        Done        ]
+```
+
+### What shipped, and what changed
+
+| Shipped | Now |
+|---|---|
+| `Workout Complete!` | `Lower body, done.` — the exclamation mark **is** the confetti the board rejects |
+| `Duration · Calories · Idle` | `Duration · Sets logged · Volume` — the board's three |
+| a 1–5 `Difficulty` star row | `How did it feel?` with `Easy / Right / Hard` |
+
+**`Calories` was fabricated.** `_elapsedSeconds ~/ 60 * 8` — a flat 8 kcal a minute, the
+same number for every person, every load and every movement, presented as a measurement on
+the screen that closes a session. It goes because the locked design does not draw it, not
+as a preference here. The `calories_burned` column it also writes is untouched, so nothing
+else changes — recorded as **OD-30**.
+
+### The effort encoding is not OD-16's shape
+
+`workout_feedback.difficulty` is `int CHECK (BETWEEN 1 AND 5)`, and the board asks one
+question with three answers. That looks like OD-16 and is its opposite:
+
+* **OD-16** interprets a number the client did not choose — deciding a stored `3` means
+  "Steady" is a judgement *about them*;
+* **this** records the word the client picked. Nothing is inferred.
+
+`1 / 3 / 5` uses the extremes and the middle, is reversible, and **nothing in the app reads
+that column today** — verified against every reader, not assumed. A stored `2` or `4` reads
+back as *nothing*, because it did not come from this question and guessing which word it was
+nearest would invent an answer the client never gave.
+
+### Kept, because the board not drawing something is not an instruction to delete it
+
+`Overall`, `Energy` and the notes field stay (OD-15's lesson), as does the rest-overrun
+warning line. Recorded as **OD-29**: the board draws only the effort question.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Rules | `test/unit/session_complete_test.dart` — 19 tests | **PASS** |
+| Widget | `test/widget/session_complete_dialog_test.dart` — 6, **mounted**, against the semantics tree | **PASS** |
+| Guard strength | **9 / 9 mutations killed** (S4 first run was equivalent; re-run validly) | **PASS** |
+| Coverage | FIT-018 **4 / 4** — genuinely | **PASS** |
+| Suite | **1349 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Ratchets | all eleven at baseline | **PASS** |
+| Runtime | **LOCALLY_VERIFIED** — §3an's disk constraint unchanged | **OPEN** |
+
+| # | Mutation | Result |
+|---|---|---|
+| S1 | a stored `2` or `4` is snapped to the nearest word | **KILLED** |
+| S2 | a bodyweight session renders `0.0 t` | **KILLED** |
+| S3 | the title keeps its qualifier | **KILLED** |
+| S4 | an unloaded set contributes its reps to volume | **KILLED** (first run was equivalent) |
+| S5 | the answers stop being mutually exclusive | **KILLED** |
+| S6 | the effort chips lose their tap action | **KILLED** |
+| S7 | the celebratory title returns | **KILLED** |
+| S8 | a negative load is subtracted from volume | **KILLED** |
+
+### And the mutation harness misreported, for the third time
+
+It classified a passing two-file run as "did not compile". Twice before it read a widget's
+`error: (_, __) =>` arm, quoted back in a failure message, as a compile error. `flutter
+test` already answers the question with its **exit status**; the harness greps output no
+longer.
+
+### New owner decisions
+
+**OD-29 · the rest of the feedback dialog.** FIT-018 draws one question. `Overall`, `Energy`
+and free-text notes are shipped and kept. Decide whether they stay.
+
+**OD-30 · the calorie figure.** `_elapsedSeconds ~/ 60 * 8` is still written to
+`workout_sessions.calories_burned` and surfaced elsewhere. It is not a measurement. Decide
+whether to compute it properly, source it from a wearable, or stop recording it.
+
 ## 4 · Design package
 
 | Check | Status |
