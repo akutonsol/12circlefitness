@@ -116,7 +116,7 @@ everything else. Where anything disagrees, they win."*
 | FIT-032 | Coach dashboard | `/coach-dashboard` | 6 | 11 | `coach_dashboard_screen.dart` + `widgets/needs_you_today.dart` + `core/router/app_shell.dart` |
 | FIT-028 | Connect — no coach | `/messages` | 4 | 10 | `messaging_screen.dart` |
 | FIT-001 | Home | `/home` | 4 | 9 | `home_screen.dart` |
-| FIT-008 | Intake | `/intake` | 2 | 7 | `intake_flow_screen.dart` |
+| FIT-008 | Intake | `/intake` | 2 | 7 | `intake_flow_screen.dart` — blocked on OD-26/OD-27 |
 | FIT-019 | Log a meal | `/log-meal` | 4 | 5 | `meals_dashboard_screen.dart` (`_AddMealSheet`) + `widgets/pill_tab.dart` |
 | FIT-020 | AI meal scan | `/log-meal (ai_scan_view)` | 4 | 5 | `widgets/ai_scan_view.dart` |
 | FIT-031 🔒 | Plans | `/upgrade` | 1 | 5 | `upgrade_screen.dart` — **remaining 4 blocked on OD-18** |
@@ -337,7 +337,7 @@ without fabricating content the brief forbids.
 | FIT-005 | Connect | `/messages` | 4/12 | `messaging_screen.dart` + `connect_sections_view.dart` + `domain/connect_sections.dart` |
 | FIT-006 ✅ | Welcome | `/onboarding` | **2/2** | `onboarding_screen.dart` |
 | FIT-007 | Sign in | `/login` | 1/1 | `login_screen.dart` |
-| FIT-008 | Intake | `/intake` | 2/7 | `intake_flow_screen.dart` |
+| FIT-008 | Intake | `/intake` | 2/7 **blocked** | `intake_flow_screen.dart` — the 4 archetypes and `Skip this` are **OD-26/OD-27**: goal values drive calorie targets and rep ranges via migration 047. QA_EVIDENCE §3ao |
 | FIT-009 ✅ | Intake complete | `/intake` | **1/1** | `widgets/intake_complete_page.dart` |
 | FIT-010 | Splash | `/splash` | 1/1 | `splash_screen.dart` |
 | FIT-011 | Sign up | `/signup` | 2/2 | `signup_screen.dart` |

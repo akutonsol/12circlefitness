@@ -2644,6 +2644,104 @@ prescription to a session count. Until then the stat is absent rather than guess
 **OD-25 · what `Record` captures.** `coach_video_responses` exists; no capture, upload or
 playback path does. Drawn and disabled until the feature exists or the control is dropped.
 
+## 3ao · FIT-008 · one flow, two words — and five interactions that need an owner
+
+FIT-008 measures **2/7** before and after. The number did not move; the truth did.
+
+### What was fixed: the flow contradicted itself
+
+`intake_flow_screen.dart` is 5,841 lines and ~24 steps. **Eleven** labelled the advance
+control `Continue`; **five** labelled it `Next` — same action, same `onContinue` callback,
+two different words. A client walking the flow read `Continue`, then `Next`, then
+`Continue`.
+
+FIT-008's board draws `Continue`, and it was already the majority word in the file, so
+unifying on it introduces **no new vocabulary** — it only stops the flow disagreeing with
+itself. `A-G9` holds it, with a detector floor and two killed mutations.
+
+Note what the metric did here. `Continue` measured **HAVE** before this change, because the
+word appears on ten *other* steps — the goal step's own button said `Next`. The measurement
+was resolving a declared interaction against a different screen's control. Fixing it changed
+a false positive into a true one and **moved the number not at all**. Fifth defect found in
+this measurement, after counting comments, resolving a route to a redirect stub, failing on
+HTML entities, and matching a word inside an icon constant.
+
+### What is blocked, and why it is not mine to decide
+
+The board's step draws four **archetypes**:
+
+```
+Getting stronger            Progressive load, fewer sessions
+Feeling better day to day   Energy, sleep, consistency
+Changing composition        Training plus nutrition targets
+Coming back from a break    Rebuild gently, no ego
+```
+
+The flow ships **six** goals, and their values are not labels — they are **inputs to the
+plan generator**. `047_self_guided_plan_generator.sql`:
+
+```sql
+v_cal  := round(v_bmr * v_mult + case
+    when p.fitness_goal = 'lose_fat'     then -500
+    when p.fitness_goal = 'build_muscle' then  300
+    when p.fitness_goal = 'body_recomp'  then -200
+    else 0 end);
+v_reps := case when p.fitness_goal = 'build_muscle' then 10
+               when p.fitness_goal in ('lose_fat','body_recomp') then 13 else 12 end;
+v_rest := case when p.fitness_goal = 'build_muscle' then 90 ... end;
+```
+
+So a goal decides a client's **daily calorie target, rep range and rest interval**. Against
+that, the board's four:
+
+| Board archetype | Maps to | Consequence if forced |
+|---|---|---|
+| `Changing composition` | `body_recomp` | clean |
+| `Getting stronger` | — | strength is low-rep, heavy; `build_muscle` sets **10 reps and +300 kcal**. Not the same prescription |
+| `Feeling better day to day` | — | falls to `else 0` — no deficit, 12 reps. A default, not a choice |
+| `Coming back from a break` | — | same, and "rebuild gently" is the one archetype that most implies a *different* prescription |
+
+Two of the four have **no engine value at all**, and one maps to a prescription that
+contradicts its own subtitle. Shipping the archetypes without resolving that would silently
+change what every new client is told to eat and how they are told to train. That is a core
+product rule, not an engineering choice — **§21**.
+
+`Skip this` is the same question in miniature: skipping is not a UI affordance when the
+answer feeds a calorie calculation. What does the generator do for a client who declined to
+say? `else 0` is a *silent* answer, not a considered one.
+
+And the board's progress reads **`4 of 11`** where the flow has **24** steps. The archetype
+note — *"Progress is a hairline, not a stepper"* — is a visual change to a bar shared by
+every step; the **count** is structural.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/unit/intake_advance_label_guard_test.dart` (A-G9) — 3 tests | **PASS** |
+| Guard strength | **2 / 2 mutations killed** | **PASS** |
+| Suite | **1299 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Coverage | FIT-008 **2/7**, five blocked on OD-26/OD-27 | **BLOCKED** |
+
+| Mutation | Result |
+|---|---|
+| A1 · a step reverts to `Next` | **KILLED** |
+| A2 · blind the detector | **KILLED** |
+
+### New owner decisions
+
+**OD-26 · the goal archetypes.** FIT-008 draws four archetypes; the flow ships six goals
+whose values drive calorie targets, rep ranges and rest intervals through
+`047_self_guided_plan_generator.sql`. Two of the four map to no engine value and one maps
+to a prescription contradicting its own subtitle. Options: (a) extend the generator with
+values for the new archetypes; (b) map the four onto existing values and accept the
+prescriptions that follow; (c) keep the six shipped goals and record the deviation. Nothing
+is changed until this is answered.
+
+**OD-27 · what `Skip this` means for a goal.** The answer feeds a calorie calculation, so
+skipping is not merely a UI affordance. Today an unset goal falls to `else 0` — no deficit,
+12 reps — which is a silent default rather than a decision. Decide whether the step is
+genuinely skippable and what the generator should do when it is.
+
 ## 4 · Design package
 
 | Check | Status |

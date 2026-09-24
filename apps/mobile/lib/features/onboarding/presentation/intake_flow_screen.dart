@@ -1246,7 +1246,7 @@ class _HeightPageState extends State<_HeightPage> {
           child: SizedBox(
             width: double.infinity,
             child: _GradientButton(
-              label: 'Next', onTap: widget.onContinue),
+              label: 'Continue', onTap: widget.onContinue),
           ),
         ),
       ],
@@ -1358,7 +1358,7 @@ class _Step1Page extends StatelessWidget {
           child: SizedBox(
             width: double.infinity,
             child: _GradientButton(
-              label: 'Next',
+              label: 'Continue',
               enabled: hasSelection,
               onTap: hasSelection ? onContinue : null,
             ),
@@ -1426,7 +1426,7 @@ class _ActivitiesPage extends StatelessWidget {
           child: SizedBox(
             width: double.infinity,
             child: _GradientButton(
-              label: 'Next',
+              label: 'Continue',
               enabled: hasSelection,
               onTap: hasSelection ? onContinue : null,
             ),
@@ -1658,7 +1658,7 @@ class _WeightPageState extends State<_WeightPage> {
           padding: EdgeInsets.fromLTRB(20, 12, 20, bottom + 24),
           child: SizedBox(
             width: double.infinity,
-            child: _GradientButton(label: 'Next', onTap: widget.onContinue),
+            child: _GradientButton(label: 'Continue', onTap: widget.onContinue),
           ),
         ),
       ],
@@ -2043,7 +2043,7 @@ class _TargetWeightPageState extends State<_TargetWeightPage> {
         ),
         Padding(
           padding: EdgeInsets.fromLTRB(20, 8, 20, bottom + 24),
-          child: _GradientButton(label: 'Next', onTap: widget.onContinue),
+          child: _GradientButton(label: 'Continue', onTap: widget.onContinue),
         ),
       ],
     );
