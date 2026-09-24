@@ -4800,6 +4800,38 @@ which notes the `Could not load [noun]` pattern is rendered in fifteen places.
 | K5 | a failed streak read reports `0` again | **KILLED** |
 | K6 | the screen drops the unknown branch and opens the form | **KILLED** |
 
+## 3bw · The remediation registry's CONFIRMED column is stale on five entries
+
+`docs/MASTER_REMEDIATION_REGISTRY.md` was mined for executable defects. Every **CONFIRMED**
+line was re-verified against the current tree rather than taken on trust — §3's rule, applied
+in the direction that costs work rather than saves it.
+
+| Registry line | Recorded | Actually |
+|---|---|---|
+| `EC-05 / N-07` — completion swallows persistence | CONFIRMED | **still open** → fixed, §3bu |
+| `CON-01` — `public.checkins` created by no migration | CONFIRMED | **still open** → read side fixed, remedy blocked, §3bv |
+| `LRE-01 / REL-07` — `APP_ENV` defaults to `prod` | CONFIRMED | **already fixed** — `app_env.dart` sets `kDefaultEnvironment = AppEnvironment.dev` with the note *"ENV-4: this used to be `prod`"*, and a release build with no `APP_ENV` now **throws** |
+| `LRE-02 / REL-18 / K-ENV-1` — three harnesses hardcode the production ref | CONFIRMED | **already fixed** — all three carry *"ENV-5: the target is resolved from `QA_URL`/`QA_ANON` … this file used to hardcode the PRODUCTION ref and key right here"* |
+| `F-J-01` — `materialize_program_week` lost its authorization guard | CONFIRMED | **already fixed** — migration **124** restores the wrapper; its body raises `42501` unless `can_act_on_program(p_program_id)` |
+| `F-J-17` — `derive_parq_risk` throws on three literal flag appends | CONFIRMED | **already fixed** — migration **126** |
+| `F-J-07` — `build_workout` throws when recovery < 60 | CONFIRMED | **already fixed** — migration **127**, which also swept eleven further sites of the same class |
+
+**Five of seven are closed.** A next agent reading that column would believe seven P0/P1
+defects are open. The worse outcome is not wasted effort: it is "fixing" a closed one and
+regressing the migration that closed it — which is precisely what `119` did to `116`'s guard
+and what `124` had to undo.
+
+**The registry was not edited.** It is a wave-governed document with its own owner (§16), and
+the concurrent-session note the audit itself raised as OD-37 applies. This is recorded here
+and flagged for that owner instead. → **OD-49**.
+
+### Method note
+
+Each was checked by reading the *current* definition, not by searching for the finding's
+text. `F-J-01` in particular needed four migrations read in order — `116` built the guard,
+`119` re-created the public name without it, `122` repinned `search_path` only, and `124`
+restored it — because any one of them read alone gives the wrong answer.
+
 ## 4 · Design package
 
 | Check | Status |
