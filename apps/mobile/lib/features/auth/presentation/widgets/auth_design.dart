@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/named_icon_button.dart';
 
 /// Shared visual design for the auth screens (login / signup / forgot / reset).
 ///
@@ -71,7 +72,9 @@ class AuthScaffold extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (onBack != null) ...[
-                GestureDetector(onTap: onBack,
+                NamedIconButton(
+                  label: 'Back',
+                  onTap: onBack,
                   child: const Icon(Icons.arrow_back_ios_new_rounded, color: AuthColors.purpleLight, size: 22)),
                 const SizedBox(height: 18),
               ] else const SizedBox(height: 6),

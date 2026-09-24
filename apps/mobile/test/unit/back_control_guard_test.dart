@@ -73,7 +73,16 @@ void main() {
     });
   });
 
-  final backIcon = RegExp(r'Icons\.arrow_back(_ios_new|_ios)?\b');
+  // `\w*`, not an alternation of the spellings I happened to have seen.
+  //
+  // The first version was `Icons\.arrow_back(_ios_new|_ios)?\b`, and `\b`
+  // after an optional suffix cannot match `Icons.arrow_back_ios_new_ROUNDED`
+  // — the next character is `_`, a word character. That spelling is used
+  // ELEVEN times in lib, so this guard shipped at "baseline 0" while blind to
+  // a quarter of the controls it claims to cover, including an unnamed one on
+  // `/ai-coach`. The floor test did not catch it because the floor had been
+  // set to whatever the broken pattern found.
+  final backIcon = RegExp(r'Icons\.arrow_back\w*');
   final owner = RegExp(
       r'\b(NamedIconButton|IconButton|GestureDetector|InkWell|InkResponse|'
       r'TextButton|BackButton|IntakeBackButton)\s*\(');
@@ -121,7 +130,7 @@ void main() {
     // An absent result must not read as "everything is named" — the H-D1
     // lesson, which this suite has been bitten by repeatedly.
     final all = scan();
-    expect(all.length, greaterThanOrEqualTo(30),
+    expect(all.length, greaterThanOrEqualTo(41),
         reason: 'lib has dozens of back controls; finding almost none means '
             'the detector is broken, not that the app changed');
     expect(all.where((h) => h.owner == 'NamedIconButton'), isNotEmpty,

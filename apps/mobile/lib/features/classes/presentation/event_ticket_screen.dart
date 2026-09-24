@@ -119,6 +119,7 @@ class _EventTicketScreenState extends State<EventTicketScreen> {
         backgroundColor: _card, elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _wht, size: 20),
+          tooltip: 'Back',
           onPressed: () => Navigator.pop(context)),
         title: const Text('Event Ticket', style: TextStyle(color: _wht, fontSize: 17, fontWeight: FontWeight.w700)),
       ),

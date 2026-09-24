@@ -294,6 +294,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _wht, size: 20),
+          tooltip: 'Back',
           onPressed: () => context.canPop() ? context.pop() : context.go('/home')),
         title: const Text('Book a Call',
           style: TextStyle(color: _wht, fontSize: 18, fontWeight: FontWeight.w700)),

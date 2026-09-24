@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/custom_exercise_provider.dart';
 import '../../auth/domain/auth_provider.dart';
 import '../../workout/data/models/video_variant_model.dart';
+import '../../../core/widgets/named_icon_button.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 class _C {
@@ -720,7 +721,8 @@ class _CreateExerciseScreenState extends ConsumerState<CreateExerciseScreen>
           color: _C.card,
           child: Column(children: [
             Row(children: [
-              GestureDetector(
+              NamedIconButton(
+                label: 'Back',
                 onTap: () => context.pop(),
                 child: const Icon(Icons.arrow_back_ios_new_rounded, color: _C.primary, size: 20)),
               const SizedBox(width: 14),

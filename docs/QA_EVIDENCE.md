@@ -4029,6 +4029,69 @@ preference. **Which word wins is the design owner's call.** → **OD-33**.
 | Analyzer | 0 errors | **PASS** |
 | Coverage | FIT-089 0/7 → **6/7**; all interactions 307 → **313 / 600** | — |
 
+## 3bi · BACK-G1 shipped blind to a quarter of what it claims to cover
+
+One commit after **BACK-G1** landed at "baseline 0", `/ai-coach` turned out to have an
+unnamed back button. The guard could not see it:
+
+```dart
+RegExp(r'Icons\.arrow_back(_ios_new|_ios)?\b')   // the first version
+```
+
+`\b` after an optional suffix cannot match `Icons.arrow_back_ios_new_**rounded**` — the next
+character is `_`, which is a word character, so every alternative fails. That spelling is
+used **eleven times** in `lib`:
+
+| spelling | count | seen by v1 |
+|---|---|---|
+| `Icons.arrow_back` | 17 | yes |
+| `Icons.arrow_back_ios` | 1 | yes |
+| `Icons.arrow_back_ios_new` | 12 | yes |
+| `Icons.arrow_back_ios_new_rounded` | **11** | **no** |
+
+**All eleven were unnamed** — seven `IconButton`, four bare `GestureDetector`.
+
+### Why the floor test did not catch it
+
+BACK-G1 has a floor: *"the detector can still see back controls at all"*, asserting at least
+**30**. The regex found exactly 30. The floor had been set to whatever the broken pattern
+returned, so it certified the blindness instead of exposing it. A floor calibrated against
+the detector it is meant to police is not a floor.
+
+The pattern is now `Icons\.arrow_back\w*` — a shape, not an alternation of the spellings I
+had happened to see — and the floor is **41**, the count of the glyph itself.
+
+### The mutation that now exists for exactly this
+
+**B5** narrows the regex back to the original alternation. It kills, because the floor is no
+longer derived from the pattern. Two earlier attempts at B3/B5 **SURVIVED for a boring
+reason** — nested shell quoting meant the script never actually edited the file — which the
+harness reported as "SURVIVED", i.e. as a finding. A mutation that does not mutate is not
+evidence either way; both were moved into a file that asserts its target is present before
+replacing it.
+
+| Layer | Evidence | Status |
+|---|---|---|
+| Guard | `test/unit/back_control_guard_test.dart` — floor raised 30 → **41** | **PASS** |
+| Guard strength | **5 / 5 mutations killed**, each verified to have edited its target | **PASS** |
+| Suite | **1473 pass / 9 skipped** | **PASS** |
+| Analyzer | 0 errors | **PASS** |
+| Coverage | all interactions 313 → **328 / 600** | — |
+
+| # | Mutation | Result |
+|---|---|---|
+| B1 | one `IconButton` loses its tooltip | **KILLED** |
+| B2 | a `NamedIconButton` reverts to a bare `GestureDetector` | **KILLED** |
+| B3 | the detector is blinded | **KILLED** |
+| B4 | the naming predicate returns `true` unconditionally | **KILLED** |
+| B5 | the regex narrows back to the alternation that missed `_rounded` | **KILLED** |
+
+**Three guards in this programme have now been found blind after being declared at
+baseline** — H-D1 (matched a declaration form nothing used), A-G8 (recorded overstatement),
+and BACK-G1. In each case the floor test existed and passed. The common cause is that a
+floor derived from the detector's own output cannot contradict it; a floor has to come from
+something the detector does not compute.
+
 ## 4 · Design package
 
 | Check | Status |
