@@ -166,6 +166,9 @@ service-role key. → **OD-51.**
 | Storage object **enumeration** | **NOT TESTABLE** | every bucket lists `200 []` — but `progress_photo_logs` is `*/0`, i.e. QA holds no media, so the listing proves nothing |
 | PHI access logging | **FAILED** | no table, no writes |
 | `coach-media` privacy | **FAILED** | public, live-verified |
+| Third-party analytics / telemetry | **VERIFIED** | **no SDK in `pubspec.yaml`** — no firebase_analytics, amplitude, mixpanel, posthog, sentry, segment or datadog. Nothing is shipped to a vendor, so there is no analytics egress path for PHI at all |
+| Generated reports / screenshots | **VERIFIED** | no PDF generation, no `RenderRepaintBoundary`/`toImage()` capture. The only "screenshot" references are a code comment and an instruction telling a user to screenshot their own event ticket |
+| Crash/error reporting egress | **VERIFIED today · PARTIAL by design** | `reportError` routes to a `FailureSink` that is **test-only until PD-A24 names a vendor**; `_defaultSink` calls `debugPrint` **only under `kDebugMode`**, so a release build emits nothing. Of 16 call sites, **2** pass a `context` map and both carry scoring metadata (`category`, `action`) — no PHI. **Precondition for the future:** the `error` object itself is passed from data-layer sites (`CheckinService`, `MessagingService`), and a Postgres error can carry column names and values. Re-audit these payloads **before** a real sink is installed. |
 | Account deletion / data export paths | **FAILED** | promised at a path that has no such control — SEC-PHI-4 |
 | Notification payload contents | **VERIFIED** | 0 PHI references in any notification body |
 | Local persistence / cache of PHI | **VERIFIED** | 0 PHI written to SharedPreferences/Hive/sqflite |
