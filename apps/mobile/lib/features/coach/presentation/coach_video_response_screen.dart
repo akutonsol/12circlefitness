@@ -75,7 +75,21 @@ class _CoachVideoResponseScreenState extends State<CoachVideoResponseScreen> {
         setState(() => _progress = 0.3);
         await _db.storage.from('coach-media').uploadBinary(path, bytes,
           fileOptions: FileOptions(contentType: mime, upsert: true));
-        videoUrl = _db.storage.from('coach-media').getPublicUrl(path);
+        // SEC-VIDEO-1. This was `getPublicUrl(path)`, which minted a permanent
+        // unauthenticated URL to a video of a coach discussing a named client
+        // and persisted it in the database. Store the OBJECT PATH instead and
+        // let whatever eventually plays it sign at render time — the treatment
+        // SEC-VOICE-1 gave `coach_voice` (`coachVoiceSigningPath`), and the
+        // prerequisite that lets `coach-media` be made private without
+        // stranding rows.
+        //
+        // This is safe to change here because NOTHING reads this column:
+        // `coach_video_responses` is written at the insert below and read
+        // nowhere in the app. Which is also the defect — see OD-57. The video
+        // is uploaded, the client is told "Tap to watch", and there is no
+        // player, so this change repairs the storage of the value without
+        // pretending the feature works.
+        videoUrl = path;
         setState(() => _progress = 0.7);
       }
 

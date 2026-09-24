@@ -414,12 +414,28 @@ class _CoachCheckinReviewScreenState
             // ── FIT-033's three declared actions ────────────────────────
             Row(children: [
               // `Record`. The board declares it and does not say what it
-              // captures; `coach_video_responses` (migration 002) exists, but
-              // QA_EVIDENCE §3ad records that NOTHING in this app sends or
-              // renders a video — no capture path, no upload, no player. So it
-              // is drawn and deliberately inert rather than wired to an
-              // invented flow, the treatment OD-10 gave FIT-016's `More`.
-              // Recorded as OD-25.
+              // captures. It stays inert — but the reason recorded here was
+              // wrong, and is corrected rather than left standing.
+              //
+              // OD-25 cited QA_EVIDENCE §3ad: "NOTHING in this app sends or
+              // renders a video — no capture path, no upload, no player."
+              // Two of those three clauses were already false.
+              // `coach_video_response_screen.dart` has a capture path
+              // (`ImagePicker().pickVideo`) and an upload (`uploadBinary` to
+              // `coach-media`), it is reachable from
+              // client_detail_screen.dart:359 "Send Video Response", and it
+              // even takes the `checkinId` this board would pass.
+              //
+              // Only the third clause holds, and it is the decisive one:
+              // there is NO PLAYER. `coach_video_responses` is written and
+              // read nowhere, and the "Tap to watch" notification it sends
+              // has no route — notifications_screen.dart:157 marks a tap read
+              // and navigates nowhere, for every type. So wiring this button
+              // would add a second entrance to a dead end.
+              //
+              // Inert is still right; "no flow exists" was not why. The
+              // missing player is an owner decision, recorded as OD-57, with
+              // the public-bucket half as SEC-VIDEO-1.
               Expanded(
                 child: Semantics(
                   button: true,

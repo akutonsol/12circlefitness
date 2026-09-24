@@ -75,8 +75,34 @@ Probe: `apps/mobile/tool/anon_least_privilege.py`.
 | **Access path** | `036_client_plan_and_coach_media.sql:33` creates it `public = true`; `130_private_storage_buckets.sql` privatised `chat-media`, `messages`, `progress-photos` and **not** this one. Three `getPublicUrl()` call sites. |
 | **Evidence (live, no credentials at all)** | `coach-media` → `NoSuchKey` (**the bucket served the request**); `progress-photos` / `chat-media` / `messages` → `NoSuchBucket`; nonexistent-bucket control → `NoSuchBucket`. `exercise-media` and `avatars` are also public. |
 | **Status** | **FAILED — STORAGE PRIVACY** (bucket). **Deletion arm RESOLVED** — `clearCoachVoice()` now removes the object before clearing the row; 4/4 mutations killed. |
-| **Remediation** | Two halves. **(a) Dart prerequisite — DONE:** voice playback now signs at render time via `signedCoachVoiceUrl()` (`createSignedUrl(path, 3600)`), so the migration can land without stopping existing notes from loading. Signing works on a public bucket, so this was safe to land first. **(b) Bucket — `docs/proposed/SEC_VOICE_1_coach_media_private.sql`, AUTHORED, unnumbered.** Still blocked. Two `getPublicUrl()` sites remain on the *video* path (`coach_video_response_screen.dart:78`, `coach_business_screen.dart:132`) and must move with it. |
+| **Remediation** | Two halves. **(a) Dart prerequisite — DONE:** voice playback now signs at render time via `signedCoachVoiceUrl()` (`createSignedUrl(path, 3600)`), so the migration can land without stopping existing notes from loading. Signing works on a public bucket, so this was safe to land first. **(b) Bucket — `docs/proposed/SEC_VOICE_1_coach_media_private.sql`, AUTHORED, unnumbered.** Still blocked. |
 | **Governance blocker** | Migration number + owner sign-off; the read policy is an owner decision (a client must be able to play a note addressed to them). |
+| **Remaining `getPublicUrl` sites — now resolved separately** | The other two were traced and are **not** the same case. `coach_video_response_screen.dart` → **SEC-VIDEO-1**, fixed (stores the object path). `coach_business_screen.dart:132` → **OD-58**, marketing photos plausibly meant to be public, owner's call. **Consequence for (b): the bucket can be privatised without breaking any coach-media read in the app** — voice signs, video has no reader, and only the marketplace photos are in question. That materially shrinks this migration's blast radius. |
+
+### SEC-VIDEO-1 — coach video responses persisted a public URL
+| | |
+|---|---|
+| **Severity** | Medium–High (storage privacy) |
+| **Affected data** | A video of a coach discussing a **named** client, on the public `coach-media` bucket |
+| **Access path** | `coach_video_response_screen.dart` (reachable: `client_detail_screen.dart:359` "Send Video Response") uploaded to `coach-videos/$coachUid/$clientId/$epochMillis.$ext` and called `getPublicUrl(path)`, persisting a **permanent, unauthenticated** URL into `coach_video_responses.video_url`. |
+| **Status** | **RESOLVED (Dart).** Now stores the **object path**, to be signed at render time — the SEC-VOICE-1 treatment. Guard `VIDEO-G1` (`test/unit/coach_video_public_url_guard_test.dart`), **4/4 mutations killed**. |
+| **Why it was safe to change** | **Nothing reads the column.** Verified: `coach_video_responses` is written at one site and read nowhere in `lib/`. So there was no consumer to regress — which is itself OD-57. |
+| **Residual** | Rows written before this change still hold full public URLs. Whoever builds the player must accept both forms (`coachVoiceSigningPath` is the worked example). `VIDEO-G1`'s last test is a tripwire that fires with those instructions the moment a reader appears. |
+
+### OD-57 — the video response feature is write-only (OWNER DECISION)
+| | |
+|---|---|
+| **Type** | Design/feature gap — **not** something QA may invent |
+| **Evidence** | A coach records and uploads a video, a row is written, and a notification is sent to the client reading *"Your coach recorded a personal video response for you. **Tap to watch.**"* There is **no player anywhere in the app**, and `notifications_screen.dart:157` makes a tap `markRead(n.id)` and navigate **nowhere — for every notification type**. The `coach_video` type has no route. |
+| **Impact** | The coach believes the video was delivered; the client is told to tap to watch and cannot. The coach's work is unreachable, and PHI-adjacent media accumulates in storage with no legitimate consumer. |
+| **Correction to the record** | `OD-25` left the check-in board's `Record` button inert citing QA_EVIDENCE §3ad: *"NOTHING in this app sends or renders a video — no capture path, no upload, no player."* **Two of those three clauses were false when written** — the capture (`ImagePicker().pickVideo`) and upload both exist, in a screen that even accepts the `checkinId` that board would pass. Only *no player* holds. The OD-25 **outcome survives** (wiring the button would add a second entrance to a dead end) but the stated reason did not, and the in-code comment has been corrected. |
+| **Owner decision** | Build the player (and give `coach_video` a route), or remove the feature and its notification. Either is a product call. |
+
+### OD-58 — `transformation_photo_urls` on a public bucket (OWNER DECISION)
+| | |
+|---|---|
+| **Evidence** | `coach_business_screen.dart:132` uploads `coach-transformations/…` and appends to `user_profiles.transformation_photo_urls`, consumed by `coach_provider.dart:114` for the marketplace listing and rendered at `coach_business_screen.dart:208`. |
+| **Assessment** | These are **marketing** photos shown to prospective clients who are not yet authenticated against that coach. Public may well be intended. Recorded as an owner decision rather than treated as a defect — but the subjects are identifiable clients, so consent for marketplace display is the owner's question to answer. |
 
 ### SEC-PHI-AUDIT — no PHI access logging exists
 | | |
