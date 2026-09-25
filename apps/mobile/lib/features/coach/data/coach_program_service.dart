@@ -319,7 +319,8 @@ class CoachProgramService {
   // ── Assign habits ────────────────────────────────────────
   Future<void> assignHabits(String clientId, List<Map<String, dynamic>> habits) async {
     final coachId = _db.auth.currentUser?.id;
-    if (coachId == null) return;
+    // Refuse rather than no-op: the caller would otherwise announce "Habits assigned!".
+    if (coachId == null) throw StateError('Not signed in — habits were not assigned.');
     await _db.from('client_habits')
         .update({'is_active': false})
         .eq('client_id', clientId)

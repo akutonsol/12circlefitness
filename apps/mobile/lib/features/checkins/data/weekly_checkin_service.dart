@@ -156,8 +156,12 @@ class WeeklyCheckinService {
         'coach_name': coachName,
         'reviewed_at': DateTime.now().toIso8601String(),
       }).eq('id', checkinId).select('user_id').maybeSingle();
+      // A 0-row update is not a success (QAX-ERR-02): RLS filters the row out
+      // when the coaching relationship is no longer active, and no error is
+      // raised. Reporting "Feedback submitted!" then loses the review.
+      if (updated == null) return false;
       // Notify the client that their coach responded (CHK-003).
-      final clientId = updated?['user_id'] as String?;
+      final clientId = updated['user_id'] as String?;
       if (clientId != null) {
         await NotificationService().notifyUser(
           recipientId: clientId,
