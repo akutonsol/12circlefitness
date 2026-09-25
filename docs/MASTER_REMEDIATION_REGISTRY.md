@@ -3299,6 +3299,58 @@ static CI verification unless one is built).
 
 ---
 
+### 7.23 Autonomous QA exhaustion — discovery additions — 2026-09-25 · evidence: `QA_AUTONOMOUS_EXHAUSTION_FINAL_REPORT.md`
+
+**Additive only. No existing row is edited or re-statused.** Evidence class for every DB row below
+is **LOCAL-REPLAY** (committed migrations 000–131 replayed locally; report §15). **None is VERIFIED
+LIVE**: the QA host was network-denied to this session. All rows enter as `DISCOVERED`.
+
+| ID | Sev | Class | Finding | Evidence | Owner? |
+|---|---|---|---|---|---|
+| `QAX-SEC-02` | **P0** | Security / PHI | `progress-photos` coach read policy (029) has no status check. A self-registered coach who self-creates a `pending` relationship, or any former coach, reads any client's body photos. Reachable on QA since 130 created the bucket. | LOCAL-REPLAY, mutation-tested | OD-QAX-1 |
+| `QAX-SEC-01` | **P0** | Security (regression by remediation) | `assign_nutrition_plan` (131) supersedes any member's active plan for any caller. The definer UPDATE bypasses RLS that the direct path enforces. | LOCAL-REPLAY differential, mutation-tested | OD-QAX-2 |
+| `QAX-SEC-03` | P1 | Authorization | Self-asserted `coach_id = auth.uid()` write arms on `client_habits`, `action_items`, `coaching_calls`, `coach_video_responses`, `client_nutrition_plans`, `workout_program_assignments`. The victim sees the rows and gets notifications, and a program can be hijacked or blanked. | LOCAL-REPLAY, mutation-tested | no |
+| `QAX-SEC-05` | P1 | Authorization / integrity | `exercise-media` update/delete are not owner-scoped | LOCAL-REPLAY, mutation-tested | no |
+| `QAX-SEC-07` | P1 | Authorization (Edge) | `enrich-exercise-*` gate on self-selectable `coach`, then write the global library as service role; confidence >90 auto-approves | STATIC | OD-QAX-3 |
+| `QAX-PRV-01` | P1 | Privacy / legal | Privacy Policy correction, provider (Expo listed; Anthropic/Resend/Stripe missing), wearable and security claims are inaccurate | STATIC | OD-QAX-4 |
+| `QAX-PRV-02` | P1 | Privacy / processor | Injuries, allergies, DOB, gender, weight, cycle, check-in and food images go to Anthropic undisclosed. **Extends `F-18`/`PD-D06`.** | STATIC | OD-QAX-5 |
+| `QAX-SEC-04` | P2 | Authorization | `messages` INSERT has no conversation-membership check | LOCAL-REPLAY, mutation-tested | no |
+| `QAX-SEC-06` | P2 | Confidentiality | `exercises` definer view has no WHERE and exposes private/draft `custom_exercises` | LOCAL-REPLAY, mutation-tested | no |
+| `QAX-COR-01` | P2 | Correction / false success | Personal Info: cleared `phone`, `height_cm`, `weight_kg`, `weight_goal_kg`, `gender` never sent; `?? 0` writes 0 | STATIC + LOCAL-REPLAY; static guard mutation-tested | no |
+| `QAX-COR-03` | P2 | Correction | No post-onboarding edit path for medical conditions, injuries, allergies, dietary restrictions, PAR-Q | STATIC | OD-QAX-6 |
+| `QAX-COR-05` | P2 | Correction / integrity | `nutrition_logs` has no edit or delete; quick-add ungated, so duplicates | STATIC | no |
+| `QAX-COR-07` | P2 | Correction / PHI | Gallery progress photos undeletable; baseline replace deletes before upload | STATIC | no |
+| `QAX-SES-01` | P2 | Session / PHI | Mobile logout keeps 12 non-autoDispose per-user providers alive across accounts | STATIC (runtime not demonstrated) | no |
+| `QAX-PRV-03` | P2 | Auditability | No audit trail for PHI corrections (0 audit tables) | LOCAL-REPLAY | OD-QAX-7 |
+| `QAX-REG-01` | P2 | Governance | ID collision: Phase-1F `F-01/03/05/06/07/08` `VERIFIED_CLOSED` vs open Workstream-F women's-health `F-01…F-08` (F-03 P1 still open in code) | STATIC | OD-QAX-8 |
+| `QAX-COR-02` | P3 | Correction | Set correction: reps and weight not clearable; "corrected" shown before persist | STATIC | no |
+| `QAX-COR-04` | P3 | Correction / AI | Injury `ai_memories` never retracted on correction | LOCAL-REPLAY | no |
+| `QAX-COR-06` | P3 | Error contract | Weight/measurement saves fail silently; stuck spinner on null uid; no edit/delete | STATIC | no |
+| `QAX-COR-08` | P3 | Correction / error | Goals: "Mark achieved" irreversible; complete/delete unguarded | STATIC | no |
+| `QAX-ERR-01` | P3 | Error contract | Cycle sheets: thrown write errors leave the sheet open with no message; post-131 duplicate date = `23505` | LOCAL-REPLAY + STATIC | no |
+| `QAX-ERR-02` | P3 | Error contract | Coach habit assign non-atomic / null-uid success; coach feedback success on 0 rows | STATIC | no |
+| `QAX-H-01`/`QAX-H-02` | P4 | Hardening | 13+ age gate client-only; coach self-registration unvetted | STATIC | OD-QAX-1 |
+
+**Expanded (same IDs, no new row):** `E-15` also has unescaped name and token HTML/attribute
+injection. `REL-29` has a concrete chain: register `role:'admin'` accepted; `GET /users`
+returns bcrypt hashes; JWT secret falls back to `'your-secret-key'`.
+
+**Recorded contradictions of prior statements:** see report §13. The source documents are not edited.
+- R-1 `F-06` failure-path wording
+- R-2 Workstream E "Sound"
+- R-3 H-05 / 130 on 029's coach scope
+- R-4 I-NOT-04 "no cross-tenant write"
+- R-5 Phase 1 §8 and Workstream I on the `exercises` view
+- R-6 131 / 3A-11 "reproduces the existing policy exactly"
+
+**Re-observed, no status change made:**
+- `SEC-R2` does not reproduce on the 000–131 local replay.
+- `R-01`, `F-03`, `F-05`, `EC-12`, `EC-22`, `EDGE-1`, `EDGE-2`, `K-09` remain open.
+
+**Handoff note:** the reports the 2026-09-25 handoff named as authoritative
+(`QA_CORRECTION_RIGHTS_EXHAUSTION_REPORT.md` and four others) exist in no commit. Their claims were
+re-derived, not inherited.
+
 ## 10. How to use this registry
 
 1. **Never mark `VERIFIED_CLOSED` from a code diff.** The evidence ladder in
