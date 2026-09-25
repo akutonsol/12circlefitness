@@ -118,8 +118,16 @@ void main() {
         'event_ticket',
         'package',
       ]) {
-        expect(src, contains("'$kind'"),
-            reason: 'create-checkout must still understand kind=$kind');
+        // A dispatch, not a mention (QA exhaustion Run 2): `contains("'$kind'")`
+        // matched the TypeScript type union and a comment, so deleting the
+        // branch that HANDLES coach_plan left this green (mutation-proven).
+        final code = src
+            .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+            .split('\n')
+            .map((l) => l.contains('//') ? l.substring(0, l.indexOf('//')) : l)
+            .join('\n');
+        expect(RegExp("kind\\s*===\\s*'$kind'").hasMatch(code), isTrue,
+            reason: 'create-checkout must still dispatch on kind=$kind');
       }
     });
 

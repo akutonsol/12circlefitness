@@ -43,25 +43,39 @@ void main() {
       final offenders = <String>[];
 
       for (final file in presentationFiles) {
-        final source = file.readAsStringSync();
-        if (!RegExp(r'final\s+String\??\s+tooltip\s*;').hasMatch(source)) {
-          continue;
+        final whole = file.readAsStringSync();
+        // Per CLASS, not per file (QA exhaustion Run 2): with a file-level
+        // check, an unused tooltip field hid behind ANY other widget in the
+        // same file that consumed one (mutation-proven in train_hub_screen).
+        final starts = RegExp(r'^class\s+\w+', multiLine: true)
+            .allMatches(whole)
+            .map((m) => m.start)
+            .toList();
+        for (var c = 0; c < starts.length; c++) {
+          final source = whole.substring(
+              starts[c], c + 1 < starts.length ? starts[c + 1] : whole.length);
+          if (!RegExp(r'final\s+String\??\s+tooltip\s*;').hasMatch(source)) {
+            continue;
+          }
+          // Declared. It must then be CONSUMED — as a Tooltip message, or passed
+          // into another widget's tooltip/semantics slot.
+          //
+          // `required this.tooltip` in the constructor is NOT consumption, and
+          // an earlier draft of this guard counted it as such. The mutation test
+          // that reverts _IconBtn to its bare-GestureDetector form caught the
+          // false negative: the specific assertion below failed while this scan
+          // stayed green. Constructor initialisers are therefore stripped before
+          // the check.
+          final body = source.replaceAll(RegExp(r'this\.tooltip'), '');
+          final consumed = RegExp(
+            r'message\s*:\s*tooltip|tooltip\s*:\s*tooltip|'
+            r'semanticLabel\s*:\s*tooltip|Tooltip\s*\(\s*message',
+          ).hasMatch(body);
+          if (!consumed) {
+            offenders.add(
+                '${file.path} :: ${RegExp(r'class\s+(\w+)').firstMatch(source)!.group(1)}');
+          }
         }
-        // Declared. It must then be CONSUMED — as a Tooltip message, or passed
-        // into another widget's tooltip/semantics slot.
-        //
-        // `required this.tooltip` in the constructor is NOT consumption, and
-        // an earlier draft of this guard counted it as such. The mutation test
-        // that reverts _IconBtn to its bare-GestureDetector form caught the
-        // false negative: the specific assertion below failed while this scan
-        // stayed green. Constructor initialisers are therefore stripped before
-        // the check.
-        final body = source.replaceAll(RegExp(r'this\.tooltip'), '');
-        final consumed = RegExp(
-          r'message\s*:\s*tooltip|tooltip\s*:\s*tooltip|'
-          r'semanticLabel\s*:\s*tooltip|Tooltip\s*\(\s*message',
-        ).hasMatch(body);
-        if (!consumed) offenders.add(file.path);
       }
 
       expect(
@@ -82,8 +96,7 @@ void main() {
       expect(
         source,
         contains(RegExp(r'Tooltip\(\s*message:\s*tooltip', dotAll: true)),
-        reason:
-            '_IconBtn must pass its required `tooltip` to a Tooltip, which '
+        reason: '_IconBtn must pass its required `tooltip` to a Tooltip, which '
             'also supplies the semantics label. A bare GestureDetector '
             'silently drops it.',
       );
