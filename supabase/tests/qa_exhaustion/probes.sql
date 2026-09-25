@@ -116,6 +116,14 @@ insert into qax_out select 'FIX-08', count(*)=1, 'consented team lead reads memb
 reset role; :KEEP
 rollback to savepoint p; release savepoint p; :RESTORE
 
+-- QAX-SEC-10: a non-owner must not upload into another coach's folder of the public coach-media bucket.
+savepoint p; select pg_temp.as_user('11111111-1111-1111-1111-111111111111'); set local role authenticated;
+select pg_temp.try_write('QAX-SEC-10', $q$insert into storage.objects(bucket_id,name,owner) values ('coach-media','44444444-0000-0000-0000-000000000004/qax-fake.mp4','11111111-1111-1111-1111-111111111111')$q$);
+reset role; select pg_temp.as_user('44444444-0000-0000-0000-000000000004'); set local role authenticated;
+select pg_temp.try_write('POS-10', $q$insert into storage.objects(bucket_id,name,owner) values ('coach-media','44444444-0000-0000-0000-000000000004/own.mp4','44444444-0000-0000-0000-000000000004')$q$);
+reset role; :KEEP
+rollback to savepoint p; release savepoint p; :RESTORE
+
 -- POSITIVE CONTROLS: the legitimate path must keep working (before AND after any fix).
 savepoint p; select pg_temp.as_user('44444444-0000-0000-0000-000000000004'); set local role authenticated;
 do $$ begin
@@ -129,6 +137,6 @@ insert into qax_out select 'POS-06', count(*)=1, 'owner sees own draft via view:
 reset role; :KEEP
 rollback to savepoint p; release savepoint p; :RESTORE
 -- try_write marks ALLOWED as not-ok; for POS-03/04 ALLOWED is the correct outcome.
-update qax_out set ok = not ok where id in ('POS-03','POS-04');
+update qax_out set ok = not ok where id in ('POS-03','POS-04','POS-10');
 
 select case when ok then 'PASS' else 'FAIL' end||'|'||id||'|'||detail from qax_out order by id;
