@@ -4,12 +4,55 @@ import '../../../shared/theme/app_background.dart';
 import '../../../core/widgets/blood_drop.dart';
 import '../domain/cycle_phase.dart';
 import '../domain/cycle_provider.dart';
+import '../../../core/observability/app_failure.dart';
 
 const _card  = Color(0xFF0E0B16);
 const _brd   = Color(0xFF1A1020);
 const _white = Colors.white;
 const _muted = Color(0xFFCFC2D6);
 const _brand = Color(0xFFA855F7);
+
+/// Shown inside a cycle sheet when its write did not land (QAX-ERR-01). The
+/// sheet stays open so nothing the user entered is lost.
+const cycleSaveFailedMessage = "Couldn't save — check your connection and try again.";
+
+/// Shown when "Period ended" finds no period in progress (F-22).
+const noOpenPeriodMessage = 'There is no period in progress to end.';
+
+/// Runs one cycle write for a sheet. On success the sheet closes and the
+/// screen refreshes; on failure the failure is reported and [onMessage] gets a
+/// user-facing line while the sheet stays open (QAX-ERR-01). [write] returns
+/// null for success, or a message for a handled refusal.
+Future<void> _runSheetWrite({
+  required BuildContext sheetCtx,
+  required WidgetRef ref,
+  required String origin,
+  required Future<String?> Function() write,
+  required void Function(String message) onMessage,
+}) async {
+  String? refusal;
+  try {
+    refusal = await write();
+  } catch (e, s) {
+    reportError(origin, e, s);
+    onMessage(cycleSaveFailedMessage);
+    return;
+  }
+  if (refusal != null) {
+    onMessage(refusal);
+    return;
+  }
+  ref.read(cycleRefreshProvider.notifier).state++;
+  if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+}
+
+Widget _sheetMessage(String? message) => message == null
+    ? const SizedBox.shrink()
+    : Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Text(message,
+            style: const TextStyle(color: Color(0xFFFF6B8A), fontSize: 13, height: 1.4)),
+      );
 
 class WomensHealthScreen extends ConsumerWidget {
   const WomensHealthScreen({super.key});
@@ -136,6 +179,7 @@ class WomensHealthScreen extends ConsumerWidget {
 
   void _logPeriodSheet(BuildContext context, WidgetRef ref) {
     DateTime selected = DateTime.now();
+    String? message;
     showModalBottomSheet(
       context: context, backgroundColor: _card, isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -169,24 +213,33 @@ class WomensHealthScreen extends ConsumerWidget {
             Expanded(child: OutlinedButton(
               style: OutlinedButton.styleFrom(side: const BorderSide(color: _brd),
                   padding: const EdgeInsets.symmetric(vertical: 13)),
-              onPressed: () async {
-                await ref.read(cycleServiceProvider).endCurrentPeriod(DateTime.now());
-                ref.read(cycleRefreshProvider.notifier).state++;
-                if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-              },
+              onPressed: () => _runSheetWrite(
+                sheetCtx: sheetCtx, ref: ref,
+                origin: 'WomensHealthScreen.endCurrentPeriod',
+                write: () async => await ref.read(cycleServiceProvider)
+                        .endCurrentPeriod(DateTime.now())
+                    ? null
+                    : noOpenPeriodMessage,
+                onMessage: (m) => setSheet(() => message = m),
+              ),
               child: const Text('Period ended', style: TextStyle(color: _muted)))),
             const SizedBox(width: 10),
             Expanded(child: ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: _brand, foregroundColor: _white,
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              onPressed: () async {
-                await ref.read(cycleServiceProvider).logPeriod(start: selected);
-                ref.read(cycleRefreshProvider.notifier).state++;
-                if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-              },
+              onPressed: () => _runSheetWrite(
+                sheetCtx: sheetCtx, ref: ref,
+                origin: 'WomensHealthScreen.logPeriod',
+                write: () async {
+                  await ref.read(cycleServiceProvider).logPeriod(start: selected);
+                  return null;
+                },
+                onMessage: (m) => setSheet(() => message = m),
+              ),
               child: const Text('Save', style: TextStyle(fontWeight: FontWeight.w700)))),
           ]),
+          _sheetMessage(message),
         ]),
       )),
     );
@@ -197,6 +250,7 @@ class WomensHealthScreen extends ConsumerWidget {
       'Tender breasts', 'Cravings', 'Acne', 'Back pain', 'Nausea', 'Insomnia', 'Anxiety'];
     final selected = <String>{};
     int energy = 3, mood = 3;
+    String? message;
     showModalBottomSheet(
       context: context, backgroundColor: _card, isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -227,13 +281,18 @@ class WomensHealthScreen extends ConsumerWidget {
             style: ElevatedButton.styleFrom(backgroundColor: _brand, foregroundColor: _white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            onPressed: () async {
-              await ref.read(cycleServiceProvider).logSymptoms(
-                date: DateTime.now(), symptoms: selected.toList(), energy: energy, mood: mood);
-              ref.read(cycleRefreshProvider.notifier).state++;
-              if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-            },
+            onPressed: () => _runSheetWrite(
+              sheetCtx: sheetCtx, ref: ref,
+              origin: 'WomensHealthScreen.logSymptoms',
+              write: () async {
+                await ref.read(cycleServiceProvider).logSymptoms(
+                    date: DateTime.now(), symptoms: selected.toList(), energy: energy, mood: mood);
+                return null;
+              },
+              onMessage: (m) => setSheet(() => message = m),
+            ),
             child: const Text('Save check-in', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)))),
+          _sheetMessage(message),
         ])),
       )),
     );
