@@ -205,7 +205,7 @@ class _MealsDashboardScreenState
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _AddMealSheet(onLogged: () async {
+      builder: (_) => AddMealSheet(onLogged: () async {
         await Future.delayed(const Duration(milliseconds: 300));
         if (mounted) {
           ref.invalidate(_totalsProvider);
@@ -727,15 +727,17 @@ class _EmptyMeals extends StatelessWidget {
 }
 
 // ── Add Meal Sheet ─────────────────────────────────────────────────────────
-class _AddMealSheet extends ConsumerStatefulWidget {
+class AddMealSheet extends ConsumerStatefulWidget {
   final VoidCallback onLogged;
-  const _AddMealSheet({required this.onLogged});
+  @visibleForTesting
+  final NutritionService? service;
+  const AddMealSheet({super.key, required this.onLogged, this.service});
   @override
-  ConsumerState<_AddMealSheet> createState() => _AddMealSheetState();
+  ConsumerState<AddMealSheet> createState() => AddMealSheetState();
 }
 
-class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
-  final _svc        = NutritionService();
+class AddMealSheetState extends ConsumerState<AddMealSheet> {
+  late final NutritionService _svc = widget.service ?? NutritionService();
   final _searchCtrl = TextEditingController();
   String _inputMode = 'manual';
   Food?  _selected;
@@ -796,6 +798,9 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
   }
 
   Future<void> _logFood(Food f, double servings) async {
+    // One tap, one meal (QAX-COR-05): _saving is set synchronously below, so a
+    // second tap while the first save is in flight is ignored.
+    if (_saving) return;
     setState(() => _saving = true);
     try {
       await _svc.logMeal(
@@ -816,12 +821,16 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
         carbs:    (f.carbs   * servings).toInt(),
         fat:      (f.fat     * servings).toInt());
     } catch (e) {
+      if (!mounted) return;
       setState(() { _saving = false; _selected = null; });
       _showMealError('Could not log meal: $e');
     }
   }
 
   Future<void> _logFromScan(ScanResult r) async {
+    // One tap, one meal (QAX-COR-05): _saving is set synchronously below, so a
+    // second tap while the first save is in flight is ignored.
+    if (_saving) return;
     setState(() => _saving = true);
     try {
       await _svc.logMeal(
@@ -844,12 +853,16 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
         carbs:    r.carbs.toInt(),
         fat:      r.fat.toInt());
     } catch (e) {
+      if (!mounted) return;
       setState(() => _saving = false);
       _showMealError('Could not log meal: $e');
     }
   }
 
   Future<void> _logFromBarcode(Map<String, dynamic> food) async {
+    // One tap, one meal (QAX-COR-05): _saving is set synchronously below, so a
+    // second tap while the first save is in flight is ignored.
+    if (_saving) return;
     setState(() => _saving = true);
     final name    = food['name'] as String? ?? 'Scanned Food';
     final cal     = (food['calories'] as num?)?.toDouble() ?? 0;
@@ -877,6 +890,7 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
         carbs:    carbs.toInt(),
         fat:      fat.toInt());
     } catch (e) {
+      if (!mounted) return;
       setState(() => _saving = false);
       _showMealError('Could not log meal: $e');
     }
