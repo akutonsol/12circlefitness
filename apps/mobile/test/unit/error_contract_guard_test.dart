@@ -293,7 +293,11 @@ void main() {
   // instance of the root cause, and this guard is what stops the inventory
   // drifting back up between remediation phases.
   group('EC-G5 error-to-empty-value sites do not increase', () {
-    const baseline = 234;
+    // 234 → 232 (QA exhaustion Run 2, 2026-09-25): remediation removed two
+    // sites, and a ratchet that is not tightened leaves exactly that much room
+    // for new swallows to pass unseen — mutation-proven: a planted swallow
+    // passed at 234. Re-measured with this file's own regexes.
+    const baseline = 232;
 
     test('the swallow inventory is at or below the recorded baseline', () {
       final catchRe = RegExp(
@@ -339,6 +343,35 @@ void main() {
               'the swallow is genuinely one of the sanctioned exceptions in '
               'docs/QA_WORKSTREAM_B_ERROR_CONTRACT_REPORT.md §5 — record why '
               'in a comment and lower this baseline elsewhere first.');
+    });
+
+    // EC-G5b (QA exhaustion Run 2). The line-scan above inspects only the
+    // lines AFTER a `catch`, so the most common swallow shape — the whole body
+    // on one line, `catch (_) {}` or `catch (_) { return []; }` — was counted
+    // only when an unrelated `}` happened to follow: 20 of 103 such sites were
+    // invisible to it. This ratchet counts the one-line shape directly (102 in
+    // code; one further match lived only in a comment and is excluded).
+    test('one-line swallows (catch body on the catch line) do not increase', () {
+      const oneLineBaseline = 102; // measured 2026-09-25, comments stripped
+      final oneLine = RegExp(
+          r"catch[ \t]*\([^)\n]*\)[ \t]*\{[ \t]*(\}|return[ \t]*(\[\]|null|false|0|\{\}|''|<[^>]*>\[\])[ \t]*;[ \t]*\})");
+      var count = 0;
+      for (final (dir, ext) in [
+        ('apps/mobile/lib', '.dart'),
+        ('apps/mobile/tool', '.dart'),
+        ('apps/api/src', '.ts'),
+        ('supabase/functions', '.ts'),
+      ]) {
+        for (final f in _filesUnder(dir, ext)) {
+          if (f.path.endsWith('.spec.ts')) continue;
+          // Comments stripped: a quoted swallow in a comment is not a swallow.
+          // (Truncating at `//` can also cut a line after a URL literal; a
+          // catch after a URL on the same line is not a shape this tree has.)
+          count += oneLine.allMatches(_withoutLineComments(f.readAsStringSync())).length;
+        }
+      }
+      expect(count, lessThanOrEqualTo(oneLineBaseline),
+          reason: 'a new one-line catch-to-empty/discard site was added');
     });
   });
 }

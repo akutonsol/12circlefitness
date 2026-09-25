@@ -196,6 +196,38 @@ void main() {
       }
     });
 
+    test('[invariant] the LAST declaration of every 116-guarded function still guards',
+        () {
+      // QA exhaustion Run 2: the invariant above reads 116's text only, so a
+      // later migration redeclaring predict_client WITHOUT can_act_for passed
+      // this group (mutation-proven) — the exact 116 -> 119 shape. The end-state
+      // check below existed for materialize_program_week alone; this applies it
+      // to all five.
+      final dir = Directory('${_repoRoot().path}/supabase/migrations');
+      for (final pair in const [
+        ['predict_client', 'can_act_for'],
+        ['assemble_weekly_review', 'can_act_for'],
+        ['evaluate_week', 'can_act_on_program'],
+        ['regenerate_program', 'can_act_on_program'],
+        ['materialize_program_week', 'can_act_on_program'],
+      ]) {
+        var lastDeclaring = -1, lastGuarded = -1;
+        for (final f in dir.listSync().whereType<File>()) {
+          final name = f.uri.pathSegments.last;
+          final n = int.tryParse(name.split('_').first);
+          if (n == null || !name.endsWith('.sql')) continue;
+          final sql = _flat(_stripSqlComments(f.readAsStringSync()));
+          if (!sql.toUpperCase().contains('FUNCTION PUBLIC.${pair[0].toUpperCase()}(')) continue;
+          if (n > lastDeclaring) lastDeclaring = n;
+          if (sql.contains('${pair[1]}(') && n > lastGuarded) lastGuarded = n;
+        }
+        expect(lastDeclaring, greaterThanOrEqualTo(116), reason: pair[0]);
+        expect(lastGuarded, equals(lastDeclaring),
+            reason: 'the last migration to declare ${pair[0]} is $lastDeclaring and '
+                'the last to guard it with ${pair[1]} is $lastGuarded');
+      }
+    });
+
     test('[characterizes F-J-01] 119 redeclared materialize_program_week without it', () {
       // Live-proven: an unrelated authenticated client reaches the engine body
       // against another coach's program (supabase/tests/ai/j04). With a real

@@ -6,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../features/coach/data/score_service.dart';
 import '../../../features/scoring/data/score_engine.dart';
 import '../../../shared/widgets/app_scaffold.dart';
+import '../../../core/observability/app_failure.dart';
+import '../data/baseline_photo_replace.dart';
 
 class _C {
   static const surface             = Color(0xFF131314);
@@ -301,7 +303,7 @@ class _ProgressScreenState extends State<ProgressScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _LogWeightSheet(
+      builder: (_) => LogWeightSheet(
         initialKg: _currentWeightKg,
         onSaved: _loadData,
       ),
@@ -313,7 +315,7 @@ class _ProgressScreenState extends State<ProgressScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _LogMeasurementSheet(
+      builder: (_) => LogMeasurementSheet(
         initial: _latestMeasurements,
         onSaved: _loadData,
       ),
@@ -374,16 +376,17 @@ class _ProgressScreenState extends State<ProgressScreen>
           : ext == 'webp' ? 'image/webp'
           : ext == 'heic' ? 'image/heic' : 'image/jpeg';
       final storage = Supabase.instance.client.storage.from('progress-photos');
-      // Delete-then-insert so replacing works even if the bucket only grants
-      // INSERT/DELETE (no UPDATE) — clear every extension for this side first.
-      final existing = const ['jpg', 'jpeg', 'png', 'heic', 'webp']
-          .map((e) => '$uid/$side.$e')
-          .toList();
-      try {
-        await storage.remove(existing);
-      } catch (_) {}
-      await storage.uploadBinary('$uid/$side.$ext', bytes,
-          fileOptions: FileOptions(contentType: mime, upsert: true));
+      // Upload first, then clear other-extension copies (QAX-COR-07): the
+      // bucket grants the owner UPDATE (migration 029), so upsert replaces in
+      // place and a failed upload can no longer delete the existing photo.
+      await replaceBaselinePhoto(
+        uid: uid, side: side, ext: ext,
+        upload: (path) => storage.uploadBinary(path, bytes,
+            fileOptions: FileOptions(contentType: mime, upsert: true)),
+        remove: (paths) => storage.remove(paths),
+        onCleanupError: (e, s) =>
+            reportError('ProgressScreen._setBaselinePhoto.cleanup', e, s),
+      );
       _loadData();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1186,18 +1189,21 @@ class _PhotosTab extends StatelessWidget {
 }
 
 // ── Log Measurement Bottom Sheet ─────────────────────────────────────────────
-class _LogMeasurementSheet extends StatefulWidget {
+class LogMeasurementSheet extends StatefulWidget {
   final Map<String, dynamic>? initial;
   final VoidCallback? onSaved;
-  const _LogMeasurementSheet({this.initial, this.onSaved});
+  @visibleForTesting
+  final ProgressRowWriter? writeRow;
+  const LogMeasurementSheet({super.key, this.initial, this.onSaved, this.writeRow});
 
   @override
-  State<_LogMeasurementSheet> createState() => _LogMeasurementSheetState();
+  State<LogMeasurementSheet> createState() => LogMeasurementSheetState();
 }
 
-class _LogMeasurementSheetState extends State<_LogMeasurementSheet> {
+class LogMeasurementSheetState extends State<LogMeasurementSheet> {
   late final Map<String, TextEditingController> _ctrls;
   bool _saving = false;
+  String? _error;
 
   static const _fields = [
     ('Chest', 'chest_cm', Icons.straighten_outlined),
@@ -1226,27 +1232,31 @@ class _LogMeasurementSheetState extends State<_LogMeasurementSheet> {
   }
 
   Future<void> _save() async {
-    setState(() => _saving = true);
+    setState(() { _saving = true; _error = null; });
     try {
-      final db = Supabase.instance.client;
-      final uid = db.auth.currentUser?.id;
-      if (uid == null) return;
       final data = <String, dynamic>{
-        'user_id': uid,
         'logged_at': DateTime.now().toIso8601String(),
       };
       for (final f in _fields) {
         final v = double.tryParse(_ctrls[f.$2]!.text.trim());
         if (v != null) data[f.$2] = v;
       }
-      await db.from('body_measurements').insert(data);
+      await (widget.writeRow ?? _supabaseProgressInsert)('body_measurements', data);
+    } catch (e, s) {
+      reportError('LogMeasurementSheet._save', e, s);
+      if (mounted) setState(() { _saving = false; _error = progressSaveFailedMessage; });
+      return;
+    }
+    // The row is stored. Points are a follow-up: their failure must not make a
+    // saved entry look failed (a retry would insert a duplicate measurement).
+    try {
       await ScoreService().addCheckinPoints();
-      if (mounted) {
-        Navigator.pop(context);
-        widget.onSaved?.call();
-      }
-    } catch (_) {
-      if (mounted) setState(() => _saving = false);
+    } catch (e, s) {
+      reportError('LogMeasurementSheet._save.points', e, s);
+    }
+    if (mounted) {
+      Navigator.pop(context);
+      widget.onSaved?.call();
     }
   }
 
@@ -1324,6 +1334,7 @@ class _LogMeasurementSheetState extends State<_LogMeasurementSheet> {
               ]),
             )),
             const SizedBox(height: 8),
+            if (_error != null) _ProgressSaveError(_error!),
             GestureDetector(
               onTap: _saving ? null : _save,
               child: Container(
@@ -1353,20 +1364,48 @@ class _LogMeasurementSheetState extends State<_LogMeasurementSheet> {
   }
 }
 
-// ── Log Weight Bottom Sheet ───────────────────────────────────────────────────
-class _LogWeightSheet extends StatefulWidget {
-  final double initialKg;
-  final VoidCallback? onSaved;
-  const _LogWeightSheet({this.initialKg = 80.0, this.onSaved});
+/// Shown in a progress sheet when its save did not land (QAX-COR-06).
+const progressSaveFailedMessage = "Couldn't save — check your connection and try again.";
 
+class _ProgressSaveError extends StatelessWidget {
+  const _ProgressSaveError(this.message);
+  final String message;
   @override
-  State<_LogWeightSheet> createState() => _LogWeightSheetState();
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Text(message, textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFFFF6B8A), fontSize: 13)),
+      );
 }
 
-class _LogWeightSheetState extends State<_LogWeightSheet> {
+/// Persists one progress row. Injected in tests; the default writes to Supabase.
+typedef ProgressRowWriter = Future<void> Function(String table, Map<String, dynamic> row);
+
+Future<void> _supabaseProgressInsert(String table, Map<String, dynamic> row) async {
+  final db = Supabase.instance.client;
+  final uid = db.auth.currentUser?.id;
+  // Refuse rather than no-op: a silently discarded save looked like a hang.
+  if (uid == null) throw StateError('Not signed in — the entry was not saved.');
+  await db.from(table).insert({...row, 'user_id': uid});
+}
+
+// ── Log Weight Bottom Sheet ───────────────────────────────────────────────────
+class LogWeightSheet extends StatefulWidget {
+  final double initialKg;
+  final VoidCallback? onSaved;
+  @visibleForTesting
+  final ProgressRowWriter? writeRow;
+  const LogWeightSheet({super.key, this.initialKg = 80.0, this.onSaved, this.writeRow});
+
+  @override
+  State<LogWeightSheet> createState() => LogWeightSheetState();
+}
+
+class LogWeightSheetState extends State<LogWeightSheet> {
   bool _isLbs = false;
   late double _weight;
   bool _saving = false;
+  String? _error;
   bool _showNote = false;
   final _noteCtrl = TextEditingController();
 
@@ -1383,24 +1422,22 @@ class _LogWeightSheetState extends State<_LogWeightSheet> {
   }
 
   Future<void> _save() async {
-    setState(() => _saving = true);
+    setState(() { _saving = true; _error = null; });
     try {
-      final db = Supabase.instance.client;
-      final uid = db.auth.currentUser?.id;
-      if (uid == null) return;
       final kg = _isLbs ? _weight / 2.20462 : _weight;
-      await db.from('weight_logs').insert({
-        'user_id': uid,
+      await (widget.writeRow ?? _supabaseProgressInsert)('weight_logs', {
         'weight_kg': kg,
         'note': _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
         'logged_at': DateTime.now().toIso8601String(),
       });
-      if (mounted) {
-        Navigator.pop(context);
-        widget.onSaved?.call();
-      }
-    } catch (_) {
-      if (mounted) setState(() => _saving = false);
+    } catch (e, s) {
+      reportError('LogWeightSheet._save', e, s);
+      if (mounted) setState(() { _saving = false; _error = progressSaveFailedMessage; });
+      return;
+    }
+    if (mounted) {
+      Navigator.pop(context);
+      widget.onSaved?.call();
     }
   }
 
@@ -1571,6 +1608,7 @@ class _LogWeightSheetState extends State<_LogWeightSheet> {
           const SizedBox(height: 24),
 
           // Save button
+          if (_error != null) _ProgressSaveError(_error!),
           GestureDetector(
             onTap: _saving ? null : _save,
             child: Container(

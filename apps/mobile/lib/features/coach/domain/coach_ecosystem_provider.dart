@@ -18,6 +18,8 @@ final myRelationshipProvider = FutureProvider<Map<String, dynamic>?>((ref) async
 });
 
 final pendingRequestsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  // QAX-SES-01: recompute for whoever is signed in now, not whoever was.
+  ref.watch(currentUserProvider);
   ref.watch(tableTickerProvider('coach_client_relationships')); // live: new requests
   final coachId = Supabase.instance.client.auth.currentUser?.id;
   if (coachId == null) return [];
@@ -82,6 +84,8 @@ final weekScoresProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asyn
 });
 
 final monthScoresProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  // QAX-SES-01: recompute for whoever is signed in now, not whoever was.
+  ref.watch(currentUserProvider);
   final userId = Supabase.instance.client.auth.currentUser?.id;
   if (userId == null) return [];
   final now = DateTime.now();
@@ -96,6 +100,8 @@ final monthScoresProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asy
 });
 
 final sentInvitesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  // QAX-SES-01: recompute for whoever is signed in now, not whoever was.
+  ref.watch(currentUserProvider);
   final coachId = Supabase.instance.client.auth.currentUser?.id;
   if (coachId == null) return [];
   final data = await Supabase.instance.client
@@ -108,6 +114,8 @@ final sentInvitesProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asy
 });
 
 final coachLeaderboardProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  // QAX-SES-01: recompute for whoever is signed in now, not whoever was.
+  ref.watch(currentUserProvider);
   final coachId = Supabase.instance.client.auth.currentUser?.id;
   if (coachId == null) return [];
   return _scoreSvc.getCoachLeaderboard(coachId);

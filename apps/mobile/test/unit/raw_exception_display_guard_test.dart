@@ -59,9 +59,22 @@ void main() {
     'lib/features/onboarding/domain/intake_data.dart': [
       r"(e) => '$e'",
     ],
-    'lib/features/progress/presentation/progress_screen.dart': [
-      // A storage path, where `e` is a file extension.
+    // The `progress_screen.dart` exemption was REMOVED here, not forgotten.
+    // Cloud (QAX-COR-07, 7e1507e) extracted the baseline-photo replace logic
+    // into its own file, so the fragment no longer exists in the screen and
+    // the screen is now clean. ERR-G2's stale-exemption test caught that
+    // during the local↔cloud reconciliation — which is exactly what it is
+    // for: an exemption that grants a pass to nothing hides the fact that a
+    // file has become clean. The exemption follows the code.
+    //
+    // `e` is a file extension from `baselinePhotoExtensions`.
+    'lib/features/progress/data/baseline_photo_replace.dart': [
       r"'$uid/$side.$e'",
+    ],
+    // `e` is a symptom string from a List, not an exception — the same class
+    // as the intake_data entry.
+    'lib/features/womens_health/presentation/womens_health_screen.dart': [
+      r"(e) => '$e'",
     ],
   };
 

@@ -46,6 +46,8 @@ class CoachAdjustment {
 /// same precedence.
 final programSessionStatusProvider =
     FutureProvider<Map<String, Map<String, dynamic>>>((ref) async {
+  // QAX-SES-01: recompute for whoever is signed in now, not whoever was.
+  ref.watch(currentUserProvider);
   ref.watch(tableTickerProvider('workout_sessions'));
   ref.watch(tableTickerProvider('workout_set_logs'));
   final db = Supabase.instance.client;
@@ -440,6 +442,8 @@ final totalWorkoutCountProvider = FutureProvider<int>((ref) async {
 /// cached its first result for the lifetime of the app, which is why the same
 /// build could show different workouts at different moments.
 final activeSessionProvider = FutureProvider<WorkoutSessionRecord?>((ref) async {
+  // QAX-SES-01: recompute for whoever is signed in now, not whoever was.
+  ref.watch(currentUserProvider);
   ref.watch(tableTickerProvider('workout_sessions'));
   final uid = Supabase.instance.client.auth.currentUser?.id;
   if (uid == null) return null;

@@ -1,3 +1,4 @@
+import '../../../core/observability/app_failure.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../coach/domain/coach_ecosystem_provider.dart';
@@ -1942,7 +1943,16 @@ class _AssignHabitsSheetState extends ConsumerState<_AssignHabitsSheet> {
         'target_value': v ?? (p['default'] as int),
       };
     }).toList();
-    await ref.read(coachProgramServiceProvider).assignHabits(widget.clientId, habits);
+    try {
+      await ref.read(coachProgramServiceProvider).assignHabits(widget.clientId, habits);
+    } catch (e, s) {
+      reportError('AssignHabitsSheet._save', e, s);
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Couldn't assign habits — check your connection and try again.")));
+      return;
+    }
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(

@@ -30,6 +30,8 @@ const _error   = Color(0xFFFFB4AB);
 final _supabase = Supabase.instance.client;
 
 final coachNotificationsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
+  // QAX-SES-01: recompute for whoever is signed in now, not whoever was.
+  ref.watch(currentUserProvider);
   final uid = _supabase.auth.currentUser?.id;
   if (uid == null) return Stream.value([]);
   try {
@@ -56,6 +58,8 @@ final unreadNotificationCountProvider = Provider<int>((ref) {
 // .isEmpty` is still an early empty list, because having no clients IS a real
 // answer and must stay distinguishable from the read having failed.
 final coachClientsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  // QAX-SES-01: recompute for whoever is signed in now, not whoever was.
+  ref.watch(currentUserProvider);
   // Live: re-fetch when a relationship changes (new client, status flip).
   ref.watch(tableTickerProvider('coach_client_relationships'));
   {

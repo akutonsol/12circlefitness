@@ -230,7 +230,7 @@ class _MealsDashboardScreenState
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _AddMealSheet(initialMode: mode, onLogged: () async {
+      builder: (_) => AddMealSheet(initialMode: mode, onLogged: () async {
         await Future.delayed(const Duration(milliseconds: 300));
         if (mounted) {
           ref.invalidate(nutritionTotalsProvider);
@@ -695,7 +695,7 @@ class _EmptyMeals extends StatelessWidget {
 }
 
 // ── Add Meal Sheet ─────────────────────────────────────────────────────────
-class _AddMealSheet extends ConsumerStatefulWidget {
+class AddMealSheet extends ConsumerStatefulWidget {
   final VoidCallback onLogged;
 
   /// Which input the sheet opens on. FIT-003 declares a header `Scan a meal`
@@ -704,13 +704,23 @@ class _AddMealSheet extends ConsumerStatefulWidget {
   /// than asking the client to find the tab.
   final String initialMode;
 
-  const _AddMealSheet({required this.onLogged, this.initialMode = 'manual'});
+  /// Injectable for widget tests; production passes null and the state
+  /// constructs its own.
+  @visibleForTesting
+  final NutritionService? service;
+
+  const AddMealSheet({
+    super.key,
+    required this.onLogged,
+    this.initialMode = 'manual',
+    this.service,
+  });
   @override
-  ConsumerState<_AddMealSheet> createState() => _AddMealSheetState();
+  ConsumerState<AddMealSheet> createState() => AddMealSheetState();
 }
 
-class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
-  final _svc        = NutritionService();
+class AddMealSheetState extends ConsumerState<AddMealSheet> {
+  late final NutritionService _svc = widget.service ?? NutritionService();
   final _searchCtrl = TextEditingController();
   late String _inputMode = widget.initialMode;
   Food?  _selected;
@@ -771,6 +781,9 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
   }
 
   Future<void> _logFood(Food f, double servings) async {
+    // One tap, one meal (QAX-COR-05): _saving is set synchronously below, so a
+    // second tap while the first save is in flight is ignored.
+    if (_saving) return;
     setState(() => _saving = true);
     try {
       await _svc.logMeal(
@@ -798,6 +811,9 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
   }
 
   Future<void> _logFromScan(ScanResult r) async {
+    // One tap, one meal (QAX-COR-05): _saving is set synchronously below, so a
+    // second tap while the first save is in flight is ignored.
+    if (_saving) return;
     setState(() => _saving = true);
     try {
       await _svc.logMeal(
@@ -820,12 +836,16 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
         carbs:    r.carbs.toInt(),
         fat:      r.fat.toInt());
     } catch (e) {
+      if (!mounted) return;
       setState(() => _saving = false);
       _showMealError('Could not log meal.');
     }
   }
 
   Future<void> _logFromBarcode(Map<String, dynamic> food) async {
+    // One tap, one meal (QAX-COR-05): _saving is set synchronously below, so a
+    // second tap while the first save is in flight is ignored.
+    if (_saving) return;
     setState(() => _saving = true);
     final name    = food['name'] as String? ?? 'Scanned Food';
     final cal     = (food['calories'] as num?)?.toDouble() ?? 0;
@@ -853,6 +873,7 @@ class _AddMealSheetState extends ConsumerState<_AddMealSheet> {
         carbs:    carbs.toInt(),
         fat:      fat.toInt());
     } catch (e) {
+      if (!mounted) return;
       setState(() => _saving = false);
       _showMealError('Could not log meal.');
     }

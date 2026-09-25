@@ -5,10 +5,20 @@ import 'package:flutter_test/flutter_test.dart';
 /// CORR-G1 — a member's correction of their own health data must not fail
 /// silently, and a cleared field must actually clear.
 ///
-/// This ratchets the CURRENT state of three defects found in the
-/// correction-rights audit. It is a **shrinking allowlist**: it fails when a
-/// new surface joins, and it fails when a listed one is fixed, so the list
-/// cannot outlive the defect. Remediation is not this phase's job.
+/// Originally a shrinking allowlist over three defects found in the
+/// correction-rights audit. **Two are now closed** — the Cloud workstream
+/// found and fixed CORR-1 and CORR-3 independently, which the local↔cloud
+/// reconciliation surfaced when those assertions started failing.
+///
+/// Rather than delete the closed entries, they are **inverted**: the same
+/// guard now asserts the FIX and fails if it is reverted. A shrinking
+/// allowlist that merely loses an entry stops protecting anything, and the
+/// two fixes here cover reproductive-health writes and the clearing of
+/// personal data — both worth a standing ratchet.
+///
+///   CORR-1  CLOSED by Cloud `b0954f5` (QAX-ERR-01) — now a fix ratchet
+///   CORR-2  **STILL OPEN** — `_persistUnit` swallows silently
+///   CORR-3  CLOSED by Cloud `fdbd67b` (QAX-COR-01) — now a fix ratchet
 ///
 /// ── WHY THE APP'S OWN CODE IS THE BASELINE ─────────────────────────────────
 /// `daily_checkin_screen` + `WeeklyCheckinService.submitWeeklyCheckin` do this
@@ -34,49 +44,41 @@ void main() {
       })
       .join('\n');
 
-  // ── 1. Women's health: the whole write surface cannot report failure ──────
-  group('CORR-1 · CycleService', () {
+  // ── 1. Women's health: CLOSED BY CLOUD (QAX-ERR-01) — now a FIX ratchet ───
+  //
+  // CORR-1 recorded that all four CycleService writes were `Future<void>` with
+  // no `catch` and an `if (uid == null) return;` that made a signed-out write
+  // indistinguishable from a saved one. The Cloud workstream fixed it
+  // independently in `b0954f5` with `_requireUid()`, which THROWS.
+  //
+  // The defect assertions are not deleted — they are INVERTED. A shrinking
+  // allowlist that simply loses its entry stops protecting anything; this way
+  // the same guard now fails if the fix is ever reverted.
+  group('CORR-1 · CycleService — fixed, now protected', () {
     late String src;
     setUpAll(() => src = code('lib/features/womens_health/data/cycle_service.dart'));
 
     test('the guard is reading the right file', () {
-      // An absent result must not read as "no defect" — the H-D1 lesson.
+      // An absent result must not read as "fixed" — the H-D1 lesson.
       expect(src, contains('class CycleService'));
       expect(src, contains("from('cycle_logs')"));
-      expect(src, contains("from('cycle_symptoms')"));
     });
 
-    test('KNOWN DEFECT: no write reports failure to the caller', () {
-      // Every public write is Future<void> and the file contains no catch, so
-      // a caller cannot distinguish success from failure. These are period and
-      // symptom records — the most sensitive data the app holds.
-      final writes = RegExp(r'Future<([^>]*)>\s+(saveSettings|logPeriod|endCurrentPeriod|logSymptoms)\(')
-          .allMatches(src);
-      expect(writes.length, 4,
-          reason: 'the four write methods have moved or been renamed; repoint '
-              'this guard in the same change rather than letting it check '
-              'nothing');
-      for (final m in writes) {
-        expect(m.group(1), 'void',
-            reason: '${m.group(2)} now returns ${m.group(1)} — if it reports '
-                'failure, this entry must be REMOVED from CORR-G1 and its '
-                'call sites checked for handling');
-      }
-      // Comment-stripped, and matched as a catch CLAUSE rather than the bare
-      // word, so a comment mentioning "catch" cannot trip it.
-      expect(RegExp(r'\}\s*(?:on\s+\w+\s+)?catch\s*\(').hasMatch(src), isFalse,
-          reason: 'CycleService now catches. If failures are reported, delete '
-              'this test — it is protecting a fixed defect.');
+    test('a signed-out write refuses instead of silently no-opping', () {
+      expect(src, contains('String _requireUid()'),
+          reason: 'the _requireUid guard is gone — a signed-out cycle write '
+              'would silently no-op again while the sheet closes as though it '
+              'saved. These are period and symptom records.');
+      expect(src, contains("throw StateError("),
+          reason: '_requireUid no longer throws, so callers cannot tell that '
+              'nothing was persisted');
+      expect(RegExp(r'if\s*\(\s*uid\s*==\s*null\s*\)\s*return\s*;').hasMatch(src), isFalse,
+          reason: 'a silent-return arm is back in CycleService');
     });
 
-    test('KNOWN DEFECT: a signed-out session returns as though it succeeded', () {
-      // `if (uid == null) return;` in a Future<void> is indistinguishable from
-      // success. The call sites then pop the sheet and bump the refresh
-      // counter, so the member sees a saved state and nothing was written.
-      final n = RegExp(r'if\s*\(\s*uid\s*==\s*null\s*\)\s*return\s*;').allMatches(src).length;
-      expect(n, greaterThanOrEqualTo(4),
-          reason: 'the silent-return arms have changed; re-audit whether the '
-              'caller can now tell that nothing was persisted');
+    test('ending a period reports whether there was one to end', () {
+      expect(src, contains('Future<bool> endCurrentPeriod('),
+          reason: 'endCurrentPeriod no longer reports its outcome');
     });
   });
 
@@ -95,46 +97,25 @@ void main() {
 
   // ── 3. The pattern that makes a field un-clearable ───────────────────────
   group('CORR-3 · guarded writes cannot clear a value', () {
-    test('KNOWN DEFECT: personal info omits empty optional fields', () {
+    // CLOSED BY CLOUD (QAX-COR-01, fdbd67b). The payload builder was extracted
+    // and the five fields this audit validated as genuinely clearable —
+    // gender, phone, height, weight, goal weight — are now written
+    // unconditionally, so clearing them in the UI clears the stored value.
+    // Inverted into a fix ratchet rather than deleted.
+    test('the five clearable fields are written unconditionally', () {
       final src = code('lib/features/profile/presentation/personal_info_screen.dart');
-      final i = src.indexOf('final payload = <String, dynamic>{');
-      expect(i, greaterThan(0), reason: 'the payload builder has moved');
-      final body = src.substring(i, src.indexOf('.update(payload)', i));
+      expect(src, contains('buildPersonalInfoPayload('),
+          reason: 'the extracted payload builder is gone');
 
-      // ONLY the fields the UI can actually CLEAR belong here. The sweep first
-      // reported 19; tracing each UI -> service -> DB path cut it to 5.
-      // `fitness_goal`, `activity_level`, `training_location`,
-      // `nutrition_goal` and `date_of_birth` are ALSO guarded, but the UI
-      // offers no way to unset them, so the guard is moot for those — a
-      // missing control, not a discarded correction. Asserting them here
-      // would be overclaiming.
-      for (final f in ['phone', 'height_cm', 'weight_kg', 'weight_goal_kg']) {
-        expect(body, contains("payload['$f']"),
-            reason: '$f left the payload; re-audit clearing behaviour');
-      }
-      expect(RegExp(r"if\s*\(_phoneCtrl\.text\.trim\(\)\.isNotEmpty\)").hasMatch(body), isTrue,
-          reason: 'the phone guard changed. If the field is now written '
-              'unconditionally it CAN be cleared — remove this entry.');
-    });
-
-    test('KNOWN DEFECT: the UI deselects gender and the payload discards it', () {
-      // The clearest instance in the codebase: the UI implements a DELIBERATE
-      // deselect gesture — tapping the selected gender sets it back to null —
-      // and the payload then drops the field, so the stored value survives.
-      // The intent to clear is explicit in the UI and silently discarded.
-      final src = code('lib/features/profile/presentation/personal_info_screen.dart');
-
-      expect(RegExp(r"_gender\s*=\s*_gender\s*==\s*'Male'\s*\?\s*null\s*:").hasMatch(src), isTrue,
-          reason: 'the gender deselect gesture is gone. If gender can no '
-              'longer be unset, this entry must be re-evaluated rather than '
-              'left asserting a gesture that does not exist.');
-
-      final i = src.indexOf('final payload = <String, dynamic>{');
-      final body = src.substring(i, src.indexOf('.update(payload)', i));
-      expect(body, contains("if (_gender != null) payload['gender']"),
-          reason: 'gender is no longer conditionally written. If it is now '
-              'unconditional, deselecting CLEARS it — delete this test, it is '
-              'protecting a fixed defect.');
+      // `gender` is the decisive one: the UI has a deliberate deselect gesture,
+      // so a conditional write silently discards an explicit clear.
+      expect(src, contains("'gender':     gender,"),
+          reason: 'gender is conditionally written again — the UI deselect '
+              'gesture would be silently discarded');
+      expect(src, contains('orNull(phone)'),
+          reason: 'phone no longer clears to null when emptied');
+      expect(RegExp(r"if \(_gender != null\) payload\['gender'\]").hasMatch(src), isFalse,
+          reason: 'the conditional gender write is back');
     });
 
     test('the correct pattern still exists, so the deviation is provable', () {

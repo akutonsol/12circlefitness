@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'coach_triage.dart';
+import '../../auth/domain/auth_provider.dart';
 
 /// FIT-032 · assembling `ClientSignals` from the sources a coach may read.
 ///
@@ -66,6 +67,8 @@ String? excerpt(String? text, {int max = 48}) {
 
 final coachTriageSignalsProvider =
     FutureProvider<List<ClientSignals>>((ref) async {
+  // QAX-SES-01: recompute for whoever is signed in now, not whoever was.
+  ref.watch(currentUserProvider);
   final coachId = _db.auth.currentUser?.id;
   if (coachId == null) return const [];
 

@@ -87,8 +87,9 @@ class TermsOfServiceScreen extends StatelessWidget {
               'amount you paid in the 12 months preceding the claim.'),
             _section('9. Termination',
               'We may suspend or terminate your account for violation of these Terms '
-              'without prior notice. You may delete your account at any time from '
-              'Profile → Settings → Account.'),
+              'without prior notice. You may request deletion of your account at any '
+              'time by emailing privacy@12circle.app from the address on your account. '
+              'Deleting your account from inside the app is not available yet.'),
             _section('10. Changes to Terms',
               'We may update these Terms periodically. Continued use of the app after '
               'changes are posted constitutes acceptance. We will notify you of material '

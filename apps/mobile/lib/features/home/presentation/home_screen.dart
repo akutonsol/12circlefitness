@@ -46,6 +46,8 @@ class _C {
 // the same reason; `train_hub_screen`'s three `error: (_, __) => '0'` stats were
 // corrected to '—' on the same grounds.
 final weeklyActivityProvider = FutureProvider<List<double>>((ref) async {
+  // QAX-SES-01: recompute for whoever is signed in now, not whoever was.
+  ref.watch(currentUserProvider);
   final uid = Supabase.instance.client.auth.currentUser?.id;
   // Signed out is not a failure — there is genuinely nothing to show.
   if (uid == null) return List.filled(7, 0.0);

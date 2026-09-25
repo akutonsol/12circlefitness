@@ -76,6 +76,25 @@ void main() {
         'lib/features/dashboard/presentation/dash_org.dart',
         'lib/features/dashboard/presentation/dashboard_screen.dart',
       ],
+      // RECON-1 — created by the local↔cloud integration, not by either side
+      // alone, which is why neither workstream's CI could see it:
+      //
+      //   widgets/log_weight_sheet.dart  declares LogWeightSheet in the common
+      //                                  base, Local AND Cloud. **Dead** —
+      //                                  nothing imports it.
+      //   progress_screen.dart           Cloud (QAX-COR-06, fa593a7) made its
+      //                                  private sheet PUBLIC so a widget test
+      //                                  could drive it, the same testability
+      //                                  motive as AddMealSheet. **Live** —
+      //                                  built at progress_screen.dart:306.
+      //
+      // Cloud could not have caught it: DEAD-G1 is a Local-only guard. Listed
+      // rather than deleted, per this file's own OD-32 rationale above. The
+      // file set is pinned, so a THIRD copy still fails.
+      'LogWeightSheet': [
+        'lib/features/progress/presentation/progress_screen.dart',
+        'lib/features/progress/presentation/widgets/log_weight_sheet.dart',
+      ],
     };
 
     final dupes = <String, List<String>>{

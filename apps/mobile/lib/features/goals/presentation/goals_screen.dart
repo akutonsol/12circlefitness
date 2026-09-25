@@ -1,3 +1,4 @@
+import '../../../core/observability/app_failure.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
@@ -5,6 +6,13 @@ import '../../../shared/theme/app_background.dart';
 import '../data/models/goal.dart';
 import '../domain/goal_provider.dart';
 import '../../../core/widgets/back_leading.dart';
+
+/// Shown when a goal action did not persist (QAX-COR-08).
+void _showGoalFailure(BuildContext context) =>
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(content: Text(goalActionFailedMessage)));
+
+const goalActionFailedMessage = "Couldn't update your goal — check your connection and try again.";
 
 class GoalsScreen extends ConsumerWidget {
   const GoalsScreen({super.key});
@@ -115,12 +123,18 @@ class _GoalCard extends ConsumerWidget {
               onSelected: (v) async {
                 if (v == 'update') {
                   await _showUpdate(context, ref);
-                } else if (v == 'complete') {
-                  await ref.read(goalServiceProvider).complete(goal.id);
+                  return;
+                }
+                try {
+                  if (v == 'complete') {
+                    await ref.read(goalServiceProvider).complete(goal.id);
+                  } else if (v == 'delete') {
+                    await ref.read(goalServiceProvider).deleteGoal(goal.id);
+                  }
                   ref.invalidate(myGoalsProvider);
-                } else if (v == 'delete') {
-                  await ref.read(goalServiceProvider).deleteGoal(goal.id);
-                  ref.invalidate(myGoalsProvider);
+                } catch (e, s) {
+                  reportError('GoalsScreen.$v', e, s);
+                  if (context.mounted) _showGoalFailure(context);
                 }
               },
               itemBuilder: (_) => const [
@@ -197,8 +211,9 @@ class _GoalCard extends ConsumerWidget {
       ),
     );
     if (val != null) {
-      await ref.read(goalServiceProvider).updateProgress(goal.id, val);
+      final ok = await ref.read(goalServiceProvider).updateProgress(goal.id, val);
       ref.invalidate(myGoalsProvider);
+      if (!ok && context.mounted) _showGoalFailure(context);
     }
   }
 }

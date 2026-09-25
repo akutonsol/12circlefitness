@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../auth/domain/auth_provider.dart';
+
 /// FIT-029 · the `Connected apps` row's count.
 ///
 /// The board draws it as a trailing figure:
@@ -23,6 +25,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// provider throws, the row renders **no badge**, and the client is not told
 /// they have zero connected apps by a failed network call.
 final connectedAppsCountProvider = FutureProvider<int>((ref) async {
+  // QAX-SES-01: recompute for whoever is signed in now, not whoever was.
+  ref.watch(currentUserProvider);
   final db = Supabase.instance.client;
   final uid = db.auth.currentUser?.id;
   // Signed out is a real answer, not a failure.
