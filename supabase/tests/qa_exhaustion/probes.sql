@@ -83,6 +83,39 @@ savepoint p; select pg_temp.as_user('11111111-1111-1111-1111-111111111111'); set
 insert into qax_out select 'QAX-SEC-06', count(*)=0, 'private draft visible via view: '||count(*) from public.exercises where name='qax private draft';
 reset role; release savepoint p;
 
+-- QAX-SEC-08: a self-registered coach must not gain PHI reads by adding someone to "their team".
+savepoint p; select set_config('request.jwt.claims','{}',true);
+update public.user_profiles set role='coach' where id='11111111-1111-1111-1111-111111111111';
+select pg_temp.as_user('11111111-1111-1111-1111-111111111111'); set local role authenticated;
+do $$ begin
+  insert into public.coach_team_members(coach_id,member_id) values ('11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222');
+exception when others then null; end $$;
+insert into qax_out select 'QAX-SEC-08', count(*)=0, 'self-made team lead reads '||count(*)||' PHI profile row(s) of the victim'
+  from public.user_profiles where id='22222222-2222-2222-2222-222222222222' and medical_conditions is not null;
+reset role; :KEEP
+rollback to savepoint p; release savepoint p; :RESTORE
+
+-- QAX-SEC-09: an event vendor must not read a registrant's medical / PAR-Q columns.
+savepoint p; select pg_temp.as_user('77777777-0000-0000-0000-000000000007'); set local role authenticated;
+insert into qax_out select 'QAX-SEC-09', count(*)=0, 'vendor reads registrant medical/PAR-Q: '||count(*)
+  from public.user_profiles where id='22222222-2222-2222-2222-222222222222' and (medical_conditions is not null or parq_answers is not null);
+insert into qax_out select 'POS-09', count(*)=1, 'vendor still sees the registration row: '||count(*)
+  from public.event_registrations where event_id='66666666-6666-6666-6666-000000000001';
+reset role; :KEEP
+rollback to savepoint p; release savepoint p; :RESTORE
+
+-- FIX-08 (post-fix contract, EXPECTED FAIL before the fix — today no consent path exists): a member who adds THEMSELVES to lead C's team (consent) — C may then read them.
+savepoint p; select pg_temp.as_user('22222222-2222-2222-2222-222222222222'); set local role authenticated;
+do $$ begin
+  insert into public.coach_team_members(coach_id,member_id) values ('33333333-3333-3333-3333-333333333333','22222222-2222-2222-2222-222222222222');
+exception when others then null; end $$;
+reset role; select pg_temp.as_user('33333333-3333-3333-3333-333333333333'); set local role authenticated;
+-- C's coaching relationship is CANCELLED, so the team arm is the only path: not vacuous.
+insert into qax_out select 'FIX-08', count(*)=1, 'consented team lead reads member: '||count(*)
+  from public.user_profiles where id='22222222-2222-2222-2222-222222222222';
+reset role; :KEEP
+rollback to savepoint p; release savepoint p; :RESTORE
+
 -- POSITIVE CONTROLS: the legitimate path must keep working (before AND after any fix).
 savepoint p; select pg_temp.as_user('44444444-0000-0000-0000-000000000004'); set local role authenticated;
 do $$ begin

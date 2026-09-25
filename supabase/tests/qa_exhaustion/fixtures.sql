@@ -22,3 +22,13 @@ insert into storage.objects(bucket_id,name,owner) values
   ('exercise-media','library/qax-squat.mp4','44444444-0000-0000-0000-000000000004');
 insert into public.custom_exercises(name,coach_id,visibility,submission_status)
   values ('qax private draft','44444444-0000-0000-0000-000000000004','private','draft');
+
+-- QAX-SEC-08/09 (added 2026-09-25, run 2): PHI on the victim profile, a vendor event B registered for.
+update public.user_profiles set medical_conditions='qax-condition', parq_answers='{"0":true}'::jsonb
+ where id='22222222-2222-2222-2222-222222222222';
+insert into auth.users(id,email) values ('77777777-0000-0000-0000-000000000007','qax-vendor@local') on conflict (id) do nothing;
+update public.user_profiles set role='vendor' where id='77777777-0000-0000-0000-000000000007';
+insert into public.events(id,vendor_id,title,event_date)
+  values ('66666666-6666-6666-6666-000000000001','77777777-0000-0000-0000-000000000007','qax event',current_date+7);
+insert into public.event_registrations(event_id,user_id)
+  values ('66666666-6666-6666-6666-000000000001','22222222-2222-2222-2222-222222222222');
