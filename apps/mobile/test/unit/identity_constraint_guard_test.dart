@@ -375,4 +375,57 @@ void main() {
       }
     });
   });
+
+  // I-G6 (QA exhaustion Run 2). Everything above reads migration 131 only, so
+  // a LATER migration that drops one of these constraints — or silently
+  // redefines an atomic writer — passed this whole file (mutation-proven:
+  // `drop index cycle_logs_one_period_per_start` in a later file stayed green).
+  // That is the 116 -> 119 regression shape the closure standard names.
+  group('I-G6 no later migration undoes 131', () {
+    const protectedObjects = [
+      'client_nutrition_plans_one_active_per_client',
+      'cycle_logs_one_period_per_start',
+      'cycle_logs_end_on_or_after_start',
+      'conversations_unique_participant_pair',
+      'client_session_credits_unique_payment',
+    ];
+    const atomicWriters = ['assign_nutrition_plan', 'get_or_create_conversation'];
+
+    Iterable<(String, String)> later() sync* {
+      for (final f in _migrations()) {
+        final name = f.path.split('/').last;
+        final n = int.tryParse(name.split('_').first);
+        if (n != null && n > 131) yield (name, _sqlExecutable(f.readAsStringSync()));
+      }
+    }
+
+    test('no later migration drops an identity constraint', () {
+      for (final (name, sql) in later()) {
+        for (final obj in protectedObjects) {
+          expect(
+              RegExp('drop\\s+(index|constraint)\\s+(if\\s+exists\\s+)?(\\w+\\.)?$obj\\b',
+                      caseSensitive: false)
+                  .hasMatch(sql),
+              isFalse,
+              reason: '$name drops $obj, which migration 131 added');
+        }
+      }
+    });
+
+    test('a later redefinition of an atomic writer must be reviewed here', () {
+      for (final (name, sql) in later()) {
+        for (final fn in atomicWriters) {
+          expect(
+              RegExp('create\\s+(or\\s+replace\\s+)?function\\s+(public\\.)?$fn\\b',
+                      caseSensitive: false)
+                  .hasMatch(sql),
+              isFalse,
+              reason: '$name redefines $fn. Re-prove every property I-G2 pins '
+                  '(SECURITY DEFINER, pinned search_path, grants, auth.uid() '
+                  'identity) against the NEW body, then extend I-G2 to read it '
+                  'and update this test. (QAX-SEC-01 will need exactly this.)');
+        }
+      }
+    });
+  });
 }
