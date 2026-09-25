@@ -34,6 +34,8 @@ class _C {
 // Pulls from nutrition_logs (meal count) + coaching_calls (scheduled calls).
 // Returns List<double> length 7, index 0 = Monday of current week.
 final weeklyActivityProvider = FutureProvider<List<double>>((ref) async {
+  // QAX-SES-01: recompute for whoever is signed in now, not whoever was.
+  ref.watch(currentUserProvider);
   final uid = Supabase.instance.client.auth.currentUser?.id;
   if (uid == null) return List.filled(7, 0.0);
   try {
