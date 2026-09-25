@@ -7,32 +7,14 @@
       "why": "correctCompletedSet() builds the patch and _write() persists it to workout_set_logs via _persistSet"
     }
   ],
+  "updatePayloadBuilders": [
+    {
+      "file": "features/profile/presentation/personal_info_screen.dart",
+      "function": "buildPersonalInfoPayload",
+      "why": "PersonalInfoScreen._save sends its result as user_profiles.update"
+    }
+  ],
   "entries": [
-    {
-      "file": "features/profile/presentation/personal_info_screen.dart",
-      "column": "phone",
-      "classification": "DEFECT QAX-COR-01"
-    },
-    {
-      "file": "features/profile/presentation/personal_info_screen.dart",
-      "column": "height_cm",
-      "classification": "DEFECT QAX-COR-01"
-    },
-    {
-      "file": "features/profile/presentation/personal_info_screen.dart",
-      "column": "weight_kg",
-      "classification": "DEFECT QAX-COR-01"
-    },
-    {
-      "file": "features/profile/presentation/personal_info_screen.dart",
-      "column": "weight_goal_kg",
-      "classification": "DEFECT QAX-COR-01"
-    },
-    {
-      "file": "features/profile/presentation/personal_info_screen.dart",
-      "column": "gender",
-      "classification": "DEFECT QAX-COR-01 (chip toggles to null; null is never sent)"
-    },
     {
       "file": "features/profile/presentation/personal_info_screen.dart",
       "column": "date_of_birth",

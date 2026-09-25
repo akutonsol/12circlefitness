@@ -22,6 +22,27 @@ const manifestDoc = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 // Methods that reach an UPDATE through a helper rather than calling .update( themselves.
 // Declared in the manifest and checked both ways: a declared writer that no longer exists fails.
 const indirect = manifestDoc.indirectWriters ?? [];
+// Functions that BUILD a payload which the caller then sends as an UPDATE. A guarded
+// write inside one is an UPDATE-path write even though the builder never calls
+// .update( itself — without this, extracting a payload builder hides every defect in it.
+const builders = manifestDoc.updatePayloadBuilders ?? [];
+function spanOf(lines, fnName) {
+  const decl = new RegExp(`^\\S.*\\b${fnName}\\s*\\(`);
+  const start = lines.findIndex(l => decl.test(l));
+  if (start < 0) return null;
+  // The body opens at the first `) {` / `) async {` at or after the declaration —
+  // NOT the first `{`, which for named parameters is the `({` of the parameter list.
+  const bodyAt = lines.findIndex((l, k) => k >= start && /\)\s*(async\s*)?\{\s*$/.test(l));
+  if (bodyAt < 0) return null;
+  let d = 0;
+  for (let k = bodyAt; k < lines.length; k++) {
+    const from = k === bodyAt ? lines[k].lastIndexOf('{') : 0;
+    for (const ch of lines[k].slice(from)) {
+      if (ch === '{') d++; else if (ch === '}' && --d === 0) return [start, k];
+    }
+  }
+  return null;
+}
 
 // Blank out comments and string *contents* except single-quoted column keys, preserving
 // line numbers, so commented-out code can neither create nor hide a hit.
@@ -57,12 +78,19 @@ const hits = [];
 for (const f of fs.readdirSync(root, { recursive: true })) {
   if (!f.endsWith('.dart')) continue;
   const abs = path.join(root, f); const lines = stripComments(fs.readFileSync(abs, 'utf8')).split('\n');
+  const relFile = f.split(path.sep).join('/');
+  const builderSpans = builders.filter(b => b.file === relFile).map(b => {
+    const sp = spanOf(lines, b.function);
+    if (!sp) { console.log(`FAIL declared update-payload builder not found: ${b.file} ${b.function}(`); process.exitCode = 1; }
+    return sp;
+  }).filter(Boolean);
   lines.forEach((ln, i) => {
     const m = ln.match(HIT); if (!m || !GUARD.test(m[1].trim())) return;
     const [s, e] = methodSpan(lines, i); const body = lines.slice(s, e + 1).join('\n');
     const rel = f.split(path.sep).join('/');
     const viaHelper = indirect.some(w => w.file === rel && new RegExp(`\\b${w.call}\\s*\\(`).test(body));
-    const kind = /\.(update|upsert)\s*\(/.test(body) || viaHelper ? 'UPDATE' : null;
+    const inBuilder = builderSpans.some(([a, b]) => i >= a && i <= b);
+    const kind = /\.(update|upsert)\s*\(/.test(body) || viaHelper || inBuilder ? 'UPDATE' : null;
     if (kind) hits.push({ file: f.split(path.sep).join('/'), column: m[2] ?? m[3], line: i + 1 });
   });
 }
