@@ -16,6 +16,10 @@ const _brand = Color(0xFFA855F7);
 /// sheet stays open so nothing the user entered is lost.
 const cycleSaveFailedMessage = "Couldn't save — check your connection and try again.";
 
+/// Shown when today's symptom check-in could not be loaded (F-03): opening a
+/// blank sheet instead would overwrite the saved values on Save.
+const cycleLoadFailedMessage = "Couldn't load today's check-in — try again.";
+
 /// Shown when "Period ended" finds no period in progress (F-22).
 const noOpenPeriodMessage = 'There is no period in progress to end.';
 
@@ -245,11 +249,30 @@ class WomensHealthScreen extends ConsumerWidget {
     );
   }
 
-  void _symptomsSheet(BuildContext context, WidgetRef ref) {
+  Future<void> _symptomsSheet(BuildContext context, WidgetRef ref) async {
     const options = ['Cramps', 'Headache', 'Bloating', 'Fatigue', 'Mood swings',
       'Tender breasts', 'Cravings', 'Acne', 'Back pain', 'Nausea', 'Insomnia', 'Anxiety'];
-    final selected = <String>{};
-    int energy = 3, mood = 3;
+    // F-03: the check-in is an upsert on (user, day), so the sheet must open
+    // with what was already saved today — a blank sheet overwrote it on Save.
+    Map<String, dynamic>? today;
+    try {
+      today = await ref.read(cycleServiceProvider).getSymptomsForDate(DateTime.now());
+    } catch (e, s) {
+      reportError('WomensHealthScreen._symptomsSheet.load', e, s);
+      if (context.mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            const SnackBar(content: Text(cycleLoadFailedMessage)));
+      }
+      return;
+    }
+    if (!context.mounted) return;
+    final selected = <String>{
+      ...((today?['symptoms'] as List?)?.map((e) => '$e') ?? const <String>[]),
+    };
+    // The sliders are 1–5 and the table has no range constraint (F-01), so a
+    // stored out-of-range value is clamped for display rather than crashing.
+    int energy = ((today?['energy'] as num?)?.toInt() ?? 3).clamp(1, 5);
+    int mood = ((today?['mood'] as num?)?.toInt() ?? 3).clamp(1, 5);
     String? message;
     showModalBottomSheet(
       context: context, backgroundColor: _card, isScrollControlled: true,
@@ -259,7 +282,10 @@ class WomensHealthScreen extends ConsumerWidget {
         child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('How are you feeling?', style: TextStyle(color: _white, fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 14),
-          Wrap(spacing: 8, runSpacing: 8, children: options.map((s) {
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            ...options,
+            ...selected.where((s) => !options.contains(s)),
+          ].map((s) {
             final on = selected.contains(s);
             return GestureDetector(
               onTap: () => setSheet(() => on ? selected.remove(s) : selected.add(s)),

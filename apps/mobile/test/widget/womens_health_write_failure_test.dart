@@ -19,12 +19,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeCycleService implements CycleService {
-  _FakeCycleService({this.failWrites = false, this.hasOpenPeriod = true});
+  _FakeCycleService({this.failWrites = false, this.hasOpenPeriod = true,
+      this.today, this.failTodayRead = false});
 
   final bool failWrites;
   final bool hasOpenPeriod;
+  final Map<String, dynamic>? today;
+  final bool failTodayRead;
   int logPeriodCalls = 0;
   int logSymptomsCalls = 0;
+  Map<String, Object?>? lastSymptoms;
 
   Never _fail() => throw Exception('simulated write failure');
 
@@ -59,11 +63,15 @@ class _FakeCycleService implements CycleService {
     String? notes,
   }) async {
     logSymptomsCalls++;
+    lastSymptoms = {'symptoms': symptoms, 'energy': energy, 'mood': mood};
     if (failWrites) _fail();
   }
 
   @override
-  Future<Map<String, dynamic>?> getSymptomsForDate(DateTime date) async => null;
+  Future<Map<String, dynamic>?> getSymptomsForDate(DateTime date) async {
+    if (failTodayRead) _fail();
+    return today;
+  }
   @override
   Future<List<Map<String, dynamic>>> getRecentSymptoms({int limit = 14}) async => [];
 }
@@ -161,5 +169,54 @@ void main() {
 
       expect(find.text('Log your period'), findsNothing);
     });
+  });
+
+  group('F-03 re-opening the symptom sheet keeps today\'s saved check-in', () {
+    testWidgets('saving without changes writes back exactly what was saved',
+        (tester) async {
+      final svc = _FakeCycleService(today: {
+        'symptoms': ['Cramps', 'Migraine aura'], // the 2nd is not a chip option
+        'energy': 2,
+        'mood': 5,
+      });
+      await tester.pumpWidget(_screen(svc));
+      await tester.pumpAndSettle();
+      await _openSymptomSheet(tester);
+
+      await tester.ensureVisible(find.text('Save check-in'));
+      await tester.tap(find.text('Save check-in'));
+      await tester.pumpAndSettle();
+
+      expect(svc.lastSymptoms, isNotNull);
+      expect((svc.lastSymptoms!['symptoms'] as List).toSet(),
+          {'Cramps', 'Migraine aura'},
+          reason: 'saved symptoms, including ones outside the chip list, survive');
+      expect(svc.lastSymptoms!['energy'], 2);
+      expect(svc.lastSymptoms!['mood'], 5);
+    });
+
+    testWidgets('if today\'s check-in cannot be read, no blank sheet opens',
+        (tester) async {
+      final svc = _FakeCycleService(failTodayRead: true);
+      await tester.pumpWidget(_screen(svc));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Log symptoms'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('How are you feeling?'), findsNothing,
+          reason: 'a blank sheet would overwrite today\'s saved values on Save');
+      expect(find.text(cycleLoadFailedMessage), findsOneWidget);
+      expect(svc.logSymptomsCalls, 0);
+    });
+  });
+
+  testWidgets('F-03 an out-of-range saved value (no DB constraint, F-01) '
+      'still opens the sheet', (tester) async {
+    final svc = _FakeCycleService(today: {'symptoms': <String>[], 'energy': 99, 'mood': -5});
+    await tester.pumpWidget(_screen(svc));
+    await tester.pumpAndSettle();
+    await _openSymptomSheet(tester);
+    expect(tester.takeException(), isNull);
   });
 }
