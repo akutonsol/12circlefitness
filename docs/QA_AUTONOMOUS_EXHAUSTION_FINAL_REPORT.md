@@ -435,7 +435,7 @@ QAX-COR-02, QAX-COR-06, QAX-COR-08, QAX-ERR-01, QAX-ERR-02.
 |---|---|---|---|
 | R-7 | Static regex over definer bodies | Flagged `rebuild_movement_graph`, `rebuild_exercise_intelligence`, `seed_warmup_library`, `sync_exercise_relations` and `finalize_intelligence` as unguarded (the regex missed their guard spelling) | The behavioural sweep shows all refuse a plain client (`forbidden` / `not authorized`). **Not a finding.** |
 | R-8 | Delegated static agent | Claimed that `cycle_logs` "has no unique key" and that "70kg writes 0" | Migration 131's unique index was hit in the C1 probe. The `[0-9.]` input formatter makes letters untypeable. **Both retracted.** |
-| R-9 | First probe draft | Results written inside rolled-back savepoints vanished (5 probes silently absent) | Results are now carried across rollback via psql `\gset`; all 13 defect instances print |
+| R-9 | First probe draft | Results written inside rolled-back savepoints vanished (5 probes silently absent) | Results are now carried across rollback via psql `\gset`; all 12 defect probes print |
 | R-10 | First seed of the former-coach sweep | A `workout_set_logs.set_id` trigger aborted the whole transaction, so every count was void | Each seed is isolated in its own savepoint. `habit_logs` had **no seed**, so its 0 is recorded **NOT DEMONSTRATED**. |
 | R-11 | Static guarded-write scanner v1 | Missed `workout_provider.dart` reps/weight (writes through a `_write` helper) | Added a declared, both-direction-checked `indirectWriters` list. That surfaced `notes`, which was then classified CORRECT (`clearNotes` arm). |
 
@@ -447,7 +447,7 @@ anything; open messaging is K-10/REL-5 territory.
 
 **DB probe suite** (`supabase/tests/qa_exhaustion/run.sh`)
 
-Base run: `CTRL-1` PASS, 13 defect probes FAIL, 5 positive controls PASS.
+Base run: `CTRL-1` PASS, 12 defect probes FAIL, 5 positive controls PASS.
 
 | Mutation (`--mutate`) | Probes flipped FAIL→PASS | Others | POS / CTRL |
 |---|---|---|---|
