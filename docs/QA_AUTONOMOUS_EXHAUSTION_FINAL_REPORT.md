@@ -5,7 +5,7 @@
 | Run | Date | Phase | Range |
 |---|---|---|---|
 | 1 | 2026-09-25 | discovery only | `cafcfe9` → `8a27f31` |
-| 2 | 2026-09-25 | discovery + governed client-side remediation | `8a27f31` → `ab92e88` (+ this documentation commit) |
+| 2 | 2026-09-25 | discovery + governed client-side remediation + guard mutation audit | `8a27f31` → `3895e92` (+ this documentation commit) |
 
 Run 2 appears first; Run 1's original report follows unchanged below it, as the historical record.
 
@@ -13,11 +13,13 @@ Run 2 appears first; Run 1's original report follows unchanged below it, as the 
 
 > **12CIRCLE FITNESS QA — NOT EXHAUSTED.**
 >
-> **Remaining executable work:**
-> - The mutation audit of the ~20 pre-existing Dart guard files not sampled. Two of the four sampled were vacuous (UIX-2, REL-3 — both now fixed), so this remains **material residual risk** (§R2-8 step 0).
-> - The `habit_logs` former-coach seed.
+> **Remaining executable work:** one low-priority item. The workout behavioural suites
+> (`workout_*_test.dart`, 9 files) have not been individually mutation-audited. They exercise
+> real `lib/` code and are partly covered by the wrk02 negative control (§R2-10).
 >
-> Every other class executable in this environment was executed in Run 1 or Run 2 (§R2-9).
+> Every other class executable in this environment was executed in Run 1 or Run 2 (§R2-9),
+> including a mutation audit of **23 guards**. It found **7 vacuous or blind guards**, and all 7
+> are fixed and re-proven (§R2-10).
 >
 > **Blocked work:**
 > - **Every VERIFIED LIVE rung.** The QA host is network-denied, and there are no QA credentials.
@@ -42,9 +44,9 @@ This is not a claim of HIPAA certification or production readiness.
 
 ## R2-2. Baselines
 
-| Metric | Start of Run 2 (`8a27f31`) | End of Run 2 (`ab92e88`) |
+| Metric | Start of Run 2 (`8a27f31`) | End of Run 2 (`3895e92`) |
 |---|---|---|
-| `flutter test` | **822 passed / 9 skipped / 0 failed** | **857 passed / 9 skipped / 0 failed** (+35 new tests) |
+| `flutter test` | **822 passed / 9 skipped / 0 failed** | **861 passed / 9 skipped / 0 failed** (+39 new tests; the 9 skips are the documented K-series open specs in `billing_entitlement_contract_test`) |
 | `flutter analyze` | 0 errors · 16 warnings · 160 infos | **identical** (no new issue introduced) |
 | API unit / e2e | 58/58 · 6/6 | unchanged (no API change) |
 | `test:contract`, `check:guards` | PASS | PASS |
@@ -128,6 +130,11 @@ Evidence tags:
 | R-17 | Own instrument: the first POS-08 | Vacuous: it passed via the active-coach arm. Replaced by the non-vacuous FIX-08 contract, proven to fail when the team arm is removed. |
 | R-18 | Own instrument: the first UIX-2 mutation run | The mutation silently did not apply (the guard still contained `replaceAll`). Re-run correctly: blind without joining, catching with it. |
 | R-20 | REL-3 guard (`release_route_gate_test`) green ⇒ QA tooling cannot ship in release | **Vacuous.** `kQaToolingEnabled => true` (QA centre in RELEASE builds) passed all 8 tests. Fixed `ab92e88` with a comment-stripped source contract, mutation-proven (`true`, `kDebugMode`, and `true` with the old text in a comment all fail). |
+| R-21 | EC-G5 swallow ratchet | Slack of 2 (232 vs 234) admitted new swallows; the one-line `catch (_) {}` shape was counted only by coincidence (20 of 103 invisible). Tightened and EC-G5b added (`61888a6`). |
+| R-22 | I-G1/I-G2 identity guard; AI-J-001 invariant | Each read a single migration (131 / 116), so a LATER migration undoing it stayed green (the 116→119 shape). End-state checks added (`42be528`). |
+| R-23 | K/TIER "six purchase kinds" | Substring matched the type union and a comment; the handling branch could be deleted. Now requires a `kind ===` dispatch (`3895e92`). |
+| R-24 | A-G1 tooltip drift | Decided per file; an unused tooltip hid beside a consuming widget. Now per class (`3895e92`). |
+| R-25 | Own tooling incident | The session's mutation driver restored with a blanket `git checkout -- .` and silently discarded the uncommitted K/TIER hardening. Detected by re-checking each hardening marker; re-applied and re-proven. **Lesson:** restore only the mutated path. |
 | R-19 | Own risk read: `risk_level` / `risk_score` / `risk_flags` accepted a client write | `apply_parq_risk` recomputes on every write; a later "low" persists as `high/2`. Server-authoritative, VERIFIED CORRECT. |
 
 ## R2-5. Mutation evidence (Run 2)
@@ -149,7 +156,7 @@ Evidence tags:
 
 ## R2-6. Files and commits (Run 2)
 
-- **Commits:** `e609aa5` `b0954f5` `fdbd67b` `7e1507e` `fa593a7` `81dcf1f` `50c5437` `4df390b` `fb0a012` `fc29b41` `810430d` `8ada4a9` `ab92e88` (plus this documentation commit). All pushed.
+- **Commits:** `e609aa5` `b0954f5` `fdbd67b` `7e1507e` `fa593a7` `81dcf1f` `50c5437` `4df390b` `fb0a012` `fc29b41` `810430d` `8ada4a9` `ab92e88` `b60ff14` `61888a6` `42be528` `3895e92` (plus this documentation commit). All pushed.
 - **Production Dart files changed (client-side fixes only):**
   - `womens_health/{data/cycle_service,presentation/womens_health_screen}.dart`
   - `profile/presentation/personal_info_screen.dart`
@@ -183,7 +190,7 @@ Evidence tags:
 
 ## R2-8. Exact next phase
 
-0. **Finish the guard mutation audit.** Two of the four pre-existing guards sampled in Run 2 were vacuous. Mutate each remaining guard file under `apps/mobile/test/unit/` against the defect it names, and record the result.
+0. (Low) Mutation-audit the 9 `workout_*` behavioural suites. Convert the six `spec_*` copy-of-product files to exercise `lib/` (closure standard: convert, never delete).
 1. **Wave entry for the QAX security migrations.** Assign 132+ per §0.2 and declare each as `pending` in `expected_applied.json`. Priority order:
    1. SEC-02 and SEC-08 (P0 PHI reads)
    2. SEC-01 + SEC-03
@@ -197,6 +204,39 @@ Evidence tags:
 4. **Device run** (EB-QAX-2 remainder) for QAX-SES-01 end-to-end, and for the UI-level failure states now covered by widget tests.
 5. **Layout owners:** QAX-UI-01/02 (the repro test becomes a regression test once fixed).
 
+## R2-10. Guard mutation audit (Run 2)
+
+Each guard was mutated with the regression it names. A mutation that did not actually apply
+(e.g. it hit a comment, missed its anchor, broke only compilation, or fell outside the guard's
+declared scope) was discarded and redone; four such invalid first attempts are not counted as
+evidence.
+
+| Guard | Planted regression | Verdict |
+|---|---|---|
+| SEC-020 / SEC-027 | anon grant reopened by a later migration | caught |
+| SEC-010 | blanket `user_profiles` read reopened | caught |
+| SEC-007 | Anthropic host in `lib/` | caught |
+| SEC-030 | user-JWT Edge client calls a non-allowlisted RPC | caught |
+| ENV-010/011 | `qa.json` pointed at production | caught |
+| ENV-020 | a harness names production | caught |
+| ENV-001 / ENV-4 | absent `APP_ENV` defaults to prod | caught |
+| H-G1 | phantom column in a client select | caught |
+| EC-G1 | a catch in `workout_provider` | caught |
+| EC-01 | sink call removed | caught |
+| EC-23 | `print()` in `lib/` | caught |
+| EC-G6 / EC-G7 | error branch renders nothing | caught (EC-G6's reference check is fooled by a comment; EC-G7 still catches) |
+| INT-300 | Q7 dropped from PAR-Q high risk | caught |
+| 3A-10 chat path | uploader segment dropped | caught |
+| AI-001 | endpoint re-pointed at Anthropic | caught |
+| **UIX-2** | split-literal deletion claim | **vacuous → fixed** (`810430d`) |
+| **REL-3** | QA tooling enabled in release | **vacuous → fixed** (`ab92e88`) |
+| **EC-G5** | new swallow | **slack / blind shape → fixed** (`61888a6`) |
+| **I-G1/I-G2** | later migration drops a 131 constraint | **blind → fixed** (I-G6, `42be528`) |
+| **AI-J-001** | later unguarded redeclaration | **blind → fixed** (`42be528`) |
+| **K/TIER** | checkout branch removed | **wrong occurrence → fixed** (`3895e92`) |
+| **A-G1** | unused tooltip beside a consuming widget | **file-level → fixed** (`3895e92`) |
+| Repo negative controls (wrk02, ec23, uix1, nut01, int02, icom01, i3a11) + DB harness M-1…M-3 + self-test | their own declared mutations | all PASS locally |
+
 ## R2-9. Exhaustion checklist (Run 2)
 
 | Question | Answer |
@@ -204,12 +244,12 @@ Evidence tags:
 | Unexamined routes? | none new. Reachability is Workstream M's; dead or unreachable surfaces were re-checked only where fixes touched them. |
 | Unexamined services? | every PHI write service is traced (Run 1 matrix plus Run 2 fixes) |
 | Unexamined RPCs? | none. **66/66** definer functions probed cross-subject (Run 1). **16/16** invoker functions classified; the two leaderboards were probed (stranger 0, coach 1, unfiltered 1). |
-| PHI tables unmapped? | none. 21-table former/stranger/active sweep; `habit_logs` seed missing ⇒ NOT DEMONSTRATED for that one table |
+| PHI tables unmapped? | none. 21-table former/stranger/active sweep, now complete: `habit_logs` seeded in Run 2 (unfiltered 1 · active coach 1 · cancelled coach 0 · stranger 0) |
 | Storage buckets untested? | none. avatars (owner-scoped ✓), coach-media (SEC-10), exercise-media (SEC-05), progress-photos (SEC-02), chat-media (3A-10, 42/42 live earlier) |
 | Column-level privileges? | none exist; protection is trigger-based. All billing, role, Stripe and demo columns are refused. `max_clients` is writable (existing Workstream K row). Risk columns are server-recomputed (R-19). |
 | Team-lead / vendor / admin boundaries? | probed: SEC-08, SEC-09; admin role self-assignment refused |
 | PHI in URLs / notifications / logs / local storage / analytics? | none found. Routes carry no PHI. Notification bodies carry PR lift weights only. No `print` in `lib/` (the 88 are in tools/tests). No PHI persisted on device. No analytics SDK. |
-| Green-but-unmutated guards? | the 7 repo negative controls and the DB harness now executed locally. EC-G1 and SEC-007 were mutation-confirmed. **Two were found vacuous and fixed:** UIX-2 (R-15) and REL-3 (R-20). The remaining pre-existing Dart guards (EC-G2…G5, SEC-020…024, phase1/profile boundary, intake/product/presentation drift guards, ~20 files) were **not** individually re-mutated. Two of the four sampled were vacuous, so this is **material residual risk**, not a formality: it is the first item of the remaining executable-when-authorized work (§R2-8 step 0). |
+| Green-but-unmutated guards? | **23 guards mutation-audited (§R2-10); 7 vacuous or blind, all fixed and re-proven.** Residual: the workout behavioural suites (low). The six `spec_*` files (133 tests) import nothing from `lib/` and cannot fail. That is the known "tests execute a copy of the product" class (closure standard §4), recorded, not mutated. |
 | Findings copied forward unverified? | none. Every carried row was re-read against the tree (§R2-3). |
 | Reports contradicting the tree? | R-12, R-13, R-15 recorded |
 | Other agents' work during the session? | none. Remote branches unchanged; no concurrent writer. |

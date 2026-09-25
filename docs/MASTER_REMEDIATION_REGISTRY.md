@@ -3379,9 +3379,17 @@ and **PASS**. **No migration was authored** (132+ is assigned at wave entry). QA
   - **`UIX-2` text half reopened and closed again** (`810430d`): the Terms still claimed in-app deletion, and the guard was vacuous for that wording.
 - `QAX-COR-02` reclassified P3 → P4 plus OD-QAX-12. The failure *is* surfaced after an optimistic confirmation, by documented design.
 
-**Guard audit:** `release_route_gate_test` (REL-3) was **vacuous**: QA tooling unconditionally enabled
-passed it. Pinned by a source contract (`ab92e88`). EC-G1 and SEC-007 mutation-confirmed. The remaining
-pre-existing guard files are un-audited residual risk.
+**Guard audit (report §R2-10):** 23 guards mutation-audited. 7 were vacuous or blind to the
+regression they name, and all 7 are fixed and re-proven:
+- `UIX-2` deletion claims
+- `REL-3` release gate
+- `EC-G5` ratchet (slack + one-line shape; EC-G5b added)
+- `I-G1/I-G2` (later-migration blind; I-G6 added)
+- `AI-J-001` (later-redeclaration blind)
+- `K/TIER` (wrong-occurrence substring)
+- `A-G1` (file-level)
+
+The six `spec_*` files (133 tests) import nothing from `lib/`: the known copy-of-product class.
 
 **Recorded contradictions (report §R2-4):**
 - R-12 H-06 "the policy is correct"
