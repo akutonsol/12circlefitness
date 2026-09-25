@@ -1,4 +1,224 @@
-# 12Circle Fitness — Autonomous QA Exhaustion Report (discovery phase)
+# 12Circle Fitness — Autonomous QA Exhaustion Report
+
+**Branch:** `claude/dreamy-ptolemy-3sk1vz`
+
+| Run | Date | Phase | Range |
+|---|---|---|---|
+| 1 | 2026-09-25 | discovery only | `cafcfe9` → `8a27f31` |
+| 2 | 2026-09-25 | discovery + governed client-side remediation | `8a27f31` → `ab92e88` (+ this documentation commit) |
+
+Run 2 appears first; Run 1's original report follows unchanged below it, as the historical record.
+
+## CURRENT STATUS (end of Run 2)
+
+> **12CIRCLE FITNESS QA — NOT EXHAUSTED.**
+>
+> **Remaining executable work:**
+> - The mutation audit of the ~20 pre-existing Dart guard files not sampled. Two of the four sampled were vacuous (UIX-2, REL-3 — both now fixed), so this remains **material residual risk** (§R2-8 step 0).
+> - The `habit_logs` former-coach seed.
+>
+> Every other class executable in this environment was executed in Run 1 or Run 2 (§R2-9).
+>
+> **Blocked work:**
+> - **Every VERIFIED LIVE rung.** The QA host is network-denied, and there are no QA credentials.
+> - **Every database remediation** (QAX-SEC-01…10, QAX-BIL-01, the atomic half of QAX-ERR-02). Migration numbers **132+ are "assigned at wave entry, never before"** (`MASTER_REMEDIATION_WAVES.md` §0.2).
+> - **Device/runtime E2E.** No emulator; the Docker daemon is not running.
+> - **Nine owner decisions** (§R2-7).
+>
+> **Next phase:** Wave entry for the QAX security migrations (authorize 132+) and an owner session for the OD-QAX items. Then the live rerun of `supabase/tests/qa_exhaustion` on QA as the d09 suite, per §R2-8.
+
+This is not a claim of HIPAA certification or production readiness.
+
+---
+
+## R2-1. What changed in the environment (Run 2)
+
+| Blocker (Run 1) | Run 2 status | Evidence |
+|---|---|---|
+| No Flutter SDK (EB-QAX-2) | **LIFTED.** Flutter **3.44.4** / Dart 3.12.2, CI's pinned version, installed to `/opt/flutter`, outside the repo. | `flutter --version` |
+| DB mutation harness `negative-control.sh` "ENVIRONMENT-BLOCKED locally" (`MOBILE_QA_SWEEP_2026-09-22.md` §1) | **LIFTED.** It runs. **PASS:** M-1…M-3 each produce exactly the declared failures, and every restore gives 20/20. `--self-test` 5/5. | `/usr/lib/postgresql/16/bin` exists in this image |
+| QA host network-denied (EB-QAX-1) | **STILL BLOCKED.** CONNECT 403, and no `QA_*` / service credentials are in the environment. | re-probed at session start |
+| Device / emulator; Docker daemon | **STILL BLOCKED** | `docker info`: no server |
+
+## R2-2. Baselines
+
+| Metric | Start of Run 2 (`8a27f31`) | End of Run 2 (`ab92e88`) |
+|---|---|---|
+| `flutter test` | **822 passed / 9 skipped / 0 failed** | **857 passed / 9 skipped / 0 failed** (+35 new tests) |
+| `flutter analyze` | 0 errors · 16 warnings · 160 infos | **identical** (no new issue introduced) |
+| API unit / e2e | 58/58 · 6/6 | unchanged (no API change) |
+| `test:contract`, `check:guards` | PASS | PASS |
+| Repo negative controls (7) + DB harness | not runnable locally | **all PASS locally** (wrk02, ec23, uix1, nut01, int02, icom01, i3a11; DB M-1…M-3) |
+| QAX local probe suite | 12 defect FAIL / 6 PASS | **15 defect FAIL + FIX-08 contract FAIL / 8 PASS** (3 new findings pinned) |
+| QAX static guards | 1 (guarded-write) | 3 (guarded-write v2, per-user-provider class guard, strengthened UIX-2 deletion-claims guard) + REL-3 source contract |
+
+**Correction of record (R-13).** `MOBILE_QA_SWEEP_2026-09-22.md` §1 records "0 errors, **0 warnings**,
+160 infos". On a clean checkout with CI's Flutter 3.44.4 the tree has **16 warnings**:
+- 14 unnecessary `!` or null-checks;
+- one pubspec entry for an `assets/icons/` directory that is not in git.
+
+CI's own comment (`ci.yml:206`) counts "171 pre-existing infos/warnings" and runs with
+`--no-fatal-warnings`. This is not a regression; the sweep's figure was environment-specific.
+
+## R2-3. Canonical QAX ledger (supersedes the Run 1 tables for status)
+
+Classification vocabulary: VERIFIED · FIXED · FALSE POSITIVE/RETRACTED · OPEN · BLOCKED · OWNER
+DECISION · NOT TESTABLE.
+
+Evidence tags:
+- **LR** = local replay of migrations 000–131;
+- **WT** = widget/unit test on the real code;
+- **ST** = static only;
+- **MUT** = mutation-tested;
+- **LIVE** = QA. **No QAX item is LIVE.**
+
+| ID | Sev | Status | Evidence | Fix / dependency |
+|---|---|---|---|---|
+| QAX-SEC-02 progress-photo read by self-made or former coach | **P0** | VERIFIED · BLOCKED | LR + MUT | migration (wave entry 132+) · OD-QAX-1 |
+| **QAX-SEC-08** self-made "team lead" reads any member's full profile: medical conditions, PAR-Q, phone *(new, Run 2)* | **P0** | VERIFIED · BLOCKED | LR + MUT (+ non-vacuous FIX-08 contract) | migration · OD-QAX-9 (what "team" means). Retracts H-06's "the policy is correct" (R-12). |
+| QAX-SEC-01 `assign_nutrition_plan` cross-member supersede | **P0** | VERIFIED · BLOCKED | LR + MUT | migration · OD-QAX-2 |
+| QAX-SEC-03 self-asserted coach_id writes (6 tables) | P1 | VERIFIED · BLOCKED | LR + MUT | migration |
+| QAX-SEC-05 exercise-media overwrite/delete | P1 | VERIFIED · BLOCKED | LR + MUT | migration |
+| QAX-SEC-07 enrich-exercise-* behind the self-selectable coach role | P1 | VERIFIED (ST) · BLOCKED | ST | Edge deploy is governance-gated · OD-QAX-3 |
+| **QAX-SEC-09** event vendor reads registrants' medical/PAR-Q/DOB *(new)* | P1 | VERIFIED · BLOCKED | LR + MUT | migration · OD-QAX-10 (vendor's minimum-necessary view) |
+| QAX-PRV-01 Privacy Policy inaccurate: correction, providers, wearables, security | P1 | OWNER DECISION | ST | Run 2 adds **Open Food Facts** (search terms/barcodes sent from device) and YouTube/Vimeo embeds to the undisclosed-recipient list |
+| QAX-PRV-02 PHI to Anthropic undisclosed | P1 | OWNER DECISION | ST | extends PD-D06 |
+| QAX-SEC-04 message injection into others' conversations | P2 | VERIFIED · BLOCKED | LR + MUT | migration |
+| QAX-SEC-06 `exercises` view leaks private drafts | P2 | VERIFIED · BLOCKED | LR + MUT | migration |
+| **QAX-BIL-01** one-tap vendor event delete cascades paid registrations; payment orphaned (`event_id → NULL`) *(new)* | P2 | VERIFIED · BLOCKED | LR (cascade reproduced) | migration (refuse or soft-cancel with paid registrations) · OD-QAX-11 (paid-event cancellation/refund policy). Distinct from K-06. |
+| QAX-COR-01 Personal Info cleared fields kept; `?? 0` | P2 | **FIXED** | WT + MUT (`fdbd67b`) | — |
+| QAX-COR-03 no post-onboarding health-history edit | P2 | OWNER DECISION | ST | OD-QAX-6 |
+| QAX-COR-05 quick-add double tap duplicates | P2 | **FIXED** (quick-add); OPEN (edit/delete surface) | WT + MUT (`81dcf1f`); scan/barcode guards ST | edit/delete of meals = product surface |
+| QAX-COR-07 baseline photo deleted before upload; gallery undeletable | P2 | **FIXED** (loss on replace); OPEN (gallery delete surface) | WT + MUT (`7e1507e`) | gallery delete = product surface |
+| QAX-SES-01 cross-account cached providers after mobile logout | P2 | **FIXED** | class guard + MUT (`fb0a012`); device runtime NOT TESTED | — |
+| QAX-PRV-03 no audit trail for corrections | P2 | OWNER DECISION | LR | OD-QAX-7 |
+| QAX-REG-01 registry F-ID collision | P2 | OWNER DECISION | ST | OD-QAX-8. **Note:** the women's-health F-03 is now FIXED (`fc29b41`). |
+| QAX-COR-02 set correction | P4 (was P3) | VERIFIED; reclassified | ST | The failure **is** surfaced ("Could not save set") after an optimistic "corrected"; fire-and-forget is the documented workout-domain design. Clearing reps/weight on a completed set = **OD-QAX-12**. |
+| QAX-COR-04 injury AI memories never retracted | P3 | OPEN | LR | needs a migration (trigger retract) → BLOCKED (wave entry) |
+| QAX-COR-06 weight/measurement silent failure; stuck spinner; duplicate-inviting points coupling | P3 | **FIXED** | WT + MUT (`fa593a7`); the signed-out refusal is ST | — |
+| QAX-COR-08 goal actions unhandled; updateProgress false ignored | P3 | **FIXED** | WT + MUT (`50c5437`) | irreversibility / no delete confirm → OPEN (UX) |
+| QAX-ERR-01 cycle writes fail silently | P3 | **FIXED** | WT + MUT (`b0954f5`) | also closes the thrown-error and signed-out halves of F-06, and F-22 |
+| QAX-ERR-02 coach feedback 0-row success; habit assign null-uid success | P3 | **FIXED** (ST); atomicity BLOCKED | ST (`4df390b`) | atomic assign needs an RPC (migration) |
+| **QAX-SEC-10** any user uploads into any coach's public coach-media folder *(new)* | P3 | VERIFIED · BLOCKED | LR + MUT | migration |
+| **QAX-UI-01** weight sheet date/unit row overflows at every width ≤414 px (40 px at 375) *(new)* | P3 | OPEN | WT repro (`tool/qa_exhaustion/progress_sheet_overflow_repro_test.dart`, fails 6/6 by design) | layout owner |
+| **QAX-UI-02** weight-ruler ticks overflow 2 px *(new)* | P4 | OPEN | same repro | layout owner |
+| **QAX-UI-03** 8 `use_build_context_synchronously` sites *(new)* | P4 | VERIFIED (classified) | analyzer + read | 1 safe (lint noise); `upgrade_screen.dart:162` context after await; 6 meals/nutrition dialogs opened on a just-popped sheet's context (fragile, not demonstrated as user-visible) |
+| QAX-H-01 / QAX-H-02 | P4 | OPEN / OD-QAX-1 | ST | — |
+
+**Existing registry rows affected by Run 2:**
+
+| Row | Change |
+|---|---|
+| **F-03** (women's-health, P1) | **FIXED** `fc29b41`. WT + MUT: seeded sheet; failed read opens no blank sheet; out-of-range stored values (no DB constraint, F-01) clamped instead of crashing — a hazard the fix itself would otherwise have introduced. |
+| **F-06** | thrown-error and signed-out halves FIXED `b0954f5` |
+| **F-22** | FIXED `b0954f5` |
+| **UIX-2** (text half) | **was not complete.** Terms of Service §9 still claimed in-app deletion; the guard was vacuous for that phrasing (split string literal + narrow regex). FIXED `810430d`, with a mutation proving the new literal-joining step is load-bearing. |
+| Workstream B `goal_service.updateProgress` row | FIXED `50c5437` |
+| EC-G5 ratchet | not raised by any Run 2 change |
+
+## R2-4. Retractions and corrections (Run 2)
+
+| # | Claim | Evidence |
+|---|---|---|
+| R-12 | H-06: `user_profiles` SELECT policy "is correct and must not be relaxed" | Correct about relaxing, wrong about safety: its `is_team_lead_of` arm is exploitable (QAX-SEC-08) and its `hosts_event_for` arm over-discloses (QAX-SEC-09) |
+| R-13 | Sweep 2026-09-22: "0 warnings" | 16 warnings on a clean checkout (§R2-2) |
+| R-14 | Run 1 QAX-COR-02 "P3 false success" | It is an optimistic confirmation followed by a surfaced failure, by documented design → P4 + OD-QAX-12 |
+| R-15 | UIX-2 guard green ⇒ no false deletion claim | Vacuous for the Terms wording; proven by mutation |
+| R-16 | Own instrument: guarded-write scanner v1 | Blind once writes moved into an extracted payload builder; it reported still-guarded selectors as "fixed". Fixed (`updatePayloadBuilders`, body-span fix) and re-mutated. |
+| R-17 | Own instrument: the first POS-08 | Vacuous: it passed via the active-coach arm. Replaced by the non-vacuous FIX-08 contract, proven to fail when the team arm is removed. |
+| R-18 | Own instrument: the first UIX-2 mutation run | The mutation silently did not apply (the guard still contained `replaceAll`). Re-run correctly: blind without joining, catching with it. |
+| R-20 | REL-3 guard (`release_route_gate_test`) green ⇒ QA tooling cannot ship in release | **Vacuous.** `kQaToolingEnabled => true` (QA centre in RELEASE builds) passed all 8 tests. Fixed `ab92e88` with a comment-stripped source contract, mutation-proven (`true`, `kDebugMode`, and `true` with the old text in a comment all fail). |
+| R-19 | Own risk read: `risk_level` / `risk_score` / `risk_flags` accepted a client write | `apply_parq_risk` recomputes on every write; a later "low" persists as `high/2`. Server-authoritative, VERIFIED CORRECT. |
+
+## R2-5. Mutation evidence (Run 2)
+
+| Target | Mutations (each FAILS; restore PASSES) |
+|---|---|
+| ERR-01 | rethrow instead of surfacing · no-open-period as success · never close on success (caught **only** by the positive controls) |
+| COR-01 test | phone guard restored · unreadable→0 restored |
+| COR-01 static guard v2 | guard back in builder · new guarded write in builder · renamed builder · renamed helper. A commented plant correctly PASSES. |
+| COR-07 | remove-before-upload · cleanup includes the new file · silent cleanup swallow |
+| COR-06 | points back inside the save · no inline error |
+| COR-05 | guard removed from `_logFood` |
+| COR-08 | update result ignored · rethrow in the menu handler |
+| SES-01 | watch removed · watch commented out (the self-test also plants both) |
+| F-03 | symptoms not seeded · read failure opens a blank sheet (clamp hazard proven first) |
+| UIX-2 | split claim restored without joining → blind; with joining → caught |
+| Pre-existing guards | EC-G1 (catch planted in workout_provider → FAIL) · SEC-007 (Anthropic host planted in lib/ → FAIL) · REL-3 (**vacuous**; fixed, R-20). A first REL-3 mutation only broke compilation and was discarded as non-evidence. |
+| DB suite | 10 fix-sims, each flips only its own probes; catalog fingerprint `8d4237ee…` unchanged after every run |
+
+## R2-6. Files and commits (Run 2)
+
+- **Commits:** `e609aa5` `b0954f5` `fdbd67b` `7e1507e` `fa593a7` `81dcf1f` `50c5437` `4df390b` `fb0a012` `fc29b41` `810430d` `8ada4a9` `ab92e88` (plus this documentation commit). All pushed.
+- **Production Dart files changed (client-side fixes only):**
+  - `womens_health/{data/cycle_service,presentation/womens_health_screen}.dart`
+  - `profile/presentation/personal_info_screen.dart`
+  - `progress/{data/baseline_photo_replace (new),presentation/progress_screen}.dart`
+  - `nutrition/{presentation/meals_dashboard_screen,domain/nutrition_provider}.dart`
+  - `goals/{data/goal_service,presentation/goals_screen}.dart`
+  - `checkins/data/weekly_checkin_service.dart`
+  - `coach/{data/coach_program_service,domain/coach_ecosystem_provider}.dart`
+  - `dashboard/{presentation/client_detail_screen,presentation/coach_dashboard_screen,domain/dashboard_provider}.dart`
+  - `home/presentation/home_screen.dart`, `insights/domain/insights_provider.dart`, `workout/domain/workout_provider.dart`
+  - `settings/presentation/terms_of_service_screen.dart` — legal copy, under the existing W1-B6 authorization only
+- **Migrations created/applied: none.** SQL/RLS/policy: unchanged. Edge functions: unchanged.
+- **QA/production contact: none.**
+
+## R2-7. Owner decisions outstanding
+
+| ID | Decision | Run |
+|---|---|---|
+| OD-QAX-1 | Is "coach" (and "vendor") a self-service role? | 1 |
+| OD-QAX-2 | May a coach assign plans or programs to a `pending` client? | 1 |
+| OD-QAX-3 | Who may trigger global exercise-library enrichment? | 1 |
+| OD-QAX-4 | Privacy Policy corrections (extended in Run 2) | 1 |
+| OD-QAX-5 | PHI to Anthropic (disclosure, consent, BAA/DPA) | 1 |
+| OD-QAX-6 | In-app health-history edit and PAR-Q re-screen | 1 |
+| OD-QAX-7 | Audit/retention posture for corrections | 1 |
+| OD-QAX-8 | Registry F-ID namespace edit | 1 |
+| OD-QAX-9 | What a coaching "team" is, and how membership is consented | **2** |
+| OD-QAX-10 | What an event host may see about registrants | **2** |
+| OD-QAX-11 | Cancellation/refund policy for events with paid registrations | **2** |
+| OD-QAX-12 | May reps/weight on a completed set be cleared? | **2** |
+
+## R2-8. Exact next phase
+
+0. **Finish the guard mutation audit.** Two of the four pre-existing guards sampled in Run 2 were vacuous. Mutate each remaining guard file under `apps/mobile/test/unit/` against the defect it names, and record the result.
+1. **Wave entry for the QAX security migrations.** Assign 132+ per §0.2 and declare each as `pending` in `expected_applied.json`. Priority order:
+   1. SEC-02 and SEC-08 (P0 PHI reads)
+   2. SEC-01 + SEC-03
+   3. SEC-09
+   4. SEC-05, SEC-04, SEC-06, SEC-10
+   5. BIL-01, COR-04
+
+   Use `supabase/tests/qa_exhaustion/fixsim/*` as starting points, not reviewed fixes. Each migration must preserve grants, `search_path` and comments (governance §9, §18).
+2. **Lift EB-QAX-1** (allow the QA host; provide QA test-user credentials), then port `probes.sql` into `supabase/tests/security/` as d09. Record BEFORE on QA, apply, record AFTER. Only then does any QAX security row reach VERIFIED LIVE.
+3. **Owner session** for OD-QAX-1…12.
+4. **Device run** (EB-QAX-2 remainder) for QAX-SES-01 end-to-end, and for the UI-level failure states now covered by widget tests.
+5. **Layout owners:** QAX-UI-01/02 (the repro test becomes a regression test once fixed).
+
+## R2-9. Exhaustion checklist (Run 2)
+
+| Question | Answer |
+|---|---|
+| Unexamined routes? | none new. Reachability is Workstream M's; dead or unreachable surfaces were re-checked only where fixes touched them. |
+| Unexamined services? | every PHI write service is traced (Run 1 matrix plus Run 2 fixes) |
+| Unexamined RPCs? | none. **66/66** definer functions probed cross-subject (Run 1). **16/16** invoker functions classified; the two leaderboards were probed (stranger 0, coach 1, unfiltered 1). |
+| PHI tables unmapped? | none. 21-table former/stranger/active sweep; `habit_logs` seed missing ⇒ NOT DEMONSTRATED for that one table |
+| Storage buckets untested? | none. avatars (owner-scoped ✓), coach-media (SEC-10), exercise-media (SEC-05), progress-photos (SEC-02), chat-media (3A-10, 42/42 live earlier) |
+| Column-level privileges? | none exist; protection is trigger-based. All billing, role, Stripe and demo columns are refused. `max_clients` is writable (existing Workstream K row). Risk columns are server-recomputed (R-19). |
+| Team-lead / vendor / admin boundaries? | probed: SEC-08, SEC-09; admin role self-assignment refused |
+| PHI in URLs / notifications / logs / local storage / analytics? | none found. Routes carry no PHI. Notification bodies carry PR lift weights only. No `print` in `lib/` (the 88 are in tools/tests). No PHI persisted on device. No analytics SDK. |
+| Green-but-unmutated guards? | the 7 repo negative controls and the DB harness now executed locally. EC-G1 and SEC-007 were mutation-confirmed. **Two were found vacuous and fixed:** UIX-2 (R-15) and REL-3 (R-20). The remaining pre-existing Dart guards (EC-G2…G5, SEC-020…024, phase1/profile boundary, intake/product/presentation drift guards, ~20 files) were **not** individually re-mutated. Two of the four sampled were vacuous, so this is **material residual risk**, not a formality: it is the first item of the remaining executable-when-authorized work (§R2-8 step 0). |
+| Findings copied forward unverified? | none. Every carried row was re-read against the tree (§R2-3). |
+| Reports contradicting the tree? | R-12, R-13, R-15 recorded |
+| Other agents' work during the session? | none. Remote branches unchanged; no concurrent writer. |
+
+---
+
+# Run 1 report (historical record, unchanged below)
+
+## Run 1 — original header
 
 **Date:** 2026-09-25 · **Branch:** `claude/dreamy-ptolemy-3sk1vz` · **Phase:** DISCOVERY — no production
 code, SQL, migration, policy, copy or behaviour was changed.

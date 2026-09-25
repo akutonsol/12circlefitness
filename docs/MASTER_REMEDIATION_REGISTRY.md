@@ -3351,6 +3351,46 @@ returns bcrypt hashes; JWT secret falls back to `'your-secret-key'`.
 (`QA_CORRECTION_RIGHTS_EXHAUSTION_REPORT.md` and four others) exist in no commit. Their claims were
 re-derived, not inherited.
 
+### 7.24 Autonomous QA exhaustion Run 2 — client-side remediation and new findings — 2026-09-25 · evidence: `QA_AUTONOMOUS_EXHAUSTION_FINAL_REPORT.md` §R2
+
+**Additive; §7.23 rows keep their IDs.** Flutter 3.44.4 (CI's version) became available locally, and the
+repo's DB negative-control harness plus all seven per-finding negative controls now run locally
+and **PASS**. **No migration was authored** (132+ is assigned at wave entry). QA was not contacted
+(network-denied).
+
+**New rows** (all `DISCOVERED`, LOCAL-REPLAY unless noted):
+
+| ID | Sev | Finding | Evidence | Owner? |
+|---|---|---|---|---|
+| `QAX-SEC-08` | **P0** | A self-registered coach inserts `coach_team_members(coach_id=self, member_id=<anyone>)`, which the policy allows; `is_team_lead_of()` then exposes the full `user_profiles` row (medical conditions, PAR-Q, phone). No app code writes this table. | LR + mutation-tested; FIX-08 contract non-vacuous | OD-QAX-9 |
+| `QAX-SEC-09` | P1 | A self-selected vendor reads the full profile (medical / PAR-Q / DOB) of anyone who registers for their event (`hosts_event_for` arm) | LR + mutation-tested | OD-QAX-10 |
+| `QAX-BIL-01` | P2 | Vendor event delete is one tap, no confirmation. The FK cascade removes paid registrations; the `payments` row survives with `event_id = NULL`. | LR | OD-QAX-11 |
+| `QAX-SEC-10` | P3 | Any signed-in user uploads into any coach's folder of the public `coach-media` bucket (INSERT checks bucket only) | LR + mutation-tested | no |
+| `QAX-UI-01` / `QAX-UI-02` | P3 / P4 | Weight sheet date/unit row overflows at every width ≤414 px; ruler ticks overflow 2 px | widget repro, `tool/qa_exhaustion/` | no (layout owner) |
+| `QAX-UI-03` | P4 | 8 `use_build_context_synchronously` sites, classified | analyzer + read | no |
+
+**Status changes (FIXED IN CODE + widget/unit test + mutation; not LIVE; not device-verified):**
+- `QAX-ERR-01` (`b0954f5`), `QAX-COR-01` (`fdbd67b`), `QAX-COR-07` replace-loss half (`7e1507e`), `QAX-COR-06` (`fa593a7`), `QAX-COR-05` quick-add half (`81dcf1f`), `QAX-COR-08` error half (`50c5437`), `QAX-SES-01` (`fb0a012`, class guard).
+- `QAX-ERR-02` non-atomic half (`4df390b`): static only; the atomic half is BLOCKED (RPC).
+- **Existing rows:**
+  - **Women's-health `F-03`** (`fc29b41`)
+  - `F-06` thrown/signed-out halves and `F-22` (`b0954f5`)
+  - Workstream B `goal_service.updateProgress` (`50c5437`)
+  - **`UIX-2` text half reopened and closed again** (`810430d`): the Terms still claimed in-app deletion, and the guard was vacuous for that wording.
+- `QAX-COR-02` reclassified P3 → P4 plus OD-QAX-12. The failure *is* surfaced after an optimistic confirmation, by documented design.
+
+**Guard audit:** `release_route_gate_test` (REL-3) was **vacuous**: QA tooling unconditionally enabled
+passed it. Pinned by a source contract (`ab92e88`). EC-G1 and SEC-007 mutation-confirmed. The remaining
+pre-existing guard files are un-audited residual risk.
+
+**Recorded contradictions (report §R2-4):**
+- R-12 H-06 "the policy is correct"
+- R-13 sweep "0 warnings" (16 on a clean checkout)
+- R-15 the UIX-2 guard
+- R-20 the REL-3 guard
+
+**Status line:** 12CIRCLE FITNESS QA — NOT EXHAUSTED (report §R2 CURRENT STATUS).
+
 ## 10. How to use this registry
 
 1. **Never mark `VERIFIED_CLOSED` from a code diff.** The evidence ladder in
