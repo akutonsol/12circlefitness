@@ -8,6 +8,9 @@
 // It nonetheless told users, in two places, to use one:
 //   help_center_screen.dart   "Go to Profile → Settings → Account → Delete Account"
 //   privacy_policy_screen.dart "You may delete your account from Profile → Settings → Account"
+// and a third that the original guard's narrow phrasing missed (QAX, 2026-09-25):
+//   terms_of_service_screen.dart "You may delete your account at any time from '
+//                                 'Profile → Settings → Account." (split literal)
 //
 // The feature itself is Wave 7 and is blocked behind I-USR-01(a) — 53 of 143
 // foreign keys restrict deletes, so deletion is blocked at the schema level
@@ -46,6 +49,11 @@ void main() {
           'directs the user to a Delete Account screen',
       RegExp(r'delete your account from Profile', caseSensitive: false):
           'states deletion is reachable from Profile',
+      // QAX: the Terms said "delete your account at any time from Profile →
+      // Settings → Account", which the narrow phrase above never matched.
+      RegExp(r'delete your account[^.]{0,40}\b(from|in|via)\s+(Profile|Settings)',
+          caseSensitive: false):
+          'states deletion is reachable from Profile/Settings',
       RegExp(r'(Go to|Navigate to|Tap)[^.]{0,60}Delete Account',
           caseSensitive: false):
           'gives navigation directions to a Delete Account affordance',
@@ -54,7 +62,10 @@ void main() {
     test('no file under lib/ gives directions to a deletion screen', () {
       final offenders = <String>[];
       for (final f in _dartFilesUnder('lib')) {
-        final src = f.readAsStringSync();
+        // Join adjacent string literals ('…' '…', across lines) so a claim
+        // split over two literals cannot slip past the patterns (QAX finding:
+        // the Terms claim was split exactly like that).
+        final src = f.readAsStringSync().replaceAll(RegExp(r"'\s*\n?\s*'"), '');
         claims.forEach((re, why) {
           if (re.hasMatch(src)) {
             offenders.add('${f.path.split('/apps/mobile/').last} — $why');
@@ -75,6 +86,7 @@ void main() {
       const screens = [
         'lib/features/settings/presentation/help_center_screen.dart',
         'lib/features/settings/presentation/privacy_policy_screen.dart',
+        'lib/features/settings/presentation/terms_of_service_screen.dart',
       ];
       for (final relative in screens) {
         final src = File('${_mobileRoot().path}/$relative').readAsStringSync();
