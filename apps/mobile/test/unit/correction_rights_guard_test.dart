@@ -96,14 +96,18 @@ void main() {
   // ── 3. The pattern that makes a field un-clearable ───────────────────────
   group('CORR-3 · guarded writes cannot clear a value', () {
     test('KNOWN DEFECT: personal info omits empty optional fields', () {
-      final src = read('lib/features/profile/presentation/personal_info_screen.dart');
+      final src = code('lib/features/profile/presentation/personal_info_screen.dart');
       final i = src.indexOf('final payload = <String, dynamic>{');
       expect(i, greaterThan(0), reason: 'the payload builder has moved');
       final body = src.substring(i, src.indexOf('.update(payload)', i));
 
-      // Each of these is written ONLY when non-empty, so deleting the value in
-      // the UI saves nothing and the previous value survives. Erasure is part
-      // of correction.
+      // ONLY the fields the UI can actually CLEAR belong here. The sweep first
+      // reported 19; tracing each UI -> service -> DB path cut it to 5.
+      // `fitness_goal`, `activity_level`, `training_location`,
+      // `nutrition_goal` and `date_of_birth` are ALSO guarded, but the UI
+      // offers no way to unset them, so the guard is moot for those — a
+      // missing control, not a discarded correction. Asserting them here
+      // would be overclaiming.
       for (final f in ['phone', 'height_cm', 'weight_kg', 'weight_goal_kg']) {
         expect(body, contains("payload['$f']"),
             reason: '$f left the payload; re-audit clearing behaviour');
@@ -111,6 +115,26 @@ void main() {
       expect(RegExp(r"if\s*\(_phoneCtrl\.text\.trim\(\)\.isNotEmpty\)").hasMatch(body), isTrue,
           reason: 'the phone guard changed. If the field is now written '
               'unconditionally it CAN be cleared — remove this entry.');
+    });
+
+    test('KNOWN DEFECT: the UI deselects gender and the payload discards it', () {
+      // The clearest instance in the codebase: the UI implements a DELIBERATE
+      // deselect gesture — tapping the selected gender sets it back to null —
+      // and the payload then drops the field, so the stored value survives.
+      // The intent to clear is explicit in the UI and silently discarded.
+      final src = code('lib/features/profile/presentation/personal_info_screen.dart');
+
+      expect(RegExp(r"_gender\s*=\s*_gender\s*==\s*'Male'\s*\?\s*null\s*:").hasMatch(src), isTrue,
+          reason: 'the gender deselect gesture is gone. If gender can no '
+              'longer be unset, this entry must be re-evaluated rather than '
+              'left asserting a gesture that does not exist.');
+
+      final i = src.indexOf('final payload = <String, dynamic>{');
+      final body = src.substring(i, src.indexOf('.update(payload)', i));
+      expect(body, contains("if (_gender != null) payload['gender']"),
+          reason: 'gender is no longer conditionally written. If it is now '
+              'unconditional, deselecting CLEARS it — delete this test, it is '
+              'protecting a fixed defect.');
     });
 
     test('the correct pattern still exists, so the deviation is provable', () {
