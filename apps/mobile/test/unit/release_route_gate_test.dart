@@ -69,6 +69,26 @@ void main() {
           reason: 'a debug test binary should have QA tooling enabled');
     });
 
+    test('the gate is defined as !kReleaseMode in source (QAX mutation finding)', () {
+      // The runtime assertion above cannot tell the difference: a test binary
+      // is a debug build, so `true`, `kDebugMode` and `!kReleaseMode` all
+      // evaluate to true here. Run 2 of the QA exhaustion proved it — changing
+      // the gate to `=> true` (QA tooling shipped in RELEASE builds) passed this
+      // whole file. kReleaseMode is a compile-time constant a test cannot flip,
+      // so the contract is pinned in source, with comments stripped first.
+      final src = File('lib/core/router/app_router.dart')
+          .readAsStringSync()
+          .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+          .split('\n')
+          .map((l) => l.contains('//') ? l.substring(0, l.indexOf('//')) : l)
+          .join('\n');
+      final gate = RegExp(r'bool\s+get\s+kQaToolingEnabled\s*=>\s*([^;]+);')
+          .allMatches(src)
+          .toList();
+      expect(gate, hasLength(1), reason: 'exactly one definition of the gate');
+      expect(gate.single.group(1)!.trim(), '!kReleaseMode');
+    });
+
     test('release excludes every debug-only path', () {
       expect(buildQaToolingRoutes(enabled: false), isEmpty);
     });
