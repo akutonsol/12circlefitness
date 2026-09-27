@@ -64,6 +64,58 @@
 -- column. Dropping the two arms costs those surfaces nothing once the views
 -- below exist.
 --
+-- =============================================================================
+-- ⚠ CORRECTION 2026-09-27 — THIS PROPOSAL IS NECESSARY BUT NOT SUFFICIENT
+-- =============================================================================
+--
+-- Written before the local↔cloud reconciliation. The Cloud workstream's
+-- QAX-SEC-08 (P0, live-reproduced) supplies a root cause this file does not
+-- address, and it changes what "fixed" means here.
+--
+-- THE MISSING LINK. `coach_team_members` carries, from 002:146:
+--
+--     CREATE POLICY "Head coach manages team"
+--       ON coach_team_members FOR ALL USING (coach_id = auth.uid());
+--
+-- `FOR ALL` with a USING clause and **no WITH CHECK**. Postgres reuses USING as
+-- the INSERT check, so ANY authenticated user may insert a row naming
+-- themselves `coach_id` and ANY victim as `member_id` — becoming a "team lead"
+-- of a stranger on demand. That satisfies `is_team_lead_of()`, which carries no
+-- status condition, which satisfies the `102` arm this file drops.
+--
+-- This is not a new class. It is member 12 of the 15 policies already ratcheted
+-- locally as **F-21 / OD-14** by `test/unit/rls_policy_shape_guard_test.dart`
+-- (SEC-G1), whose header records the same shape proven exploitable on
+-- `workout_programs` (F-21b: a client fixture created, self-assigned and
+-- cross-assigned a programme, all 201). What was new in Run 2 is the
+-- **composition**: that one member of that population chains into a full
+-- `user_profiles` read, i.e. PAR-Q and medical history. Three separately
+-- recorded facts that nobody had joined up.
+--
+-- WHAT THIS MEANS FOR THE VIEWS BELOW.
+-- `team_member_profiles` is defined `... OR public.is_team_lead_of(p.id)`.
+-- Applying this file alone therefore still lets a **self-made** team lead read
+-- `first_name, last_name, email, avatar_url` for **any user in the system**.
+-- That is a large reduction — PAR-Q, medical history, weight and billing stop
+-- being reachable — but it is NOT closure: it leaves unauthenticated-style
+-- enumeration of every member's name and **email address**, which is PII.
+--
+-- REQUIRED COMPANION CHANGE (same wave, not a follow-up):
+-- constrain who may create a team membership. Cloud's simulated fix
+-- (`supabase/tests/qa_exhaustion/fixsim/QAX-SEC-08.sql`) models consent —
+-- the LEAD may not insert, the MEMBER may:
+--
+--     alter policy "Head coach manages team" on public.coach_team_members
+--       using (coach_id = auth.uid()) with check (false);
+--     create policy "member joins team" on public.coach_team_members
+--       for insert to authenticated with check (member_id = auth.uid());
+--
+-- That is a model, not an approved policy: "what a team means" is **OD-QAX-9**
+-- and the 15-policy population is **OD-14**. Both are owner decisions. Do not
+-- apply either half of this without them.
+--
+-- =============================================================================
+
 -- OPEN QUESTION FOR THE OWNER (do not resolve in this file)
 -- ---------------------------------------------------------
 -- Both rosters currently render `email`. That is PII, and whether an event
