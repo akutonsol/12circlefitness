@@ -51,15 +51,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Future<void> _persistUnit(String unit) async {
+  /// CORR-2. Returns whether the preference was actually stored.
+  ///
+  /// This was `Future<void>` with `if (uid == null) return;` and a bare
+  /// `catch (_) {}`, called unawaited after an optimistic `setState`. The
+  /// toggle moved, nothing persisted, and nothing said so — the member's unit
+  /// preference silently reverted on the next load.
+  ///
+  /// `_saveToggle` in `notification_preferences_screen` and
+  /// `WeeklyCheckinService.submitWeeklyCheckin` already report failure; this
+  /// matches them rather than inventing a convention.
+  Future<bool> _persistUnit(String unit) async {
     final uid = Supabase.instance.client.auth.currentUser?.id;
-    if (uid == null) return;
+    if (uid == null) return false;
     try {
       await Supabase.instance.client.from('user_profiles').update({
         'unit_preference': unit == 'KG' ? 'metric' : 'imperial',
       }).eq('id', uid);
       ref.invalidate(currentUserProfileProvider);
-    } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -210,9 +223,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: ['KG', 'LB'].map((u) => GestureDetector(
-                            onTap: () {
+                            onTap: () async {
+                              // Optimistic, but REVERTED on failure: an
+                              // un-reverted toggle shows a preference that was
+                              // never stored.
+                              final previous = _selectedUnit;
                               setState(() => _selectedUnit = u);
-                              _persistUnit(u);
+                              final ok = await _persistUnit(u);
+                              if (!ok && context.mounted) {
+                                setState(() => _selectedUnit = previous);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Failed to save.')),
+                                );
+                              }
                             },
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),

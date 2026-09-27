@@ -59,6 +59,53 @@
 -- and the only one that does not check status — a single isolated omission,
 -- not a pattern.
 --
+-- =============================================================================
+-- ADDENDUM 2026-09-27 — THE EXPOSURE NEEDS NO PRIOR RELATIONSHIP AT ALL
+-- =============================================================================
+--
+-- This file originally recorded two exposures: a FORMER coach (demonstrated
+-- live) and a PENDING coach (inferred). Reconciling against the Cloud
+-- workstream's QAX-SEC-02 ("self-made or former coach") and then tracing the
+-- write path gives a sharper and worse statement, with the mechanism named:
+--
+--   1. `role = 'coach'` is SELF-SELECTABLE AT SIGNUP. Migration 115's
+--      `enforce_profile_privilege` blocks role CHANGES — verified live, a
+--      client's own PATCH of `role` returns 42501 — but its INSERT branch
+--      explicitly permits it: "Self-service coach / vendor registration
+--      survives". So anyone may register AS a coach.
+--
+--   2. A self-made coach may create a relationship to ANY client.
+--      `113:271 "relationship parties create"` permits
+--      `coach_id = auth.uid() AND initiated_by = 'coach' AND status = 'pending'`.
+--      It checks `is_coach_profile(coach_id)`, which (1) satisfies.
+--
+--   3. Escalating that row to 'active' IS blocked — 113's UPDATE WITH CHECK
+--      plus `trg_relationship_integrity`. So `is_active_coach_of()` stays
+--      false and every policy that uses it holds. **That part of the design
+--      works.**
+--
+--   4. But THIS policy, and `score_events` (035:183), check only that a
+--      relationship ROW EXISTS. `status = 'pending'` satisfies them.
+--
+-- Composed: **a stranger can sign up as a coach, request any client, and read
+-- that client's progress photographs before the client has accepted, declined,
+-- or been notified.** No prior relationship, no acceptance, no active status.
+--
+-- That is materially worse than the "former coach" case demonstrated live, and
+-- it is confined to exactly the two policies this file corrects — because they
+-- are the only two that omit the status predicate. The `is_active_coach_of`
+-- population is unaffected, which is why adding the predicate here is the
+-- whole fix for this arm rather than a partial mitigation.
+--
+-- Evidence class: the live former-coach denial/permission was reproduced
+-- against QA. Steps 1–4 above are read from the migrations; the composed
+-- self-made path was NOT executed here (it would require creating a coach
+-- identity and a relationship row in a shared QA database). Cloud reports it
+-- reproduced on a local migration replay (QAX-SEC-02, LR+MUT); note their
+-- harness header states it "is NOT evidence about QA".
+--
+-- =============================================================================
+
 -- TWO DISTINCT EXPOSURES CLOSED BY THE SAME PREDICATE
 -- ---------------------------------------------------
 --   1. FORMER coach  — `cancelled` — retains access. Demonstrated live.

@@ -82,16 +82,45 @@ void main() {
     });
   });
 
-  // ── 2. Unit preference: a fully silent catch ─────────────────────────────
-  group('CORR-2 · settings unit preference', () {
-    test('KNOWN DEFECT: _persistUnit swallows its failure entirely', () {
-      final src = read('lib/features/settings/presentation/settings_screen.dart');
-      final i = src.indexOf('Future<void> _persistUnit(');
-      expect(i, greaterThan(0), reason: '_persistUnit has moved');
+  // ── 2. Unit preference: FIXED — now a fix ratchet ────────────────────────
+  //
+  // CORR-2 was the last of the three still open. It was `Future<void>` with a
+  // bare `catch (_) {}` and `if (uid == null) return;`, called unawaited after
+  // an optimistic setState, so the toggle moved and nothing persisted.
+  group('CORR-2 · settings unit preference — fixed, now protected', () {
+    late String src;
+    setUpAll(() => src = code('lib/features/settings/presentation/settings_screen.dart'));
+
+    test('the guard is reading the right file', () {
+      expect(src, contains('_persistUnit('));
+      expect(src, contains("'unit_preference'"));
+    });
+
+    test('_persistUnit reports whether the preference was stored', () {
+      expect(src, contains('Future<bool> _persistUnit('),
+          reason: '_persistUnit no longer reports its outcome, so the caller '
+              'cannot tell that the preference was not stored');
+      final i = src.indexOf('Future<bool> _persistUnit(');
       final body = src.substring(i, src.indexOf('\n  }', i));
-      expect(RegExp(r'catch\s*\(_\)\s*\{\s*\}').hasMatch(body), isTrue,
-          reason: '_persistUnit no longer swallows. Remove this entry from '
-              'CORR-G1 — it is now protecting a fixed defect.');
+      expect(RegExp(r'catch\s*\(_\)\s*\{\s*\}').hasMatch(body), isFalse,
+          reason: 'the fully silent catch is back');
+      expect(body, contains('return false;'),
+          reason: 'failure is no longer reported to the caller');
+    });
+
+    test('a failed save reverts the optimistic toggle and says so', () {
+      // Returning bool is worthless if the caller discards it, and an
+      // un-reverted toggle shows a preference that was never stored.
+      final i = src.indexOf('final ok = await _persistUnit(');
+      expect(i, greaterThan(0),
+          reason: 'the call site no longer awaits _persistUnit');
+      final around = src.substring(i, i + 420);
+      expect(around, contains('if (!ok'),
+          reason: 'the result is discarded again');
+      expect(around, contains('_selectedUnit = previous'),
+          reason: 'the optimistic toggle is no longer reverted on failure');
+      expect(around, contains('ScaffoldMessenger'),
+          reason: 'nothing tells the member the preference was not saved');
     });
   });
 
