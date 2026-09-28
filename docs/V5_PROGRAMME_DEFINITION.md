@@ -451,6 +451,11 @@ obligation.
 | **3** — previously unrequired | authentication · authorization denials · billing / entitlement changes · relationship changes · storage / media access · export / deletion events | **IN** (six) |
 | **3** — previously unrequired | **session lifecycle** | **OUT** — subject to the promotion clause above |
 
+> **PRECEDENCE MARKER — `D12·Q4`, owner-ruled (§8.14).** The tier-2 entry *"observability audit
+> events"* above is **preserved verbatim and REMAINS `IN`**. `A2` **CONTROLS** its contradiction
+> with `A1` sub-ruling 3. The category is **audit-worthy** *and* resident in a **separate
+> D12/observability population** — not in any of `A1`'s three audit populations. See §8.14.
+
 **Fourteen of fifteen categories are IN; one is OUT.**
 
 #### Consequences that follow from A2 alone — recorded, not remediated
@@ -505,6 +510,13 @@ de-identification and export/deletion mechanics are **NOT decided here** and rem
 schemas and semantics must not be merged. Shared infrastructure may be considered later. So the
 audit ledger is the three populations above; **observability audit events sit outside them** and
 are not a fourth audit population.
+
+> **PRECEDENCE MARKER — `D12·Q4`, owner-ruled (§8.14).** This sub-ruling is **preserved verbatim**
+> and **survives almost entirely**: *"two distinct populations"*, *"schemas and semantics must not
+> be merged"* and *"not a fourth audit population"* all **STAND**. **`A2` CONTROLS** on the one
+> point where the two collided. **What is superseded, and only this:** any reading of *"sit outside
+> them"* as placing observability audit events outside **audit-worthy scope**. Per §8.14 that
+> phrase is a statement of **topology**, not of **scope**. See §8.14.
 
 #### Consequences that follow from A1 alone — recorded, not remediated
 
@@ -990,11 +1002,10 @@ for that reason.)*
 
 #### What must be answered — options preserved, **none chosen**
 
-1. **Does `EC-01`'s closure discharge `LRE-27` and `LRE-28`, or do they retain their own
-   conditions?** Options: discharged with the parent (the `EC-23` precedent at `:2102`) · retained
-   independently (§3's text is bookkeeping-only; `:2105–2113` never names them; both remain on
-   G-14 and under an open `PD-A24`) · the alias collapse was itself a classification error (the
-   scope asymmetry at (d)).
+1. **~~Does `EC-01`'s closure discharge `LRE-27` and `LRE-28`?~~ — ANSWERED §8.15:
+   REFERENCE-ONLY.** The alias is a de-duplication pointer; the closure **neither discharges nor
+   preserves** their conditions, and substantive status must be determined **separately for each**.
+   That separate determination is **not performed** here. **Questions 2–5 below remain OPEN.**
 2. **May a closure-class ruling made for a canonical bind aliases that would fall in a different
    class?** The ruling is recorded as *"explicitly confined to `EC-01`"* and the programme twice
    refused to carry it to **other canonicals** — but **the case of `EC-01`'s own aliases has never
@@ -1186,7 +1197,9 @@ reaches the correlation identifier directly, and **nothing tracked addresses it 
 > Both are recorded owner decisions, in this document, neither superseding the other. The tension
 > is not merely verbal: A2 makes the category **audit-worthy**, while A1 leaves it **no audit
 > population to live in**. **This document does not choose a reading.** It is put to the owner
-> below as question 4.
+> below as question 4. **ANSWERED at §8.14: `A2` CONTROLS** — the category stays audit-worthy and
+> becomes a separate D12/observability population. Both rulings are preserved; the supersession is
+> confined to reading *"sit outside them"* as a scope statement rather than a topology statement.
 
 This contradiction decides roughly **half of D12's remaining content**, because it determines
 whether D12's records inherit `A11`'s immutability, `A12`'s retention and `A13`'s reader model.
@@ -1216,9 +1229,10 @@ whether D12's records inherit `A11`'s immutability, `A12`'s retention and `A13`'
    each origin with a provenance tag. *(Not blocked; `A3` constrains it.)*
 3. **Does the identifier appear on the audit Event row?** *(Decision not blocked; **delivery** is
    downstream of `D4`, which is open on `A14`, which is blocked on `D11`.)*
-4. **Are observability audit events inside the audit ledger or outside it?** — the contradiction
-   above. Options: inside per A2 · outside per A1 · the term names two different things and must
-   be split. *(Not blocked.)*
+4. **~~Are observability audit events inside the audit ledger or outside it?~~ — ANSWERED §8.14,
+   `A2` CONTROLS.** Audit-worthy **and** a separate D12/observability population. This settles
+   scope-vs-topology **only**; whether D12's records inherit `A11` immutability, `A12` retention and
+   `A13` readers is **newly OPEN** and none of the three currently reaches them.
 5. **Does the identifier survive `A12` anonymisation, and on which side?** *(Not blocked.)*
 6. **What is the retention window for observability records?** *(Option "defer to the vendor" is
    blocked on `PD-A24`.)*
@@ -1243,6 +1257,122 @@ owner *Julia*; **neither is re-decided here.**
 against records its own subject — `LRE-27`, *"No observability anywhere"* — as closed.
 
 **`D12`'s content is NOT answered. No status changes. No ID is allocated. Nothing is remediated.**
+
+---
+
+### 8.14 `D12 · Q4` — ANSWERED — **A2 CONTROLS** — observability audit events
+
+**Owner decision: `A2` CONTROLS.** Observability audit events **REMAIN IN audit-worthy scope** and
+are a **separate `D12`/observability population**.
+
+**Both original rulings are preserved verbatim in place** (§8.3's tier-2 row, §8.4's sub-ruling 3),
+each carrying a precedence marker pointing here. **Neither is deleted, edited or silently
+reconciled.**
+
+#### What each ruling keeps, exactly
+
+| ruling | disposition |
+|---|---|
+| **`A2` tier 2 — *"observability audit events"* `IN` (all five)** | **STANDS IN FULL.** The 14 audit-worthy categories are unchanged; none is removed. |
+| **`A1` sub-ruling 3 — *"TWO DISTINCT populations"*** | **STANDS.** |
+| **`A1` sub-ruling 3 — *"schemas and semantics must not be merged"*** | **STANDS.** |
+| **`A1` sub-ruling 3 — *"not a fourth audit population"*** | **STANDS.** The D12/observability population is **not** an audit population. |
+| **`A1` sub-ruling 3 — *"observability audit events sit outside them"*** | **SUPERSEDED ON ONE READING ONLY.** |
+
+#### The supersession, stated narrowly
+
+**Superseded:** any reading of *"sit outside them"* as placing observability audit events outside
+**audit-worthy scope**.
+
+**The distinction this decision establishes:** *"outside the audit ledger"* is a statement about
+**topology** — which population's schema a record lives in. It is **not** a statement about
+**scope** — whether the category must be recorded at all. **A category can be audit-worthy and
+resident in a non-audit population.** That is now the recorded architecture, and it is the whole of
+what changes.
+
+**Nothing else in `A1` is disturbed.** The three audit populations, the merge prohibition and the
+"not a fourth population" clause are untouched. `A2`'s category list is untouched.
+
+#### Consequences — recorded, not remediated
+
+- **`D12` now inherits an obligation it did not have.** Because the category is **audit-worthy**
+  but lives in a **D12** population, `D12` must decide whether its records take on `A11`
+  immutability, `A12` retention and `A13` readers. **None of the three currently reaches it:**
+  `A11`'s freeze applies to audit populations; `A12`'s four windows (Event 6y · Incident 6y ·
+  Control evidence 6y · Financial/tax 7y) **name no observability population**; `A13`'s reader
+  model is assigned **per audit population** and **names no observability reader**. **These remain
+  OPEN and are not decided here.**
+- **`A12`'s anonymisation hazard sharpens.** §8.13 recorded that a correlation key spanning both
+  populations means severing `A12`'s external mapping may not anonymise the operation. Under this
+  decision the record on the **non-audit** side is **also audit-worthy**, so the hazard now applies
+  to a record the programme is obliged to keep. **Still UNRESOLVED** — it is `D12` question 5.
+- **`D12` questions 6, 7, 11 and 12 are unchanged in status.** Where the records live, their
+  retention window, alerting, and who may read them all remain **OPEN**, with `PD-A24` and `D-D1`
+  blocking as recorded in §8.13. This decision settles **scope-vs-topology and nothing else.**
+- **The 14-category count is unchanged**, so no downstream count in this document moves.
+
+**No finding status changes. No registry ID is allocated. `D12` is not implemented. `D4` is not
+implemented. `QAX-SEC-08` remains OPEN / PARTIALLY VERIFIED; `QAX-SEC-09` remains OPEN.**
+
+---
+
+### 8.15 `EC-01 · Q1` — ANSWERED — **ALIAS IS REFERENCE-ONLY**
+
+**Owner decision: the alias map is REFERENCE-ONLY.** An alias is a **de-duplication pointer**.
+Closing a canonical finding **neither discharges nor preserves** an alias's substantive condition:
+**substantive status must be determined separately for each.**
+
+#### What this does and does not touch
+
+- **`EC-01` remains `VERIFIED_CLOSED`.** Its closure is **preserved**, and this document does not
+  alter it. **`MASTER_REMEDIATION_REGISTRY.md` is NOT edited.** The closure remains procedurally
+  correct on its assigned **RELEASE / ENVIRONMENT** class, exactly as §8.11 found.
+- **`LRE-27` and `LRE-28` acquire NO status from that closure** — and equally, **none is taken away
+  from them.** Their disposition becomes a **separate act**, and that act is **NOT performed here.**
+  They are **not remediated** and **not re-opened**; they remain as the registry records them.
+- **This applies to all four of `EC-01`'s aliases** — `REL-26`, `LRE-27`, `LRE-28`, `EC-23` — not
+  only the two under investigation.
+- **The absence of a tracked alias definition is PRESERVED, not repaired.** `QA_CLOSURE_STANDARD.md`
+  still contains **zero** occurrences of the word *"alias"*. This ruling records the semantics in
+  **this** document; **amending the closure standard is a separate, separately-authorized act and
+  is not done here.**
+
+#### The conflict this creates with an existing registry entry — recorded, not resolved
+
+`MASTER_REMEDIATION_REGISTRY.md:2102` states *"**`EC-23` closes with it**: §3 records it as an alias
+of EC-01, so it carries no separate row and no separate count."* **That is the discharging reading,
+which this decision does not adopt.**
+
+- **The registry text stands unedited** and is **outside this document's mutation boundary**.
+- **`EC-23` is not re-opened**, its status is not changed, and no ID is allocated.
+- **The conflict is recorded here rather than reconciled.** A future act that applies this ruling to
+  the registry is a separate authorization.
+- §3's own text is consistent with reference-only: it speaks solely of tracking keys and counts
+  (*"The alias must not be used as a tracking key after this document"*; *"Aliases retired"*;
+  *"The alias map (§3) is closed"*). **The discharging language at `:2102` is an inference drawn in
+  §7.13, not a quotation of §3.**
+
+#### Consequences — recorded, not remediated
+
+- **`G-14` is unaffected by `EC-01`'s closure**, which §8.11 had already established on the
+  evidence. Its three conjuncts — error tracking live in all three tiers · tagged by environment
+  and release · audit log in place — **remain false at HEAD**, and `LRE-27`/`LRE-28` remain bound to
+  it **carrying no status conferred by the parent.**
+- **`D12`'s finding ledger is now readable without contradiction.** §8.13 recorded that D12 would be
+  scoped against a ledger recording its own subject as closed. Under reference-only, `EC-01`'s
+  closure **says nothing about `LRE-27`**, so the ledger no longer asserts what the evidence denies.
+  **What `LRE-27`'s status IS remains undetermined** — that is the separate act above.
+- **The `:773` internal tension in the `EC-01` row is untouched.** The row still reads *"invisible
+  twice over"* four lines below its own `VERIFIED_CLOSED` mark. Reference-only explains why both
+  sentences can stand; it does **not** rewrite either, and the registry is not edited.
+- **§10's absent one-line test on the `EC-01` row is unchanged** — still recorded in §8.11 as an
+  observation about the tracked record, **not a finding, not an ID, not a status change.**
+- **`EC-01` questions 2, 3, 4 and 5 remain OPEN** (class binding across aliases · whether `G-14` is
+  evaluable at all · the §10 precondition · whether the corpus needs an amended definition).
+  **Only Q1 is answered.**
+
+**No registry status changes. `LRE-27` and `LRE-28` are NOT remediated. `PD-A24` remains TRACKED,
+OPEN, owner *Julia + privacy*. No ID is allocated.**
 
 ---
 
