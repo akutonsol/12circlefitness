@@ -1912,12 +1912,13 @@ section allocates no ID, changes no status, and answers nothing.**
 
 | tier | items | count |
 |---|---|---|
-| **QUESTION TRACKED** | `CONF-02` · `D1(iv)` · `D15` | **3** |
+| **QUESTION TRACKED** | ~~`CONF-02`~~ · `D1(iv)` · `D15` | ~~**3**~~ **2** — **corrected at §8.24**: `CONF-02` has **no tracked interrogative** |
 | **TOPIC GLOSS ONLY** — a tracked ID plus a few words of subject, no question | `D3` · `D5`–`D7` (the group label *"Admin"*) · `D-V1` · `D-V2` · `D-V3` · `D-V6` · `CONF-06` · `CONF-08` | **9** |
 | **BARE ID OR ABSENT** | `D17` · `D-V4` · `D-V5` · `D10` | **4** |
 
 **`D10` is in neither §8.1 nor §5.2.** Verified: `grep -c "D10"` over this document returns **0**.
-Its only tracked appearances are two dependency references in the Wave-1 files.
+Its only tracked appearances are ~~two~~ **three** dependency references in the Wave-1 files
+(**corrected at §8.24**).
 
 **Every decision ledger that states these as questions is UNTRACKED** — verified via `git ls-files`
 for `V5_DECISION_RESOLUTION_2026-09-27.md`, `QA_TO_V5_TRANSITION_RECONCILIATION_2026-09-27.md` and
@@ -2499,6 +2500,114 @@ placeholder, RLS enabled with a `FOR ALL` policy that has **no `WITH CHECK`**; o
 any ingestion, normalization or provenance path · any SBOM or supply-chain step in CI.
 
 **So `D-V1`–`D-V6` scope a stack that does not exist in any form.**
+
+---
+
+#### `D3` — ADMITTED. **One wording — and FOUR distinct senses of "D3" exist**
+
+- *"Do relationship-consuming policies require `status='active'` uniformly?"* —
+  `QA_TO_V5_TRANSITION:328`
+
+**Options at `:328`:** *"(a) inline predicate (b) `is_active_coach_of(text)` overload — **(b)
+recommended**"*. **The "recommended" note is NOT an owner choice** — its own source says it *"is
+carried from prior QA, not new"*, and **no owner choice is recorded anywhere.**
+
+> **⚠ FOUR SENSES OF "D3", all tracked, all distinct:** **(i)** this decision, the uniform status
+> predicate · **(ii)** **`D-3`** of §8 — *"Authorize remediation of Finding B?"*, which §8.1 already
+> warns is *"a different decision"* · **(iii)** **two separate** mutation-test row IDs in
+> `QA_EVIDENCE.md`, themselves distinct from each other · **(iv)** `## D3 · Agent 3 independent
+> verification` — an addendum sub-heading in the Wave-1 verification report.
+
+**Owner class is a three-way split** across untracked registers (owner · owner-collective ·
+architecture); the tracked record leaves it unclassified. **Not resolved.**
+
+#### `D17` — ADMITTED. **Recoverable after all**
+
+§8.21 recorded `D17` in the **BARE ID OR ABSENT** tier — correct **for the tracked tree**, and a
+question **does** exist untracked:
+
+- *"Fix `SEC_PHI_1` before applying it?"* — `QA_TO_V5_TRANSITION:342`
+
+**NO OPTIONS RECORDED.** What the sources carry is the *content of a fix* —
+*"`security_invoker = off` + `security_barrier` + predicate in the view"* — **not a yes/no branch.**
+**A documented fix is not an option set and is NOT upgraded into one.**
+
+**Same three-way owner-class split as `D3`.** Preserved.
+
+#### `D10` — ADMITTED
+
+- *"What AI processing is disclosed to members?"* — `QA_TO_V5_TRANSITION:335` **and**
+  `V5_DECISION_RESOLUTION:486`, identically.
+
+**NO OPTIONS RECORDED.** The *"Options"* cell reads *"matrix complete and ready to rule on"* — **a
+readiness statement, not an option set.** Not upgraded.
+
+**All four untracked sources agree `D10` is owner-class — no split.** It gates the P1 finding
+**`SEC-AI-1`**, not a phase, and has **no tracked status at all.**
+
+#### `D11` — ADMITTED. Confirms §8.12
+
+- *"What is Trust's actual scope?"* — `QA_TO_V5_TRANSITION:336`
+
+**NO OPTIONS RECORDED.** §8.12's four *"What must be answered"* questions are **this document's
+questions ABOUT `D11`**, not `D11`'s question text, and are kept strictly separate.
+
+#### `CONF-02` — ADMITTED
+
+- *"Is this document "V5" or "V1 Master Version 2+amendments"? (CONF-02)"* — `V5_IMPACT_ANALYSIS:571`
+
+**Options:** *"(a) "V1 Master V2+V3+V4+V5" (b) rename to V5"*. No owner-class split.
+
+**Blocking conflict preserved:** two untracked registers **downgrade it to *"non-blocking"* /
+*"confirmation-only"***, while the tracked record treats it as a live P0 gate — *"the critical path
+is blocked at `CONF-02` and `D4`"*. **Tracked governs; the conflict stands.**
+
+**And its gate is self-referential:** the requirement that makes `CONF-02` matter (version-qualified
+traceability) **lives in the document whose identity is in question.** Recorded, not resolved.
+
+#### `CONF-06` — ADMITTED. Three wordings
+
+- *"Harden the partner role before partner APIs?"* — `V5_DECISION_RESOLUTION:76` and `:475`
+- *"Harden `vendor` before partner APIs?"* — `V5_IMPLEMENTATION_READINESS_GATE:375`
+- *"Does the Wellness Partner role get hardened before partner APIs? (D2/CONF-06)"* —
+  `V5_IMPACT_ANALYSIS:576`
+
+**Options at `:475`:** *"(a) harden first (b) build behind a flag (c) defer"*. No owner-class split.
+
+**`CONF-06` ≠ `D2`.** `D2` asks separately *"Do `coach` and `vendor` remain self-assertable at
+signup?"*, and `CONF-06` lists `D2` as a **dependency**. **Two decisions; not merged.**
+
+**The tracked gloss *"(tenancy)" remains contradicted** by every untracked definition, which is
+about **`vendor` role hardening**. Preserved (§8.21).
+
+#### Resolvability — **all six are (c)**
+
+No ruling in §8.2–§8.22 addresses any of them.
+
+---
+
+### 8.24 TWO CORRECTIONS TO §8.21's TIER TABLE
+
+Both found during recovery, both verified, both corrections to **this document's own** claims.
+
+**1 · `CONF-02` is NOT in the "QUESTION TRACKED" tier.** §8.21 placed it there. Verified: `CONF-02`
+appears in **exactly one** tracked file — this one — and **not one of its occurrences is
+interrogative.** They are dependency-graph labels, phase-content imperatives, a bare list entry and
+declarative glosses. **The only interrogative form is untracked** (`V5_IMPACT_ANALYSIS:571`, now
+admitted at §8.23).
+
+> **Corrected tier count: QUESTION TRACKED = 2 (`D1(iv)`, `D15`), not 3.** `CONF-02` belongs with
+> the **topic-gloss** tier for question text. **This does not change `CONF-02`'s status** — it
+> remains OPEN and gates P0 — and it does not change §8.21's structural conclusion, which it
+> strengthens: **15 of 17 inherited decisions had no tracked statement of their question, not 14.**
+
+**2 · `D10` has THREE tracked dependency references, not two.** §8.21 said two. Verified: they are
+in `V5_SECURITY_FOUNDATION_WAVE1_AUTHORIZATION.md`, `V5_SECURITY_FOUNDATION_WAVE1_FINAL_REPORT.md`
+**and** `V5_WAVE1_INDEPENDENT_VERIFICATION_REPORT.md` — three files. *(A fourth `git grep` hit,
+`splash_screen.dart`, is the hex colour `Color(0xD104020A)` — a coincidental byte sequence, not an
+ID. Same class of trap as the `D11` binary-asset match recorded at §8.12.)*
+
+**Neither correction changes any decision, status, ID or finding.**
 
 ---
 
