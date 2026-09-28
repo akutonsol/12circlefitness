@@ -163,7 +163,7 @@ Derived from `V5_IMPACT_ANALYSIS_2026-09-27.md` §17–18. **No dependency is in
 ```
 CONF-01 ANSWERED (baseline = 91 routes, §8.2) · CONF-02 OPEN ──► what "V5" means
         │
-D4 AUDIT SCHEMA ◄── the deepest dependency; 4 V5 requirements need it
+D4 AUDIT SCHEMA ◄── deepest dependency  [A2 §8.3 + A1 §8.4 ANSWERED; A3/A11/A12/A13 OPEN]
         ├──► Admin audit domain ──► Admin Control Center (13 domains)
         ├──► Incidents ──────────► Trust → Incidents
         ├──► Agent action trail ─► AI Guardian (AS-05) ──► Guardian QA
@@ -372,7 +372,8 @@ self-allocation.
 
 `CONF-02` · **`D3`** (uniform status predicate — **a P1 entry blocker**, see §5.2; *not* the
 `D-3` of §8, which is a different decision) ·
-**`D4`** (audit schema — the deepest dependency) · `D12` (observability) ·
+**`D4`** (audit schema — the deepest dependency; **`A2` §8.3 and `A1` §8.4 ANSWERED**,
+`A3`/`A11`/`A12`/`A13` still OPEN) · `D12` (observability) ·
 `D5`–`D7` (Admin) · `D11` (Trust) · **`D-D1`** (Trust container — see below) ·
 `D15` (derive guard population from the live catalog) ·
 `D17` · `D-V1`/`D-V2`/`D-V3` (wearable boundary, store, contract) · `D-V4` · `D-V5` ·
@@ -423,6 +424,106 @@ limitations** — not reconciled, converted or deleted (C-10):
 - **174** — its unit remains **uninferred** while the V5 source specification is absent (C-1).
 
 `CONF-02` is a separate decision and **remains OPEN**.
+
+### 8.3 `D4 · A2` — ANSWERED — what is audit-worthy
+
+Owner decisions, recorded as supplied. **A2 only. `A1`, `A3`, `A11`, `A12` and `A13` remain OPEN
+and nothing below decides or implies any of them.**
+
+**Scope principle, verbatim:**
+
+> *"Audit-worthy does not mean 'log everything.' It means durably record events that establish
+> who/what performed a security, privacy, administrative, financial, authorization, or material
+> state-changing action.*
+>
+> *Treat routine session lifecycle and ordinary operational telemetry as outside the core audit
+> ledger unless a later requirement explicitly promotes a specific event into audit scope."*
+
+**Server-log question — NO.** A `RAISE LOG` server-log line **does not** satisfy an audit
+obligation.
+
+| Tier | Category | Ruling |
+|---|---|---|
+| **1** — tracked gaps | PHI reads · PHI corrections · financial / charge trail | **IN** (all three) |
+| **2** — V5-named | incidents · agent actions · control evidence · admin actions · observability audit events | **IN** (all five) |
+| **3** — previously unrequired | authentication · authorization denials · billing / entitlement changes · relationship changes · storage / media access · export / deletion events | **IN** (six) |
+| **3** — previously unrequired | **session lifecycle** | **OUT** — subject to the promotion clause above |
+
+**Fourteen of fifteen categories are IN; one is OUT.**
+
+#### Consequences that follow from A2 alone — recorded, not remediated
+
+- **`admin_set_user_role()` is unaudited.** Admin actions are **IN**, and the server-log ruling is
+  **NO**. The repository's single sanctioned privilege-escalation primitive
+  (`115_profile_privilege_boundary.sql:363`) writes **no audit row**; its only record is one
+  `RAISE LOG` at `:392` — the **only** `RAISE LOG` in the entire migration tree. Under A2 that is
+  not an audit record. **Note:** tracked `MASTER_PRODUCT_DECISIONS.md` PD-A19 describes the
+  function as *"exists and is logged"*; that premise is superseded by this ruling. **PD-A19 is
+  outside this document's mutation boundary and is NOT edited here** — the divergence is recorded,
+  not reconciled.
+- **Authorization denials are IN, and nothing observes them.** A denial raises an exception; no
+  row is written anywhere. A database trigger cannot observe one, because no table write occurs.
+  This constrains `A3` and is **not** decided here.
+- **Storage / media access is IN**, and Supabase storage objects live outside the `public` schema.
+  Implication for `A1`/`A3`; not decided here.
+- **Export / deletion events are IN**, which means the act that erases must itself leave a record.
+  That interacts directly with `A12` (retention vs erasure), for which **no tracked precedence
+  rule exists**. Not decided here.
+- **Session lifecycle is OUT** only until a later requirement explicitly promotes a specific
+  event. This is a scope boundary, not a finding, and closes nothing.
+
+**A2 changes no finding's status.** `QAX-SEC-08` remains OPEN / PARTIALLY VERIFIED;
+`QAX-SEC-09` remains OPEN; `SEC-PHI-AUDIT`, `QAX-PRV-03` and `K-16` remain as recorded. No
+registry ID is allocated and nothing is remediated.
+
+### 8.4 `D4 · A1` — ANSWERED — audit schema topology
+
+Owner decisions, recorded as supplied. **A1 only. `A3`, `A11`, `A12` and `A13` remain OPEN and
+nothing below decides or implies any of them.**
+
+**Topology: THREE V5-shaped populations.**
+
+| # | Population | Shape |
+|---|---|---|
+| **1** | **Event** | append-only occurrence record — actor · subject · action · time · outcome |
+| **2** | **Incident** | case record carrying **mutable** investigation state (AG-04's 11 fields) |
+| **3** | **Control evidence / control matrix** | versioned matrix row keyed to a requirement (SA-03) — no actor, no subject, no occurrence time |
+
+**Sub-ruling 1 — the `decision_traces` write-deny rule is SPECIFIC, not universal.** Migration
+128's *"No write policy exists on this table and none may be added"* governs **that provenance
+model only**; it is **not** a standing D4 rule. **Consequence:** the Incident population may carry
+an UPDATE path, which its mutable investigation state requires. The structural
+incidents-versus-append-only conflict is therefore resolved **by this ruling**, not deferred.
+
+**Sub-ruling 2 — AUDIT OUTRANKS DELETION for audit-record retention.** Audit records **must not
+be `ON DELETE CASCADE`'d merely because the audited subject is deleted.** Retention duration,
+de-identification and export/deletion mechanics are **NOT decided here** and remain **`A12`**.
+
+**Sub-ruling 3 — audit and observability audit events are TWO DISTINCT populations.** Their
+schemas and semantics must not be merged. Shared infrastructure may be considered later. So the
+audit ledger is the three populations above; **observability audit events sit outside them** and
+are not a fourth audit population.
+
+#### Consequences that follow from A1 alone — recorded, not remediated
+
+- **`N07_assessment_access.sql` now conflicts with a decided ruling.** Both its identity FKs are
+  `REFERENCES auth.users(id) ON DELETE CASCADE`, so deleting either party destroys the access log
+  — the precise shape sub-ruling 2 forbids. Under A2 this was an *implementation choice*; under
+  A1 sub-ruling 2 it is a **conflict**. N07 remains **evidence and a proposal only — it is not
+  adopted, not applied, and is not modified by this document.**
+- **86 `ON DELETE CASCADE` occurrences exist tree-wide**, 53 of them on FKs to a user across 44
+  distinct tables. Sub-ruling 2 governs **audit records**; it does **not** reach those existing
+  tables, and none is changed here.
+- **Three populations do not resolve the category mapping.** A2 placed 14 categories IN; the
+  Event population absorbs 10–11 of them, whose differences — denials having no subject row,
+  storage living in another schema, financial records reconciling against an external ledger —
+  are **carried forward to `A3`**, not settled.
+- **The immutability ceiling is unchanged by topology.** Zero `FORCE ROW LEVEL SECURITY`, zero
+  `CREATE SCHEMA`/`CREATE ROLE`/`OWNER TO`; the table owner and **17 of 19** Edge Functions bypass
+  RLS. Topology changes blast radius, not the ceiling. Whether "append-only" is claimed honestly
+  against that ceiling is **`A11`**, still OPEN.
+
+**A1 changes no finding's status**, allocates no registry ID, and remediates nothing.
 
 ---
 
