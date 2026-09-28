@@ -1258,6 +1258,10 @@ whether D12's records inherit `A11`'s immutability, `A12`'s retention and `A13`'
 11. **Does D12 include alerting, and on what signals?** *(Partially blocked, downstream of 7.)*
 12. **Who may read observability records?** *(**Blocked on `D-D1` and `D11`** — if the readers
     include a Trust operator, this cannot close ahead of `D-D1`.)*
+    **STALENESS CORRECTION:** the `D-D1` half of that block is **discharged** by §8.17 — but
+    **only as to the role**, and **Q12 is still NOT answered** (§8.17 states both). The **`D11`
+    half stands**, and `D11` still has no tracked substantive definition. The **product-area
+    residual** of `D-D1` also stands. **Net: partially unblocked, unanswered.**
 
 **Two blockers operative on D12 that §8.1 does not list, flagged rather than absorbed:**
 `PD-A24` (blocks 6d, 7, 9b, 10) and **`PD-A17`** (blocks 8). Both are **TRACKED and OPEN** with
@@ -1265,6 +1269,10 @@ owner *Julia*; **neither is re-decided here.**
 
 **And the §8.11 investigation bears on all twelve**, because the finding ledger D12 would be scoped
 against records its own subject — `LRE-27`, *"No observability anywhere"* — as closed.
+**STALENESS CORRECTION:** §8.15 (alias REFERENCE-ONLY) removed that specific defect — `EC-01`'s
+closure now **says nothing about `LRE-27`**, so the ledger no longer asserts what the evidence
+denies. **What `LRE-27`'s status IS remains undetermined**, so the ledger is *readable*, not
+*settled*.
 
 **`D12`'s content is NOT answered. No status changes. No ID is allocated. Nothing is remediated.**
 
@@ -1319,6 +1327,9 @@ what changes.
 - **`D12` questions 6, 7, 11 and 12 are unchanged in status.** Where the records live, their
   retention window, alerting, and who may read them all remain **OPEN**, with `PD-A24` and `D-D1`
   blocking as recorded in §8.13. This decision settles **scope-vs-topology and nothing else.**
+  **STALENESS CORRECTION:** this sentence predates §8.17 and is imprecise twice over. `D-D1` never
+  blocked **6, 7 or 11** — only **12** — and its block on 12 is now discharged as to the role.
+  **`PD-A24` remains accurate for 6(d), 7 and 11-via-7.** All four remain OPEN.
 - **The 14-category count is unchanged**, so no downstream count in this document moves.
 
 **No finding status changes. No registry ID is allocated. `D12` is not implemented. `D4` is not
@@ -1446,6 +1457,10 @@ review would bear on. If it does not inherit `A12`, the population has **no** re
    `PD-A24`.)*
 3. **Does it inherit `A13`'s reader model?** Extend the mixed model · a distinct operator class ·
    admin-only. *(**Blocked on `D-D1`** for any option naming a Trust operator.)*
+   **STALENESS CORRECTION:** `D-D1` was answered at §8.17, so this block is **discharged as to the
+   role**. **Q3 remains UNANSWERED**, all three options remain live — two of them
+   (*distinct operator class*, *admin-only*) never named a Trust operator, so the answer narrows
+   the option set **not at all** — and **the role still does not exist in any migration.**
 4. **Does `A11` sub-ruling 3's owner/`service_role` deferral resolve for this population, and
    against what?** *(Not blocked, but the answer bears on 1.)*
 
@@ -1875,6 +1890,105 @@ mapping's integrity is now **DML-deep only**, and the DDL layer is open.
 **Nothing here is decided.** No object is created or designed, no schema, migration or policy is
 written, no status changes, no ID is allocated. **§8.18·Q3, §8.16·Q1/Q4, `D11`, `A14` and `D17` are
 not inferred.**
+
+---
+
+### 8.21 PROVENANCE OF THE INHERITED DECISION SET — evidence, **no decisions**
+
+A full sweep of every decision ID in §8.1 and §5.2 that this document has **not** answered. **This
+section allocates no ID, changes no status, and answers nothing.**
+
+#### The finding: **14 of 17 inherited decisions have NO tracked statement of their question**
+
+`D17` was known. **It is not the exception — it is the rule.** Three tiers, verified:
+
+| tier | items | count |
+|---|---|---|
+| **QUESTION TRACKED** | `CONF-02` · `D1(iv)` · `D15` | **3** |
+| **TOPIC GLOSS ONLY** — a tracked ID plus a few words of subject, no question | `D3` · `D5`–`D7` (the group label *"Admin"*) · `D-V1` · `D-V2` · `D-V3` · `D-V6` · `CONF-06` · `CONF-08` | **9** |
+| **BARE ID OR ABSENT** | `D17` · `D-V4` · `D-V5` · `D10` | **4** |
+
+**`D10` is in neither §8.1 nor §5.2.** Verified: `grep -c "D10"` over this document returns **0**.
+Its only tracked appearances are two dependency references in the Wave-1 files.
+
+**Every decision ledger that states these as questions is UNTRACKED** — verified via `git ls-files`
+for `V5_DECISION_RESOLUTION_2026-09-27.md`, `QA_TO_V5_TRANSITION_RECONCILIATION_2026-09-27.md` and
+`V5_IMPACT_ANALYSIS_2026-09-27.md`. In the tracked tree, §8.1:373–382 carries these IDs as a **bare
+list with parenthetical topic glosses**, not as question statements.
+
+**This traces to §2.1's absent source.** Re-verified: **no `.docx` exists anywhere** in the working
+tree and `git ls-files` tracks none.
+
+#### **The minimal unblocking set IS the unpreparable set**
+
+By §5.2's entry conditions, `{D5, D6, D7, D-V1, D-V2, D-V3, CONF-08}` — **seven items** — unblocks
+**every phase P3 through P9**. **All seven are tier-2 or worse: not one has a tracked statement of
+its question.**
+
+- The only item resolvable **without** the owner is **`D15`** — and `D15` **unblocks no phase and
+  closes no finding**; its scope is the `SEC-G1` guard's own accuracy.
+- The only two substantive owner-decidable items with tracked questions — **`CONF-02`** and
+  **`D1(iv)`** — gate **P0** and **P1**, and **no phase in §5.2's entry-condition column enters on
+  P0 or P1.**
+
+**So answering every question this programme can currently state would unblock nothing downstream.**
+Recorded plainly because it determines what the next act must be.
+
+> **The blocking act is NOT an owner decision on the merits.** It is **admitting these questions'
+> text to the tracked record.** §8.12 already set the precedent for `D11`: *"Admitting it is an
+> **owner act**, not a documentation act — **it is not done here.**"* **The same applies to all
+> fourteen. That act is not performed, proposed or scoped here.**
+
+#### New cross-file findings — recorded, not remediated
+
+1. **`G-14`'s audit-log conjunct has NO requirement row.** `RELEASE_GATES.md:327` maps `G-14` to
+   requirement **5.8** alone, and `:190` shows 5.8 covers **error tracking only**. Verified:
+   *"audit log"* occurs **exactly once** in `RELEASE_GATES.md` — in the `:327` label itself. **One
+   of `G-14`'s three conjuncts has no requirement row and therefore no mechanical check to attach
+   to** — which is precisely the condition `EC-01`·Q3 asks about. **No gate definition is proposed
+   or amended.**
+2. **`PD-A24` is also `D-5`.** `QA_WORKSTREAM_L…:841` states the same subject — *"Which
+   observability vendor, at what cost, with what data-residency posture?"* — under the ID **`D-5`**.
+   Same decision, two tracked IDs, **reconciled nowhere.** Preserved.
+3. **`CONF-06`'s tracked gloss contradicts its untracked definition.** §8.1:382 glosses it
+   *"(tenancy)"*; the untracked ledgers define it as **vendor role hardening**. **Tracked governs;
+   the conflict is preserved, not resolved.**
+4. **`A12` is CATEGORY-keyed, not population-keyed — a precision correction to §8.16.** §8.16's
+   table presents `A11`/`A12`/`A13` as uniformly keyed on `A1`'s populations. For `A12` that
+   overstates: ruling 3 is **PER-CATEGORY**, ruling 5 keys *"by data **category**"*, and window 4's
+   **Financial/tax is not one of `A1`'s three populations**. The four windows are **four items in a
+   single table cell**, not four rows. **§8.16's substance survives — observability still has no
+   window — but its framing is corrected here.** *(A consequence worth flagging and NOT acting on:
+   if `A12` is category-keyed, then `A2` tier 2 already names "observability audit events" as a
+   **category**, one `A12` ruling 4 simply never assigned a window. **No tracked text frames
+   §8.16·Q2 that way, and no reframing is adopted.**)*
+
+#### **CONTRADICTION — `A11` sub-ruling 3's discharge has two incompatible tracked readings**
+
+| reading | text |
+|---|---|
+| **Global discharge** — §8.7 | *"**Ruling 6 satisfies A11 sub-ruling 3's deferral condition.**… It is now decided"* — **no population scoping** |
+| **Audit-only discharge** — §8.16, §8.17 | *"`A12` settled that for the **audit** populations"* · *"`A12` resolved it for the **audit** populations"* |
+
+**The scope qualifier appears in NEITHER owner ruling's own text.** `A11` sub-ruling 3 speaks of
+*"the database owner / `service_role` boundary"*, unqualified; `A12` ruling 6 is unqualified too.
+The audit-only reading is an **editorial characterization added later by this document**; the global
+reading rests on **silence**, and at the time `A12` was ruled the observability population **did not
+yet exist** as a decided object — §8.14 created it.
+
+**Neither reading can be derived without adding words the owner did not write.** This is why
+§8.16·Q4 exists, and **it must be put to the owner together with §8.16·Q4.** Preserved, **not
+resolved.**
+
+#### Verification-method caveat, recorded for reuse
+
+Two independent instances now show source-level greps misreporting this repository: `ENABLE ROW
+LEVEL SECURITY` is **undercounted** because `074:76–81` enables it through a **dynamic**
+`execute format(…)` loop; and a naive `EC-01` grep **overcounts ~3×** through `SEC-01` substrings.
+**§4:105's *"necessary, never sufficient"* holds on live material, in both directions.**
+
+**Nothing in this section is a decision.** No ID allocated, no status changed, nothing remediated,
+no question text reconstructed.
 
 ---
 
