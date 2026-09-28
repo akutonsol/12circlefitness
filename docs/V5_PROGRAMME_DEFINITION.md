@@ -2886,6 +2886,112 @@ Offered because §17.B makes the sequencing question real. **Advisory only; noth
 
 ---
 
+## 18 · FINAL OWNER-DECISION FRONTIER
+
+**The definitive packet.** §17 is retained as the preparation record; **this section governs.**
+**42 open decisions, 0 resolvable from evidence** (§8.25), grouped **by dependency, not by
+discovery order**, and ordered so **one answer set clears the maximum coherent chain.**
+
+### 18.1 · The frontier — **22 decisions, put as 20 questions, opens P0 + P1 + P2**
+
+Answering only these three tiers takes the programme from *"no phase enterable"* to **P2 open**.
+
+#### TIER 0 — depends on nothing · opens P0 and P1 · **3 decisions**
+
+| # | decision | question (verbatim, admitted §8.23) | options | unlocks |
+|---|---|---|---|---|
+| 1 | **`CONF-02`** | *"Is this document "V5" or "V1 Master Version 2+amendments"?"* | (a) *"V1 Master V2+V3+V4+V5"* (b) rename to V5 | **P0** |
+| 2 | **`D3`** | *"Do relationship-consuming policies require `status='active'` uniformly?"* | (a) inline predicate (b) `is_active_coach_of(text)` overload | **P1** (with 3) |
+| 3 | **`D17`** | *"Fix `SEC_PHI_1` before applying it?"* | **none recorded** — only the content of a fix | **P1** (with 2) |
+
+**`CONF-02` caveat:** its gate is **self-referential** — the requirement making it matter lives in
+the document whose identity is in question — and **the source `.docx` does not exist in the repo.**
+**`D17` caveat (§8.25·3):** §5.2's P1 row already lists *"corrected `SEC_PHI_1`"* **in the same row
+that gates on `D17`**; answering *"apply as written"* **requires changing the tracked phase model.**
+
+#### TIER 1 — depends on Tier 0 only in sequence · completes `D4` · **2 decisions**
+
+| # | decision | question | options | unlocks |
+|---|---|---|---|---|
+| 4 | **`D11`** | *"What is Trust's actual scope?"* | **none recorded** | `A14`; gates **P6** |
+| 5 | **`D4 · A14`** | Trust visibility rules *(depends on `A13` — ANSWERED — and `D11`)* | — | **completes `D4`** |
+
+> **This is the critical path.** `D4` is open on `A14` alone; `A14` is blocked on `D11`; `D11`'s
+> question was admitted at §8.23. **The chain is answerable end to end for the first time.**
+> **`D11` is three-areas-vs-four on the record and neither reading is adopted** (§8.12) — and all
+> four untracked sources agree the **build scope** is open regardless.
+
+#### TIER 2 — the P2 audit + observability set · **17 decisions, 15 questions**
+
+**§8.16 · inheritance (4) — answer `Q4` before or with `Q1`:**
+`Q4` `A11` sub-ruling 3's `service_role` deferral for this population · `Q1` `A11` immutability
+(**`NO RUNTIME WRITE PATH` already excluded on its own text**) · `Q2` `A12` retention (**see the
+supersession caution at §8.16**) · `Q3` `A13` readers (**`admin-only` FORECLOSED by §8.17** —
+§8.25·1).
+**Put `Q4` together with the `A11` sub-ruling 3 contradiction** (§8.21): §8.7 records the deferral
+discharged **unqualified**, §8.16/§8.17 record it discharged *"for the **audit** populations"*, and
+**the qualifier is in neither owner ruling's text.**
+
+**The role question (3 decisions, ONE question) — §8.18·Q3 + §8.20·Q2 + §8.20·Q3.**
+**Who holds the identity-mapping authorization, who may resolve identity through it, and who may
+sever it?** `A12` ruling 6 mandates *"A NEW CONSTRAINED ROLE"* (**singular**); §8.18 ruled **TWO
+ROLES**; `A13` sub-ruling 6 keeps **three** authorizations apart — **so one has no holder.**
+**Answering these separately is how a third role gets created by accident** (§8.25).
+
+**§8.20 · mapping (2):** `Q1` where it lives (`public` · a new schema — **zero `CREATE SCHEMA`
+precedent** · outside the database; **`vault` verified unsuitable**) · `Q4` durability against the
+DDL layer (**with no anchor, severance is DML-deep only — "anonymised" may be reversible**).
+
+**§8.18·Q2 (1):** which reading of `A13` sub-ruling 4 governs. **Moot for TWO ROLES, not answered.**
+
+**§8.13 · D12 content, unblocked (7):** `Q1` `SQ-10` components · `Q2` where the correlation
+identifier is minted · `Q3` does it appear on the audit Event row · `Q5` does it survive `A12`
+anonymisation · `Q6` retention window *(vendor option only, blocked)* · `Q9` structured logging
+*(one option blocked)* · `Q12` observability readers *(**`admin-only` foreclosed**, as `Q3`)*.
+
+### 18.2 · Beyond the frontier — **20 decisions, deliberately excluded from the frontier**
+
+| group | decisions | why it is not in the frontier |
+|---|---|---|
+| **Another owner's gate** | `D12` `Q7`, `Q8`, `Q10`, `Q11` | blocked on **`PD-A24`** / **`PD-A17`** — **TRACKED, OPEN, owner *Julia*. Not yours to answer; a scheduling matter.** |
+| **Finding ledger** | `EC-01` `Q2`–`Q5` | **blocks no phase.** `Q3`'s facts are settled — `G-14`'s audit-log conjunct has **no requirement row**, so it can never be *met*; what is open is whether "evaluable" means *assessable* or *meetable*. |
+| **P5 / P6 / P8** | `D5`, `D6`, `D7`, `CONF-08` | downstream of P2. **`D6`'s four wordings are not one question — two presuppose the web answer.** **`CONF-08`'s form is itself an owner call** (imperative vs interrogative). |
+| **P3 / P7** | `D-V1`, `D-V2`, `D-V4`, `D-V5` | the wearable stack **does not exist in any form**. **`D-V4` is the item most at risk of a fabricated resolution.** |
+| **P9 / SEC-AI-1** | `CONF-06`, `D10` | downstream; `D10` gates a finding, not a phase. |
+
+### 18.3 · UNRECOVERABLE — **2 decisions, a different kind of input**
+
+**`D-V3`** (canonical observation + provenance contract, gates **P3**) and **`D-V6`** (SBOM
+toolchain, gates **P10**). **No question text exists in any source.** Both are absent from the one
+section that states decisions interrogatively; every formulation is a noun-phrase gloss.
+
+> **These are NOT answerable decisions. The owner must SUPPLY A QUESTION, not choose an answer.**
+> **`CONF-03`'s wording must not be borrowed for `D-V6`** — paired as a blocker, never equated, and
+> `D-V6` lists `CONF-03` as a **dependency**. **`D-V3` blocks P3 alongside `D-V1`/`D-V2`, so P3
+> cannot be entered even if every answerable question in the wearable set is answered.**
+
+### 18.4 · What the frontier buys
+
+| answer | result |
+|---|---|
+| Tier 0 (3) | **P0 and P1 open** |
+| Tier 0 + 1 (5) | **`D4` completes** |
+| Tier 0 + 1 + 2 (22) | **`D4` and `D12` complete → P2 OPENS** |
+| everything (42) | **P3 and P10 still blocked** on the two unrecoverable items |
+
+### 18.5 · Contradictions carried into the packet — **none resolved**
+
+`A11` sub-ruling 3's two discharge readings · `decision_traces` *"erased only by `service_role`"* vs
+`A12` ruling 6 · registry `:2102`'s discharging reading vs §8.15 · `EC-01` `VERIFIED_CLOSED` beside
+*"invisible twice over"* · `PD-A24` also carried as **`D-5`** · `CONF-06` glossed *"(tenancy)"*
+against every untracked definition · §5.1's critical path vs §5.2's entry-condition column · `N07`
+having neither new role · `D5`↔`D6` circular dependency · **four distinct senses of "D3"** · the
+accepted adversary exposure with **no recorded scope** for the observability population · `CONF-08`
+at **21 vs 23 vs 10** surfaces · `PD-B23`'s *"unconditional"* deletion **still unremediated at
+HEAD**.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
