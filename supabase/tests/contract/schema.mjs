@@ -11,12 +11,24 @@ import { join } from 'node:path';
 const MIGRATIONS = 'supabase/migrations';
 
 // Views are not derived from DDL; a reference to one is not checked column-wise.
+//
+// This inventory is hand-maintained (see the header: a view's column set comes
+// from a SELECT list, not DDL), so it has to be extended when a migration adds a
+// view. Verified against the live QA catalog 2026-09-27: `pg_class` holds exactly
+// these six views in `public`, no more and no fewer.
 export const VIEWS = new Set([
   'coach_client_workout_stats',
   'conversation_participant_profiles',
   'exercise_certifications',
   'exercises',
   'public_profiles',
+  // Added by migration 132 (Security Foundation Wave 1). The minimum-necessary
+  // team roster projection that replaced the team-lead arm of the user_profiles
+  // SELECT policy. Registering it here is inventory completeness only — it
+  // changes no security property of the view, which remains
+  // `security_invoker = off`, `security_barrier = true`, SELECT-only for
+  // `authenticated`, and gated by is_team_lead_of() requiring status = 'active'.
+  'team_member_profiles',
 ]);
 
 // `.from()` names that are Storage buckets, not relations.

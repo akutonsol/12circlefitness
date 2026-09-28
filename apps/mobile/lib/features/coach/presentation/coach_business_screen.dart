@@ -63,9 +63,32 @@ class _CoachBusinessScreenState extends State<CoachBusinessScreen>
     if (uid == null) return;
     try {
       final profileData = await _db.from('user_profiles').select('*').eq('id', uid).maybeSingle();
-      final teamData = await _db.from('coach_team_members')
-          .select('*, user_profiles!coach_team_members_member_id_fkey(first_name, last_name, email, avatar_url)')
+      // Wave 1 (migration 132): a team lead no longer reads `user_profiles`, so
+      // the embedded resource above this line used to return nothing. D1(iii)
+      // limits a lead to the minimum-necessary columns, which are served by
+      // `team_member_profiles` — and a PostgREST embed cannot traverse a view,
+      // so this is a two-step read. The rows are re-shaped under the same
+      // `user_profiles` key the team tab already renders.
+      final memberships = await _db.from('coach_team_members')
+          .select()
           .eq('coach_id', uid);
+      final memberIds = List<Map<String, dynamic>>.from(memberships as List)
+          .map((m) => m['member_id'] as String?)
+          .whereType<String>()
+          .toList();
+      final rosterProfiles = memberIds.isEmpty
+          ? const <Map<String, dynamic>>[]
+          : List<Map<String, dynamic>>.from(await _db
+              .from('team_member_profiles')
+              .select('id, first_name, last_name, email, avatar_url')
+              .inFilter('id', memberIds) as List);
+      final profileById = {
+        for (final r in rosterProfiles) r['id'] as String: r,
+      };
+      final teamData = [
+        for (final m in List<Map<String, dynamic>>.from(memberships as List))
+          {...m, 'user_profiles': profileById[m['member_id'] as String?] ?? const {}},
+      ];
       final reviewData = await _db
           .from('coach_reviews')
           .select('*, public_profiles!client_id(first_name, last_name, avatar_url)')

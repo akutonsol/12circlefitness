@@ -583,15 +583,36 @@ void main() {
       final phase2 = migrations.keys.where((k) => k >= 119);
       for (final n in phase2) {
         final sql = migrations[n]!.sql;
+
+        // The production-ref check stays on the RAW text deliberately. ENV-5
+        // treats a real project ref as material "anywhere, comments included",
+        // so a ref inside a comment must still fail.
         expect(sql, isNot(contains('nxdbooufqzkpslkcogxc')),
             reason: 'migration $n must not name the production project');
-        expect(sql.toUpperCase(), isNot(contains('USING (TRUE)')),
+
+        // The four DDL-shape checks below run on comment-stripped, whitespace-
+        // flattened code via this file's own `_flat` helper — the same helper the
+        // search_path test below already uses.
+        //
+        // Migration 132 exposed the need: its header explains WHY it revokes the
+        // default view grant, and to do so it quotes the platform default that
+        // grants ALL on new tables to the anon / authenticated / service_role
+        // roles. The raw-text assertion read that explanation as a grant, while
+        // the live catalog showed the opposite — `authenticated` holds SELECT
+        // only on `team_member_profiles`, and INSERT/UPDATE/DELETE through the
+        // view are permission-denied.
+        //
+        // This is strictly a PRECISION increase, not a relaxation: a real
+        // `GRANT ... TO anon` in DDL still fails, because stripping removes only
+        // `--` comment text. Prose describing a grant no longer counts as one.
+        final ddl = _flat(sql).toUpperCase();
+        expect(ddl, isNot(contains('USING (TRUE)')),
             reason: 'migration $n must not open a blanket read policy');
-        expect(sql.toUpperCase(), isNot(contains('TO ANON')),
+        expect(ddl, isNot(contains('TO ANON')),
             reason: 'migration $n must not grant anything to anon');
-        expect(sql.toUpperCase(), isNot(contains('DISABLE ROW LEVEL SECURITY')),
+        expect(ddl, isNot(contains('DISABLE ROW LEVEL SECURITY')),
             reason: 'migration $n must not disable RLS');
-        expect(sql, isNot(contains('DROP FUNCTION public.can_read_program')),
+        expect(_flat(sql), isNot(contains('DROP FUNCTION public.can_read_program')),
             reason: 'migration $n must not remove the Phase 1 program gate');
       }
     });
