@@ -163,7 +163,7 @@ Derived from `V5_IMPACT_ANALYSIS_2026-09-27.md` §17–18. **No dependency is in
 ```
 CONF-01 ANSWERED (baseline = 91 routes, §8.2) · CONF-02 OPEN ──► what "V5" means
         │
-D4 AUDIT SCHEMA ◄── deepest dependency  [A2/A1/A3/A11/A12/A13 ANSWERED §8.3-8.8; A6+A14 OPEN]
+D4 AUDIT SCHEMA ◄── deepest dependency  [A2/A1/A3/A6/A11/A12/A13 ANSWERED §8.3-8.9; A14 OPEN, blocked on D11]
         ├──► Admin audit domain ──► Admin Control Center (13 domains)
         ├──► Incidents ──────────► Trust → Incidents
         ├──► Agent action trail ─► AI Guardian (AS-05) ──► Guardian QA
@@ -372,9 +372,10 @@ self-allocation.
 
 `CONF-02` · **`D3`** (uniform status predicate — **a P1 entry blocker**, see §5.2; *not* the
 `D-3` of §8, which is a different decision) ·
-**`D4`** (audit schema — the deepest dependency; **`A2`/`A1`/`A3`/`A11`/`A12`/`A13` ANSWERED
-§8.3–8.8**; **still OPEN on `A6` and `A14`**, and `A14` is blocked on `D11`) ·
-`D12` (observability) ·
+**`D4`** (audit schema — the deepest dependency; **`A2`/`A1`/`A3`/`A6`/`A11`/`A12`/`A13` ANSWERED
+§8.3–8.9**; **still OPEN on `A14` alone**, which is blocked on `D11`) ·
+`D12` (observability — **scope answered §8.10**, content still OPEN; `SQ-10` is now a **P2 entry
+condition** and `PD-A24` sits inside it) ·
 `D5`–`D7` (Admin) · `D11` (Trust) · **`D-D1`** (Trust container — see below) ·
 `D15` (derive guard population from the live catalog) ·
 `D17` · `D-V1`/`D-V2`/`D-V3` (wearable boundary, store, contract) · `D-V4` · `D-V5` ·
@@ -771,6 +772,102 @@ topology at §8.4). **Two were never put and remain OPEN:**
 **`D4` therefore remains OPEN pending `A6` and `A14`**, and `A14` is itself blocked on `D11`.
 
 **A13 changes no finding's status**, allocates no registry ID, and remediates nothing.
+
+### 8.9 `D4 · A6` — ANSWERED — before/after state capture
+
+Owner decision, recorded as supplied.
+
+**`A6` — NON-PHI DELTAS ONLY.** Before/after values are captured for delta-bearing categories that
+carry no PHI. **PHI-correction deltas are excluded.**
+
+**The A11/A12 payload conflict does not arise** — PHI payloads are not adopted, so the owner
+recorded the resolution question as **N/A**.
+
+#### Consequences — recorded, not remediated
+
+- **The conflict is AVOIDED, not RESOLVED.** A11 freezes identity; A12 anonymises by severing an
+  external identity mapping; **neither reaches a payload**. That collision is dormant only because
+  no PHI payload is captured. **If `A6` is ever widened to PHI deltas, the conflict returns
+  unchanged** and would require amending A11's freeze, holding payloads out of anonymisation
+  scope, or narrowing by category. Recorded so a future widening does not appear cost-free.
+- **Which categories this reaches.** Of A2's 14 IN categories, **nine carry a delta**: PHI
+  corrections · admin actions · billing/entitlement changes · financial/charge trail ·
+  relationship changes · incidents · agent actions (writing ones only) · export/deletion events ·
+  storage/media (the revocation/replacement arm). **Five are occurrences with no delta**: PHI
+  reads · authorization denials · authentication · observability audit events · control evidence.
+  Under this ruling, **PHI corrections are the excluded case**; the others carry role, tier,
+  commission, payout, status or Stripe-identifier values — **not PHI**.
+- **An implementation question this ruling does not settle, flagged not inferred.** Whether a
+  PHI-correction record still carries the **changed-column NAME set** (metadata, not values) is
+  **not decided** — "changed-column names only" was a separate option and was not the one chosen.
+  Relevant evidence: `114_rls_weekly_checkins.sql:76-78` **already computes** that name set by
+  diffing `to_jsonb(NEW)` against `to_jsonb(OLD)`, uses it for authorization, and **discards it**.
+- **Before/after capture is already precedented here.** `094_continuous_coaching_engine.sql:125-127`
+  writes a literal `'before'`/`'after'` jsonb pair into `result->'diff'`, carrying training
+  parameters (volume multiplier, deload flag) — **not PHI**. `096` reads it back. So A6 adopts a
+  shape the codebase already uses.
+- **No trigger anywhere writes an `OLD` value into any table.** All ten files using `OLD.` are
+  compare-and-reject or compare-and-restore guards. A6 would be the first delta **persisted by a
+  trigger**, though not the first delta persisted at all.
+
+### 8.10 `D12` — SCOPE ANSWERED — observability
+
+Owner decisions on **scope only**. **`D12` itself remains OPEN**; nothing below decides its
+content.
+
+| # | Ruling |
+|---|---|
+| **D12 vs `PD-A24`** | **SUPERSET** — `PD-A24` sits **inside** `D12` |
+| **`SQ-10`** | **ENTRY CONDITION** for **P2** — not deferrable past it |
+| **Correlation identifier** | **`D12` owns it** |
+
+#### Consequences — recorded, not remediated
+
+- **`PD-A24` is not superseded and must not be re-decided here.** It is **TRACKED**, **OPEN**, and
+  assigned to *Julia + privacy*, covering observability vendor, cost and data-residency posture.
+  As a subset of D12 it retains its own owner and status; **D12 must not fork it.**
+- **P2 is now strictly tighter.** Its entry condition was `D4, D12`; with `SQ-10` ruled an entry
+  condition, **P2 cannot exit on audit alone** — the observability foundation is required. This
+  **increases** what P2 must deliver before P5 Admin, P6 Trust and P7 AI Guardian can begin.
+- **The correlation identifier now has an owner, and nothing to build on.** Verified: **zero**
+  occurrences of `correlation_id`, `x-request-id`, `requestId`, `request_id` or any trace/span id
+  **anywhere in the tracked tree**. The nearest candidate, `decision_traces.id`, is domain-scoped
+  to engine generations and carries no HTTP request, edge invocation, mobile session or API call.
+  A1 sub-ruling 3 separated audit from observability, which is precisely what makes a **shared
+  identifier** necessary to reconstruct one incident across both. **D12 must mint it.**
+- **What exists today, verified.** One interface — `apps/mobile/lib/core/observability/app_failure.dart`
+  — and **no observability system**. Its default sink is `if (kDebugMode) debugPrint(...)`, so
+  **release builds record nothing at all**; its own comment says so, *"until PD-A24 is answered."*
+  Elsewhere: 30 unstructured `console.*` calls across 17 of 19 Edge Functions; two NestJS `Logger`
+  call sites with no transport; **no `/health`, no `/metrics`, no log aggregation, no alerting**;
+  **zero observability, metric or telemetry tables** in the migration tree.
+- **`observability_screen.dart` is NOT SQ-10 coverage** and must not be counted as such. Its own
+  header says *"coaching QUALITY, not servers"*; it row-counts domain tables, and its `cnt()`
+  helper swallows errors — **a failed query renders as the metric zero**, indistinguishable from a
+  true zero.
+- **Provenance limit on `SQ-10` itself.** `SQ-10` appears in this **tracked** document only as a
+  dependency-graph node with **no component list**. The component list exists solely in an
+  **untracked** analysis file, names **eight** items, and does **not** contain the words
+  *"structured"* (of logs) or *"operational dashboards"*. **Ruling SQ-10 an entry condition does
+  not ratify any particular component list**, which remains uncommitted and unversioned.
+
+### 8.11 `EC-01` / `LRE-27` / `LRE-28` — INVESTIGATION AUTHORIZED
+
+**Owner disposition: INVESTIGATE FURTHER.** This is **not** a closure change and **not** a
+re-opening. No finding status moves.
+
+**The condition being investigated, verified:** `EC-01` is recorded `✅ VERIFIED_CLOSED 2026-08-27`
+in `MASTER_REMEDIATION_REGISTRY.md:769`, carrying **`LRE-27`** (*"No observability anywhere"*, P1)
+and **`LRE-28`** (*"No audit log"*, P1) as aliases — while the same row's own text at `:773` reads
+*"invisible twice over."* The closure was class **RELEASE / ENVIRONMENT** and covered the failure
+**sink interface** only; neither alias's substantive condition was addressed.
+
+**`MASTER_REMEDIATION_REGISTRY.md` is outside this document's mutation boundary and is NOT edited.**
+The condition is recorded here; any status change is a separate, separately-authorized act.
+
+**Relevance to `D12`:** `LRE-27` is the observability finding and sits on release gate **G-14**.
+Its disposition bears directly on whether D12's content can be scoped against an accurate finding
+ledger.
 
 ---
 
