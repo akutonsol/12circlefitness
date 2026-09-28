@@ -25,14 +25,48 @@ WHY IT USES dart_defines/qa.json
 """
 import json, os, sys, urllib.request, urllib.error
 
-PROD_REF = 'nxdbooufqzkpslkcogxc'   # matches supabase/tests/security/lib.mjs
+# ENV-5 / QAT-1.  Refusal is by ALLOWLIST, not by blocklist.
+#
+# This file used to hold the production ref and refuse a URL that contained it.
+# `apps/mobile/tool/qa_target.dart` states why that is the weaker of the two
+# available semantics:
+#
+#     "Refusal is by allowlist, not by blocklist: 'is not production' is not the
+#      same claim as 'is QA', and only the second one is safe to write against."
+#
+# A blocklist passes every target it has never heard of -- a second production
+# project, a partner's project, a typo that resolves somewhere real.  So the ref
+# below is the ONE project this probe may touch, and anything else fails closed.
+# Naming only QA also means this file no longer names production at all, which is
+# what clears the ENV-5 guard -- no allowlist entry was added, because
+# `.github/scripts/check-production-refs.sh` is explicit that an entry is not a
+# fix.
+QA_REF = 'eyqtldjqpgpljlqvpowh'   # matches supabase/config.toml project_id
 HERE = os.path.dirname(os.path.abspath(__file__))
-cfg = json.load(open(os.path.join(HERE, '..', 'dart_defines', 'qa.json')))
-URL = cfg['SUPABASE_URL'].rstrip('/')
-ANON = cfg['SUPABASE_ANON_KEY']
 
-if PROD_REF in URL:
-    sys.exit(f'REFUSING TO RUN: {PROD_REF} is the production project.')
+# Fail closed on missing or unreadable configuration.  "I could not tell which
+# project this is" and "this is the right project" must never be the same
+# outcome.
+_cfg_path = os.path.join(HERE, '..', 'dart_defines', 'qa.json')
+try:
+    with open(_cfg_path) as _f:
+        cfg = json.load(_f)
+    URL = cfg['SUPABASE_URL'].rstrip('/')
+    ANON = cfg['SUPABASE_ANON_KEY']
+except (OSError, ValueError, KeyError) as e:
+    sys.exit(f'REFUSING TO RUN: cannot read a usable target from {_cfg_path} ({e}).')
+
+# Positively identify the target.  Anything that is not the authorized QA project
+# -- production, an unknown project, or a URL this cannot parse -- is refused.
+try:
+    RESOLVED_REF = URL.split('//')[1].split('.')[0]
+except IndexError:
+    sys.exit(f'REFUSING TO RUN: cannot read a project ref out of {URL!r}.')
+
+if RESOLVED_REF != QA_REF:
+    sys.exit(
+        f'REFUSING TO RUN: {RESOLVED_REF!r} is not the authorized QA project '
+        f'({QA_REF}). This probe runs against QA and nothing else.')
 
 def _get(path, with_key=True, prefer=None):
     req = urllib.request.Request(f'{URL}{path}', method='GET')
@@ -85,8 +119,8 @@ def bucket_state(b):
 
 
 if __name__ == '__main__':
-    ref = URL.split('//')[1].split('.')[0]
-    print(f'QA project {ref}  (production {PROD_REF} is refused)\n')
+    print(f'QA project {RESOLVED_REF}  (verified against the allowlist; every '
+          f'other project is refused)\n')
 
     tables = [t.strip() for t in open(os.path.join(HERE, 'qa_tables.txt'))
               if t.strip() and not t.startswith('#')]
