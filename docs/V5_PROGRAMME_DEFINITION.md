@@ -1376,6 +1376,74 @@ OPEN, owner *Julia + privacy*. No ID is allocated.**
 
 ---
 
+### 8.16 `D12 · INHERITANCE` — PREPARED, **NOT ANSWERED** — opened by §8.14
+
+§8.14 made the D12/observability population **audit-worthy but not an audit population**. That
+creates a question §8.14 explicitly did not settle: **does this population inherit `A11`
+immutability, `A12` retention and `A13` readers?** Nothing blocks it. **No option is chosen here.**
+
+#### The structural finding: all three rulings are keyed on `A1`'s audit populations
+
+This is not an oversight to be patched — it is how each ruling is built. Verified:
+
+| ruling | its shape | rows |
+|---|---|---|
+| **`A11` immutability** | a *"meaning of 'immutable', **per `A1` population**"* table | Event · Incident · Control evidence — **three** |
+| **`A12` retention** | four windows, **per population** | Event 6y · Incident 6y · Control evidence 6y · Financial/tax 7y — **four** |
+| **`A13` readers** | a Population → Readers table | Event · Incident · Control evidence — **three** |
+
+**The D12/observability population appears in none of the ten rows.** It is keyed out of all three
+rulings **by construction**, because §8.14 placed it outside the audit populations those tables
+enumerate. **Each of the three must therefore be either extended to it or explicitly declined — and
+neither has been done.**
+
+#### What extension would actually import
+
+- **`A11` offers three different meanings of "immutable" and none obviously fits.**
+  `FREEZE-IDENTITY-COLUMNS` is built for a fixed occurrence record; `APPEND-STATE-TRANSITIONS` for
+  something that evolves; `NO RUNTIME WRITE PATH` for *"authored/produced evidence, not a runtime
+  audit event"* — and observability records are **precisely** runtime-produced and high-volume.
+  **A fourth meaning may be required.** Recorded, not drafted.
+- **`A11` sub-ruling 3 re-opens for this population.** It deferred binding the owner/`service_role`
+  boundary *"until `A12`"*. `A12` settled that for the **audit** populations. **For a D12 population
+  the same deferral has no resolution**, and the named adversary — the compromised Edge Function,
+  which holds `service_role` in **17 of 19** cases — is the party that would write these records.
+- **`A12`'s 6-year window is the audit default, not an operational one.** Extending it makes
+  telemetry and logs 6-year records; `A12` ruling 8 (**STAND BEHIND** indefinite anonymised
+  retention) would then reach them too. Note `A12`'s windows are recorded as *"owner-selected
+  architectural defaults **pending legal/compliance ratification**, not claims that any such legal
+  requirement exists"* — that qualification travels with any extension.
+- **`A13` extension imports a dependency on `D-D1`.** **Every** row of `A13`'s reader table names
+  the **Trust operator**, and that role **does not exist** — `CREATE ROLE` has zero occurrences in
+  `supabase/migrations/`, and `D-D1` (whether a Trust product area exists at all) is **unfilled**.
+  So extending `A13` to observability **cannot close ahead of `D-D1`**, exactly as D12 question 12
+  already could not.
+
+#### Interaction with the sharpened `A12` hazard
+
+§8.14 recorded that the anonymisation hazard now applies to a record the programme is **obliged to
+keep**. Inheritance decides its severity: if this population inherits `A12`, the correlation
+identifier's lifetime becomes **6 years**, which is itself a data-residency fact that `PD-A24`'s
+review would bear on. If it does not inherit `A12`, the population has **no** retention rule at all.
+**Both branches are live. Neither is chosen.**
+
+#### What must be answered — options preserved, **none chosen, none ranked**
+
+1. **Does the D12/observability population inherit `A11` immutability?** Extend one of the three
+   existing meanings · define a fourth · declare it mutable. *(Not blocked.)*
+2. **Does it inherit `A12` retention?** Adopt the 6-year Event window · set a shorter operational
+   window · per-component windows · no retention rule. *(Option "defer to the vendor" is blocked on
+   `PD-A24`.)*
+3. **Does it inherit `A13`'s reader model?** Extend the mixed model · a distinct operator class ·
+   admin-only. *(**Blocked on `D-D1`** for any option naming a Trust operator.)*
+4. **Does `A11` sub-ruling 3's owner/`service_role` deferral resolve for this population, and
+   against what?** *(Not blocked, but the answer bears on 1.)*
+
+**Nothing here is decided. No status changes, no ID is allocated, `D12` and `D4` are not
+implemented, and `D-D1`, `D11`, `A14` and `D17` are not invented.**
+
+---
+
 ## 9 · OPEN FINDINGS AND LIMITATIONS
 
 ### 9.1 Registered findings, open
