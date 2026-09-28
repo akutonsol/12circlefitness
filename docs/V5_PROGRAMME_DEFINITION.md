@@ -2992,6 +2992,245 @@ HEAD**.
 
 ---
 
+## 19 · ARCHITECTURE-LED OWNER DECISIONS
+
+**Authority.** The owner delegated architecture authority to resolve the §18 frontier, supplying a
+13-point decision hierarchy. **Every decision below is an OWNER DECISION made under that delegation**
+— not an inference, not a recommendation. **Alternatives are preserved. No prior ruling is
+rewritten. Where a prior ruling constrains, it governs.**
+
+**Hierarchy, as supplied:** 1 security/least privilege · 2 PHI/PII and privacy · 3 explicit
+separation of authorization, execution and audit · 4 deterministic controls for high-impact
+operations · 5 repository precedent **only where genuinely applicable** · 6 minimal irreversible
+commitment · 7 clear ownership · 8 reversibility/extensibility · 9 simplest sufficient design ·
+10 avoid speculative infrastructure · 11 **never silently broaden** a permission, data scope,
+retention period or trust boundary · 12 **never treat documentation evidence as implementation
+evidence** · 13 **never claim a control stronger than the implementation can prove**.
+
+### 19.1 · TIER 0 — opens P0 and P1
+
+**`CONF-02` — ANSWERED: (b) THE CANONICAL DESIGNATION IS "V5".**
+*Rationale (7, 9):* every tracked artefact, the handoff and this programme already use V5; a
+composite name serves no traceability purpose the single name does not. *Qualification required by
+12 and 13:* **the source specification is absent from the repository**, so "V5" names **the
+programme**, and SA-01/SA-12 traceability resolves to §4's transcription, **not to an inspectable
+artifact**. **The self-referential gate is not cured by this decision** — it is recorded as
+accepted. *(a) preserved.*
+
+**`D3` — ANSWERED: YES, UNIFORMLY, via (b) the `is_active_coach_of(text)` overload.**
+*Rationale (1, 4):* a non-uniform status predicate grants access on **inactive** relationships —
+a standing privilege leak. Uniformity is the security answer. *Mechanism (4, 9, 5):* a single
+helper is one place to audit and **cannot drift across policies**, where inline predicates
+demonstrably did — the evidence is *"2 of 5 policies omit it"*. `is_active_coach_of` already exists
+in three migrations, so the precedent is genuinely applicable. **The untracked *"(b) recommended"*
+note is NOT the basis** — §8.23 records it as carried from prior QA. *(a) preserved.*
+
+**`D17` — ANSWERED: YES, FIX BEFORE APPLYING.**
+*Rationale (1, 13):* `QA_CLOSURE_STANDARD` §5.2 — **tracked** — requires that *"a closure that
+redefines a database object must prove it preserved every property the object carried."*
+`SEC_PHI_1` redefines PHI-limiting views; **fix-first is the only order under which that proof is
+possible.** *Explicitly NOT the basis (12):* the *"non-functional as written"* finding is
+**UNTRACKED** and is not treated as implementation evidence. *Consequence:* §5.2's P1 row already
+reads *"corrected `SEC_PHI_1`"*, so **§8.25·3's inconsistency resolves in favour of the existing
+row** — no phase-model change is required.
+
+### 19.2 · TIER 1 — completes `D4`
+
+**`D11` — ANSWERED: TRUST'S SCOPE IS THE THREE AREAS OF §5.2's P6 — Security · Incidents · Audit
+Logs. AI Guardian remains P7 and is NOT inside Trust.**
+*Rationale (6, 10, and the constraint rule):* §5.2's P6/P7 split is a **tracked prior ruling** and
+governs over the untracked four-area count. **Build scope, minimally stated:** Trust is a
+**governance review surface over existing audit and observability records**. **It introduces no
+tables of its own** — it reads the three audit populations and the D12 population. *The three-vs-four
+contradiction is preserved, not resolved.*
+
+**`D4 · A14` — ANSWERED: TRUST VISIBILITY = EXACTLY `A13`'s GRANTS, AND NOTHING MORE.**
+The Trust operator sees, per population, precisely what `A13` already grants it: Event, Incident and
+Control evidence. *Rationale (1, 2):* **no PHI payload is surfaced to Trust** — occurrence facts,
+actor/subject identifiers and control evidence only. **Cross-population correlation is permitted
+ONLY through the D12 correlation identifier, never by joining on subject identity** (2, 11). Trust
+reads remain audit-worthy per `A13` sub-ruling 5 with its recursion boundary unchanged.
+
+> **`D4` IS NOW COMPLETE.** `A2`, `A1`, `A3`, `A6`, `A11`, `A12`, `A13` and `A14` are all answered.
+
+### 19.3 · TIER 2 — the P2 audit + observability set
+
+**§8.16·Q4 — ANSWERED: THE DEFERRAL IS DISCHARGED FOR THE OBSERVABILITY POPULATION ON THE SAME
+TERMS AS THE AUDIT POPULATIONS — `service_role` is NOT the writer of record.**
+**Precedence recorded, as required:** §8.7 discharges `A11` sub-ruling 3 **unqualified**;
+§8.16/§8.17 read it as *"for the audit populations"*. **§8.7's unqualified reading governs**, because
+the narrower reading would leave **the newest population the least constrained** — which 11 forbids.
+**The contradiction is preserved, not rewritten.** *Limit required by 13:* §8.19 declined the
+anchor, so this binding is **DML-deep only**.
+
+**§8.16·Q1 — ANSWERED: FREEZE-IDENTITY-COLUMNS, extended from the Event population.**
+Identity and occurrence facts of an observability record are immutable at the DML layer; payload
+fields are write-once. *Rationale (6, 9):* no fourth meaning is invented; `NO RUNTIME WRITE PATH` is
+excluded on its own text; `APPEND-STATE-TRANSITIONS` presumes a lifecycle observability records do
+not have; **declaring them mutable would broaden what can be silently rewritten (11)**.
+***This is NOT a tamper-resistance claim*** (13, §8.19).
+
+**§8.16·Q2 and `D12`·Q6 — ANSWERED AS ONE: PER-COMPONENT WINDOWS.**
+**Observability audit events retain `A12`'s 6-year Event window.** **All other observability
+components — logs, metrics, traces, health — take a 90-day operational window.**
+*Rationale (2, 11):* retaining telemetry for six years broadens retention enormously with no privacy
+justification; shortening the audit-worthy category would narrow an already-ruled retention. **The
+90-day figure is an owner-selected architectural default pending legal/compliance ratification, NOT
+a claim that any legal requirement exists** — the same qualification `A12` ruling 4 carries.
+*"No retention rule at all" is REJECTED* because it would supersede `A12` ruling 3 (§8.16 caution).
+
+**§8.16·Q3 and `D12`·Q12 — ANSWERED AS ONE: EXTEND THE MIXED MODEL — admin and Trust operator,
+role-class only.**
+Observability records carry **no subject relationship to anchor on**, so no relationship-based
+reader applies. *Rationale (6, 10):* **no new operator class is created.** `admin-only` was
+foreclosed by §8.17 (§8.25·1).
+
+**THE ROLE QUESTION — §8.18·Q3 + §8.20·Q2 + §8.20·Q3, ANSWERED AS ONE. No third role is created.**
+
+| dimension | decision |
+|---|---|
+| **Who may RESOLVE identity** | **NO STANDING PARTY.** Resolution occurs **inside the audit read path**, gated by `A13`'s per-population reader rules. **No party may enumerate or bulk-resolve the mapping.** |
+| **Who may SEVER** | **The erasure executor role** established by §8.18·Q1. |
+| **The identity-mapping authority** (`A13` sub-ruling 6's third authorization) | **A named, separately-grantable capability vested in the erasure executor — NOT a third role.** |
+
+*Rationale (1, 3, 6, 10):* a standing "resolve any pseudonym" power is the single largest
+re-identification risk and nothing requires it; making the third authorization a **named grant
+rather than a role** keeps it **separable later without redesign (8)** while honouring the two-role
+commitment today. ***`service_role` is not the answer and is explicitly excluded*** per `A12`
+ruling 6.
+
+**§8.20·Q1 — ANSWERED: A TABLE IN `public`, RLS ENABLED, WITH NO POLICY GRANTING ANY CLIENT ROLE.**
+Deny-by-default; reachable only by the erasure executor's named grant and the `SECURITY DEFINER`
+audit read path. *Rationale (5, 6, 10):* the `decision_traces` shape — a policy that grants reads and
+**no write policy at all** — is genuinely applicable precedent. A new schema has **zero** precedent
+and buys little while the DDL layer is open; an external store is speculative and would import
+`PD-A24`-adjacent decisions. ***Not claimed to be tamper-resistant*** (13).
+
+**§8.20·Q4 — ANSWERED: ACCEPT DML-DEEP SEVERANCE, EXPLICITLY QUALIFIED.**
+Severance binds **every caller at the DML layer** and is **NOT durable against a party holding DDL
+rights**. *Required by 13:* **the programme must NOT describe anonymisation as irreversible.**
+**§8.19's accepted-exposure posture is hereby EXTENDED to the observability population and to the
+mapping** — closing the scope gap §8.16·Q4 flagged.
+
+**§8.18·Q2 — ANSWERED: THE PARTY READING.** No single party may hold both erasure authority and read
+authority. *Rationale (3):* this is the direct expression of separating authorization, execution and
+audit, and it makes TWO ROLES structural rather than incidental. **No supersession of `A13`
+sub-ruling 4 is required or made.**
+
+**`D12`·Q1 — ANSWERED: AUTHOR A TRACKED LIST.** `SQ-10` comprises **six** components D12 owns:
+**structured logs · metrics · traces · health endpoints · alerting · the correlation identifier.**
+Retention is governed by §8.16·Q2, not a separate component; **audit events belong to `D4`, not
+`SQ-10`**. *Rationale (12):* the untracked eight-item list is **NOT ratified**.
+
+**`D12`·Q2 — ANSWERED: EACH ORIGIN MINTS, WITH A PROVENANCE TAG.**
+*Rationale (3, 13):* it is the only option with tracked precedent — `A3` sub-ruling 3 requires
+asserted and cryptographically grounded attribution to **remain distinguishable and never be
+equated**. Client-minted identifiers are accepted but tagged `asserted`; server-minted are tagged by
+origin. ***No identifier is treated as trustworthy merely because it is present*** — the only
+signed channel into Postgres is the JWT claims GUC.
+
+**`D12`·Q3 — ANSWERED: YES — a correlation identifier column on the audit Event row**, classified
+under `A11`'s freeze as an **identity/occurrence column** (immutable). *Rationale (4):* relating by
+actor + time window is not deterministic. Delivery is downstream of `D4`, **which §19.2 completes**.
+
+**`D12`·Q5 — ANSWERED: THE IDENTIFIER IS NON-IDENTIFYING BY CONSTRUCTION AND SURVIVES ON BOTH
+SIDES.** It must be a **random opaque value with no derivation from subject identity**, and **the
+observability population carries NO subject identifier — only the correlation identifier.**
+*Rationale (2, 11):* this **resolves** the §8.13 hazard rather than accepting it — severing the
+audit-side mapping now fully anonymises the operation **across both populations**.
+
+**`D12`·Q9 — ANSWERED: YES — D12 specifies the structured log record shape; the TRANSPORT remains
+`PD-A24`'s.** *Rationale (5):* `PD-A24` itself states the sink *"can and should be built **before**
+the vendor is chosen — it is one interface"*. **Option (b) remains blocked on `PD-A24` and is
+preserved as an external owner dependency.**
+
+### 19.4 · Beyond the frontier — resolved under the same hierarchy
+
+**`EC-01`·Q2 — NO.** A canonical's closure class does not bind an alias of a different class; under
+§8.15 each alias's substantive status **and** its evidence standard follow its own subject matter.
+**`EC-01`·Q3 — `G-14` IS EVALUABLE, AND IT EVALUATES TO NOT MET.** *"Evaluable"* means capable of
+assessment; a conjunct with no requirement row evaluates to **not satisfied**, never indeterminate.
+*Required by 13:* **a gate with an unmeasurable conjunct must never be reported as passed.** The
+missing audit-log requirement row is a **documentation gap in `RELEASE_GATES.md`** — recorded, **not
+edited**.
+**`EC-01`·Q4 — IT IS A PRECONDITION, AND ITS ABSENCE IS A ROW-COMPLETENESS DEFECT, NOT A CLOSURE
+DEFECT.** The standard prescribes a consequence for an *inadequate* answer, not a *missing* one, so
+the class-ladder satisfaction stands while the row is incomplete. **No registry edit is made.**
+**`EC-01`·Q5 — YES.** `QA_CLOSURE_STANDARD.md` should carry the REFERENCE-ONLY definition. **Recorded
+as a required documentation action; NOT performed — that file is outside the mutation boundary.**
+
+**`D5` — (a) DIRECT SUPABASE + RLS, for Admin AND Trust.** *Rationale (9, 10):* the NestJS service is
+thin and **has no deployment target at all** (`PD-A17`, open, Julia's); routing Admin through an
+undeployed API is speculative infrastructure. The Admin-vs-Admin/Trust wording disagreement is
+resolved as **both**, consistent with §19.2's Trust-as-read-surface.
+**`D6` — SEPARATE SURFACE, AS A FLUTTER WEB TARGET — option (b).** *Answered in two steps so the
+presupposition is not imported:* the **prior** question (in-app vs separate) is answered
+**SEPARATE**, because admin surfaces must not ship in the member mobile bundle (1); the **narrower**
+question (new app vs added target) is answered **ADDED TARGET**, reusing the existing codebase, auth
+and theme with no new application to deploy (6, 9). *(a) and (c) preserved.*
+**`D7` — COLUMN-LIMITED VIEWS over `user_profiles`, not distinct modules.** *Rationale (1, 2):*
+distinct modules duplicate the identity model; column-limited views enforce least privilege at the
+data layer. **Coherence note:** this depends on `D17`'s fix landing — the view pattern is `D17`'s
+subject, and §19.1 answered it fix-first.
+**`CONF-08` — THE DECISION OBJECT IS THE IMPERATIVE, AND THE ANSWER IS COMMISSION.** The
+interrogative *"where do they live"* is answered by evidence — **0 mentions in 7 design docs** — so
+the live decision is supply-vs-commission, and with zero artefacts only commissioning is available.
+**The 21 / 23 / 10 surface counts are preserved unreconciled and NONE is adopted.**
+**`CONF-06` — (a) HARDEN FIRST.** *Rationale (1, 11):* `role='vendor'` is **self-assertable at
+signup**; building partner APIs on it would broaden a trust boundary silently. With **0 vendor
+users** the hardening is cheap now and expensive later (8). **Newly surfaced dependency recorded:
+`CONF-06` depends on `D2`, which is not among the 42.**
+**`D10` — DISCLOSE EVERY AI PROCESSING PURPOSE THAT OPERATES ON MEMBER DATA, NAMING THE PROCESSOR.**
+*Rationale (2, 13):* disclosure must match implementation. The privacy policy currently names
+*"selected analytics providers"* **that do not exist** while **not naming Anthropic, which does
+process member data**. **Requires a copy amendment — NOT performed; app copy is outside the
+boundary.**
+**`D-V5` — AN AGENT IS REPRESENTED BY A DISTINCT NON-HUMAN PRINCIPAL IDENTIFIER in the Event
+`actor` field, carrying `A3` sub-ruling 3's provenance tag marking it `agent`.** **Never a human
+user's identity; never `service_role`.** *Rationale (3, 7):* this is an identifier convention, not a
+new principal — **no role is created**, and auditability does not depend on `service_role`.
+
+### 19.5 · DEFERRED under a prior ruling — the wearable block
+
+**`D-V1`, `D-V2`, `D-V4` — DEFERRED, and `D-V3` with them (§19.6).**
+**`PD-G01` is a tracked owner decision recording Wearable Intelligence as *"APPROVED — FUTURE
+BUILD · implementation NOT AUTHORIZED"*, explicitly *"recorded so it is not accidentally
+started."*** The constraint rule requires obeying it. Selecting a platform location, a store or a
+PHI boundary for a programme whose implementation is not authorized would be **speculative
+infrastructure (10) and an irreversible commitment (6)** for a phase that may not begin.
+**This is a deferral under a prior owner ruling, not an architecture selection.** `PD-G01` is not
+overridden, and the wearable stack remains non-existent at HEAD.
+
+### 19.6 · ARCHITECT-FORMULATED — `D-V3` and `D-V6`
+
+> **PROVENANCE, stated exactly as required:** ***"Architect-formulated owner decision; original
+> historical question text was unrecoverable."*** **These wordings did NOT exist historically.**
+> No wording was borrowed from `CONF-03`, from a dependency or from any adjacent ID.
+
+**`D-V3` — formulated question:** *"What is the canonical wearable observation contract — the record
+shape, units and provenance fields every ingested wearable metric must conform to before it may be
+stored or read?"*
+**Options:** (a) adopt a published external health-data standard · (b) define a minimal internal
+canonical record · (c) store provider-native payloads and normalise on read.
+**DECISION: (b).** *Rationale (2, 6, 9, 10, 11):* (a) is speculative — **no evidence any provider
+here emits any standard**; (c) defers normalisation into every reader and leaves **PHI scope
+unbounded**, which 11 forbids. **Execution is DEFERRED under `PD-G01`** with the rest of the block.
+
+**`D-V6` — formulated question:** *"By what mechanism, and at which point in the release chain, is a
+software bill of materials produced and retained for a release?"*
+**Options:** (a) generate in CI at release time · (b) generate outside CI as a manual release-time
+artefact · (c) accept the absence as a governed risk with a recorded compensating control.
+**DECISION: (a) generate in CI at release time.** *Rationale (4, 13):* **a manual step is not a
+control**; accepting absence means the release chain cannot prove component provenance, and 13
+forbids claiming a supply-chain control the implementation cannot demonstrate.
+***The "installation currently forbidden" constraint is UNTRACKED and has no tracked standing
+(§8.23), so under 12 it does not bind this architecture decision.*** It is preserved as an
+**operational constraint requiring separate resolution before execution.**
+
+**No implementation follows from any decision in §19.**
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
