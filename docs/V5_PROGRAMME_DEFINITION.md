@@ -2275,6 +2275,233 @@ by any of the four.**
 
 ---
 
+### 8.23 ADMITTED DECISION QUESTIONS — the register
+
+Question text admitted under §8.22, **verbatim only**. Every entry is a quotation carrying its
+source. **No wording is composed, smoothed, merged or completed. No option is invented. No owner
+choice is inferred.** Admission records *what was asked*; it answers nothing.
+
+**All source wordings for these items are UNTRACKED.** Admission gives them tracked standing as
+**quotations**; it does not give their origin tracked standing.
+
+> #### ⚠ THREE ID COLLISIONS — verified, and each would fabricate a decision if mis-admitted
+>
+> 1. **`CONF-D4`/`CONF-D5`/`CONF-D6`/`CONF-D7` are DIFFERENT ITEMS** — design-authority conflicts
+>    (Fitonist reference absent, brand not locked, Admin role matrix). They appear compressed as
+>    *"CONF-D4/D5/D6"*. **That string must never be read as `D5`/`D6`.**
+> 2. **`V5_WAVE1_INDEPENDENT_VERIFICATION_REPORT.md:571` and `:577` carry `## D5 ·` and `## D6 ·`
+>    as that report's OWN section labels** — *"D5 · SEC-G1 baseline"* and *"D6 · Findings"*. They
+>    are unrelated to the Admin decisions. **A naive tracked-tree grep for `D5` hits these first.**
+> 3. **`D-5` ≠ `D5`.** `D-5` is another ID for `PD-A24` (§8.21).
+
+#### `D5` — ADMITTED. **Two wordings, and they disagree on scope**
+
+- *"Does Admin reach data via the NestJS API or direct Supabase?"* — `V5_DECISION_RESOLUTION:482`
+- *"Does Admin/Trust go through the NestJS API or direct to Supabase?"* — `QA_TO_V5_TRANSITION:330`
+
+**The disagreement is preserved, not resolved: the first asks about *Admin*, the second about
+*Admin/Trust*. Whether Trust is inside `D5` is settled by neither.**
+
+**Options, as enumerated at `:482`:** *"(a) direct Supabase + RLS (matches today) (b) via API"*.
+`QA_TO_V5_TRANSITION:330` records **no options**.
+**A third branch exists outside any lettered set** — `V5_DECISION_RESOLUTION:412–414` marks
+*"New backend services?"* as `UNRESOLVED (D5)`. **Recorded; not merged into the option set.**
+
+#### `D6` — ADMITTED. **Four wordings, and TWO OF THEM PRESUPPOSE THE ANSWER**
+
+- *"Confirm Admin/Trust as a **web** surface (V5-indicated) — new app or added target?"* — `:483`
+- *"V5 names a 'web/admin surface' separately from the 'mobile client' in three places. Confirm that
+  Admin and Trust are a **web** surface rather than Flutter screens — and if so, whether it is a new
+  application or an added target of the existing Flutter codebase."* — `:418–421`
+- *"Is Admin/Trust in the Flutter app or a separate surface?"* — `QA_TO_V5_TRANSITION:331`
+- *"Are Admin/Trust in the Flutter app or a separate surface? (D6)"* — `V5_IMPACT_ANALYSIS:575`
+
+> **These are NOT one question in four wordings.** The first two **presuppose the web reading** and
+> ask only *new app vs added target*. The last two ask the **prior** question and presuppose
+> nothing. **Admitting one in place of the other would import a premise the owner has not ruled
+> on.** Not harmonized.
+
+**Options at `:483`:** *"(a) separate web app (b) Flutter web target (c) in-app"* — note **option
+(c) sits inside a wording that has already excluded it.** Recorded, not reconciled.
+
+**Status conflict, three-way, preserved:** one untracked ledger marks `D6` *"SUBSTANTIALLY RESOLVED
+— confirm"* and *"Downgraded to confirmation-only"*; another records *"V5 resolves it: **NO** …
+still unresolved: **YES**"* and *"D6 open"*; this tracked document carries it **unresolved**.
+**Decisively, the corroborating document refuses to treat its own finding as a resolution:**
+*"neither is treated as a resolution; both remain owner confirmations."*
+
+#### `D7` — ADMITTED. **Two wordings, differing by one word**
+
+- *"Are Users/Coaches/Clients distinct **Admin** modules or views over `user_profiles`?"* — `:484`
+- *"Are Users/Coaches/Clients distinct modules or views over `user_profiles`?"* —
+  `QA_TO_V5_TRANSITION:332`
+
+**One word — *Admin* — scopes whether the modules are Admin-specific. Not harmonized.**
+
+**NO OPTIONS RECORDED** in any source. The binary implicit in *"modules or views"* is **part of the
+question text, not an option set, and is NOT upgraded into one.**
+
+#### `CONF-08` — ADMITTED IN PART. **The record does not agree on whether it is a question at all**
+
+- **Interrogative** — *"Where do the Admin/Trust design artefacts live?"* — `V5_IMPACT_ANALYSIS:581`
+- **Imperative** — *"Supply or commission the 21 Admin/Trust design surfaces"* — `:476`; and
+  *"Supply Admin/Trust designs or commission them"*; *"Supply or commission Admin/Trust designs"*.
+
+> **Three of the four "Question"-column entries hold an IMPERATIVE, not a question.** *"Where do
+> they live"* and *"supply or commission them"* are **not the same decision** — the first presumes
+> the artefacts may exist somewhere, the second presumes they may not. **Neither is selected and
+> they are not merged.** **Which of these is "the question" is itself an owner call**, and it is
+> **not made here.**
+
+**Options for the imperative form:** *"(a) supply existing packages (b) commission"*. The
+interrogative form carries **none**.
+
+**Surface count, three-way and unreconciled: 21 · 23 · 10.** No tracked source states any count.
+And the *"21"* figure carries a warning from its own source: *"**Trust Home, Reviews and Policies
+are named in the mission brief but not in V5** — recorded, not adopted as requirements."*
+
+#### Resolvability — **all four are (c): REQUIRE OWNER AUTHORITY**
+
+No ruling in §8.2–§8.22 addresses any of them. `D7` has **no recorded options at all**, so no
+evidentiary route could select between branches without composing them. `CONF-08`'s substance is
+the **supply of design artefacts that do not exist in the repository** — *"0 mentions in 7 design
+docs"* — which no evidence can supply.
+
+**`D6` is the one most at risk of being mis-classified (b)**, because V5 names a *"web/admin
+surface"* three times. **It must not be.** Its own corroborating document declines to treat that as
+a resolution, and §8.22·2 forbids inferring an outcome. **Converting a corroboration into a decision
+is exactly what the admission does not authorize.**
+
+#### Dependency contradiction — preserved
+
+`D5` **depends on `D6`** in one untracked ledger; `D6` **depends on `D5`** in another. **The arrow
+points both ways and is not resolved here.**
+
+---
+
+#### `D-V1` — ADMITTED. Three wordings
+
+- *"**Where does the wearable platform live** — expand NestJS, new service, or separate repo + SDK?"*
+  — `V5_IMPACT_ANALYSIS:461`
+- *"Where does the wearable platform live?"* — `V5_DECISION_RESOLUTION:489`
+- *"Where does the wearable platform live, and does it share this database? (D-V1/D-V2)"* —
+  `V5_IMPACT_ANALYSIS:572` — **a compound that merges `D-V1` and `D-V2` into one sentence. Recorded,
+  NOT split and NOT merged into either.**
+
+**Options at `:489`:** *"(a) expand NestJS (b) new service (c) separate repo + SDK"*. Its companion
+source states outright that *"**the evidence does not select one**, so no choice is made here."*
+
+#### `D-V2` — ADMITTED. Two wordings plus the compound above
+
+- *"Does the wearable platform share this Postgres instance or own its store?"* —
+  `V5_IMPACT_ANALYSIS:462`
+- *"Shared Postgres or its own store?"* — `V5_DECISION_RESOLUTION:490`
+
+**Options at `:490`:** *"(a) shared (b) separate"*.
+
+#### `D-V3` — **UNRECOVERABLE**
+
+**No question text exists in any source, tracked or untracked.** Verified: `D-V3` has **no row** in
+the one untracked section that states owner decisions in interrogative form
+(`V5_DECISION_RESOLUTION` §15, *"OWNER DECISIONS — exact formulations"*), whose D-V rows are `D-V1`,
+`D-V2`, `D-V4`, `D-V5` — **`D-V3` is absent.**
+
+**Provenance marked:** four sources, all **noun-phrase topic glosses** — *"Canonical observation +
+derived-metric contract, and the provenance/version model"* · *"Canonical observation + provenance
+contract"* ×2 · the tracked *"(wearable boundary, store, **contract**)"*. **NOT upgraded into a
+question. NO OPTIONS RECORDED.**
+
+**Status conflict preserved:** one untracked ledger marks `D-V3` **PARTIALLY RESOLVED** (on the
+ground that V5 supplies four provenance fields); **the same file elsewhere lists it under
+*"Still required"***; the tracked record carries it **unresolved**. **Not reconciled.**
+
+#### `D-V4` — ADMITTED. Four wordings, and their scopes differ materially
+
+- *"Who may see a member's wearable data — active coach only, partners, admin?"* —
+  `V5_IMPACT_ANALYSIS:464`
+- *"Who may read a member's wearable health data? (D-V4)"* — `V5_IMPACT_ANALYSIS:573`
+- *"Does "coach" mean active-only, and do Admin/Partner ever see member-level wearable PHI or only
+  telemetry?"* — `V5_DECISION_RESOLUTION:491`
+- *"does "coach" mean active-only, and do Admin/Partner ever see member-level PHI rather than
+  telemetry?"* — `:315`
+
+**NO OPTIONS RECORDED.** The *"Options"* column at `:491` holds a **statement, not an option set** —
+*"V5 authorizes coach + member; Admin/Guardian = telemetry"* — and the list inside
+`V5_IMPACT_ANALYSIS:464` is **part of the question sentence**. **Neither is converted into options.**
+
+> **`D-V4` is the item most at risk of a fabricated (b).** An untracked ledger marks it *"PARTIALLY
+> RESOLVED"* because V5's text authorizes coach + member access. **That is evidence about V5's
+> text, not an owner ruling, and it answers neither clause of the narrowed question.** The same
+> document records *"**7 of 8 roles have at least one unresolved column. Nothing was inferred from
+> convenience, and no permission was granted.**"* **Treating this as resolved would fabricate a PHI
+> access boundary.**
+
+#### `D-V5` — ADMITTED. Two wordings
+
+- *"What identity represents an agent in the audit trail?"* — `V5_DECISION_RESOLUTION:492`
+- *"What agent identity appears in the audit trail? (D-V5)"* — `V5_IMPACT_ANALYSIS:578`
+
+**NO OPTIONS RECORDED** — the options column is a literal em-dash.
+
+**Near-miss checked and rejected:** §8.3's `A2` rules *"agent actions"* **IN** audit scope, and
+§8.4's Event population names an *"actor"* field. **Neither says what identity an agent presents.**
+§8.18 and §8.20 concern Trust and erasure-subject identity, not agent identity. **Reading any of
+them as answering `D-V5` would fabricate a decision.**
+
+#### `D-V6` — **UNRECOVERABLE**
+
+**No question text in any source.** Like `D-V3`, `D-V6` has **no row** in `V5_DECISION_RESOLUTION`
+§15. Every formulation is a noun phrase: *"SBOM toolchain and where it runs"* ×2 · *"SBOM toolchain
+and location"* · the tracked *"SBOM tooling"*. **NO OPTIONS RECORDED.**
+
+> **⚠ DO NOT SUBSTITUTE `CONF-03`'s QUESTION FOR `D-V6`'s.** `CONF-03` **is a different ID** and
+> **does** have a recovered formulation — *"Authorize SBOM tooling, or accept the gap as a governed
+> risk"*, with options *"(a) authorize `syft`/`cyclonedx`/`trivy` (b) documented risk acceptance"*.
+> The sources **pair** the two (blocker B8) but **never equate** them; `D-V6`'s own row lists
+> `CONF-03` as a **dependency**, not an identity. **Transferring that wording would be composition.**
+
+**The blocking constraint has NO tracked standing.** *"installation currently forbidden"* appears in
+**untracked ledgers only** — verified: **zero** tracked files contain the phrase. The nearest
+tracked statement is §6's *"Gate 8 · PASS build-time, FAIL release-time"*. *(A tracked **FORBIDDEN**
+does appear in the Wave-1 authorization — but it is a **scope prohibition on work areas**, not a
+statement about installing tooling, and is **not** offered as this constraint.)*
+
+**Status disagreement preserved:** an untracked ledger marks `D-V6` *"**OPEN, format fixed**"* with
+*"CycloneDX named by V5"*; the tracked record carries it unresolved and **records no format
+constraint**. Also disputed: that ledger scopes the block to *"**release only**, not build"*, while
+§5.2 makes `D-V6` an **unqualified** P10 entry condition.
+
+#### Resolvability — **all six D-V items are (c)**
+
+No ruling in §8.2–§8.22 names any of them. `D-V3` and `D-V6` are additionally **UNRECOVERABLE**, so
+there is nothing for an evidentiary route to resolve against.
+
+#### Observation — a TRACKED owner decision appears unremediated
+
+**Not a finding, no ID, NOT remediated, and no application code is touched.** `PD-B23` (owner
+*Julia*, **tracked**) records that the integrations screen *"marks a service "connected" after
+launching a `YOUR_CLIENT_ID` URL"*, rules *"**Hide unapproved providers for v1**"*, and states that
+*"deleting the fake `_toggleConnect(id, true)` is **unconditional**"*. **Verified at HEAD: the
+`YOUR_CLIENT_ID` placeholders and the `_toggleConnect(…, true)` call are both still present.**
+`PD-G01` separately records Wearable Intelligence as *"APPROVED — FUTURE BUILD · implementation
+**NOT AUTHORIZED**"*. **Recorded so it is not mistaken for V5 scope; acting on it is a separate,
+separately-authorized act.**
+
+#### What the wearable stack actually contains — verified at HEAD
+
+**EXISTS:** `user_integrations` (`011:29–39`) — a **boolean `connected` flag** with an OAuth
+placeholder, RLS enabled with a `FOR ALL` policy that has **no `WITH CHECK`**; one screen
+(`integrations_screen.dart`, 8 providers); one reader — **a badge count**.
+
+**ABSENT — verified zero:** HealthKit · Health Connect (the one hit is UI copy) · Fitbit · **Oura
+(appears nowhere at all, not even among the 8 providers)** · any health/wearable SDK in
+`pubspec.yaml` · any observation, device, metric, sync or health table · heart-rate/HRV data ·
+any ingestion, normalization or provenance path · any SBOM or supply-chain step in CI.
+
+**So `D-V1`–`D-V6` scope a stack that does not exist in any form.**
+
+---
+
 ## 17 · CONSOLIDATED OWNER-DECISION PACKET
 
 **Produced at the close of the full autonomous preparation cycle.** Every branch that could be
