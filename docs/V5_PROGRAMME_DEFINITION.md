@@ -169,11 +169,13 @@ D4 AUDIT SCHEMA ◄── the deepest dependency; 4 V5 requirements need it
         ├──► Agent action trail ─► AI Guardian (AS-05) ──► Guardian QA
         └──► Trust → Audit Logs
 OBSERVABILITY FOUNDATION (SQ-10) ──► Admin health/analytics ──► Release Guardian
-QAX-SEC-08 ──► is_team_lead_of ──► user_profiles PHI
+QAX-SEC-08 ──► is_team_lead_of ──X  user_profiles PHI
+        !! that ONE arm is PRE-FIX: migration 132 SEVERED it.  The two arms below
+        !! were NOT severed -- may_notify was NARROWED to status='active'.
         └──► may_notify ──► notifications ──► Guardian alerting (F-03b)
         └──► SEC_PHI_1 view pattern ──► Admin column-limited views
 WEARABLE: D-V1 boundary ──► D-V2 store ──► D-V3 contract
-        Connector (PARTIAL: user_integrations, 7 providers)
+        Connector (PARTIAL: user_integrations, 8 providers -- see the note below)
              └──► Ingestion ──► Normalization ──► Intelligence (zones, Training Alignment)
                         └──► Storage ──► RLS/authz (D-V4) ──► API/SDK ──► Partner APIs (CONF-06)
 SUPPLY CHAIN: SBOM tooling (D-V6) ──► CI stage ──► release-integrity chain (SA-11)
@@ -181,8 +183,36 @@ TESTING: CI secrets ──► E2E journeys (SQ-24); egress ──► security/AI
 ```
 
 **Stated critical path:** `CONF-01/02 → D4 audit schema → observability →
-Admin/Trust/Guardian`, with the wearable stack in parallel from `D-V1`. **The P0 fix gates any
-feature reading PHI through team membership.**
+Admin/Trust/Guardian`, with the wearable stack in parallel from `D-V1`.
+
+**What team membership reaches today.** Migration 132 removed the `is_team_lead_of(id)` arm from
+the `user_profiles` SELECT policy, which at HEAD reads
+`id = auth.uid() OR public.is_active_coach_of(id) OR public.hosts_event_for(id)`. Team membership
+therefore reaches exactly two things: the **5-column** `team_member_profiles` roster view
+(`id, first_name, last_name, email, avatar_url`) — which carries **no PHI**, though ADR-3 records
+`email` as a **residual PII question** — and the team arm of `may_notify()`. It does
+**not** reach the `user_profiles` row. The gating is **prospective** — a *new* team-gated PHI read
+would have to be authored, and Wave 1's fix is what prevents one being authored against the old
+arm. Stated in the present tense as "the P0 fix gates any feature reading PHI through team
+membership", it would overstate the current exposure.
+
+**This says nothing about `QAX-SEC-09`**, whose `hosts_event_for(id)` arm remains in the policy
+above and still grants the **whole** `user_profiles` row. Profile PHI is **not** safe (§9.1, C-9).
+
+**Provider count — the sources disagree, and the disagreement is preserved, not normalised.** The connector UI offers **8** providers (`apple_health`, `google_fit`, `whoop`,
+`garmin`, `polar`, `strava`, `myfitnesspal`, `spotify`), which is the figure used above. Three
+other figures circulate, and their provenance differs:
+
+- **7** — the figure this document previously carried. Its **only** sources are **uncommitted**
+  analysis documents (`V5_IMPACT_ANALYSIS_2026-09-27.md`, `V5_DECISION_RESOLUTION_2026-09-27.md`).
+  No tracked file states it. It is therefore a non-durable session artifact (C-3).
+- **6** — `MASTER_PRODUCT_DECISIONS.md` (PD-B23). **Tracked.**
+- **5** — `FUTURE_CAPABILITIES.md` (FC-01). **Tracked.**
+
+None of those documents is corrected here — they are historical records and are left as they
+stand. Note also that `user_integrations.provider` is unconstrained
+`TEXT` — no enum, no CHECK — so **no count is schema-enforced**; every figure is a count of
+client-side intent, not of a database constraint.
 
 ### 5.2 Phases — dependency-derived, no dates
 
@@ -191,16 +221,30 @@ V5 defines no dates, durations or story points, and none are assigned here.
 | Phase | Contents | Entry condition | State at this entry point |
 |---|---|---|---|
 | **P0 · GOVERNANCE** | Resolve CONF-01/02; confirm protected baseline; assign migration numbers 132+ | owner decisions | **partially consumed** — 132/133/134 assigned and applied; **CONF-01/02 unresolved** |
-| **P1 · FOUNDATION / SECURITY** | `coach_team_members` `WITH CHECK`; corrected `SEC_PHI_1`; status predicates | D1, D3, D17 | **partially executed** — Wave 1 closed the P0's write path and F-03b's team arm; **QAX-SEC-08 not closed** (§7) |
+| **P1 · FOUNDATION / SECURITY** | `coach_team_members` `WITH CHECK`; corrected `SEC_PHI_1`; status predicates | **`D1(i)/(ii)/(iii)` ANSWERED** (do not block) · **`D1(iv)` OPEN** (deferred to Wave 2) · **`D3` OPEN** · **`D17` OPEN** | **partially executed** — Wave 1 closed the P0's write path and F-03b's team arm; **QAX-SEC-08 not closed** (§7) |
 | **P2 · DATA (AUDIT + OBSERVABILITY)** | Audit event schema + RLS; incidents; observability store | **D4, D12** | not started |
 | **P3 · BACKEND** | Wearable boundary; ingestion/normalization; canonical contracts | **D-V1, D-V2, D-V3** | not started |
 | **P4 · CORE PRODUCT** | Intelligence layer; provenance + calculation versioning | P3 | not started |
 | **P5 · ADMIN** | Control Center over the 13 domains | P2, D5–D7 | not started |
-| **P6 · TRUST** | Security · Incidents · Audit Logs | P2, P5, D11 | not started |
+| **P6 · TRUST** | Security · Incidents · Audit Logs | P2, P5, D11, **`D-D1`** (§8.1) | not started |
 | **P7 · AI GUARDIAN** | 8 domains, autonomy L0–L3, approval gates, agent audit trail | P2, P6, D-V5 | not started |
 | **P8 · MOBILE** | Wearable UX; Admin/Trust surfaces; feature flags | P4, D6, designs | not started |
 | **P9 · INTEGRATION** | Platform contracts; partner APIs + tenancy | P3–P8, CONF-06 | not started |
 | **P10 · QA & SUPPLY CHAIN** | Wearable QA, agentic security QA, a11y, performance, SBOM, DR drills | D-V6, CI secrets, egress | not started |
+
+**`D1(i)`, `D1(ii)` and `D1(iii)` are ANSWERED and do not block P1.** The owner's decisions are
+recorded verbatim in three **tracked** files:
+[`adr/ADR-W1-001-team-membership-lifecycle.md`](adr/ADR-W1-001-team-membership-lifecycle.md),
+[`V5_SECURITY_FOUNDATION_WAVE1_AUTHORIZATION.md`](V5_SECURITY_FOUNDATION_WAVE1_AUTHORIZATION.md) §1,
+and [`V5_SECURITY_FOUNDATION_WAVE1_FINAL_REPORT.md`](V5_SECURITY_FOUNDATION_WAVE1_FINAL_REPORT.md) §2.
+
+**`D1(iv)` was NOT answered and remains open.** ADR-2 records it verbatim: *"The owner answered
+D1(i), (ii) and (iii). **D1(iv) — the permitted `role` value set — was not answered.**"* Adding a
+CHECK constraint would have decided an unanswered question, so `role` was deliberately left
+unconstrained and the decision **deferred to Wave 2**. `D1` must therefore not be described as
+answered without qualification.
+
+**`D3` and `D17` remain OPEN and are not resolved here.**
 
 **Monetization (SQ-04/SQ-14) runs alongside P1–P2** — its six open K specs are entitlement
 defects, and K-04 is a live-confirmed authorization defect.
@@ -326,10 +370,30 @@ self-allocation.
 ### 8.1 Inherited decisions — unresolved, carried forward
 
 `CONF-01` (174 approved screens vs a repository inventory of 91 routes / 148 surfaces) ·
-`CONF-02` · **`D4`** (audit schema — the deepest dependency) · `D12` (observability) ·
-`D5`–`D7` (Admin) · `D11` (Trust) · `D15` (derive guard population from the live catalog) ·
+`CONF-02` · **`D3`** (uniform status predicate — **a P1 entry blocker**, see §5.2; *not* the
+`D-3` of §8, which is a different decision) ·
+**`D4`** (audit schema — the deepest dependency) · `D12` (observability) ·
+`D5`–`D7` (Admin) · `D11` (Trust) · **`D-D1`** (Trust container — see below) ·
+`D15` (derive guard population from the live catalog) ·
 `D17` · `D-V1`/`D-V2`/`D-V3` (wearable boundary, store, contract) · `D-V4` · `D-V5` ·
 `D-V6` (SBOM tooling) · `CONF-06` (tenancy) · `CONF-08` (missing Admin/Trust designs).
+
+**`D-D1` — the Trust container.** *Are Security / Incidents / Audit / Guardian a separate "Trust"
+product area, or Admin domains?* It is recorded **deliberately unfilled** in a tracked file —
+`V5_SECURITY_FOUNDATION_WAVE1_AUTHORIZATION.md` §1 carries the literal field
+`TRUST = [INSERT OWNER DECISION HERE]` with the annotation *"Preserved unfilled, as instructed. It
+does not gate this wave"*, and `V5_SECURITY_FOUNDATION_WAVE1_FINAL_REPORT.md:46` repeats that it
+was *"left unfilled, as instructed."* It is therefore a **live unresolved owner decision**, not a
+stale artifact, and it is **not resolved here.**
+
+**Effect on P6.** §5.2 previously entered **P6 · TRUST** on `P2, P5, D11` alone. That list was
+**incomplete**:
+`D-D1` determines whether a Trust surface exists at all, so it gates P6 ahead of D11, which only
+scopes it. Until `D-D1` is answered, **P6's entry condition must be read as `P2, P5, D11, D-D1`**.
+This was the one omission in this document that erred toward permissiveness rather than caution;
+it is corrected here. The only other entry condition changed in the same revision is **P1's**,
+where `D1(i)/(ii)/(iii)` were marked answered (§5.2) — a relaxation, and the only one. No other
+phase's entry condition changes.
 
 ---
 
