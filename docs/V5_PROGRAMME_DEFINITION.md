@@ -2188,6 +2188,139 @@ separate act requiring its own authorization and is **not** performed by this do
 
 ---
 
+## 17 · CONSOLIDATED OWNER-DECISION PACKET
+
+**Produced at the close of the full autonomous preparation cycle.** Every branch that could be
+investigated without owner authority has been. **No decision below is answered, inferred or
+ranked.** No implementation has begun.
+
+### 17.A · Current V5 readiness
+
+**Documentation readiness: HIGH. Implementation readiness: ZERO, and not primarily for want of
+decisions.**
+
+| gates (§6) | **5 PASS · 2 PARTIAL · 8 FAIL** of 15 — re-verified |
+|---|---|
+| phases (§5.2) | **P0 and P1 partially executed. P2–P10 all "not started."** |
+| audit substrate | **0** `audit_log`/`audit_events`/`activity_log` tables |
+| observability substrate | **0** observability/metric/telemetry tables |
+| incident substrate | **0** incident tables |
+| roles | **0** `CREATE ROLE` in migrations — and **two** are now required (§8.18) |
+| open findings (§9) | **8 OPEN**, incl. `QAX-SEC-08` OPEN / PARTIALLY VERIFIED and `QAX-SEC-09` OPEN |
+
+### 17.B · The blocker that is not a decision — **read before the decision tables**
+
+§8.21 established it and it governs how this packet should be used:
+
+> **14 of the 17 inherited decisions have no tracked statement of their question**, and the
+> **minimal unblocking set is exactly the unpreparable set**: `{D5, D6, D7, D-V1, D-V2, D-V3,
+> CONF-08}` unblocks **every phase P3–P9**, and not one of the seven can be stated from the tracked
+> record. The two owner-decidable items that *do* have tracked questions — `CONF-02`, `D1(iv)` —
+> gate **P0/P1**, on which **no later phase enters**.
+
+**Consequence: answering every question in §17.C would unblock no downstream phase.** The act that
+would is **admitting the missing question text to the tracked record** — which §8.12 already ruled
+*"an **owner act**, not a documentation act."* **It is not performed or scoped here.**
+
+### 17.C · Remaining owner decisions — **27, none answered**
+
+All are documentation-stage. **None is resolvable from a recorded ruling or a governing constraint**
+(the sole exception, `D15`, is in §17.C.6 and unblocks nothing).
+
+**C.1 — `D4`/`D12` inheritance (§8.16). All four (c). Blocks P2.**
+`Q1` A11 immutability for the observability population — *extend one of three meanings · define a
+fourth · declare it mutable*. `Q2` A12 retention — *6-year Event window · shorter operational ·
+per-component · none* (*vendor* option blocked on `PD-A24`). `Q3` A13 readers — *extend the mixed
+model · a distinct operator class · admin-only*. `Q4` A11 sub-ruling 3's `service_role` deferral for
+this population.
+**Contradiction that must be answered WITH Q4:** §8.7 records A12 ruling 6 as discharging sub-ruling
+3 **unqualified**; §8.16/§8.17 record it as discharged *"for the **audit** populations"*. **The
+qualifier is in neither owner ruling's text.** **Order: Q4 before or with Q1** (§8.16 records Q4
+*"bears on 1"*).
+**Eliminated by evidence, not by choice:** A11's `NO RUNTIME WRITE PATH` is defined as *"authored
+evidence, **not a runtime audit event**"* — observability records are runtime-produced, so that
+branch is excluded on its own text. It narrows one option; it selects nothing.
+
+**C.2 — Trust/erasure roles (§8.18). Both (c). Blocks P2/P6.**
+`Q2` which reading of A13 sub-ruling 4 governs — *set · party · explicitly supersede it*. **Moot for
+TWO ROLES, not answered**; it governs any future case where one party holds both. `Q3` who holds the
+identity-mapping authorization — **overlaps §8.20·Q2/Q3**.
+
+**C.3 — Identity mapping (§8.20). All four (c). Blocks P2; A12's erasure model rests on it.**
+`Q1` where it lives — *`public` table · a new schema (zero `CREATE SCHEMA` precedent) · outside the
+database*; **`vault` verified unsuitable** (secrets store; a reader of it obtains the `service_role`
+key). `Q2` who may resolve identity — incl. *no one, by construction*. `Q3` who may sever it.
+`Q4` must severance be durable against the DDL layer, given §8.19 declined an anchor.
+**Live hazard:** with no anchor the mapping is **DML-deep only**; if it can be restored at the DDL
+layer, **severance is not durable and "anonymised" becomes reversible** by A11 sub-ruling 1's named
+adversary.
+
+**C.4 — `EC-01` (§8.11) Q2–Q5. All four (c). Blocks no phase; blocks the finding ledger.**
+`Q2` may a closure-class ruling bind aliases of a different class. `Q3` **can `G-14` be evaluated at
+all** — **new evidence:** `RELEASE_GATES.md:327` maps `G-14` to requirement `5.8` alone and `5.8`
+covers **error tracking only**; *"audit log"* appears **once** in that file, in the label. **One
+conjunct has no requirement row and therefore no mechanical check.** `Q4` is §10's written one-line
+test a precondition this closure did not meet — **note the standard prescribes a consequence for an
+*inadequate* answer, not a *missing* one.** `Q5` must `QA_CLOSURE_STANDARD.md` carry an alias
+definition (it contains the word **zero** times).
+**§8.19's DECLINE has NO bearing on `G-14`** — the gate requires an audit log *in place*, not
+tamper-evidence.
+
+**C.5 — `D12` content (§8.13) Q1–Q3, Q5–Q12 (eleven). All (c). All block P2 → P5/P6/P7.**
+Unblocked by evidence: **Q1** (SQ-10 components), **Q2** (identifier minting), **Q5** (survives
+anonymisation). Blocked on **`PD-A24`**: Q6(d), Q7, Q9(b), Q10 — and Q11 via Q7. Blocked on
+**`PD-A17`**: Q8. Blocked on **`D11`**: Q3's delivery, and Q12's remaining half.
+**`PD-A24` and `PD-A17` are TRACKED, OPEN, owner *Julia*, and must NOT be re-decided here.**
+
+**C.6 — With tracked questions, outside §8: `CONF-02` (c, gates P0) · `D1(iv)` (c, gates P1) ·
+`D15` (b — resolvable WITHOUT the owner, and unblocks nothing).**
+
+### 17.D · Unresolved contradictions — carried, none resolved
+
+`A11` sub-ruling 3's two discharge readings (§17.C.1) · `decision_traces` *"erased only by
+`service_role`"* vs `A12` ruling 6 · registry `:2102`'s discharging reading vs §8.15's
+REFERENCE-ONLY · `EC-01`'s row asserting `VERIFIED_CLOSED` and *"invisible twice over"* four lines
+apart · `PD-A24` also carried as **`D-5`** · `CONF-06` glossed *"(tenancy)"* against an untracked
+*vendor role hardening* · §5.1's narrative critical path vs §5.2's entry-condition column · `N07`
+having neither new role · the accepted adversary exposure (§8.19) with **no recorded scope** as to
+the observability population.
+
+### 17.E · Exact implementation boundary
+
+**Nothing in V5 is implementable today.** Even with all 27 answered: P2 needs an audit schema whose
+`A14` half is blocked on `D11`; P3–P9 need the seven unpreparable items; P10 needs `D-V6`. **The
+only fully-specified, unblocked act in the entire set is `D15`** — lowering the `SEC-G1` guard's
+population to the live catalog — which closes no finding and unblocks no phase.
+
+### 17.F · What becomes implementable once decisions are supplied
+
+**Directly: nothing beyond `D15`.** Answering §17.C.1–C.3 specifies the **shape** of the P2 audit
+and observability substrate — populations, immutability, retention, readers, identifier, mapping —
+but P2 cannot complete while `D4` remains open on `A14` → `D11`, and `D11` has no tracked question.
+
+### 17.G · Confirmation
+
+**Implementation has NOT started.** Across this entire cycle the only file modified is
+`docs/V5_PROGRAMME_DEFINITION.md`. **Zero** changes to migrations, application code, app copy,
+tests, CI, `MASTER_PRODUCT_DECISIONS.md`, `MASTER_REMEDIATION_REGISTRY.md`, `QA_CLOSURE_STANDARD.md`
+or `docs/proposed/`. No registry ID allocated, no finding remediated, no database contacted, nothing
+pushed.
+
+### 17.H · Engineering guidance — **NOT owner decisions, NOT recorded as rulings**
+
+Offered because §17.B makes the sequencing question real. **Advisory only; nothing here is adopted.**
+
+1. **The highest-value owner act is probably not on the §17.C list.** It is deciding whether to
+   admit the fourteen missing question texts to the tracked record. Until then P3–P9 cannot be
+   prepared at all.
+2. **`D15` can proceed independently** of everything else, and is the only such item.
+3. **§8.16·Q4 and its contradiction should be answered together**, since Q4 cannot be answered
+   coherently while the record disagrees about what `A12` already discharged.
+4. **`PD-A24` and `PD-A17` belong to another owner** and gate six D12 questions between them;
+   routing them is a scheduling matter, not a V5 decision.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
