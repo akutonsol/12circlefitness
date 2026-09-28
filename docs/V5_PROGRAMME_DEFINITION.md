@@ -668,9 +668,18 @@ exists**, and must not be cited as one.
 
 #### Consequences that follow from A12 alone — recorded, not remediated
 
-- **Ruling 6 requires a structural first.** `CREATE ROLE` has **zero occurrences** tree-wide, as
-  do `CREATE SCHEMA` and `OWNER TO`. A new constrained role has **no precedent to copy** in this
-  repository. Everything currently lives in `public`, owned by the migration-running role.
+- **Ruling 6 requires a structural first.** `CREATE ROLE` has **zero occurrences in
+  `supabase/migrations/`**, as do `CREATE SCHEMA` and `OWNER TO`. A new constrained role has **no
+  precedent to copy** in this repository. Everything currently lives in `public`, owned by the
+  migration-running role.
+
+  > **PRECISION CORRECTION.** This bullet previously said `CREATE ROLE` has zero occurrences
+  > *"tree-wide"*. **That was too strong.** There are **six**, all in
+  > `supabase/tests/local/shim.sql:23–28`, where the offline harness recreates Supabase's **built-in
+  > platform roles** (`anon`, `authenticated`, `service_role`, `authenticator`,
+  > `supabase_auth_admin`, `supabase_admin`) so local tests can run. **None creates an application
+  > role, and none is in a migration**, so the "no precedent to copy" conclusion is unaffected —
+  > but the count was wrong and is corrected rather than left to be found later.
 - **Ruling 6 satisfies A11 sub-ruling 3's deferral condition.** A11 deferred binding the
   owner/`service_role` boundary *"until `A12`'s retention/erasure mechanism is decided."* It is now
   decided, and the executor is explicitly **not** `service_role`. The binding intent of A3
@@ -743,7 +752,9 @@ Owner decisions, recorded as supplied.
   This does **not** resolve the separate A2 recursion on *anonymisation* events, which remains
   open.
 - **The Trust operator is named as a reader of all three populations and does not exist.**
-  `CREATE ROLE` has **zero** occurrences tree-wide, and **`D-D1`** — whether a Trust product area
+  `CREATE ROLE` has **zero** occurrences in `supabase/migrations/` (the only six in the tree
+  recreate Supabase's built-in platform roles in the offline test harness — see the precision
+  correction at §8.7), and **`D-D1`** — whether a Trust product area
   exists at all — is a live unresolved owner decision (§8.1). Sub-ruling 7 answers A13 **anyway**,
   deliberately. A13 therefore depends on an entity whose existence is still open.
 - **Sub-ruling 1 requires a mechanism that does not exist.** Excluding an admin from their own
@@ -835,16 +846,39 @@ content.
 - **P2 is now strictly tighter.** Its entry condition was `D4, D12`; with `SQ-10` ruled an entry
   condition, **P2 cannot exit on audit alone** — the observability foundation is required. This
   **increases** what P2 must deliver before P5 Admin, P6 Trust and P7 AI Guardian can begin.
-- **The correlation identifier now has an owner, and nothing to build on.** Verified: **zero**
-  occurrences of `correlation_id`, `x-request-id`, `requestId`, `request_id` or any trace/span id
-  **anywhere in the tracked tree**. The nearest candidate, `decision_traces.id`, is domain-scoped
-  to engine generations and carries no HTTP request, edge invocation, mobile session or API call.
+- **The correlation identifier now has an owner, and nothing to build on.** Verified, **excluding
+  this document itself**: **zero** occurrences of `correlation_id`, `x-request-id`, `requestId`,
+  `request_id` and **zero** of `span_id` anywhere in the tracked tree.
+
+  > **CORRECTION (recorded, not quietly amended).** This bullet previously also claimed zero
+  > occurrences of *"any trace/span id"*. **That was false.** `trace_id` occurs **25 times across
+  > 13 tracked files** — `089`, `093`, `094`, `096`, `116`, `119`, `explain-decision/index.ts`,
+  > four Flutter files, a unit test and a QA report. The claim's **intent** was correct and the
+  > sentence that follows it always carried the real point; the literal wording was not. It is
+  > corrected here rather than deleted, so the error is visible.
+
+  Those 25 occurrences are **not a request-correlation identifier**. `trace_id` is the
+  *name under which `decision_traces.id` is surfaced to callers* — `089:130` returns
+  `jsonb_build_object('trace_id', v_id)`. It is domain-scoped to engine generations and carries no
+  HTTP request, edge invocation, mobile session or API call.
   A1 sub-ruling 3 separated audit from observability, which is precisely what makes a **shared
   identifier** necessary to reconstruct one incident across both. **D12 must mint it.**
+- **PRECISION HAZARD — "17 of 19" names TWO DIFFERENT SETS of seventeen.** This document uses the
+  figure in both senses and they must never be conflated. Verified by set difference:
+
+  | figure | the 19 minus… |
+  |---|---|
+  | **17 hold `SUPABASE_SERVICE_ROLE_KEY`** (§8.4, §8.6) | `analyze-food-image`, `enrich-exercise` |
+  | **17 carry `console.*`** (30 calls total, this section) | `notify-coach-email`, `send-checkin-reminder` |
+
+  **The two omitted pairs are disjoint.** Any argument that moves from one figure to the other —
+  for example inferring that the service-role holders are the ones already emitting logs — is
+  **unsound**, and no such inference is made here.
 - **What exists today, verified.** One interface — `apps/mobile/lib/core/observability/app_failure.dart`
   — and **no observability system**. Its default sink is `if (kDebugMode) debugPrint(...)`, so
   **release builds record nothing at all**; its own comment says so, *"until PD-A24 is answered."*
-  Elsewhere: 30 unstructured `console.*` calls across 17 of 19 Edge Functions; two NestJS `Logger`
+  Elsewhere: 30 unstructured `console.*` calls across 17 of 19 Edge Functions **(see the warning
+  below — this is NOT the same seventeen as the service-role seventeen)**; two NestJS `Logger`
   call sites with no transport; **no `/health`, no `/metrics`, no log aggregation, no alerting**;
   **zero observability, metric or telemetry tables** in the migration tree.
 - **`observability_screen.dart` is NOT SQ-10 coverage** and must not be counted as such. Its own
@@ -1081,6 +1115,134 @@ records Trust as *"blocked on D4, D11, CONF-08"* under **§11 · DEFERRED SCOPE*
 
 **`D11` is NOT answered. `A14` remains blocked. `D-D1` remains unfilled. `CONF-08` remains open.**
 No status changes.
+
+---
+
+### 8.13 `D12` — CONTENT PREPARED, **NOT ANSWERED**
+
+§8.10 answered D12's **scope**. Its **content** is OPEN and **no part of it is decided here.**
+`PD-A24` remains **TRACKED, OPEN, owner *Julia + privacy*, wave 3B/8** and is **not re-decided.**
+No registry ID, migration, schema, SQL or application code is proposed.
+
+#### The SUPERSET relation, stated exactly
+
+`PD-A24` covers **three things and only three**, by its own words: **vendor · cost · data-residency
+posture.** Its Options field is literally *"vendor choice"*; its privacy concern is scoped to egress
+(*"anything that **leaves the device**"*). **That part of D12 keeps PD-A24's owner and status.**
+
+**The excess D12 adds**, none of which PD-A24's three fields reach: the **correlation identifier** ·
+**`SQ-10`'s component list** · **whether the observability store is in-database** (a Postgres store
+involves no vendor) · **structured logging of the server tiers** (30 `console.*` calls are not a
+vendor problem) · **`/health`, `/metrics`, aggregation, alerting** · **observability retention and
+reader model**.
+
+There is tracked precedent that interface work is separable from vendor work: PD-A24 itself says
+the sink *"can and should be built **before** the vendor is chosen — it is one interface"*, and
+`app_failure.dart` was in fact built without it.
+
+#### The Postgres constraint — the hardest fact for D12's content
+
+**At HEAD there is exactly ONE request-scoped channel into Postgres, and this repository cannot
+extend it.** Verified by search across `supabase/migrations/` and `supabase/functions/`:
+
+| mechanism | production uses |
+|---|---|
+| `request.jwt.claims` (read by `auth.uid()`) | the **only** one — set by PostgREST from a **signed** JWT |
+| `request.headers` (PostgREST's header GUC) | **ZERO**, anywhere under `supabase/` |
+| `set_config` by a **caller** for request context | **ZERO** |
+| `SET LOCAL` in migrations or functions | **ZERO** |
+
+The single `set_config` in the tree (`115:387`, `:390`) is set by a definer function **on itself**,
+`is_local = true`, and carries a two-valued privilege flag — **not** request context and **not**
+caller-supplied.
+
+**Consequence.** An audit row written by one of the **33 `CREATE TRIGGER` statements** in the
+migration tree (34 matching lines, one of which is a comment; the count is of **statements**, not
+necessarily of surviving triggers) can see **no caller-supplied value
+whatsoever** beyond `NEW`/`OLD` contents and `auth.uid()` — and `auth.uid()` is **NULL on every
+internal path**. So a correlation identifier reaching a trigger-written audit row **has no existing
+channel to arrive on.** Naming the gap is not proposing the change: **no mechanism is proposed here.**
+
+#### Trustworthiness — the identifier is forgeable by construction at HEAD
+
+Any caller-supplied value other than the signed JWT claims is unsigned and unverified, and **there
+is no precedent in the tree for validating one.** Worse, `A11` sub-ruling 1's named adversary is the
+**compromised Edge Function**, and such a function holds `service_role`, which is `BYPASSRLS`. It
+can therefore **write the identifier into the audit row and write or withhold the matching
+observability record** — both sides of the very join the identifier exists to make. `A3` sub-ruling
+3's requirement that asserted and cryptographically grounded attribution *"must not be equated"*
+reaches the correlation identifier directly, and **nothing tracked addresses it for that dimension.**
+
+#### **NEW CONTRADICTION — between two ANSWERED rulings. Preserved, NOT resolved.**
+
+> **`A2` places observability audit events IN. `A1` places them OUTSIDE.**
+>
+> - **§8.3, A2, tier 2:** *"incidents · agent actions · control evidence · admin actions ·
+>   **observability audit events**"* → **IN (all five)**.
+> - **§8.4, A1, sub-ruling 3:** *"audit and observability audit events are **TWO DISTINCT
+>   populations**… **observability audit events sit outside them** and are **not a fourth audit
+>   population**."*
+>
+> Both are recorded owner decisions, in this document, neither superseding the other. The tension
+> is not merely verbal: A2 makes the category **audit-worthy**, while A1 leaves it **no audit
+> population to live in**. **This document does not choose a reading.** It is put to the owner
+> below as question 4.
+
+This contradiction decides roughly **half of D12's remaining content**, because it determines
+whether D12's records inherit `A11`'s immutability, `A12`'s retention and `A13`'s reader model.
+
+#### Other gaps that bear on D12's content
+
+- **`A12`'s four retention windows name no observability population** (Event 6y · Incident 6y ·
+  Control evidence 6y · Financial/tax 7y), while the untracked `SQ-10` list names retention a
+  component. **No tracked window exists for observability.**
+- **`A13` names no observability reader**, because its mixed model is assigned *per audit
+  population* and observability sits outside them. The **Trust operator does not exist** (`CREATE
+  ROLE`: zero tree-wide).
+- **A structural hazard:** if the correlation key spans both populations and the observability side
+  carries identifying data, then severing `A12`'s external mapping **does not anonymise the
+  operation**. Unaddressed in any tracked file. **UNRESOLVED.**
+- **`SQ-10`'s tracked and untracked descriptions are not supersets of each other in either
+  direction** — the untracked list omits *"structured"* and *"operational dashboards"*; the tracked
+  document names no components at all.
+- **`D17`'s statement text is absent from the tracked tree**, so its bearing on D12 **cannot be
+  assessed.** Recorded, not guessed.
+
+#### What must be answered — **twelve questions, none chosen, none ranked**
+
+1. **Does D12 adopt a component list for `SQ-10`, and which?** Ratify the untracked eight ·
+   author a tracked list · rule components out of D12. *(Not blocked.)*
+2. **Where is the correlation identifier minted?** Client · first server-side touch · Postgres ·
+   each origin with a provenance tag. *(Not blocked; `A3` constrains it.)*
+3. **Does the identifier appear on the audit Event row?** *(Decision not blocked; **delivery** is
+   downstream of `D4`, which is open on `A14`, which is blocked on `D11`.)*
+4. **Are observability audit events inside the audit ledger or outside it?** — the contradiction
+   above. Options: inside per A2 · outside per A1 · the term names two different things and must
+   be split. *(Not blocked.)*
+5. **Does the identifier survive `A12` anonymisation, and on which side?** *(Not blocked.)*
+6. **What is the retention window for observability records?** *(Option "defer to the vendor" is
+   blocked on `PD-A24`.)*
+7. **Is the observability store in-database, external, or both?** *(**Blocked on `PD-A24`** — data
+   residency is its own field. Whether an in-Postgres store is separable from it is itself
+   unresolved.)*
+8. **Which tiers get `/health` and `/metrics`?** *(**Blocked on `PD-A17`** — tracked, OPEN, owner
+   Julia; no deployment target exists and `API_BASE_URL` is empty in every environment.)*
+9. **Does D12 include structured logging for the server tiers?** *(Partially blocked on `PD-A24`;
+   the interface-before-vendor precedent bears on the unblocked option.)*
+10. **Does the Flutter release sink get a destination under D12, or wait for `PD-A24`?**
+    *(**Blocked on `PD-A24`**, except an in-repository destination, which depends on 7.)*
+11. **Does D12 include alerting, and on what signals?** *(Partially blocked, downstream of 7.)*
+12. **Who may read observability records?** *(**Blocked on `D-D1` and `D11`** — if the readers
+    include a Trust operator, this cannot close ahead of `D-D1`.)*
+
+**Two blockers operative on D12 that §8.1 does not list, flagged rather than absorbed:**
+`PD-A24` (blocks 6d, 7, 9b, 10) and **`PD-A17`** (blocks 8). Both are **TRACKED and OPEN** with
+owner *Julia*; **neither is re-decided here.**
+
+**And the §8.11 investigation bears on all twelve**, because the finding ledger D12 would be scoped
+against records its own subject — `LRE-27`, *"No observability anywhere"* — as closed.
+
+**`D12`'s content is NOT answered. No status changes. No ID is allocated. Nothing is remediated.**
 
 ---
 
