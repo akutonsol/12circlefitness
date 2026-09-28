@@ -163,7 +163,7 @@ Derived from `V5_IMPACT_ANALYSIS_2026-09-27.md` §17–18. **No dependency is in
 ```
 CONF-01 ANSWERED (baseline = 91 routes, §8.2) · CONF-02 OPEN ──► what "V5" means
         │
-D4 AUDIT SCHEMA ◄── deepest dependency  [A2/A1/A3 ANSWERED §8.3-8.5; A11/A12/A13 OPEN]
+D4 AUDIT SCHEMA ◄── deepest dependency  [A2/A1/A3/A11 ANSWERED §8.3-8.6; A12/A13 OPEN]
         ├──► Admin audit domain ──► Admin Control Center (13 domains)
         ├──► Incidents ──────────► Trust → Incidents
         ├──► Agent action trail ─► AI Guardian (AS-05) ──► Guardian QA
@@ -372,8 +372,8 @@ self-allocation.
 
 `CONF-02` · **`D3`** (uniform status predicate — **a P1 entry blocker**, see §5.2; *not* the
 `D-3` of §8, which is a different decision) ·
-**`D4`** (audit schema — the deepest dependency; **`A2` §8.3, `A1` §8.4 and `A3` §8.5 ANSWERED**,
-`A11`/`A12`/`A13` still OPEN) · `D12` (observability) ·
+**`D4`** (audit schema — the deepest dependency; **`A2`/`A1`/`A3`/`A11` ANSWERED §8.3–8.6**,
+`A12`/`A13` still OPEN) · `D12` (observability) ·
 `D5`–`D7` (Admin) · `D11` (Trust) · **`D-D1`** (Trust container — see below) ·
 `D15` (derive guard population from the live catalog) ·
 `D17` · `D-V1`/`D-V2`/`D-V3` (wearable boundary, store, contract) · `D-V4` · `D-V5` ·
@@ -585,6 +585,64 @@ below decides or implies any of them.**
   the record**.
 
 **A3 changes no finding's status**, allocates no registry ID, and remediates nothing.
+
+### 8.6 `D4 · A11` — ANSWERED — audit immutability
+
+Owner decisions, recorded as supplied. **A11 only. `A12` and `A13` remain OPEN and nothing below
+decides or implies either.**
+
+**Meaning of "immutable", per A1 population:**
+
+| Population | Ruling |
+|---|---|
+| **Event** | **FREEZE-IDENTITY-COLUMNS** — identity and occurrence facts are immutable. Any future writable annotation field **must be explicitly classified** and **must not alter the occurrence record**. |
+| **Incident** | **APPEND-STATE-TRANSITIONS** — the incident may evolve, but **each state transition is retained as an immutable historical event**. |
+| **Control evidence** | **NO RUNTIME WRITE PATH** — authored/produced evidence, not a runtime audit event. |
+
+**Four sub-rulings:**
+
+1. **Adversary: COMPROMISED EDGE FUNCTION.**
+2. **DML-layer binding with an open DDL layer: NOT SUFFICIENT.** If the system claims meaningful
+   append-only or tamper-resistance, **an out-of-database trust anchor is required**. The anchor is
+   **not designed or implemented here**.
+3. **Owner binding: NOT YET.** Do **not** bind the database owner / `service_role` boundary until
+   **`A12`**'s retention/erasure mechanism is decided.
+4. **User-facing logging claim: ONLY WITH QUALIFICATION.** **No universal access-logging claim may
+   be made.** A3's PARTIAL coverage and the three accepted blind spots are preserved.
+
+#### Consequences that follow from A11 alone — recorded, not remediated
+
+- **The named adversary is precisely the party that is not yet bound.** Sub-ruling 1 names the
+  **compromised Edge Function**; **17 of 19** Edge Functions hold the `service_role` key, and that
+  role bypasses RLS. Sub-ruling 3 defers binding the owner/`service_role` boundary until `A12`.
+  **Therefore, until `A12` is decided and the sub-ruling 2 anchor exists, the design is not
+  defended against its own named adversary.** Stated plainly because it must not be discovered
+  later.
+- **Sub-ruling 3 defers the mechanism of A3 sub-ruling 5; it does not reverse it.** A3 ruled that
+  `service_role` **must be constrained** from bypassing audit controls. A11 sequences that binding
+  behind `A12`. The intent stands; only the implementation waits.
+- **Grant- and policy-based mechanisms are insufficient by construction against this adversary.**
+  A compromised Edge Function holds `service_role`, so omitting write policies and `REVOKE`
+  bind nothing relevant. Verified: the tree contains exactly **one** `REVOKE` of UPDATE or DELETE
+  (`117:216`, against `authenticated`) and **zero** `REVOKE … FROM service_role`. `FORCE ROW LEVEL
+  SECURITY` would bind the **owner** but **not** `service_role`, which is `BYPASSRLS` at the role
+  level.
+- **Only one in-database mechanism binds the named adversary, and its DELETE form is
+  unprecedented.** A `BEFORE UPDATE` trigger that RAISEs binds every caller at the DML layer
+  (`120` precedent, 11 such triggers exist). There are **zero** `BEFORE DELETE` triggers and
+  **zero** `FOR EACH STATEMENT` triggers tree-wide, so `TRUNCATE` and row DELETE have no
+  precedented guard. Sub-ruling 2 is consistent with this: DML binding alone is not enough.
+- **What may be claimed today.** Under sub-rulings 2 and 4, and with A3's best-effort emit, the
+  honest claim is **integrity of the retained record** — never completeness, and **not**
+  tamper-resistance until the anchor exists. Related observation, not a new finding: N07's
+  user-facing copy *"Opening it is logged"* would be an unqualified universal claim, which
+  sub-ruling 4 disallows. N07 remains **evidence only — not adopted, not applied, NOT MODIFIED.**
+- **Event's freeze ruling requires a column classification that does not yet exist.** Every column
+  must be assigned to identity/occurrence (frozen) or annotation (writable). The `120` precedent
+  shows the shape — it freezes `session_id`/`set_id`/`exercise_instance_id` while leaving other
+  columns editable — but no such classification exists for any audit population.
+
+**A11 changes no finding's status**, allocates no registry ID, and remediates nothing.
 
 ---
 
