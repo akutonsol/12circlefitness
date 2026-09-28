@@ -1662,13 +1662,33 @@ recorded, and none is invented.** `PD-A24` and `PD-A17` remain **TRACKED and OPE
 
 ---
 
-### 8.19 `A11 · SUB-RULING 2 TRUST ANCHOR` — PREPARED, **NOT ANSWERED**
+### 8.19 `A11 · SUB-RULING 2 TRUST ANCHOR` — **ANSWERED on Q1: DECLINE THE CLAIM**
 
-**Why now.** §8.6 recorded the design's own defect in one sentence: *"**until `A12` is decided **and**
-the sub-ruling 2 anchor exists, the design is not defended against its own named adversary**."*
-**`A12` is now decided** (ruling 6), and §8.18 named its role as **distinct** from Trust. **The
-anchor is therefore the ONLY remaining condition on that sentence.** Nothing blocks it. **No option
-is chosen here.**
+**Owner decision (Q1): DECLINE THE APPEND-ONLY / TAMPER-RESISTANCE CLAIM.** No such claim is made.
+**`A11` sub-ruling 2 is therefore DISCHARGED UNBUILT** — its requirement is conditional on the
+claim, and with no claim there is no anchor obligation.
+
+> ### The decision changes what is CLAIMED. It does not change what is TRUE.
+>
+> **`A11` sub-ruling 1's adversary — the COMPROMISED EDGE FUNCTION — remains undefended against.**
+> Declining the claim removes the **obligation** to build an anchor. It removes **none** of the
+> **exposure**. **17 of 19** Edge Functions hold the `service_role` key, there are **zero**
+> `REVOKE … FROM service_role` statements, `service_role` is `BYPASSRLS`, and the DDL layer is open
+> so any party able to `DROP`/`DISABLE` a trigger removes the DML binding.
+>
+> **§8.6's sentence must not be read as closed by defence.** It said *"until `A12` is decided **and**
+> the sub-ruling 2 anchor exists, the design is **not defended against its own named adversary**."*
+> `A12` is decided and the anchor obligation is discharged — **and the design is still not defended
+> against its own named adversary.** That is the recorded state, stated plainly so it is not
+> discovered later as a surprise.
+
+**No anchor is designed or implemented.** No role created, no migration or policy written, no status
+changes, no registry ID allocated, no finding remediated.
+
+**`A11` sub-ruling 2, verbatim:** *"**DML-layer binding with an open DDL layer: NOT SUFFICIENT.** If
+the system claims meaningful append-only or tamper-resistance, **an out-of-database trust anchor is
+required**. The anchor is **not designed or implemented here**."* **The conditional is the operative
+clause, and the condition is now declined.**
 
 **`A11` sub-ruling 2, verbatim:** *"**DML-layer binding with an open DDL layer: NOT SUFFICIENT.** If
 the system claims meaningful append-only or tamper-resistance, **an out-of-database trust anchor is
@@ -1717,25 +1737,69 @@ sub-ruling 2 without building anything.** It is presented as an option, **not re
 carries its own cost: the audit ledger would then be explicitly **not** tamper-resistant against a
 compromised Edge Function, which `A11` sub-ruling 1 names as the adversary.
 
-#### What must be answered — options preserved, **none chosen, none ranked**
+#### Q1 — ANSWERED: **DECLINE THE CLAIM.** Q2–Q4 are MOOT, **not answered**
 
-1. **Is a tamper-resistance claim made at all?** Make it and build the anchor · **decline the
-   claim** and qualify the ledger accordingly (sub-ruling 2 is then discharged unbuilt) ·
-   claim it only for a named subset. *(Not blocked.)*
-2. **If claimed, what form does the anchor take?** External write-once store · cryptographic
-   chaining with the chain head anchored outside the database · third-party notarization · periodic
-   export plus attestation. **All four are unprecedented here**; `pgcrypto` supplies primitives for
-   the second but has never been used for them. *(Not blocked.)*
-3. **Who holds the anchor?** The Trust operator · the erasure executor · **neither** — a party
-   outside both, which is the only arrangement under which the anchor survives compromise of either
-   role. *(Relates to §8.18 Q3, which is also open; **neither is answered by the other**.)*
-4. **Does the anchor cover the D12/observability population?** §8.14 made it audit-worthy and
-   §8.16·Q1 left `A11` inheritance open, so an anchor scoped to the three audit populations would
-   leave an audit-worthy population unanchored. *(Depends on §8.16·Q1.)*
+The alternatives — *make the claim and build the anchor*, and *claim it for a named subset* — are
+**not adopted** and are preserved as the options that were open.
 
-**Nothing here is decided.** No anchor is designed or implemented, no role is created, no migration
-or policy is written, no status changes, no ID is allocated, and `D11`, `A14` and `D17` are not
-invented.
+**Q2 (anchor form), Q3 (anchor holder) and Q4 (observability coverage) are conditional on Q1 being
+answered the other way.** With no claim there is no anchor, so they **fall away — they are NOT
+answered, and they return unchanged if the claim is ever made.** Their evidence stands: all four
+candidate forms remain unprecedented here; `pgcrypto` still supplies primitives for chaining and
+has still never been used for them.
+
+**§8.18·Q3 and §8.16·Q1/Q4 are NOT touched by this decision and are NOT inferred.** §8.19·Q3 asked
+who holds an *anchor*; §8.18·Q3 asks who holds the *identity mapping*. **Different questions. Both
+of the latter remain OPEN exactly as recorded.**
+
+#### Verified: this decision requires NO copy amendment
+
+**Zero** occurrences of `append-only`, `append only` or `tamper` in `apps/mobile/lib/**` **or** in
+`supabase/migrations/`. **No claim exists to withdraw.** Contrast `A12` ruling 7, which required
+**AMEND COPY twice** for claims that did exist. **This decision is a decision not to make a claim,
+not a correction of one.**
+
+*(Verification caveat, recorded because it bears on any future source-level assertion of this kind:
+a static grep of `ENABLE ROW LEVEL SECURITY` **systematically undercounts in this repository** —
+`074:76–81` enables RLS on five `ai_*` tables through a **dynamic** `execute format(…)` loop over a
+name array, which no static pattern can match. This is §4:105's *"necessary, never sufficient"*
+holding on live material. The claim-absence counts above are literal-string searches and are not
+subject to that effect.)*
+
+#### Consequences — recorded, **not remediated**
+
+1. **What remains in force, unweakened.** This decision touches **only the claim**. `A11`'s
+   **FREEZE-IDENTITY-COLUMNS**, **APPEND-STATE-TRANSITIONS** and **NO RUNTIME WRITE PATH** remain
+   binding **as design constraints**, and the `120` precedent still shows the DML shape that
+   implements the first. `A12` ruling 2's frozen Event row remains frozen. **What is withdrawn is
+   any assertion that these amount to tamper-resistance** — because the DDL layer is open, exactly
+   as sub-ruling 2 says.
+2. **`A11` sub-ruling 4 is extended in effect.** It already barred a universal access-logging claim
+   *"ONLY WITH QUALIFICATION"*. The programme now also makes **no append-only and no
+   tamper-resistance claim**. Both limits are claim-limits; neither is a statement about the data.
+3. **FORWARD CONSTRAINT — this is the part that must not be lost.** Any future user-facing,
+   contractual, regulatory, marketing or certification statement asserting append-only,
+   tamper-evidence, immutability or an unalterable audit trail **re-triggers sub-ruling 2 and
+   reinstates the anchor obligation in full.** The obligation is dormant, **not deleted**.
+4. **Mandatory requirements are a separate matter and are NOT decided here.** If a regime that
+   applies to this product independently requires a tamper-evident audit trail, **declining to claim
+   one does not discharge that requirement.** `A12` rulings 3 and 5 are **PER-CATEGORY** and its
+   windows are recorded as *"owner-selected architectural defaults **pending legal/compliance
+   ratification**, not claims that any such legal requirement exists."* **The same caveat attaches
+   here. UNRESOLVED — outside this decision.**
+5. **The adversary gap is now a decided posture rather than an open task.** Previously §8.6 carried
+   it as a defect awaiting two conditions. It is now an **accepted, recorded exposure**: the
+   compromised Edge Function can alter audit rows at the DDL layer, and the programme neither
+   prevents that nor claims otherwise. **Recorded as an accepted limitation, not as a finding, not
+   as an ID, and not remediated.**
+6. **Anchor precedent remains NONE**, and the provenance gap is preserved rather than closed: zero
+   `hash`/`digest`/`hmac`/`checksum`/`merkle`/`prev_hash` in migrations; the single `sha256` is a
+   comment recording a file digest; all six `signature` hits are function signatures; `pgcrypto` is
+   enabled but its only consumed function tree-wide is `gen_random_uuid`.
+
+**No status changes. `QAX-SEC-08` remains OPEN / PARTIALLY VERIFIED; `QAX-SEC-09` remains OPEN.
+`D11`, `A14`, `D17`, `CONF-02`, `CONF-08`, `D1(iv)` and `D3` remain as recorded and none is
+invented.** `PD-A24` and `PD-A17` remain **TRACKED and OPEN**, owner *Julia*.
 
 ---
 
