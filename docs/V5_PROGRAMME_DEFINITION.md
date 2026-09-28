@@ -3395,6 +3395,71 @@ infrastructure dependencies, not decisions.
 
 ---
 
+## 22 · LIVE VERIFICATION ATTEMPT — P1
+
+**Outcome: live verification is UNAVAILABLE. P1 remains FIXED IN CODE.** No QA evidence was
+obtained, none is claimed, and **no finding's closure state was changed.**
+
+### 22.1 · Three independent gaps, each sufficient on its own
+
+1. **Credentials absent.** `QA_URL`, `QA_ANON`, `QA_SERVICE` are unset in the environment, and both
+   `.env` and `.env.local` are **empty (0 bytes)**. `supabase/tests/security/README.md` requires all
+   three; `run.mjs` refuses without them. *(Presence was checked, never values.)*
+2. **Docker daemon not running.** The Supabase CLI's remote dump path requires it, so **even a
+   read-only catalog observation is unavailable.** The linked project was first verified **not** to
+   be the production ref before any command was attempted.
+3. **Migrations 135 and 136 are not applied to QA.** Even with 1 and 2 resolved, **no post-fix state
+   exists there to probe**, so the standard's *"the same probe demonstrably failed before the fix"*
+   comparison has no second half.
+
+### 22.2 · Static verification completed instead — and it is genuinely adversarial
+
+**`migration-durability-guard.mjs`: PASS (enforcing) — 0 unrecorded regressions.** It detects
+*strip events*, where a later migration silently removes a property an earlier one established.
+**Neither 135 nor 136 produced one.**
+
+**`--self-test`: ALL PASS (7/7).** The guard is **proven non-vacuous** — it correctly flags a
+dropped wrapper and pin, treats an unrecorded strip as fatal, does **not** flag a redefinition that
+carries both properties forward, and still detects the historical `F-J-01` regression and attributes
+it to migration 119.
+
+> **This is static evidence about migration source. It is NOT live evidence and is not offered as a
+> substitute for it.**
+
+### 22.3 · Cross-check against the recorded fix simulation — a justified divergence
+
+`supabase/tests/qa_exhaustion/fixsim/QAX-SEC-09.sql` simulated the fix as: drop the
+`hosts_event_for` arm, and *"they use **`public_profiles`** for registrant names."*
+
+**Migration 135 drops the same arm but does NOT use `public_profiles`. That divergence is
+deliberate and, on the evidence, necessary:**
+
+- **`public_profiles` has no `email`** (`110:81–89` — `id`, `first_name`, `last_name`, `avatar_url`,
+  `role`). Using it would have **silently dropped the attendee email** from the vendor's list —
+  changing vendor-facing behaviour and **pre-empting the owner's explicit PII question in one
+  direction**, which §19 forbids.
+- **`public_profiles` carries no row predicate.** It is a general-purpose public projection, so
+  routing attendee reads through it would rest on an **unrestricted** view rather than a
+  relationship-gated one. `event_attendee_profiles` is gated by `hosts_event_for()` and is
+  **strictly tighter**.
+
+**The simulation also predates migration 132** — it still carries the `is_team_lead_of` arm that 132
+removed. It is a Wave-0 artifact and is **preserved unchanged**, not treated as governing.
+
+### 22.4 · Status — unchanged and not overclaimed
+
+**`QAX-SEC-09`, `SEC-PHI-9` and `SEC-PHI-10` remain OPEN and FIXED IN CODE.**
+**`MASTER_REMEDIATION_REGISTRY.md` is NOT edited.** `QAX-SEC-08` remains OPEN / PARTIALLY VERIFIED
+at 3 of 4 rungs. **P1 is CODE COMPLETE, not VERIFIED COMPLETE.**
+
+### 22.5 · Exact resume point
+
+Supply `QA_URL`, `QA_ANON`, `QA_SERVICE`, **start Docker**, and **apply 135 and 136 to QA**. Then
+`node supabase/tests/security/setup-identities.mjs` followed by `run.mjs` produces the request-level
+probes §5.2 requires, and the three findings become closable on their own evidence.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
