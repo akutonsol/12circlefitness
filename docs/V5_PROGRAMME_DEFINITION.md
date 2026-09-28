@@ -3231,6 +3231,98 @@ forbids claiming a supply-chain control the implementation cannot demonstrate.
 
 ---
 
+## 20 · FINAL IMPLEMENTATION-READINESS AUDIT
+
+Run after §19. **Nothing below is implemented.**
+
+### 20.1 · Decision ledger — **42 accounted for**
+
+| disposition | count | items |
+|---|---|---|
+| **RESOLVED** under delegated architecture authority (§19) | **35** | Tier 0 (3) · Tier 1 (2) · Tier 2 (17) · beyond-frontier (11) · architect-formulated (2) |
+| **DEFERRED** under a prior owner ruling (`PD-G01`) | **3** | `D-V1`, `D-V2`, `D-V4` |
+| **EXTERNAL OWNER DEPENDENCY** — *not this delegation's to make* | **4** | `D12` `Q7`, `Q8`, `Q10`, `Q11` |
+
+Plus previously answered: `CONF-01` · `D4·A1/A2/A3/A6/A11/A12/A13` · `D12` scope · `D12·Q4` ·
+`EC-01·Q1` · `D-D1` · §8.18·Q1 · §8.19·Q1 · `D15` · `D1(iv)`.
+
+### 20.2 · Phase entry conditions — recomputed
+
+| phase | entry condition | state after §19 |
+|---|---|---|
+| **P0** | `CONF-01`, `CONF-02` | ✅ **SATISFIED** — both answered |
+| **P1** | `D1(i)–(iv)`, `D3`, `D17` | ✅ **SATISFIED** — all answered |
+| **P2** | `D4`, `D12` | ⛔ **`D4` COMPLETE** (§19.2); **`D12` INCOMPLETE** — `Q7`/`Q8`/`Q10`/`Q11` await `PD-A24`/`PD-A17` |
+| **P3** | `D-V1`, `D-V2`, `D-V3` | ⛔ deferred under `PD-G01` |
+| **P4** | P3 | ⛔ downstream |
+| **P5** | P2, `D5`–`D7` | ⛔ decisions answered; **blocked on P2 and on `CONF-08` artefacts** |
+| **P6** | P2, P5, `D11`, `D-D1` | ⛔ decisions answered; blocked on P2/P5 |
+| **P7** | P2, P6, `D-V5` | ⛔ `D-V5` answered; blocked on P2/P6 |
+| **P8** | P4, `D6`, designs | ⛔ `D6` answered; blocked on P4 and `CONF-08` |
+| **P9** | P3–P8, `CONF-06` | ⛔ `CONF-06` answered; blocked upstream |
+| **P10** | `D-V6`, CI secrets, egress | ⛔ `D-V6` answered; **operational "installation forbidden" constraint unresolved** |
+
+### 20.3 · Security gates
+
+**Unchanged: 5 PASS · 2 PARTIAL · 8 FAIL of 15.** **No gate moved** — §19 recorded decisions, and a
+decision is not evidence. **`G-14` now has a recorded evaluation: NOT MET** (§19.4), and its
+audit-log conjunct still has **no requirement row** in `RELEASE_GATES.md`.
+
+### 20.4 · Required actions that are NOT performed — each outside the mutation boundary
+
+| action | required by | status |
+|---|---|---|
+| `QA_CLOSURE_STANDARD.md` to carry the alias definition | `EC-01·Q5` | **NOT performed** — file outside boundary |
+| `EC-01` row's §10 one-line answer (verified **absent**) | `EC-01·Q4` | **NOT performed** — registry outside boundary |
+| Registry `:2102`'s discharging reading vs §8.15 | §8.15 | **stands unedited** — conflict preserved |
+| `RELEASE_GATES.md` audit-log requirement row | `EC-01·Q3` | **NOT performed** |
+| Privacy-policy AI-processor disclosure | `D10` | **NOT performed** — app copy outside boundary |
+| `PD-B23`'s *"unconditional"* `_toggleConnect` deletion | `PD-B23` | **still unremediated at HEAD** |
+| `SEC-G1` baseline lowered to the live catalog | `D15` | **still "proposed, not applied"** |
+| Admin/Trust design artefacts | `CONF-08` | **commissioning required — 0 exist** |
+| **No registry ID allocated** | — | **correct; none may be** |
+
+### 20.5 · Required migrations — **none written**
+
+Verified zero at HEAD: audit tables · observability tables · incident tables · `CREATE ROLE` ·
+correlation identifier · identity-mapping table · SBOM step in CI. **§19 specifies their shape; it
+does not create them.**
+
+### 20.6 · QA / control-evidence dependencies
+
+**`QAX-SEC-08` remains OPEN / PARTIALLY VERIFIED — 3 of 4 rungs.** `QAX-SEC-09`, `F-03b`,
+`SEC-PHI-9/10`, `SEC-AI-1`, `NEW-W1-02`, `NEW-10` all remain **OPEN**. **No finding was remediated
+and no status changed.**
+
+### 20.7 · Contradictions — carried forward, none resolved
+
+All thirteen from §18.5, **plus two precedences recorded in §19 rather than resolved**: `A11`
+sub-ruling 3's discharge scope (**§8.7's unqualified reading given precedence**), and `CONF-08`'s
+imperative-vs-interrogative form (**the imperative taken as the decision object**). **Both original
+readings stand.** **Newly surfaced:** `CONF-06` depends on **`D2`**, which is **not among the 42**.
+
+### 20.8 · Unrecoverable items — final state
+
+**`D-V3`** and **`D-V6`** now carry **architect-formulated** questions and decisions, marked
+***"Architect-formulated owner decision; original historical question text was unrecoverable."***
+**The historical wording remains lost and is not claimed to have been found.**
+
+### 20.9 · Verdict
+
+**P0 and P1 are fully unblocked. Their every entry condition is satisfied and every decision they
+depend on is answered.**
+
+**P2 is NOT unblocked.** `D12` cannot complete while `Q7`, `Q8`, `Q10` and `Q11` await **`PD-A24`**
+and **`PD-A17`** — **TRACKED, OPEN, owner *Julia***. Per the delegation these are **preserved as
+external owner dependencies, not architecturally settled**, and **Julia's ownership is not
+overridden.**
+
+> **A genuine owner decision therefore remains necessary for P2 and beyond — but NOT for P0 and P1.**
+> **V5 implementation may begin at P0/P1 now; it cannot reach P2 until `PD-A24` and `PD-A17` are
+> answered by their owner.**
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
