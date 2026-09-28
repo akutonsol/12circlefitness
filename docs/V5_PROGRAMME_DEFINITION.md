@@ -1544,6 +1544,60 @@ Trust **surface** exists is reading more than was decided.
 
 ---
 
+### 8.18 `TRUST ROLE IDENTITY` — PREPARED, **NOT ANSWERED** — opened by §8.17
+
+§8.17 assigns the Trust operator *"audit/observability **review**, **erasure authorization**, and
+governance operations."* Two answered rulings bear on that combination and **neither was written
+with it in view**. Nothing blocks this question. **No option is chosen here.**
+
+#### The collision, stated exactly
+
+| source | text | bearing |
+|---|---|---|
+| **§8.17 `D-D1`** | Trust holds **review** *and* **erasure authorization** | one party, both powers |
+| **§8.8 `A13` sub-ruling 4** | *"Do erasure authority and read authority coincide? **NO.**"* | they must not be the same |
+| **§8.7 `A12` ruling 6** | erasure executor is *"**A NEW CONSTRAINED ROLE.** May that party be `service_role`? **NO**"* | a new role was already mandated |
+
+**`A13` sub-ruling 7 is decisive for how this must be handled:** *"**Answer now, not deferred to
+`D-D1`.**"* `A13` was deliberately settled **ahead of** `D-D1`. So **`D-D1` cannot retroactively
+alter `A13`'s content** — it supplies the role `A13` named, and any conflict must be resolved as a
+conflict, **not absorbed silently.**
+
+#### Two readings of sub-ruling 4, both available on the text
+
+- **Set reading:** the *set* of erasure-authorized parties ≠ the *set* of read-authorized parties.
+  A single role holding both is permitted so long as the sets differ elsewhere.
+- **Party reading:** **no single party** may hold both. Under this reading §8.17 must be read as
+  granting Trust erasure ***authorization*** only, with **execution** elsewhere.
+
+**§8.17's own wording is "erasure *authorization*", not "erasure execution"** — a textual hook that
+bears on the party reading. **It is recorded as evidence, not adopted.**
+
+#### `A13` sub-ruling 6 adds a third authorization, already separated
+
+*"Frozen row vs identity mapping: **TWO SEPARATE AUTHORIZATIONS**."* Combined with `A12` ruling 2 —
+anonymisation works by **severing an external mapping**, never mutating the frozen row — the party
+that erases needs **identity-mapping** access, which `A13` already holds **separate** from the
+frozen-row read access Trust has. So the design already contains **three** distinct authorizations,
+and §8.17 named **one** role.
+
+#### What must be answered — options preserved, **none chosen, none ranked**
+
+1. **Is the Trust operator the same role `A12` ruling 6 mandated?**
+   **ONE role** — Trust operator *is* the erasure executor · **TWO roles** — Trust reads, a separate
+   constrained role erases · **AUTHORIZE/EXECUTE SPLIT** — Trust authorizes, another party executes.
+   *(Not blocked.)*
+2. **Which reading of `A13` sub-ruling 4 governs?** Set reading · party reading · **explicitly
+   supersede sub-ruling 4** (which §8.8 records was answered *"now, not deferred to `D-D1`"`*, so
+   superseding it is a deliberate act, not a reconciliation). *(Not blocked.)*
+3. **Who holds the identity-mapping authorization** that `A13` sub-ruling 6 keeps separate — Trust,
+   the erasure executor, or a third party? *(Not blocked.)*
+
+**Nothing here is decided.** No role is created, no policy or migration is written, no status
+changes, no ID is allocated, and `D11`, `A14` and `D17` are not invented.
+
+---
+
 ## 9 · OPEN FINDINGS AND LIMITATIONS
 
 ### 9.1 Registered findings, open
