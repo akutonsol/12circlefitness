@@ -875,6 +875,107 @@ The condition is recorded here; any status change is a separate, separately-auth
 Its disposition bears directly on whether D12's content can be scoped against an accurate finding
 ledger.
 
+#### Investigation result — evidence only. **No status changes. Nothing is proposed.**
+
+Every claim below was verified independently against HEAD. `MASTER_REMEDIATION_REGISTRY.md` is
+**read, never written.**
+
+**(a) `EC-01` carries FOUR aliases, not two.** `:190` — *"`EC-01` | REL-26, LRE-27, LRE-28,
+EC-23"*. §8.11 above named only two. `REL-26` and `EC-23` are also collapsed into it.
+
+**(b) The alias mechanism has NO tracked definition.**
+`grep -i "alias" docs/QA_CLOSURE_STANDARD.md` returns **zero hits** — the document that governs
+every status change **never uses the word**. The registry's §3 does, but only about bookkeeping:
+`:148–149` *"The alias must not be used as a tracking key after this document"*; the column header
+is *"Aliases retired"*; `:3413` *"The alias map (§3) is closed. Do not resurrect a retired ID."*
+**No tracked text states either that closing a canonical discharges an alias's substantive
+condition, or that the alias retains independent status.** Two positions coexist unreconciled:
+`:2102` asserts *"`EC-23` **closes with it**"* as an inference from §3, while `LRE-27`/`LRE-28`
+remain bound to gate **G-14** and listed under the **open** `PD-A24`.
+
+**(c) The closure's own "what this does NOT do" list never names either alias.** `:2105–2113`
+enumerates the exclusions and names only `EC-05` and the Phase-B4 backlog. Verified: **no `LRE-2*`
+string occurs in that range.** So the record is silent, not affirmative, on both aliases.
+
+**(d) The scope asymmetry is total.** `EC-01`'s own origin statement bounds it to
+`apps/mobile` (*"`apps/mobile/pubspec.yaml`; all of `apps/mobile/lib`"*). `LRE-27` spans **three
+tiers** (mobile + API + all 19 Edge Functions). `LRE-28` is a **database table** with RLS.
+**`LRE-28`'s remediation — an append-only `audit_log` table — has zero subject-matter overlap with
+a Dart `reportFailure` function.** The alias map is the only thing joining them.
+
+**(e) Both aliases' conditions are verifiable-TRUE at HEAD by their own stated evidence methods.**
+Re-verified, not inherited: zero `sentry|crashlytics|datadog|opentelemetry` in
+`apps/mobile/pubspec.yaml` or `apps/api/package.json`; **zero** files matching
+`audit_log|audit_events|activity_log` in `supabase/migrations/`. `LRE-27`'s reproduction
+(*"cause a crash in a QA build; nothing records it"*) **still reproduces**, because a QA build is
+release mode and the default sink is a no-op there.
+
+**(f) What the closure actually delivered.** `app_failure.dart` — `AppFailure`, `FailureSink`,
+`reportFailure`/`reportError`. **23 real `reportError` call sites** in `lib/` (a 24th grep hit is a
+comment in `messaging_service.dart` describing the `ec23` regex), against the file's own
+denominator of **~234** swallow sites, with classification deferred to Phase B4. **No sink is
+installed at start-up** — `setFailureSink` is annotated `@visibleForTesting` and `main.dart`
+references neither it nor `app_failure`. `AppFailure` has four fields — `origin`, `error`,
+`stackTrace`, `context` — and **no environment field and no release field.**
+
+**(g) `G-14` cannot be evaluated as passed on this closure.** Its condition has three conjuncts —
+*"Error tracking live in all three tiers, tagged by environment and release; audit log in place"* —
+and **all three are false at HEAD** (one tier, debug-only, not live; no env/release fields per (f);
+no audit table per (e)). The gate's own governing sentence forecloses the alternative reading:
+*"A gate is met when its check passes in CI, **not when someone believes it is true**."* **NOT
+FOUND:** no tracked document asserts that `G-14` is met, partially met, or advanced by this closure.
+
+**(h) The closure is procedurally CORRECT on the class it was assigned — and this is the seam.**
+§2.1's **Release / environment** row demands `FIXED IN CODE · VERIFIED IN CI` and nothing more, and
+**both are present**, including a genuine pre-fix red in CI (run #34's `ec23` negative control).
+The standard's two rules that would otherwise bite do **not** reach it, because each carries an
+explicit scope clause:
+- §4:105 *"Necessary, never sufficient"* — scoped *"**for a security finding**"*. The `ec23` guard
+  is structurally the same instrument (a regex over source text) but `EC-01` is not a security
+  finding.
+- §5.2 *"Test the class, not the instance"* — under the heading *"Security findings"*. The wiring
+  assertion pins **three named instances** out of ~234.
+Meanwhile §2's own ladder states that `VERIFIED IN CI` *"does not prove **that the deployed
+environment behaves as the code implies**"* — and the deployed environment is the entire subject of
+`LRE-27`. **Both things are true at once and the tracked corpus contains no rule reconciling them.**
+
+**(i) One requirement that is NOT class-scoped appears unmet.** §10 requires the one-line test —
+*"if this defect were reintroduced tomorrow… what exactly goes red, and where does someone see it"*
+— to be answered *"**in writing, in the registry row**"*, with **no scope clause**. Verified: the
+`EC-01` row (`:769`) and its §7.13 checkpoint (`:2001–2113`) contain **no such answer**, while the
+comparable `I-WRK-01` closure at `:1415` carries one, explicitly labelled *"§10 one-line test"*,
+enumerating three standing guards. **This is recorded as an observation about the tracked record.
+It is NOT a finding, NOT an ID, and NOT a proposed status change.**
+
+**Counting caveat.** A naive `git grep -n "EC-01"` returns **103** lines **outside this document**,
+but most are substring matches inside `SEC-01` / `QAX-SEC-01` / `QAX-SEC-010`. The word-boundary
+count (`grep -E '(^|[^A-Za-z-])EC-01'`) is **32**. Any figure for "EC-01 mentions" taken from an
+unanchored grep is inflated by roughly 3×. *(Both counts exclude this file, whose own text would
+otherwise inflate them — the first count taken while writing this section did not, and was wrong
+for that reason.)*
+
+#### What must be answered — options preserved, **none chosen**
+
+1. **Does `EC-01`'s closure discharge `LRE-27` and `LRE-28`, or do they retain their own
+   conditions?** Options: discharged with the parent (the `EC-23` precedent at `:2102`) · retained
+   independently (§3's text is bookkeeping-only; `:2105–2113` never names them; both remain on
+   G-14 and under an open `PD-A24`) · the alias collapse was itself a classification error (the
+   scope asymmetry at (d)).
+2. **May a closure-class ruling made for a canonical bind aliases that would fall in a different
+   class?** The ruling is recorded as *"explicitly confined to `EC-01`"* and the programme twice
+   refused to carry it to **other canonicals** — but **the case of `EC-01`'s own aliases has never
+   been put.**
+3. **Can `G-14` be evaluated at all**, given its three conjuncts, or is it unevaluable until each
+   has a mechanical check?
+4. **Is the §10 written answer a precondition this closure did not meet** — and if so, is that a
+   defect in the closure, or in the row's completeness?
+5. **Does the tracked corpus need a definition of alias semantics** before this or any similar
+   question can be disposed of?
+
+**No status changes. `EC-01` remains `VERIFIED_CLOSED` in the registry; this document does not
+alter it. `LRE-27` and `LRE-28` remain as the registry records them. `PD-A24` remains OPEN and is
+not re-decided. No registry ID is allocated. Nothing is remediated.**
+
 ---
 
 ### 8.12 `D11` — PREPARED, **NOT ANSWERED** — Trust scope
@@ -887,8 +988,9 @@ changes a status.
 
 `D11` appears in exactly one tracked **text** file — this one (`git grep -lI -- D11`) — and in
 **every case as a dependency reference only**: §5.1 (:166), §5.2's P6 row (:230), §8.1's carried-forward list (:376, :379),
-§8.1's `D-D1` analysis (:392, :394, :395), §8.8's `A14` note (:772–:773), and §11 · DEFERRED SCOPE (:1062). **Not one
-of these states what `D11` asks.**
+§8.1's `D-D1` analysis (:392, :394, :395), §8.8's `A14` note (:772–:773), and §11 · DEFERRED SCOPE (:1074). **Not one
+of these states what `D11` asks.** *(Line numbers in this section are relative to this file at
+the commit that introduced §8.12; the section references are the durable citation.)*
 
 The question text exists **only in untracked analysis**:
 `QA_TO_V5_TRANSITION_RECONCILIATION_2026-09-27.md:336` — *"What is Trust's actual scope?"*
