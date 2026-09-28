@@ -389,6 +389,14 @@ does not gate this wave"*, and `V5_SECURITY_FOUNDATION_WAVE1_FINAL_REPORT.md:46`
 was *"left unfilled, as instructed."* It is therefore a **live unresolved owner decision**, not a
 stale artifact, and it is **not resolved here.**
 
+> **ANSWERED IN PART — §8.17, owner-ruled: TRUST OPERATOR.** The **governance/reader boundary** is
+> decided: Trust is a **distinct governance role**, and admin/domain roles do **not** automatically
+> inherit Trust access. **The tracked file above is NOT edited and its field remains literally
+> unfilled.** **Residual, flagged not resolved:** the question as phrased here also asks whether
+> Security / Incidents / Audit / Guardian form a separate **product area**. What was put and
+> answered was the **role** boundary. **This document does not deem the product-area question
+> answered, and does not answer it.** See §8.17.
+
 **Effect on P6.** §5.2 previously entered **P6 · TRUST** on `P2, P5, D11` alone. That list was
 **incomplete**:
 `D-D1` determines whether a Trust surface exists at all, so it gates P6 ahead of D11, which only
@@ -764,6 +772,8 @@ Owner decisions, recorded as supplied.
   This does **not** resolve the separate A2 recursion on *anonymisation* events, which remains
   open.
 - **The Trust operator is named as a reader of all three populations and does not exist.**
+  *(**§8.17**: `D-D1` is now answered **TRUST OPERATOR**, so the role is owner-mandated. It still
+  does not exist in any migration — the decision creates an obligation, not an object.)*
   `CREATE ROLE` has **zero** occurrences in `supabase/migrations/` (the only six in the tree
   recreate Supabase's built-in platform roles in the offline test harness — see the precision
   correction at §8.7), and **`D-D1`** — whether a Trust product area
@@ -1440,7 +1450,97 @@ review would bear on. If it does not inherit `A12`, the population has **no** re
    against what?** *(Not blocked, but the answer bears on 1.)*
 
 **Nothing here is decided. No status changes, no ID is allocated, `D12` and `D4` are not
-implemented, and `D-D1`, `D11`, `A14` and `D17` are not invented.**
+implemented, and `D11`, `A14` and `D17` are not invented.** *(`D-D1` was subsequently answered at
+§8.17; question 3 above is unblocked as to the role, though the role still does not exist.)*
+
+---
+
+### 8.17 `D-D1` — ANSWERED — **TRUST OPERATOR** — the governance/reader boundary
+
+**Owner decision: TRUST OPERATOR.** Trust is a **distinct governance role** responsible for
+audit/observability review, erasure authorization and governance operations. **Admin and domain
+roles do NOT automatically inherit Trust access.**
+
+**No role, policy, migration, reader, erasure flow or observability mechanism is implemented.** No
+registry ID is allocated. No finding is remediated. `MASTER_PRODUCT_DECISIONS.md`,
+`MASTER_REMEDIATION_REGISTRY.md` and `QA_CLOSURE_STANDARD.md` are **not modified**, and the tracked
+`TRUST = [INSERT OWNER DECISION HERE]` field in
+`V5_SECURITY_FOUNDATION_WAVE1_AUTHORIZATION.md` **remains literally unfilled** — it is outside this
+document's mutation boundary.
+
+#### **Scope of what was answered — read this before relying on it**
+
+§8.1 phrases `D-D1` as *"Are Security / Incidents / Audit / Guardian a separate 'Trust' **product
+area**, or Admin domains?"* **What was put and answered here is the governance/reader boundary — a
+ROLE.** **This document does not treat the product-area question as answered**, and **does not
+answer it.** The residual is flagged in §8.1 in place. Anyone reading `D-D1` as settling whether a
+Trust **surface** exists is reading more than was decided.
+
+#### What this resolves
+
+- **`A13` is no longer inconsistent with the role inventory.** Its reader table names the **Trust
+  operator** in **all three** rows (Event · Incident · Control evidence), and §8.8 recorded that the
+  role *"does not exist"*. The decision converts that from an unbacked reference into an
+  **owner-mandated obligation**. The role **still does not exist in any migration** — the decision
+  creates an obligation, not an object.
+- **`A13` sub-ruling 3's MIXED model now has both halves.** *"Relationship-based authorization for
+  subject/actor/active-coach access; role-class authorization for admin and Trust operator access."*
+  The role-class half finally has a role to name.
+- **`D12` question 12 and §8.16 question 3 are unblocked as to the role** — though neither is
+  answered, and both still require the role to exist.
+
+#### What this does NOT resolve — recorded, not inferred
+
+- **`D11` is NOT answered.** §8.1 records that `D-D1` *"gates P6 ahead of D11, **which only scopes
+  it**"*. Answering the gate does not answer the scoping. **`D11` still has no tracked substantive
+  definition** — it appears in exactly one tracked text file and only as a dependency reference.
+  **It is not invented here.**
+- **`A14` remains BLOCKED**, because it is blocked on `D11`, which remains open.
+- **P6's entry condition.** §8.1 records it must be read as `P2, P5, D11, D-D1` until `D-D1` is
+  answered. `D-D1` is now answered **as to the role**; the **product-area residual above** bears on
+  whether the `D-D1` term is fully discharged for P6. **Not asserted either way here.**
+
+#### Consequences and contradictions — characterized from verified evidence, **not remediated**
+
+1. **The role has no precedent to copy, and creating it has no precedent either.** The tracked role
+   inventory is **five values** — `client`, `coach`, `vendor`, `admin`, `content_manager`
+   (`115:79`). **`CREATE ROLE` has ZERO occurrences in `supabase/migrations/`.** The only six in the
+   tree are in `supabase/tests/local/shim.sql:23–28`, recreating Supabase's **built-in platform
+   roles** for the offline harness — **not an application-role precedent.**
+2. **A new open question this decision creates: is the Trust operator the SAME role `A12` already
+   mandated?** `A12` ruling 6 rules the erasure executor is **A NEW CONSTRAINED ROLE** and
+   explicitly **NOT `service_role`**. D-D1 assigns *erasure authorization* to Trust. **Whether these
+   are one role or two is NOT decided** — and `A13` sub-ruling 4 rules that **erasure authority and
+   read authority do NOT coincide**, which pulls toward two. **UNRESOLVED — owner decision
+   required.** Not answered here.
+3. **The only existing governance-data reader precedent excludes a Trust operator and reserves
+   erasure to `service_role`.** `decision_traces` (`128:86–99`) is readable by *subject OR creator
+   OR active coach OR admin*, with `content_manager` **deliberately not granted** and the coach role
+   alone **never sufficient**; its comment states provenance is *"erased **only by**
+   `service_role`"*. That erasure clause **contradicts `A12` ruling 6**. `decision_traces` is not an
+   audit population, so the contradiction is **adjacent, not direct** — **recorded, not resolved,
+   and the migration is not modified.**
+4. **`N07` diverges further.** `docs/proposed/N07_assessment_access.sql` — **tracked, unapplied,
+   never adopted, and not modified** — carries **two `FOR SELECT` policies only** (*client reads
+   own*, *coach reads own*) and **zero `is_admin()`**. It therefore has **no admin reader and no
+   Trust operator**, against `A13`'s Event row of *active coach · admin · Trust operator*. The
+   pre-existing N07 conflict **widens** under this decision. **Evidence only.**
+5. **Nothing distinguishes a Trust operator from `service_role` today.** **17 of 19** Edge Functions
+   hold the service-role key, and there are **zero** `REVOKE … FROM service_role` statements in the
+   migration tree. `service_role` is `BYPASSRLS`, so a role-class check is not a boundary against
+   it. `A11` sub-ruling 3 deferred the owner/`service_role` binding *"until `A12`"*; `A12` resolved
+   it for the **audit** populations; §8.16·Q4 re-opened it for **observability**. **D-D1 adds a
+   third face of the same gap: the Trust operator's relationship to `service_role` is undefined.**
+   **Not decided here.**
+6. **`A13` sub-ruling 5 compounds it.** Audit reads are themselves **audit-worthy**, so a Trust
+   operator reading audit generates audit records that a Trust operator may read. §8.8 already
+   recorded the recursion boundary; **D-D1 makes the recursing party a named role.**
+7. **`PD-A24` and `PD-A17` are untouched.** Both remain **TRACKED**, `Proceed? = "Partly"`, owner
+   **Julia** (`PD-A24`: *Julia + privacy*), waves 3B/8 and 1/8. **Neither is re-decided**, and
+   `PD-A24` continues to block `D12` questions 6(d), 7, 9(b) and 10.
+
+**No status changes. `QAX-SEC-08` remains OPEN / PARTIALLY VERIFIED; `QAX-SEC-09` remains OPEN.
+`D11`, `A14`, `D17`, `CONF-02`, `CONF-08`, `D1(iv)` and `D3` remain as recorded.**
 
 ---
 
