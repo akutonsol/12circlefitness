@@ -29,6 +29,18 @@ export const VIEWS = new Set([
   // `security_invoker = off`, `security_barrier = true`, SELECT-only for
   // `authenticated`, and gated by is_team_lead_of() requiring status = 'active'.
   'team_member_profiles',
+  // Added by migration 135 (V5 P1, QAX-SEC-09). The minimum-necessary event
+  // attendee projection that replaced the hosts_event_for() arm of the
+  // user_profiles SELECT policy. Registering it here is inventory completeness
+  // only — it changes no security property of the view, which is
+  // `security_invoker = off`, `security_barrier = true`, SELECT-only for
+  // `authenticated`, and gated by hosts_event_for().
+  //
+  // NOTE ON THE HEADER ABOVE: the "six views, verified against the live QA
+  // catalog 2026-09-27" statement predates this entry and is NOT re-asserted
+  // for it. Migration 135 has NOT been applied to any environment and no
+  // database was contacted; this entry is source-derived only.
+  'event_attendee_profiles',
 ]);
 
 // `.from()` names that are Storage buckets, not relations.
