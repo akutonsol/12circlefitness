@@ -1544,11 +1544,24 @@ Trust **surface** exists is reading more than was decided.
 
 ---
 
-### 8.18 `TRUST ROLE IDENTITY` — PREPARED, **NOT ANSWERED** — opened by §8.17
+### 8.18 `TRUST ROLE IDENTITY` — **ANSWERED on Q1: TWO ROLES** — opened by §8.17
+
+**Owner decision (Q1): TWO ROLES.** The **Trust operator reads and reviews**; a **separate new
+constrained role executes erasure.** The Trust operator is therefore **NOT** the role `A12` ruling 6
+mandated — **that remains a distinct second role.**
+
+**Q2 and Q3 were NOT put and are NOT answered here.** They are preserved below, open.
+
+**No role is created. No policy, migration, reader or erasure flow is implemented.** No registry ID
+is allocated, no finding is remediated, no status changes.
 
 §8.17 assigns the Trust operator *"audit/observability **review**, **erasure authorization**, and
-governance operations."* Two answered rulings bear on that combination and **neither was written
-with it in view**. Nothing blocks this question. **No option is chosen here.**
+governance operations."* Two answered rulings bear on that combination.
+
+> **PHRASING CORRECTION.** This section previously said neither ruling *"was written with it in
+> view."* **Too loose:** `A13` sub-ruling 7 names `D-D1` explicitly. Accurately: `A13` had `D-D1`'s
+> **existence** in view and chose not to wait for it; it did not have **`D-D1`'s answer** in view,
+> because that answer did not yet exist. The options were unaffected.
 
 #### The collision, stated exactly
 
@@ -1581,20 +1594,71 @@ that erases needs **identity-mapping** access, which `A13` already holds **separ
 frozen-row read access Trust has. So the design already contains **three** distinct authorizations,
 and §8.17 named **one** role.
 
-#### What must be answered — options preserved, **none chosen, none ranked**
+#### Q1 — ANSWERED: **TWO ROLES**
 
-1. **Is the Trust operator the same role `A12` ruling 6 mandated?**
-   **ONE role** — Trust operator *is* the erasure executor · **TWO roles** — Trust reads, a separate
-   constrained role erases · **AUTHORIZE/EXECUTE SPLIT** — Trust authorizes, another party executes.
-   *(Not blocked.)*
+**Trust reads; a separate new constrained role erases.** The alternatives — ONE ROLE, and the
+AUTHORIZE/EXECUTE SPLIT — are **not adopted** and are preserved above as the options that were open.
+
+**`A13` sub-ruling 4 is satisfied under BOTH readings.** Two distinct parties means the erasure
+authority and the read authority neither coincide as sets nor coincide in any single party.
+**Therefore no supersession of sub-ruling 4 is required, and none is made.** `A13` and `A12` keep
+their existing separation intact, exactly as recorded.
+
+**Q2 is consequently MOOT FOR THIS DECISION BUT NOT ANSWERED.** Which reading governs still matters
+for any future case where one party might hold both. **It remains OPEN and is not resolved here.**
+
+#### Still to be answered — options preserved, **none chosen, none ranked**
+
 2. **Which reading of `A13` sub-ruling 4 governs?** Set reading · party reading · **explicitly
-   supersede sub-ruling 4** (which §8.8 records was answered *"now, not deferred to `D-D1`"`*, so
-   superseding it is a deliberate act, not a reconciliation). *(Not blocked.)*
+   supersede sub-ruling 4** (which §8.8 records was answered *"now, not deferred to `D-D1`"*, so
+   superseding it is a deliberate act, not a reconciliation). **OPEN** — not required by Q1's
+   answer, and **not answered by it.** *(Not blocked.)*
 3. **Who holds the identity-mapping authorization** that `A13` sub-ruling 6 keeps separate — Trust,
-   the erasure executor, or a third party? *(Not blocked.)*
+   the erasure executor, or a third party? **OPEN.** Q1 named **two** roles; sub-ruling 6 keeps
+   **three** authorizations apart, so **one authorization still has no holder.** *(Not blocked.)*
 
-**Nothing here is decided.** No role is created, no policy or migration is written, no status
-changes, no ID is allocated, and `D11`, `A14` and `D17` are not invented.
+#### Consequences of TWO ROLES — recorded, **not remediated**
+
+1. **The design now requires TWO new roles where the repository has precedent for none.**
+   `CREATE ROLE` has **zero** occurrences in `supabase/migrations/`; the only six in the tree are
+   `supabase/tests/local/shim.sql:23–28`, recreating Supabase's **built-in platform roles** for the
+   offline harness. **Two roles must be created against zero application-role precedent.**
+2. **Neither role is distinguishable from `service_role` today.** **17 of 19** Edge Functions hold
+   the service-role key, there are **zero** `REVOKE … FROM service_role` statements in the migration
+   tree, and `service_role` is `BYPASSRLS`. `A12` ruling 6 excludes `service_role` from the erasure
+   role specifically — and **no mechanism currently enforces that exclusion.**
+3. **The one authorize/execute precedent in the repository is NOT the shape chosen — recorded so
+   the gap is visible.** `admin_set_user_role()` (`115:363–395`) separates **authorization from
+   execution within one call**: the caller proves role class
+   (`auth.uid() IS NOT NULL AND NOT is_admin()` → `42501`), the `SECURITY DEFINER` function then
+   announces a transaction-local exception via
+   `set_config('circle12.privileged_role_write','on',true)` — the **only** `set_config` in the
+   migration tree — and `trg_profile_privilege`, a `BEFORE INSERT OR UPDATE … FOR EACH ROW` trigger
+   running `enforce_profile_privilege()`, enforces it at DML. Its own comment reads *"the
+   authorization decision was made above."*
+   **TWO ROLES separates the PARTIES instead, so this precedent does not supply the shape** — and it
+   carries **three defects** that would have to be addressed by whatever does:
+   - **Its authorization half is bypassed by the adversary.** Both the function and the trigger skip
+     the check on the internal path (`IF v_uid IS NULL THEN RETURN NEW`) — i.e. for `service_role`,
+     the party `A12` ruling 6 excludes and `A11` sub-ruling 1 names as the adversary.
+   - **Its record is a `RAISE LOG`** — the only one in the tree — and **`A2` already ruled a
+     server-log line does not satisfy an audit obligation** (§8.3).
+   - **It has no `DELETE` arm.** Under `A12`'s ANONYMISE-AND-RETAIN that may not be needed, since
+     erasure severs an external mapping rather than deleting; **not decided here.**
+4. **`A13` sub-ruling 5's recursion is now confined to one role.** Audit reads are themselves
+   audit-worthy; with only Trust reading, the recursing party is a single named role rather than a
+   role that also erases. **The recursion boundary itself is unchanged.**
+5. **The `decision_traces` contradiction sharpens.** `128:99` states provenance is *"erased **only
+   by** `service_role`"*, which contradicts `A12` ruling 6 — and now contradicts a **named, distinct
+   erasure role** rather than an unnamed one. `decision_traces` is not an audit population, so the
+   contradiction remains **adjacent, not direct**. **Recorded, not resolved; the migration is not
+   modified.**
+6. **`N07` has neither role.** `docs/proposed/N07_assessment_access.sql` — **tracked, unapplied,
+   never adopted, not modified** — carries two `FOR SELECT` policies and **zero `is_admin()`**, so it
+   names no Trust operator and no erasure executor. **Evidence only.**
+
+**No status changes. `D11`, `A14`, `D17`, `CONF-02`, `CONF-08`, `D1(iv)` and `D3` remain as
+recorded, and none is invented.** `PD-A24` and `PD-A17` remain **TRACKED and OPEN**, owner *Julia*.
 
 ---
 
