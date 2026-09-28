@@ -163,7 +163,7 @@ Derived from `V5_IMPACT_ANALYSIS_2026-09-27.md` §17–18. **No dependency is in
 ```
 CONF-01 ANSWERED (baseline = 91 routes, §8.2) · CONF-02 OPEN ──► what "V5" means
         │
-D4 AUDIT SCHEMA ◄── deepest dependency  [A2 §8.3 + A1 §8.4 ANSWERED; A3/A11/A12/A13 OPEN]
+D4 AUDIT SCHEMA ◄── deepest dependency  [A2/A1/A3 ANSWERED §8.3-8.5; A11/A12/A13 OPEN]
         ├──► Admin audit domain ──► Admin Control Center (13 domains)
         ├──► Incidents ──────────► Trust → Incidents
         ├──► Agent action trail ─► AI Guardian (AS-05) ──► Guardian QA
@@ -372,8 +372,8 @@ self-allocation.
 
 `CONF-02` · **`D3`** (uniform status predicate — **a P1 entry blocker**, see §5.2; *not* the
 `D-3` of §8, which is a different decision) ·
-**`D4`** (audit schema — the deepest dependency; **`A2` §8.3 and `A1` §8.4 ANSWERED**,
-`A3`/`A11`/`A12`/`A13` still OPEN) · `D12` (observability) ·
+**`D4`** (audit schema — the deepest dependency; **`A2` §8.3, `A1` §8.4 and `A3` §8.5 ANSWERED**,
+`A11`/`A12`/`A13` still OPEN) · `D12` (observability) ·
 `D5`–`D7` (Admin) · `D11` (Trust) · **`D-D1`** (Trust container — see below) ·
 `D15` (derive guard population from the live catalog) ·
 `D17` · `D-V1`/`D-V2`/`D-V3` (wearable boundary, store, contract) · `D-V4` · `D-V5` ·
@@ -524,6 +524,67 @@ are not a fourth audit population.
   against that ceiling is **`A11`**, still OPEN.
 
 **A1 changes no finding's status**, allocates no registry ID, and remediates nothing.
+
+### 8.5 `D4 · A3` — ANSWERED — audit write path
+
+Owner decisions, recorded as supplied. **A3 only. `A11`, `A12` and `A13` remain OPEN and nothing
+below decides or implies any of them.**
+
+**Write path per A1 population:**
+
+| Population | Write path |
+|---|---|
+| **Event** | **COMBINATION — trigger + RPC + application** |
+| **Incident** | **RPC + application** |
+| **Control evidence** | **AUTHORED MIGRATION + application** |
+
+**Five sub-rulings:**
+
+1. **PHI-read coverage: PARTIAL.** A 565-call-site RPC rewrite is **not authorized** solely for
+   audit completeness. PHI-read auditing therefore covers only reads routed through an RPC.
+2. **RLS denials, managed authentication events, and storage/media reads: ACCEPTED AS BLIND
+   SPOTS.** They are preserved **explicitly as coverage limitations** and **must not be
+   represented as audited**.
+3. **Application-asserted actor: PERMITTED — but provenance must be preserved.** Asserted /
+   application-provided identity and cryptographically grounded `auth.uid()` attribution **must
+   remain distinguishable in the design and must not be equated**.
+4. **Failed audit write: BEST-EFFORT.** An audit-write failure **must not automatically abort the
+   audited business action**. Reliable failure visibility is recorded as an **unresolved
+   implementation concern** carried to the downstream design.
+5. **`service_role`: CONSTRAIN** its ability to bypass the intended audit controls. This is an
+   **architectural ruling only** — the 17 service-role-holding Edge Functions are **not modified**.
+
+#### Consequences that follow from A3 alone — recorded, not remediated
+
+- **`N07_assessment_access.sql` now conflicts on a THIRD count.** Its stated design is *"Log
+  BEFORE returning. If the insert fails the read does not happen"* — audit-as-blocking, the exact
+  inverse of sub-ruling 4. Together with the `ON DELETE CASCADE` conflict (A1 sub-ruling 2) and
+  the non-canonical `SET search_path = public` at `:151` (`134` requires `public, pg_temp`;
+  `I-MIG-03` matches only the canonical form), plus its **missing `116` class declaration**, N07
+  now carries **three conflicts and one omission**. It remains **evidence and a proposal only —
+  not adopted, not applied, NOT MODIFIED.**
+- **Coverage is now bounded and must be stated honestly.** The mobile client makes **565 direct
+  `.from()` calls against 54 `.rpc()` calls** — RPC carries **8.7%** of data-access calls. Under
+  sub-ruling 1, PHI-read audit observes that minority only. **No document may describe PHI-read
+  auditing as complete.**
+- **Four of A2's fourteen IN categories remain unemittable by any path:** RLS authorization
+  denials (silent; and the 32 explicit `42501` raises **abort the transaction**, rolling back any
+  audit row written in it) · authentication (Supabase-managed `auth` schema; zero references to
+  `auth.audit_log_entries`/`auth.sessions`) · storage/media reads (no instrumented mint point) ·
+  control evidence (no runtime occurrence, by construction). Sub-ruling 2 accepts the first three
+  as blind spots.
+- **Sub-ruling 5 has no precedent to build on.** No migration constrains `service_role` anywhere;
+  `114`'s header explicitly *reserves* erasure to it. The only mechanism verified to bind **every**
+  caller including owner and `service_role` is a BEFORE UPDATE/DELETE trigger that RAISEs
+  (`120_workout_set_identity_authority.sql` precedent). Whether that is sufficient is **`A11`**,
+  still OPEN.
+- **Actor provenance is now a design obligation.** `auth.uid()` is NULL on every internal path;
+  `current_user` cannot distinguish an Edge Function from pg_cron from a migration; and
+  `stripe-webhook` has no JWT at all — its actor is `session.metadata.user_id`, supplied by a
+  third party's payload. Sub-ruling 3 permits such actors **provided the distinction is carried in
+  the record**.
+
+**A3 changes no finding's status**, allocates no registry ID, and remediates nothing.
 
 ---
 
