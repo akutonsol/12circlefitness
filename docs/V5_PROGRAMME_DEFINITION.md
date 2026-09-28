@@ -163,7 +163,7 @@ Derived from `V5_IMPACT_ANALYSIS_2026-09-27.md` §17–18. **No dependency is in
 ```
 CONF-01 ANSWERED (baseline = 91 routes, §8.2) · CONF-02 OPEN ──► what "V5" means
         │
-D4 AUDIT SCHEMA ◄── deepest dependency  [A2/A1/A3/A11 ANSWERED §8.3-8.6; A12/A13 OPEN]
+D4 AUDIT SCHEMA ◄── deepest dependency  [A2/A1/A3/A11/A12 ANSWERED §8.3-8.7; A13 OPEN]
         ├──► Admin audit domain ──► Admin Control Center (13 domains)
         ├──► Incidents ──────────► Trust → Incidents
         ├──► Agent action trail ─► AI Guardian (AS-05) ──► Guardian QA
@@ -372,8 +372,8 @@ self-allocation.
 
 `CONF-02` · **`D3`** (uniform status predicate — **a P1 entry blocker**, see §5.2; *not* the
 `D-3` of §8, which is a different decision) ·
-**`D4`** (audit schema — the deepest dependency; **`A2`/`A1`/`A3`/`A11` ANSWERED §8.3–8.6**,
-`A12`/`A13` still OPEN) · `D12` (observability) ·
+**`D4`** (audit schema — the deepest dependency; **`A2`/`A1`/`A3`/`A11`/`A12` ANSWERED §8.3–8.7**,
+**`A13` the last open sub-decision**) · `D12` (observability) ·
 `D5`–`D7` (Admin) · `D11` (Trust) · **`D-D1`** (Trust container — see below) ·
 `D15` (derive guard population from the live catalog) ·
 `D17` · `D-V1`/`D-V2`/`D-V3` (wearable boundary, store, contract) · `D-V4` · `D-V5` ·
@@ -643,6 +643,65 @@ decides or implies either.**
   columns editable — but no such classification exists for any audit population.
 
 **A11 changes no finding's status**, allocates no registry ID, and remediates nothing.
+
+### 8.7 `D4 · A12` — ANSWERED — retention, de-identification, erasure
+
+Owner decisions, recorded as supplied. **A12 only. `A13` remains OPEN and nothing below decides
+or implies it.**
+
+| # | Ruling |
+|---|---|
+| **1 · Erasure model** | **ANONYMISE-AND-RETAIN** |
+| **2 · A11 Event freeze** | **NO exception — use an external mapping.** The frozen row is never mutated |
+| **3 · Precedence** | **PER-CATEGORY** — *"mandatory legal/regulatory retention controls where applicable; otherwise erasure applies, using de-identification where possible"* |
+| **4 · Windows** | Event **6 years** · Incident **6 years** · Control evidence **6 years** · Financial/tax **7 years** |
+| **5 · Governing regime** | **BOTH** — *"apply the applicable mandatory requirement by data category; where retention is mandatory, retain the minimum necessary data and de-identify where permitted"* |
+| **6 · Erasure executor** | **A NEW CONSTRAINED ROLE.** May that party be `service_role`? **NO** |
+| **7 · Public copy** | False export claim → **AMEND COPY**. Unratified 30-day window → **AMEND COPY** |
+| **8 · Privacy §6 indefinite anonymised retention** | **STAND BEHIND** |
+
+**The windows in ruling 4 are recorded verbatim as owner-selected architectural defaults
+*pending legal/compliance ratification*. They are NOT claims that any such legal requirement
+exists**, and must not be cited as one.
+
+#### Consequences that follow from A12 alone — recorded, not remediated
+
+- **Ruling 6 requires a structural first.** `CREATE ROLE` has **zero occurrences** tree-wide, as
+  do `CREATE SCHEMA` and `OWNER TO`. A new constrained role has **no precedent to copy** in this
+  repository. Everything currently lives in `public`, owned by the migration-running role.
+- **Ruling 6 satisfies A11 sub-ruling 3's deferral condition.** A11 deferred binding the
+  owner/`service_role` boundary *"until `A12`'s retention/erasure mechanism is decided."* It is now
+  decided, and the executor is explicitly **not** `service_role`. The binding intent of A3
+  sub-ruling 5 therefore has a named beneficiary; **implementing it remains future work and is not
+  authorized here.**
+- **Ruling 2 carries a write-path implication forward.** An external pseudonymous mapping —
+  severed to anonymise, leaving the frozen Event row untouched — is machinery **A3 did not
+  contemplate**. A3's three write paths (trigger · RPC · application) remain as decided; the
+  mapping is an **addition** to be specified downstream, **not** a reversal of A3. Where the
+  mapping lives, and who may sever it, are open.
+- **The A2 recursion is unresolved by A12.** Export/deletion events are IN, so the act of
+  anonymising is itself auditable and produces a **new** Event naming the subject. Nothing tracked
+  resolves this, and A12 does not.
+- **Ruling 7 names required copy changes that are OUTSIDE this document's mutation boundary.**
+  `privacy_policy_screen.dart:85` still claims *"a full export of your data at any time from
+  Profile → Settings → Account"* and **no export path exists anywhere**; the 30-day purge window is
+  unratified and held at a custody checkpoint. **Neither string is edited here**, and no
+  application file is modified. Recorded as required work, not performed.
+- **Ruling 8 stands behind a promise with no mechanism.** Privacy §6 already tells users that
+  *"aggregate, anonymised"* data is *"retained indefinitely to improve our AI models."* No
+  de-identification routine exists anywhere in the repository.
+- **A tracked release gate bounds ruling 7.** `RELEASE_GATES.md` gate 8.2 requires in-app deletion
+  end-to-end **including an audit record**, and Guideline 5.1.1(v) makes an email-only path
+  untenable for an App Store release. Amending copy does not clear that gate.
+- **No retention machinery exists to build on.** Zero soft-delete columns, no TTL, no purge job;
+  `pg_cron` exists but is used only for coaching and accountability timing. A12 sets retention
+  **de novo**.
+- **What retention actually preserves, stated honestly.** Under A3's PARTIAL coverage, its three
+  accepted blind spots and best-effort emit, the retained ledger omits four of A2's fourteen
+  categories and observes **8.7%** of data-access calls. **Absence of a row proves nothing, and no
+  retention window converts a partial log into a complete one.**
+
+**A12 changes no finding's status**, allocates no registry ID, and remediates nothing.
 
 ---
 
