@@ -163,7 +163,7 @@ Derived from `V5_IMPACT_ANALYSIS_2026-09-27.md` §17–18. **No dependency is in
 ```
 CONF-01 ANSWERED (baseline = 91 routes, §8.2) · CONF-02 OPEN ──► what "V5" means
         │
-D4 AUDIT SCHEMA ◄── deepest dependency  [A2/A1/A3/A11/A12 ANSWERED §8.3-8.7; A13 OPEN]
+D4 AUDIT SCHEMA ◄── deepest dependency  [A2/A1/A3/A11/A12/A13 ANSWERED §8.3-8.8; A6+A14 OPEN]
         ├──► Admin audit domain ──► Admin Control Center (13 domains)
         ├──► Incidents ──────────► Trust → Incidents
         ├──► Agent action trail ─► AI Guardian (AS-05) ──► Guardian QA
@@ -372,8 +372,9 @@ self-allocation.
 
 `CONF-02` · **`D3`** (uniform status predicate — **a P1 entry blocker**, see §5.2; *not* the
 `D-3` of §8, which is a different decision) ·
-**`D4`** (audit schema — the deepest dependency; **`A2`/`A1`/`A3`/`A11`/`A12` ANSWERED §8.3–8.7**,
-**`A13` the last open sub-decision**) · `D12` (observability) ·
+**`D4`** (audit schema — the deepest dependency; **`A2`/`A1`/`A3`/`A11`/`A12`/`A13` ANSWERED
+§8.3–8.8**; **still OPEN on `A6` and `A14`**, and `A14` is blocked on `D11`) ·
+`D12` (observability) ·
 `D5`–`D7` (Admin) · `D11` (Trust) · **`D-D1`** (Trust container — see below) ·
 `D15` (derive guard population from the live catalog) ·
 `D17` · `D-V1`/`D-V2`/`D-V3` (wearable boundary, store, contract) · `D-V4` · `D-V5` ·
@@ -702,6 +703,74 @@ exists**, and must not be cited as one.
   retention window converts a partial log into a complete one.**
 
 **A12 changes no finding's status**, allocates no registry ID, and remediates nothing.
+
+### 8.8 `D4 · A13` — ANSWERED — who may read audit records
+
+Owner decisions, recorded as supplied.
+
+**Readers per A1 population:**
+
+| Population | Readers |
+|---|---|
+| **Event** | active coach · admin · Trust operator |
+| **Incident** | actor · active coach · admin · Trust operator |
+| **Control evidence** | admin · Trust operator |
+
+**Seven sub-rulings:**
+
+1. **May the audited party read its own audit? NOT FOR ADMIN ACTIONS.**
+2. **Does a subject retain read access after their own anonymisation? NO.**
+3. **Reader model: MIXED** — *"relationship-based authorization for subject/actor/active-coach
+   access; role-class authorization for admin and Trust operator access."*
+4. **Do erasure authority and read authority coincide? NO.**
+5. **Are audit reads themselves audit-worthy? YES** — *"record audit-read activity at the
+   application/access layer, but do not recursively generate another audit record for the
+   audit-read event itself. The recursion boundary is the audit-read operation itself."*
+6. **Frozen row vs identity mapping: TWO SEPARATE AUTHORIZATIONS.**
+7. **Answer now, not deferred to `D-D1`.**
+
+#### Consequences that follow from A13 alone — recorded, not remediated
+
+- **The subject is not a reader of any audit population.** This diverges from **both** existing
+  artifacts: `decision_traces` (`128:86-99`, owner-ruled PD-A05) admits `subject_id` and
+  `created_by`, and N07 admits `client_id` (subject) and `coach_id` (actor). It also departs from
+  N07's stated rationale — that *"Opening it is logged"* be verifiable *"by the person it
+  protects, rather than merely asserted at them."* Recorded as a deliberate ruling, not an
+  oversight, and **noted because it is the most consequential divergence in A13**.
+- **Sub-ruling 5 resolves the A2 recursion** that A12 left open. Audit-read activity is recorded
+  at the application/access layer and the audit-read operation is itself the recursion boundary.
+  This does **not** resolve the separate A2 recursion on *anonymisation* events, which remains
+  open.
+- **The Trust operator is named as a reader of all three populations and does not exist.**
+  `CREATE ROLE` has **zero** occurrences tree-wide, and **`D-D1`** — whether a Trust product area
+  exists at all — is a live unresolved owner decision (§8.1). Sub-ruling 7 answers A13 **anyway**,
+  deliberately. A13 therefore depends on an entity whose existence is still open.
+- **Sub-ruling 1 requires a mechanism that does not exist.** Excluding an admin from their own
+  admin-action records means a predicate distinguishing actor-identity from reader-identity within
+  one population. No policy in the repository does this, and **no audit-shaped policy uses `admin`
+  alone** — the two `admin`-only policies in the tree (`020` vendor events, `039` platform
+  settings) are not audit reads.
+- **Sub-ruling 4 keeps `see` and `unmake-identity` apart**, and with sub-ruling 6 makes the
+  external mapping a separately authorized object. Who may resolve identity through it is **not**
+  settled by A13.
+
+#### `D4` is NOT complete — two sub-decisions remain
+
+The register that enumerates D4's sub-decisions lists **seven** as open: `A2`, `A3`, `A6`,
+`A11`/`A-NEW`, `A12`, `A13`, `A14`. Five are now answered (§8.3, §8.5, §8.6, §8.7, §8.8, with
+topology at §8.4). **Two were never put and remain OPEN:**
+
+- **`A6` — before/after state capture.** Recorded as *not* a V5 requirement, and as carrying a
+  **PHI consequence** if adopted: capturing before/after values puts the changed data itself into
+  the audit store. Untouched by A2, A1, A3, A11, A12 or A13.
+- **`A14` — Trust visibility rules.** Recorded as depending on **`A13` and `D11`**. A13 is now
+  answered; **`D11` is not** — and `D11` additionally carries a tracked/untracked status conflict
+  (§8.1 lists it unresolved; an untracked register marks it *"RESOLVED — build open"*; **the
+  tracked document governs**).
+
+**`D4` therefore remains OPEN pending `A6` and `A14`**, and `A14` is itself blocked on `D11`.
+
+**A13 changes no finding's status**, allocates no registry ID, and remediates nothing.
 
 ---
 
