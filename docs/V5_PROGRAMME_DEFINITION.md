@@ -1662,6 +1662,83 @@ recorded, and none is invented.** `PD-A24` and `PD-A17` remain **TRACKED and OPE
 
 ---
 
+### 8.19 `A11 · SUB-RULING 2 TRUST ANCHOR` — PREPARED, **NOT ANSWERED**
+
+**Why now.** §8.6 recorded the design's own defect in one sentence: *"**until `A12` is decided **and**
+the sub-ruling 2 anchor exists, the design is not defended against its own named adversary**."*
+**`A12` is now decided** (ruling 6), and §8.18 named its role as **distinct** from Trust. **The
+anchor is therefore the ONLY remaining condition on that sentence.** Nothing blocks it. **No option
+is chosen here.**
+
+**`A11` sub-ruling 2, verbatim:** *"**DML-layer binding with an open DDL layer: NOT SUFFICIENT.** If
+the system claims meaningful append-only or tamper-resistance, **an out-of-database trust anchor is
+required**. The anchor is **not designed or implemented here**."*
+
+#### The in-database ceiling — re-verified at HEAD, unchanged
+
+| mechanism | count in `supabase/migrations/` |
+|---|---|
+| `FORCE ROW LEVEL SECURITY` | **0** |
+| `CREATE RULE` | **0** |
+| `BEFORE DELETE` triggers | **0** |
+| `BEFORE` triggers of any kind | 19 |
+| `REVOKE … FROM service_role` | **0** |
+
+The **only** mechanism that binds every caller — owner and `service_role` included — is a
+`BEFORE UPDATE` trigger that RAISEs, because `BYPASSRLS` bypasses **policies**, not **triggers**.
+The document already records **11** such triggers and the **`120`** precedent; verified, that
+precedent (`workout_set_logs_protect_history()`) is `LANGUAGE plpgsql` with **no `SECURITY DEFINER`
+and no `auth.uid()` check at all** — it reads only `OLD` and `NEW`, so it binds unconditionally, and
+it freezes identity columns while leaving values writable. **That is `A11`'s FREEZE-IDENTITY-COLUMNS
+shape, already working in this repository.**
+
+**And that is exactly why sub-ruling 2 exists:** the **DDL layer stays open**, so whoever can
+`ALTER TABLE … DISABLE TRIGGER` or `DROP TRIGGER` removes the binding. **A DML guard cannot anchor
+its own integrity.**
+
+#### Anchor precedent: **NONE**, verified
+
+Zero occurrences in `supabase/migrations/` of `hash`, `digest`, `hmac`, `checksum`, `merkle` or
+`prev_hash`. The single `sha256` hit (`130:17`) is a **comment recording a file digest**, not a
+mechanism. All six `signature` hits are **function signatures**. **No hash chain, no notarization,
+no external attestation, no write-once store exists anywhere.**
+
+**One capability is present and entirely unused for integrity:** `pgcrypto` **is** enabled
+(`000:40`, `WITH SCHEMA extensions`), but its **only** consumed function tree-wide is
+`gen_random_uuid` (**81** uses) — **zero** `digest()`, `hmac()`, `crypt()` or `gen_salt()`.
+
+#### The option that is easy to miss
+
+**Sub-ruling 2 is CONDITIONAL:** *"**If** the system **claims** meaningful append-only or
+tamper-resistance…"* The anchor is required **by the claim**, not by the data. **`A11` sub-ruling 4
+already constrains claims** — *"**ONLY WITH QUALIFICATION. No universal access-logging claim may be
+made.**"* — so **declining the tamper-resistance claim is a coherent option that discharges
+sub-ruling 2 without building anything.** It is presented as an option, **not recommended**, and it
+carries its own cost: the audit ledger would then be explicitly **not** tamper-resistant against a
+compromised Edge Function, which `A11` sub-ruling 1 names as the adversary.
+
+#### What must be answered — options preserved, **none chosen, none ranked**
+
+1. **Is a tamper-resistance claim made at all?** Make it and build the anchor · **decline the
+   claim** and qualify the ledger accordingly (sub-ruling 2 is then discharged unbuilt) ·
+   claim it only for a named subset. *(Not blocked.)*
+2. **If claimed, what form does the anchor take?** External write-once store · cryptographic
+   chaining with the chain head anchored outside the database · third-party notarization · periodic
+   export plus attestation. **All four are unprecedented here**; `pgcrypto` supplies primitives for
+   the second but has never been used for them. *(Not blocked.)*
+3. **Who holds the anchor?** The Trust operator · the erasure executor · **neither** — a party
+   outside both, which is the only arrangement under which the anchor survives compromise of either
+   role. *(Relates to §8.18 Q3, which is also open; **neither is answered by the other**.)*
+4. **Does the anchor cover the D12/observability population?** §8.14 made it audit-worthy and
+   §8.16·Q1 left `A11` inheritance open, so an anchor scoped to the three audit populations would
+   leave an audit-worthy population unanchored. *(Depends on §8.16·Q1.)*
+
+**Nothing here is decided.** No anchor is designed or implemented, no role is created, no migration
+or policy is written, no status changes, no ID is allocated, and `D11`, `A14` and `D17` are not
+invented.
+
+---
+
 ## 9 · OPEN FINDINGS AND LIMITATIONS
 
 ### 9.1 Registered findings, open
