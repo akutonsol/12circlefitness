@@ -1803,6 +1803,81 @@ invented.** `PD-A24` and `PD-A17` remain **TRACKED and OPEN**, owner *Julia*.
 
 ---
 
+### 8.20 `IDENTITY MAPPING` — PREPARED, **NOT ANSWERED** — §8.18·Q3 and §8.7's open note
+
+**`A12`'s entire erasure model rests on this object.** Ruling 1 is **ANONYMISE-AND-RETAIN**; ruling
+2 is *"**NO exception — use an external mapping.** The frozen row is never mutated."* **Anonymising
+means severing the mapping.** §8.7 already records *"**Where the mapping lives, and who may sever
+it, are open**"* and *"**Who may resolve identity through it is not** [decided]"*; §8.18·Q3 records
+that `A13` sub-ruling 6 keeps **three** authorizations apart while §8.18 named **two** roles.
+**Nothing blocks this. No option is chosen here, and §8.18·Q3 is NOT inferred.**
+
+#### Precedent: **NONE**, verified in `supabase/migrations/`
+
+| term | occurrences |
+|---|---|
+| `pseudonym` | **0** |
+| `anonymi…` | **0** |
+| `de-identif…` / `deidentif…` | **0** |
+| `mapping table` | **0** |
+| `tombstone` | **0** |
+
+**No de-identification object, routine or vocabulary exists anywhere in the migration tree.**
+
+#### "External" has no referent in this repository — verified
+
+`CREATE SCHEMA` occurs **zero** times in migrations. Every application object lives in `public`
+(**962** schema-qualified references). The only other schemas present are **Supabase platform**
+schemas, none application-created: `auth` (370) · `storage` (75) · `cron` (11) · `vault` (9) ·
+`extensions` (3).
+
+**So "external mapping" cannot mean "another application schema" — none exists and none has ever
+been created.** Whether `A12` ruling 2's *"external"* means external to the **frozen row**, to the
+**table**, or to the **database** is **not settled by the ruling's text** and is **not settled
+here.**
+
+**`vault` is verified NOT a candidate.** It is a secrets store, used solely to hold `project_url`
+and `service_role_key` so `pg_cron` jobs can call Edge Functions (`076`, `080`, `123`). It holds
+key-value secrets, not data. **And a party that can read `vault.decrypted_secrets` obtains the
+`service_role` key itself** — the `BYPASSRLS` credential. **Recorded as an observation about the
+existing design; it is not a finding, carries no ID, and is not remediated.**
+
+#### **NEW — the consequence §8.19 just created for this object**
+
+§8.19 declined the tamper-resistance claim, so **no anchor protects the mapping either.** The
+mapping's integrity is now **DML-deep only**, and the DDL layer is open.
+
+> **If the mapping can be restored at the DDL layer, severance is not durable — and
+> "anonymised" becomes REVERSIBLE by `A11` sub-ruling 1's named adversary.**
+>
+> `A12` ruling 1 retains the frozen row forever and relies **entirely** on severance for
+> anonymisation; ruling 8 **stands behind** indefinite anonymised retention. **A reversible
+> severance would make both claims weaker than they read.** This is **not** asserted as a defect —
+> it is a **consequence that depends on where the mapping lives and how it is protected**, which is
+> exactly what is undecided. **UNRESOLVED — owner decision required.**
+
+#### What must be answered — options preserved, **none chosen, none ranked**
+
+1. **Where does the mapping live?** A table in `public` · a **new schema** (unprecedented — zero
+   `CREATE SCHEMA`) · **outside the database entirely** · somewhere else. **`vault` is verified
+   unsuitable.** *(Not blocked.)*
+2. **Who may RESOLVE identity through it?** §8.7 records this as not decided. Trust · the erasure
+   executor · a third party · **no one, by construction** (a one-way severance with no resolution
+   path). *(Not blocked.)*
+3. **Who may SEVER it?** §8.7 records this as open. Under §8.18 the erasure executor is the natural
+   candidate — **but that is an inference, not a decision, and it is not made here.** *(Not
+   blocked.)*
+4. **Is severance required to be durable against the DDL layer**, given §8.19 declined an anchor?
+   Accept DML-deep severance · require durability and reopen a scoped anchor obligation for **this
+   object only** · place the mapping outside the database so the DDL layer does not reach it.
+   *(Not blocked. Note §8.19's forward constraint: a durability **claim** re-triggers sub-ruling 2.)*
+
+**Nothing here is decided.** No object is created or designed, no schema, migration or policy is
+written, no status changes, no ID is allocated. **§8.18·Q3, §8.16·Q1/Q4, `D11`, `A14` and `D17` are
+not inferred.**
+
+---
+
 ## 9 · OPEN FINDINGS AND LIMITATIONS
 
 ### 9.1 Registered findings, open
