@@ -1463,12 +1463,34 @@ review would bear on. If it does not inherit `A12`, the population has **no** re
 2. **Does it inherit `A12` retention?** Adopt the 6-year Event window · set a shorter operational
    window · per-component windows · no retention rule. *(Option "defer to the vendor" is blocked on
    `PD-A24`.)*
+   **CAUTION on the "no retention rule at all" option.** `A12` rulings 3 and 5 are **category-keyed**
+   (§8.21 finding 4) and unqualified — *"otherwise erasure applies, using de-identification where
+   possible"* — and `A2` tier 2 names *"observability audit events"* as a **category** whose `IN`
+   ruling §8.14 confirms **STANDS IN FULL**. **Selecting "no retention rule at all" would therefore
+   SUPERSEDE `A12` ruling 3 for that category.** This programme treats superseding an answered
+   ruling as a **deliberate act**, never a by-product of a downstream answer. **Offered as a
+   caution, NOT as a narrowing** — §8.21 expressly declined to adopt this reframing, and that
+   declination stands.
 3. **Does it inherit `A13`'s reader model?** Extend the mixed model · a distinct operator class ·
    admin-only. *(**Blocked on `D-D1`** for any option naming a Trust operator.)*
    **STALENESS CORRECTION:** `D-D1` was answered at §8.17, so this block is **discharged as to the
-   role**. **Q3 remains UNANSWERED**, all three options remain live — two of them
-   (*distinct operator class*, *admin-only*) never named a Trust operator, so the answer narrows
-   the option set **not at all** — and **the role still does not exist in any migration.**
+   role**. **Q3 remains UNANSWERED** — and **the role still does not exist in any migration.**
+
+   > **CORRECTION TO THE CORRECTION (recorded, not quietly amended).** The sentence above
+   > previously read *"all three options remain live … so the answer narrows the option set **not at
+   > all**."* **That was wrong.** §8.17 did not merely name a role — it assigned that role a
+   > **subject matter**: *"Trust is a distinct governance role responsible for **audit/observability
+   > review**, erasure authorization and governance operations,"* and *"Admin and domain roles do
+   > **NOT** automatically inherit Trust access."*
+   >
+   > **An `admin-only` reader model for the observability population would deny the Trust operator
+   > read access to the very records §8.17 made it responsible for reviewing.** `admin-only` is
+   > therefore **FORECLOSED by §8.17**, and the `D-D1` answer **does** narrow the option set — from
+   > three live options to **two**.
+   >
+   > **This matters for how the question is put.** Offering `admin-only` on a menu presented as
+   > fully live would let it be chosen without anyone being told it **silently reverses §8.17**.
+   > The same foreclosure applies to **§8.13·Q12**.
 4. **Does `A11` sub-ruling 3's owner/`service_role` deferral resolve for this population, and
    against what?** *(Not blocked, but the answer bears on 1.)*
 
@@ -2608,6 +2630,58 @@ in `V5_SECURITY_FOUNDATION_WAVE1_AUTHORIZATION.md`, `V5_SECURITY_FOUNDATION_WAVE
 ID. Same class of trap as the `D11` binary-asset match recorded at §8.12.)*
 
 **Neither correction changes any decision, status, ID or finding.**
+
+---
+
+### 8.25 ADVERSARIAL RESOLVABILITY PASS — result and four packet corrections
+
+A deliberately opposed pass was run against all 42 open decisions, mandated to **argue that they
+ARE resolvable** and to counteract the earlier passes' explicit "when in doubt choose (c)"
+instruction. **Result: 0 ENTAILED, 6 ARGUABLE, 42 remain (c).** Recorded because a null result from
+an adversarial pass is evidence, not an absence of it.
+
+#### Why the opposite case fails — **structural, not an artifact of instruction**
+
+**Every recorded ruling in §8.2–§8.22 carries an explicit anti-entailment clause inside its own
+owner-recorded text**, not as editorial hedging:
+
+| ruling | clause |
+|---|---|
+| §8.3 `A2` | *"**A2 only.** `A1`, `A3`, `A11`, `A12` and `A13` remain OPEN and **nothing below decides or implies any of them.**"* |
+| §8.10 `D12` scope | *"Owner decisions on **scope only**… **nothing below decides its content**"* |
+| §8.14 | *"This decision settles **scope-vs-topology and nothing else.**"* |
+| §8.19 | *"**§8.18·Q3 and §8.16·Q1/Q4 are NOT touched by this decision and are NOT inferred.**"* |
+
+**A chain from a recorded ruling to an open decision almost always has to cross one of these
+clauses — and crossing it is not interpretation, it is contradiction.** Secondarily, **six** of the
+admitted inherited decisions have **no option set at all**, so resolution-by-elimination is
+unavailable by construction, and §8.22·2 bars manufacturing one.
+
+#### Four corrections this pass produced
+
+1. **§8.16·Q3 / §8.13·Q12 — an affirmative error in this document, corrected in place at §8.16.**
+   `admin-only` is **FORECLOSED by §8.17**; the prior text claimed the `D-D1` answer narrowed
+   nothing.
+2. **§8.16·Q2 — caution added**: *"no retention rule at all"* would supersede `A12` ruling 3 for the
+   observability-audit-events category.
+3. **`D17` — a consistency note.** §5.2's P1 row lists its content as *"…**corrected `SEC_PHI_1`**…"*
+   **in the same row that records `D17` OPEN**. If the owner answers *"apply as written"*, **the
+   tracked phase model must change.** Surfaced, not resolved.
+4. **`EC-01`·Q2 — context note.** Answering *"yes, the class binds its aliases"* sits awkwardly
+   beside §8.15's *"substantive status must be determined separately for each."* **Not a
+   contradiction** — class and status are different — but the owner should know §8.15 exists before
+   answering.
+
+#### The grouping this pass recommends — **engineering guidance, NOT a ruling**
+
+**§8.18·Q3, §8.20·Q2 and §8.20·Q3 should be put as ONE question.** `A12` ruling 6 mandates *"A NEW
+CONSTRAINED ROLE"* (**singular**); §8.18 ruled **TWO ROLES**; `A13` sub-ruling 6 keeps **three**
+authorizations apart, so **one has no holder**. Answering these separately is **how a third role
+gets created by accident**, against a record that has twice committed to two — with **zero**
+application-role precedent in the repository.
+
+**Nothing in this section resolves any decision.** No status changes, no ID allocated, nothing
+remediated.
 
 ---
 
