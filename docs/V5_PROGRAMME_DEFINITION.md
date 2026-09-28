@@ -3323,6 +3323,78 @@ overridden.**
 
 ---
 
+## 21 · IMPLEMENTATION STATUS — P0 / P1
+
+**Implementation has begun.** This section records what was built and what evidence exists.
+**No owner decision or historical ruling is rewritten here.**
+
+### 21.1 · P0 · GOVERNANCE — **COMPLETE**
+
+Its deliverables are governance records, not code: `CONF-01` and `CONF-02` answered, the protected
+baseline confirmed as the 91 registered routes, migration numbers 132+ assigned. **No code was
+required and none was written.**
+
+### 21.2 · P1 · FOUNDATION / SECURITY — **CODE COMPLETE, CLOSURE BLOCKED**
+
+| P1 content item | migration | state |
+|---|---|---|
+| `coach_team_members` `WITH CHECK` | 133 | done (Wave 1) |
+| corrected `SEC_PHI_1` — team-lead arm | 132 | done (Wave 1) |
+| corrected `SEC_PHI_1` — event-host arm (`QAX-SEC-09`) | **135** | **FIXED IN CODE** |
+| status predicates (`D3`) — `SEC-PHI-9`, `SEC-PHI-10` | **136** | **FIXED IN CODE** |
+
+**Migration 135 — `QAX-SEC-09`.** Creates `event_attendee_profiles` (five columns, no PHI) and
+removes the `hosts_event_for` arm from the `user_profiles` SELECT policy, which now admits only the
+subject and an **active** coach. `security_invoker = off` is the `D17` correction — the proposal's
+`on` would have returned `200 []` to exactly the users the view serves, the defect 132 recorded as
+`NEW-5`. Companion: `vendor_service.getRegistrations` became a two-step read on 132's proven
+pattern, plus the `schema.mjs` view-inventory entry.
+
+**Migration 136 — `D3`.** Adds `is_active_coach_of(text)`, which **delegates to the uuid overload
+rather than restating the predicate**, so the meaning of *"active"* has one definition and cannot
+drift. Both offending policies now route through it. **The "2 of 5" population was confirmed by
+enumeration:** `005`, `026`, `036` already carried `status = 'active'`; `029` and `035` did not.
+`029`'s own comment claimed *"an ACTIVE client's photos"* while its predicate enforced nothing.
+
+**Two defects found during implementation and fixed, recorded so they are not lost:**
+- A bare `const {}` in the reshape infers `Map<dynamic, dynamic>` and **would have thrown on the
+  consumer's cast** whenever a profile was RLS-filtered. *(The identical pattern exists at
+  `coach_business_screen.dart:90` from 132 — **not touched**, outside this change's scope.)*
+- A bare `::uuid` cast on a storage path would raise **22P02 from inside an RLS predicate** — a
+  query error, not a denial. The overload fails closed on NULL and non-uuid input instead.
+
+**Incidental hardening:** both `D3` policies previously read `coach_client_relationships` **directly
+inside a policy predicate**, against a table `113` put RLS on. Routing them through the
+`SECURITY DEFINER` helper removes that recursion exposure, which `100:18–19` exists to prevent.
+
+### 21.3 · Evidence — and its ceiling
+
+**173 Flutter tests passed** across seven guard suites; **contract guard PASS** (91 tables, 7 views,
+134 FKs); `check:guards` green; `dart analyze` clean; bypass hunt found **no alternate coach route**
+into either protected surface.
+
+> **CEILING: FIXED IN CODE. Nothing here is VERIFIED LIVE.**
+> `npm run test:security` requires `QA_URL`/`QA_ANON`/`QA_SERVICE`, which are unavailable. **No
+> database was contacted.** **`QAX-SEC-09`, `SEC-PHI-9` and `SEC-PHI-10` are NOT closed, the
+> remediation registry is NOT edited, and migrations 135 and 136 have not been applied anywhere.**
+
+### 21.4 · Why P1 is not COMPLETE
+
+`QA_CLOSURE_STANDARD` §5.2 requires **VERIFIED LIVE** for a security finding — *"a real request
+against QA reproduces the secure/correct behaviour, and the same probe demonstrably failed before
+the fix."* **Every remaining P1 acceptance criterion is a live-verification criterion**, including
+`QAX-SEC-08`'s fourth rung (§7 records 3 of 4). **The code is written; the evidence the standard
+demands cannot be produced without database access.**
+
+### 21.5 · Phase graph, recomputed
+
+**P2 is NOT reachable.** `D4` is complete (§19.2) but `D12` is not — `Q7`, `Q8`, `Q10`, `Q11` await
+**`PD-A24`** and **`PD-A17`**, owner *Julia*. **P3** deferred under `PD-G01`. **P5–P9** blocked
+upstream on P2. **P10** needs `D-V6` (answered) **plus CI secrets and egress**, which are
+infrastructure dependencies, not decisions.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
