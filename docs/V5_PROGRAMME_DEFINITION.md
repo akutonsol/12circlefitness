@@ -2663,11 +2663,16 @@ would is **admitting the missing question text to the tracked record** — which
 > to answer. **The same is true of P10 and `D-V6`.**
 >
 > **Revised structural conclusion:** the blocker is no longer *"the questions do not exist."* It is
-> now **two specific decisions whose questions could not be recovered**, plus **41 open owner
-> decisions**. That is a materially better position than §17.B originally recorded — and it is
+> now **two specific decisions whose questions could not be recovered**, plus **42 open owner
+> decisions** (corrected from 41 — see §17.C). That is a materially better position than §17.B originally recorded — and it is
 > still not implementable.
 
-### 17.C · Remaining owner decisions — **41, none answered** *(revised from 27)*
+### 17.C · Remaining owner decisions — **42, none answered** *(revised from 27, then 41)*
+
+> **COUNT CORRECTION.** The figure 41 **omitted `D4 · A14` as a decision in its own right.** `A14`
+> appears in this section only as a dependency note on `D11`'s row. It is a **standalone open owner
+> decision** — *"Trust visibility rules"* — and it is **the last item gating `D4`'s completion**,
+> so it sits directly on the critical path to P2. **Corrected total: 42.**
 
 All are documentation-stage. **None is resolvable from a recorded ruling or a governing constraint**
 (the sole exception, `D15`, is in §17.C.6 and unblocks nothing).
