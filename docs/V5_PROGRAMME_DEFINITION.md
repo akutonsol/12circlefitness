@@ -222,7 +222,7 @@ V5 defines no dates, durations or story points, and none are assigned here.
 | Phase | Contents | Entry condition | State at this entry point |
 |---|---|---|---|
 | **P0 · GOVERNANCE** | Resolve CONF-01/02; confirm protected baseline; assign migration numbers 132+ | **`CONF-02` OPEN** (`CONF-01` ANSWERED, §8.2) | **partially consumed** — 132/133/134 assigned and applied; **protected baseline confirmed = the 91 registered routes**; `CONF-02` unresolved |
-| **P1 · FOUNDATION / SECURITY** | `coach_team_members` `WITH CHECK`; corrected `SEC_PHI_1`; status predicates | **`D1(i)/(ii)/(iii)` ANSWERED** (do not block) · **`D1(iv)` OPEN** (deferred to Wave 2) · **`D3` OPEN** · **`D17` OPEN** | **partially executed** — Wave 1 closed the P0's write path and F-03b's team arm; **QAX-SEC-08 not closed** (§7) |
+| **P1 · FOUNDATION / SECURITY** | `coach_team_members` `WITH CHECK`; corrected `SEC_PHI_1`; status predicates | **`D1(i)/(ii)/(iii)` ANSWERED** (do not block) · **`D1(iv)` ANSWERED §8.22 — DEFER TO WAVE 2** (no longer an open blocker; the deferral is now a decision, not a gap) · **`D3` OPEN** · **`D17` OPEN** — **P1's remaining blockers are `D3` and `D17` alone** | **partially executed** — Wave 1 closed the P0's write path and F-03b's team arm; **QAX-SEC-08 not closed** (§7) |
 | **P2 · DATA (AUDIT + OBSERVABILITY)** | Audit event schema + RLS; incidents; observability store | **D4, D12** | not started |
 | **P3 · BACKEND** | Wearable boundary; ingestion/normalization; canonical contracts | **D-V1, D-V2, D-V3** | not started |
 | **P4 · CORE PRODUCT** | Intelligence layer; provenance + calculation versioning | P3 | not started |
@@ -244,6 +244,14 @@ D1(i), (ii) and (iii). **D1(iv) — the permitted `role` value set — was not a
 CHECK constraint would have decided an unanswered question, so `role` was deliberately left
 unconstrained and the decision **deferred to Wave 2**. `D1` must therefore not be described as
 answered without qualification.
+
+> **SUPERSEDED IN PART — §8.22.** The owner has since **ANSWERED `D1(iv)`: DEFER TO WAVE 2**, with
+> **no `CHECK` constraint for the role value set**. The paragraph above is retained as the state at
+> the time of Wave 1. **What changes:** the deferral is now a **decision**, not an unanswered gap,
+> so `D1(iv)` is **no longer an open blocker on P1**. **What does not change:** the column stays
+> unconstrained, migration `132` is untouched, and **`D1` still must not be described as answered
+> without qualification** — Wave 2 must still settle the value set. **Scope: `coach_team_members.role`
+> only;** `user_profiles.role`'s existing `CHECK` at `115:79` is unaffected (§8.22).
 
 **`D3` and `D17` remain OPEN and are not resolved here.**
 
@@ -1929,7 +1937,9 @@ its question.**
   closes no finding**; its scope is the `SEC-G1` guard's own accuracy.
 - The only two substantive owner-decidable items with tracked questions — **`CONF-02`** and
   **`D1(iv)`** — gate **P0** and **P1**, and **no phase in §5.2's entry-condition column enters on
-  P0 or P1.**
+  P0 or P1.** **UPDATE (§8.22): `D1(iv)` is now ANSWERED (defer to Wave 2), leaving `P1` blocked on
+  `D3` and `D17` alone and `P0` on `CONF-02` alone. The structural point is unchanged — neither P0
+  nor P1 is any later phase's entry condition.**
 
 **So answering every question this programme can currently state would unblock nothing downstream.**
 Recorded plainly because it determines what the next act must be.
