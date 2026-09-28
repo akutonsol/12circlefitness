@@ -161,7 +161,7 @@ Derived from `V5_IMPACT_ANALYSIS_2026-09-27.md` §17–18. **No dependency is in
 ### 5.1 Dependency graph
 
 ```
-CONF-01/02 (governance baseline) ──► what "protected" and "V5" mean
+CONF-01 ANSWERED (baseline = 91 routes, §8.2) · CONF-02 OPEN ──► what "V5" means
         │
 D4 AUDIT SCHEMA ◄── the deepest dependency; 4 V5 requirements need it
         ├──► Admin audit domain ──► Admin Control Center (13 domains)
@@ -183,7 +183,8 @@ TESTING: CI secrets ──► E2E journeys (SQ-24); egress ──► security/AI
 ```
 
 **Stated critical path:** `CONF-01/02 → D4 audit schema → observability →
-Admin/Trust/Guardian`, with the wearable stack in parallel from `D-V1`.
+Admin/Trust/Guardian`, with the wearable stack in parallel from `D-V1`. **`CONF-01` is now
+ANSWERED (§8.2) and no longer gates this path; `CONF-02` and `D4` still do.**
 
 **What team membership reaches today.** Migration 132 removed the `is_team_lead_of(id)` arm from
 the `user_profiles` SELECT policy, which at HEAD reads
@@ -220,7 +221,7 @@ V5 defines no dates, durations or story points, and none are assigned here.
 
 | Phase | Contents | Entry condition | State at this entry point |
 |---|---|---|---|
-| **P0 · GOVERNANCE** | Resolve CONF-01/02; confirm protected baseline; assign migration numbers 132+ | owner decisions | **partially consumed** — 132/133/134 assigned and applied; **CONF-01/02 unresolved** |
+| **P0 · GOVERNANCE** | Resolve CONF-01/02; confirm protected baseline; assign migration numbers 132+ | **`CONF-02` OPEN** (`CONF-01` ANSWERED, §8.2) | **partially consumed** — 132/133/134 assigned and applied; **protected baseline confirmed = the 91 registered routes**; `CONF-02` unresolved |
 | **P1 · FOUNDATION / SECURITY** | `coach_team_members` `WITH CHECK`; corrected `SEC_PHI_1`; status predicates | **`D1(i)/(ii)/(iii)` ANSWERED** (do not block) · **`D1(iv)` OPEN** (deferred to Wave 2) · **`D3` OPEN** · **`D17` OPEN** | **partially executed** — Wave 1 closed the P0's write path and F-03b's team arm; **QAX-SEC-08 not closed** (§7) |
 | **P2 · DATA (AUDIT + OBSERVABILITY)** | Audit event schema + RLS; incidents; observability store | **D4, D12** | not started |
 | **P3 · BACKEND** | Wearable boundary; ingestion/normalization; canonical contracts | **D-V1, D-V2, D-V3** | not started |
@@ -369,7 +370,6 @@ self-allocation.
 
 ### 8.1 Inherited decisions — unresolved, carried forward
 
-`CONF-01` (174 approved screens vs a repository inventory of 91 routes / 148 surfaces) ·
 `CONF-02` · **`D3`** (uniform status predicate — **a P1 entry blocker**, see §5.2; *not* the
 `D-3` of §8, which is a different decision) ·
 **`D4`** (audit schema — the deepest dependency) · `D12` (observability) ·
@@ -394,6 +394,35 @@ This was the one omission in this document that erred toward permissiveness rath
 it is corrected here. The only other entry condition changed in the same revision is **P1's**,
 where `D1(i)/(ii)/(iii)` were marked answered (§5.2) — a relaxation, and the only one. No other
 phase's entry condition changes.
+
+### 8.2 `CONF-01` — ANSWERED
+
+**The canonical V5 protected baseline is the 91 registered routes.** Owner decision, recorded
+here as supplied.
+
+> **Unit:** *"route — an enumerated application route represented in the authoritative tracked
+> route inventory."*
+
+**The baseline is enumerated, twice, in tracked machine-readable evidence** — which is what makes
+`GV-03` checkable rather than rhetorical:
+
+| Carrier | Form | Members |
+|---|---|---|
+| `SCREEN_INVENTORY.json` | JSON `screens` array | **91** |
+| `DESIGN_TO_IMPLEMENTATION_FINAL_MATRIX.md` | table, one row per route path | **91** distinct paths |
+
+**What this decision does NOT do.** The other populations are **preserved as evidence
+limitations** — not reconciled, converted or deleted (C-10):
+
+- **148** (`surfaces_all_kinds`) — remains a tracked scalar with **no enumerated membership
+  anywhere in the repository**, whose published sub-counts do not sum to it. **No members are
+  invented for it.**
+- **156 / 169** — design-board frames. They reconcile exactly among themselves (117 + 39 = 156;
+  156 + 13 voice frames = 169) but **are not application routes** and are not treated as such.
+  No frame→route mapping exists.
+- **174** — its unit remains **uninferred** while the V5 source specification is absent (C-1).
+
+`CONF-02` is a separate decision and **remains OPEN**.
 
 ---
 
@@ -539,7 +568,7 @@ phases closed things that were not closed; these stay visible.
 | **C-7** | **§4:105's static-test bound** — SEC-W1's class is *necessary, never sufficient* for a security finding |
 | **C-8** | **Findings A and B have no IDs** (§9.2, §9.3). No `NEW-W1-*` ID exists in the registry; allocation is a registry act |
 | **C-9** | **QAX-SEC-09 remains open** — profile PHI is **not** safe, and nothing here should be read as implying otherwise |
-| **C-10** | **CONF-01 is unresolved** — V5 names 174 approved screens; the repository inventory records 91 routes / 148 surfaces; the design board records 156/169. "Protected baseline" is therefore undefined |
+| **C-10** | **`CONF-01` is ANSWERED (§8.2) — the baseline is the 91 registered routes — but the underlying count discrepancy is NOT resolved and is preserved here.** V5 names **174** approved screens (unit undefined, source absent per C-1); the repository inventory records **91** routes and **148** surfaces; the design board records **156/169**. Of these, only **91** is enumerated (twice, in tracked evidence); **148 has no enumerated membership anywhere and its published sub-counts do not sum to it**; **156/169** reconcile among themselves but are design frames, not routes, with no frame→route mapping; **174** cannot be placed at all. The decision selects a baseline; it does **not** reconcile the other populations, and no members are invented for them |
 | **C-11** | **Unresolved requirement-count discrepancy in the source analysis** (§4.1). Counted **101**; stated distribution sums to **74**; stated total **64**; stated "58 gaps" derived from two wrong inputs against a counted **92**. No authoritative total is asserted |
 | **C-12** | **Two dangling requirement references in the source** — `SQ-31` (line 600) and `SQ-39` (line 601) do not exist; the `SQ` series ends at `SQ-30`. They appear to mean sequence *steps* 31 and 39 (`SQ-16` and `SQ-24`), mislabelled with the requirement-ID prefix. **Inferred, not verified**; the source is unchanged and the ambiguity stands |
 
@@ -556,7 +585,7 @@ time; none is a new security finding.*
 | State | Meaning | Current |
 |---|---|---|
 | **Documentation readiness** | The evidence base is consistent and truthfully labelled, so the programme can be *described* | **YES** — this document exists and every gap is named |
-| **Implementation readiness** | The gates permit *building* | **NO** — §6.1 records 5 pass · 2 partial · **8 fail**, and the critical path is blocked at `CONF-01/02` and `D4` |
+| **Implementation readiness** | The gates permit *building* | **NO** — §6.1 records 5 pass · 2 partial · **8 fail**, and the critical path is blocked at `CONF-02` and `D4` (`CONF-01` is ANSWERED, §8.2) |
 | **Security closure** | A finding has every rung its class demands | **NO for QAX-SEC-08** — three of four rungs (§7) |
 
 **Documentation readiness does not imply implementation readiness, and neither implies security
@@ -603,7 +632,7 @@ separate act requiring its own authorization and is **not** performed by this do
 | **D-2** | Finding A remediation authorization | Finding A only |
 | **D-3** | Finding B remediation authorization | Finding B only |
 | — | Registry ID allocation for Findings A and B | Their registration |
-| — | `CONF-01`/`CONF-02` | The protected baseline, and therefore P0 → everything downstream |
+| — | `CONF-02` | The V5 document's canonical name/version, and therefore P0. **`CONF-01` is ANSWERED (§8.2); the protected baseline is the 91 registered routes** |
 | — | `D4` (audit schema), `D12` (observability) | P2 → Admin, Trust, Guardian |
 | — | `D-V1`/`D-V2`/`D-V3` | The whole wearable stack |
 | — | Registry status vocabulary (§12) | Whether `OPEN / PARTIALLY VERIFIED` becomes a registered status |
