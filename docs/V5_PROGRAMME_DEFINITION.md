@@ -755,21 +755,27 @@ Owner decisions, recorded as supplied.
   external mapping a separately authorized object. Who may resolve identity through it is **not**
   settled by A13.
 
-#### `D4` is NOT complete — two sub-decisions remain
+#### `D4` is NOT complete — one sub-decision remains
 
 The register that enumerates D4's sub-decisions lists **seven** as open: `A2`, `A3`, `A6`,
 `A11`/`A-NEW`, `A12`, `A13`, `A14`. Five are now answered (§8.3, §8.5, §8.6, §8.7, §8.8, with
-topology at §8.4). **Two were never put and remain OPEN:**
+topology at §8.4). **Two had not been put at the time `A13` was decided.** One of those two —
+`A6` — was **subsequently answered** and is recorded at **§8.9**; the paragraph below is retained
+as the state at the time of the `A13` decision and is **superseded on `A6` by §8.9**. `A14` alone
+remains OPEN:
 
-- **`A6` — before/after state capture.** Recorded as *not* a V5 requirement, and as carrying a
+- **`A6` — before/after state capture.** *(**SUPERSEDED — ANSWERED at §8.9.** Retained as the
+  state at the time of `A13`.)* Recorded as *not* a V5 requirement, and as carrying a
   **PHI consequence** if adopted: capturing before/after values puts the changed data itself into
-  the audit store. Untouched by A2, A1, A3, A11, A12 or A13.
+  the audit store. Untouched by A2, A1, A3, A11, A12 or A13. **§8.9 answered it NON-PHI DELTAS
+  ONLY, which avoids rather than resolves that PHI consequence.**
 - **`A14` — Trust visibility rules.** Recorded as depending on **`A13` and `D11`**. A13 is now
   answered; **`D11` is not** — and `D11` additionally carries a tracked/untracked status conflict
   (§8.1 lists it unresolved; an untracked register marks it *"RESOLVED — build open"*; **the
   tracked document governs**).
 
-**`D4` therefore remains OPEN pending `A6` and `A14`**, and `A14` is itself blocked on `D11`.
+**`D4` therefore remains OPEN pending `A14` alone** (`A6` was answered at §8.9 after this
+paragraph was written), and `A14` is itself blocked on `D11`.
 
 **A13 changes no finding's status**, allocates no registry ID, and remediates nothing.
 
@@ -868,6 +874,111 @@ The condition is recorded here; any status change is a separate, separately-auth
 **Relevance to `D12`:** `LRE-27` is the observability finding and sits on release gate **G-14**.
 Its disposition bears directly on whether D12's content can be scoped against an accurate finding
 ledger.
+
+---
+
+### 8.12 `D11` — PREPARED, **NOT ANSWERED** — Trust scope
+
+**No owner decision is recorded here.** This section records verified evidence about `D11` so the
+decision can be put. `D11` remains **OPEN**. Nothing below closes a finding, allocates an ID, or
+changes a status.
+
+#### Finding 1 — `D11` has **no tracked statement anywhere**
+
+`D11` appears in exactly one tracked **text** file — this one (`git grep -lI -- D11`) — and in
+**every case as a dependency reference only**: §5.1 (:166), §5.2's P6 row (:230), §8.1's carried-forward list (:376, :379),
+§8.1's `D-D1` analysis (:392, :394, :395), §8.8's `A14` note (:772–:773), and §11 · DEFERRED SCOPE (:1062). **Not one
+of these states what `D11` asks.**
+
+The question text exists **only in untracked analysis**:
+`QA_TO_V5_TRANSITION_RECONCILIATION_2026-09-27.md:336` — *"What is Trust's actual scope?"*
+
+`git ls-files` returns nothing for that file, nor for the other three files that mention `D11`
+(`V5_DECISION_RESOLUTION_2026-09-27.md`, `V5_IMPACT_ANALYSIS_2026-09-27.md`,
+`V5_IMPLEMENTATION_READINESS_GATE_2026-09-27.md`).
+
+**Consequence:** `A14` is blocked, and `P6 · TRUST` is gated, on a decision whose question is not
+recorded in any tracked document. This is a **provenance gap, not a decision**, and it is preserved
+rather than repaired: writing a question text here would be inventing the decision's content.
+
+#### Finding 2 — the tracked/untracked conflict is **narrower** than "resolved vs unresolved"
+
+§8.8 recorded that an untracked register marks `D11` *"RESOLVED — build open"*. Reconciled against
+all four untracked sources, they do **not** disagree with each other, and none of them asserts
+`D11` is fully resolved:
+
+| source (all **UNTRACKED**) | line | wording |
+|---|---|---|
+| `V5_DECISION_RESOLUTION` | :88 | *"**V5 names 4 areas**" … "**RESOLVED — build open**"* |
+| `V5_IMPACT_ANALYSIS` | :449 | *"scope resolved; **build unresolved**"* |
+| `V5_IMPLEMENTATION_READINESS_GATE` | :385 | *"largely resolved by V5; **build scope open**"* |
+| `QA_TO_V5_TRANSITION` | :336 | *"**Nothing is evidenced**; scope determines everything downstream"* |
+
+All four agree the **build scope is open**. The word "RESOLVED" attaches only to the *naming* of
+areas. **The tracked document governs, and it records `D11` as unresolved** — but the conflict to
+preserve is now specific: it is a disagreement about whether *naming* constitutes *scoping*, not
+about whether `D11` is done.
+
+The same untracked register that marks `D11` "RESOLVED" **also** records `A14` as
+*"**OPEN.** Depends on A13 and D11"* (`V5_DECISION_RESOLUTION:157`). **Even the untracked source
+does not treat its own "RESOLVED" as unblocking `A14`.**
+
+#### Finding 3 — the untracked resolution rests on the **`D-D1` question**, which is OPEN
+
+The stated basis for "RESOLVED" is *"V5 names 4 areas"* — Security · Incidents · Audit Logs ·
+**AI Guardian** (`V5_IMPACT_ANALYSIS:286`). But naming those four as one area **is the `D-D1`
+question verbatim**: §8.1:384 poses it as *"Are Security / Incidents / Audit / Guardian a separate
+'Trust' product area, or Admin domains?"*, recorded **deliberately unfilled** in a **tracked** file
+(`V5_SECURITY_FOUNDATION_WAVE1_AUTHORIZATION.md` §1: `TRUST = [INSERT OWNER DECISION HERE]`).
+
+And this document **does not group those four**: §5.2 scopes **`P6 · TRUST` to three** — Security ·
+Incidents · Audit Logs (:230) — while **AI Guardian is a separate phase, `P7`** (:231), entered on
+`P2, P6, D-V5`. The untracked register's four-area count and this document's phase split
+**disagree**.
+
+**The untracked "RESOLVED" therefore presupposes an answer to `D-D1` that does not exist.** §8.1:394
+already records the ordering: *"`D-D1` … gates P6 ahead of D11, which only scopes it."*
+
+#### Finding 4 — Trust has **zero implementation evidence** at HEAD (verified, tracked)
+
+Independently re-verified against tracked code at HEAD, not inherited from the untracked claim:
+
+- **`trust`** — 3 hits across `apps/mobile/lib/`, **all unrelated English prose** in workout files
+  (`workout_contract.dart:177` *"never trusted from the row"*, `workout_provider.dart:97`,
+  `workout_restoration.dart:204`). **Zero Trust surfaces.**
+- **`incident`** — 1 app hit (`terms_of_service_screen.dart:84`, *"indirect, incidental"*) and
+  2 migration hits (`122:149`, `132:246`), **all unrelated English prose**. **Zero incident model.**
+- **`trust` in migrations** — 15 hits across 9 files, **every one unrelated English prose**
+  (*"trustworthy"*, *"the trusted server-side identity"*, *"an untrusted storage argument"*).
+  **Zero Trust schema.**
+- **Zero Trust database objects**, verified by object name rather than by word:
+  `create (table|view|type|materialized view)` matching `trust` or `incident` returns **NONE**
+  across all migrations.
+- **0 Trust routes, 0 Trust designs** (`CONF-08` records the missing Admin/Trust designs and is
+  itself unresolved).
+
+*Search caveat, recorded so the claim is exactly as strong as its evidence:* an unrestricted
+`git grep -l -- D11` also matches **`apps/mobile/assets/images/train-deadlift.jpg`**, a coincidental
+byte sequence in a **binary** asset. The "exactly one file" claim above is stated over text files
+(`-I`) for that reason, and is **not** a claim about binary assets.
+
+So `D11` is not a decision about which of several built things to keep. **It scopes an area that
+does not exist in any form**, which is why §6 Gate 11 reads **FAIL** on design readiness and §16
+records Trust as *"blocked on D4, D11, CONF-08"* under **§11 · DEFERRED SCOPE**.
+
+#### What must be answered — options preserved, **not chosen**
+
+1. **Does `D-D1` have to be answered before `D11`?** §8.1:394 says it gates P6 ahead of D11. If so,
+   `D11` is not the next boundary and `A14` stays blocked behind **two** decisions, not one.
+2. **Is Trust's scope three areas or four?** This document's P6/P7 split says three; the untracked
+   register says four. Both readings are recorded; neither is adopted.
+3. **Does "V5 names the areas" discharge `D11`, or does `D11` require a build scope?** All four
+   untracked sources say the build scope is open; the tracked document records `D11` unresolved.
+4. **Should `D11`'s question text be admitted to the tracked record?** It exists only in an
+   untracked file. Admitting it is an owner act, not a documentation act — **it is not done here.**
+
+**`D11` is NOT answered. `A14` remains blocked. `D-D1` remains unfilled. `CONF-08` remains open.**
+No status changes.
 
 ---
 
