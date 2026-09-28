@@ -2617,6 +2617,13 @@ ID. Same class of trap as the `D11` binary-asset match recorded at §8.12.)*
 investigated without owner authority has been. **No decision below is answered, inferred or
 ranked.** No implementation has begun.
 
+> **REVISION 2 — after the §8.22 admission.** The owner admitted the missing decision questions,
+> and recovery has run against every one. **The counts below are revised; the structural conclusion
+> is not.** What changed: **14 questions were recovered and admitted** (§8.23), **2 are
+> UNRECOVERABLE** (`D-V3`, `D-V6`), **2 were answered** (`D15`, `D1(iv)`, §8.22), and **two of this
+> document's own tier claims were corrected** (§8.24). **Not one recovered question became
+> resolvable from evidence. All remain (c).**
+
 ### 17.A · Current V5 readiness
 
 **Documentation readiness: HIGH. Implementation readiness: ZERO, and not primarily for want of
@@ -2645,7 +2652,22 @@ decisions.**
 would is **admitting the missing question text to the tracked record** — which §8.12 already ruled
 *"an **owner act**, not a documentation act."* **It is not performed or scoped here.**
 
-### 17.C · Remaining owner decisions — **27, none answered**
+> **REVISION 2 — the admission has been performed, and this changes the picture.** Fourteen of the
+> seven-item minimal unblocking set's questions are now **recovered and admitted** (§8.23):
+> `D5`, `D6`, `D7`, `CONF-08`, `D-V1`, `D-V2` all have wordings on the tracked record.
+> **The set is no longer unpreparable — it is prepared and awaiting owner answers.**
+>
+> **But two of the seven remain blocked behind a harder wall.** **`D-V3` is UNRECOVERABLE**, and it
+> is a P3 entry condition alongside `D-V1`/`D-V2`. **So P3 cannot be entered even if every
+> answerable question in the set is answered**, because one of its three conditions has no question
+> to answer. **The same is true of P10 and `D-V6`.**
+>
+> **Revised structural conclusion:** the blocker is no longer *"the questions do not exist."* It is
+> now **two specific decisions whose questions could not be recovered**, plus **41 open owner
+> decisions**. That is a materially better position than §17.B originally recorded — and it is
+> still not implementable.
+
+### 17.C · Remaining owner decisions — **41, none answered** *(revised from 27)*
 
 All are documentation-stage. **None is resolvable from a recorded ruling or a governing constraint**
 (the sole exception, `D15`, is in §17.C.6 and unblocks nothing).
@@ -2695,8 +2717,36 @@ anonymisation). Blocked on **`PD-A24`**: Q6(d), Q7, Q9(b), Q10 — and Q11 via Q
 **`PD-A17`**: Q8. Blocked on **`D11`**: Q3's delivery, and Q12's remaining half.
 **`PD-A24` and `PD-A17` are TRACKED, OPEN, owner *Julia*, and must NOT be re-decided here.**
 
-**C.6 — With tracked questions, outside §8: `CONF-02` (c, gates P0) · `D1(iv)` (c, gates P1) ·
-`D15` (b — resolvable WITHOUT the owner, and unblocks nothing).**
+**C.6 — Outside §8.** ~~`CONF-02` (c, gates P0) · `D1(iv)` (c, gates P1) · `D15` (b)~~ —
+**SUPERSEDED**: `D15` and `D1(iv)` are **ANSWERED** at §8.22; `CONF-02` is **admitted at §8.23** and
+still **(c)**, gating P0 alone.
+
+**C.7 — THE FOURTEEN ADMITTED INHERITED DECISIONS (§8.23). All (c). Questions now recorded
+verbatim; options only where a source enumerated one.**
+
+| decision | question recovered? | options | gates |
+|---|---|---|---|
+| **`D3`** | yes | (a)/(b), *"(b) recommended"* — **not an owner choice** | **P1** |
+| **`D17`** | yes | **none** — only the content of a fix | **P1** |
+| **`D5`** | yes ×2, scopes differ | (a)/(b) + an unlettered third branch | **P5** |
+| **`D6`** | yes ×4 — **two presuppose the answer** | (a)/(b)/(c) | **P8** |
+| **`D7`** | yes ×2, differ by one word | **none** | **P5** |
+| **`D10`** | yes | **none** | `SEC-AI-1`, **not a phase** |
+| **`D11`** | yes | **none** | **P6**; blocks `A14` → `D4` |
+| **`CONF-02`** | yes (**untracked only** — §8.24) | (a)/(b) | **P0** |
+| **`CONF-06`** | yes ×3 | (a)/(b)/(c) | **P9** |
+| **`CONF-08`** | **part** — imperative vs interrogative unsettled | (a)/(b) for one form | **P5, P6, P8** |
+| **`D-V1`** | yes ×3 | (a)/(b)/(c) | **P3** |
+| **`D-V2`** | yes ×2 | (a)/(b) | **P3** |
+| **`D-V4`** | yes ×4, scopes differ | **none** | wearable authz |
+| **`D-V5`** | yes ×2 | **none** | **P7** |
+
+**C.8 — THE TWO UNRECOVERABLE ITEMS — owner-boundary, not answerable as posed.**
+**`D-V3`** (canonical observation + provenance contract) and **`D-V6`** (SBOM toolchain). **No
+question text exists in any source**; both are absent from the one section that states decisions
+interrogatively. Per §8.22·3 they are **preserved as UNRECOVERABLE**, not reworded. **`D-V3` gates
+P3; `D-V6` gates P10.** **Deciding them requires the owner to supply a question, not merely an
+answer.**
 
 ### 17.D · Unresolved contradictions — carried, none resolved
 
@@ -2719,7 +2769,20 @@ population to the live catalog — which closes no finding and unblocks no phase
 
 **Directly: nothing beyond `D15`.** Answering §17.C.1–C.3 specifies the **shape** of the P2 audit
 and observability substrate — populations, immutability, retention, readers, identifier, mapping —
-but P2 cannot complete while `D4` remains open on `A14` → `D11`, and `D11` has no tracked question.
+but P2 cannot complete while `D4` remains open on `A14` → `D11`.
+
+> **REVISION 2.** `D11`'s question **is now admitted** — *"What is Trust's actual scope?"* — so the
+> `D4` → `A14` → `D11` chain is **answerable end to end** for the first time. Answering
+> `D11`, then `A14`, then §17.C.1–C.3 would **complete `D4` and `D12`, and open P2.**
+> **P2 is therefore the first phase that becomes reachable**, and it is reachable **without**
+> `D-V3` or `D-V6`.
+>
+> **P1 likewise:** its only remaining blockers are `D3` and `D17`, **both now admitted with
+> recovered questions.** Answering those two opens P1. **P0 needs `CONF-02` alone.**
+>
+> **So the answerable path is `CONF-02` → (`D3`, `D17`) → (`D11`, `A14`) → the P2 decision set.**
+> Everything beyond P2 still needs the Admin, wearable and design sets — and P3 and P10 still need
+> the two UNRECOVERABLE items.
 
 ### 17.G · Confirmation
 
