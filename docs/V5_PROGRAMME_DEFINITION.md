@@ -2188,6 +2188,83 @@ separate act requiring its own authorization and is **not** performed by this do
 
 ---
 
+### 8.22 ADMISSION OF MISSING DECISION QUESTIONS — **ANSWERED** — plus `D15` and `D1(iv)`
+
+**Four owner decisions, recorded exactly as supplied.**
+
+#### 1 · ADMISSION — **the missing inherited V5 decision questions are ADMITTED, as a formal owner act**
+
+§8.21 established that 14 of 17 inherited decisions have no tracked statement of their question, and
+that admitting that text is *"an **owner act**, not a documentation act."* **That act is now
+authorized.**
+
+#### 2 · SCOPE OF THE ADMISSION — **what it does and does not permit**
+
+The admission authorizes **reconstruction/admission of the decision objects from the available
+provenance.** It **DOES NOT authorize invention of requirements, options, or outcomes.**
+
+**Operationally, this means: QUOTE, NEVER COMPOSE.** A question enters the tracked record only as a
+verbatim quotation carrying its source. A topic gloss is **not** upgraded into a question. An option
+set is admitted only where a source enumerates one.
+
+#### 3 · UNRECOVERABLE WORDING — **the handling rule**
+
+Where a decision's original wording **cannot be recovered from authoritative evidence**:
+
+- **preserve it as UNRECOVERABLE;**
+- **mark the provenance explicitly;**
+- **do NOT fabricate wording;**
+- **do NOT infer an owner choice.**
+
+An item marked UNRECOVERABLE remains an **owner-boundary item**. It is not closed, not resolved, and
+not reworded into something answerable.
+
+#### 4 · `D15` — **ANSWERED: PROCEED WITH LIVE-CATALOG DERIVATION**
+
+Adopts the already-proposed `D15` direction. **It does NOT authorize implementation yet.**
+
+- **The question, verbatim:** *"Should the guard population be derived from the live catalog rather
+  than migrations?"* — recorded at `V5_WAVE1_INDEPENDENT_VERIFICATION_REPORT.md:353` **[TRACKED]**,
+  which itself quotes an **untracked** source. **The question has tracked standing; its origin does
+  not.**
+- **The evidence it rests on:** **37 live vs 33 source** policies; cause — source counting missed 3
+  duplicate policies.
+- **Status unchanged until implementation:** §11 records `D15` as *"proposed, **not applied**"*, and
+  that remains true. **`SEC-G1` (`rls_policy_shape_guard_test.dart`) is NOT modified.** Its header
+  already anticipates the act — *"Measured 2026-09-23. **Lower it when policies are corrected under
+  OD-14**; never raise it"* — but lowering it is implementation and is **not performed here.**
+- **Reach, recorded so it is not overstated:** `D15` **unblocks no phase and closes no finding.** Its
+  scope is the `SEC-G1` guard's own accuracy. It appears in **no** §5.2 entry condition.
+- **Provenance limit preserved:** `D15` is a **V5-chain construct** — it appears in no pre-existing
+  repository document, as its own source states.
+
+#### 5 · `D1(iv)` — **ANSWERED: DEFER TO WAVE 2.** No `CHECK` constraint for the role value set
+
+- **The question, verbatim:** *"`D1(iv)` — the permitted `role` value set — was not answered."* —
+  `docs/adr/ADR-W1-001-team-membership-lifecycle.md:71` **[TRACKED]**, ADR-2.
+- **The decision confirms the existing posture rather than changing it.** Migration `132:95–96`
+  already records *"`role` is deliberately NOT constrained. The owner answered D1(i), (ii) and (iii);
+  the permitted `role` value set was NOT answered."* **Nothing is implemented, and migration 132 is
+  not modified.**
+
+> **SCOPE PRECISION — this matters and is easy to misread.** `D1(iv)` concerns
+> **`coach_team_members.role`**, the team-membership role. It does **NOT** concern
+> **`user_profiles.role`**, which **already carries a `CHECK`** —
+> `115:79`: `CHECK (role IN ('client', 'coach', 'vendor', 'admin', 'content_manager'))`. **That
+> existing constraint is untouched and is not contradicted by this decision.** The instruction "do
+> not introduce a CHECK constraint for the role value set" applies to `coach_team_members.role`
+> alone.
+
+- **Evidence recorded for the Wave 2 decision**, carried forward unchanged: the column defaults to
+  `'assistant_coach'`, and `coach_business_screen.dart:256` hard-codes the same value when creating
+  an invite. The column remains `text NOT NULL`. **No regression, no new constraint.**
+- **`D1` must still not be described as answered without qualification.**
+
+**No status changes. No registry ID allocated. No finding remediated. No implementation authorized
+by any of the four.**
+
+---
+
 ## 17 · CONSOLIDATED OWNER-DECISION PACKET
 
 **Produced at the close of the full autonomous preparation cycle.** Every branch that could be
