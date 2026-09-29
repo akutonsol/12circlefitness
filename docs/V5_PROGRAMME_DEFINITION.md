@@ -4089,6 +4089,175 @@ back; 135/136/137 remain applied.
 
 ---
 
+## 29 · INDEPENDENT AUDIT OF §28 · A RETRACTION · CONNECTIVITY DIAGNOSIS · DECISION B PROPOSAL
+
+**No owner decision is taken in this section. Decision A (§25) and Decision B (§24.3) were
+supplied unfilled in the handoff — literally `[INSERT MY DECISION HERE]` — and are therefore
+NOT made, NOT inferred, and NOT worked around.** Work proceeded only on the path that rules 5
+and 7 of the handoff make identical under either answer.
+
+### 29.1 §28 was audited adversarially, and it did not survive intact
+
+An independent auditor was tasked to find **overstatement** in §28/§28.9, on the explicit
+instruction that finding the author had oversold something counted as success. Items 1, 2, 4, 5,
+6, 7 and 9 were checked and **held** — the counts, the single-hunk diff, the `SUITE ERROR`
+tallies, the 1E block anatomy, the 75/75 isolation result, and the honesty of the
+"not `VERIFIED LIVE`" framing all verified against the artifacts. §28.4 did not.
+
+Corrections to §28, smallest first:
+
+- **§28.6 is wrong about which attempt completed.** It says "attempt 2 completed". There are three
+  artifacts: `d05_iso.txt` died `read ETIMEDOUT` mid-suite, `d05_try1.txt` died
+  `UND_ERR_CONNECT_TIMEOUT` **at `signIn`, i.e. at startup**, and `d05_try2.txt` completed. So
+  **attempt 3 completed**, and the degradation was worse than §28.6 claimed — the error ran
+  against my own argument's favour, and it was still wrong.
+- **§28.3's displayed diff omits its third line** (the `console.error` message). "One hunk" and
+  "every assertion byte-identical" remain true; the quoted snippet was incomplete.
+- **§28.3's "no tracked file modified" does not evidence `ids.json`,** which is gitignored
+  (`.gitignore:34`). The sha256 is the only evidence. It is corroborated indirectly: the QA
+  identities in the repo file appear verbatim in `suite_final.txt:254` and `verify_full.txt:155`.
+- **§28.3's "HEAD still `7f0b8a7`" is stale** — true when written, now `4b2f3ca`.
+- **§28.5's "all three applied cleanly" is catalog-true but ledger-false.** 135/136/137 were
+  applied by `psql` outside `supabase_migrations.schema_migrations`, which still reads **134**.
+  The catalog corroborates them independently; the ledger is not the evidence a reader assumes.
+- **§28.4's `user_profiles` row is misleading as worded.** No statement in `000`–`134` *names*
+  `user_profiles` in a GRANT/REVOKE — but **`118:262` executes
+  `REVOKE ALL ON ALL TABLES    IN SCHEMA public FROM anon;`**, which reaches it. (I first failed
+  to find this line because my grep assumed single spaces; the citation is correct and my
+  refutation of it was wrong.)
+- **§28.4's causal claim is downgraded to an inference.** It asserted the grants "come from the
+  Supabase platform bootstrap … not from anything under version control". The local `pg_default_acl`
+  shows the `supabase_admin` default-privilege entries **are present locally too**; they did not
+  fire because migrations created objects as `postgres`, not `supabase_admin`. The practical
+  conclusion survives — the tree alone does not reproduce QA's authorization surface — but the
+  **mechanism** is not established by the evidence offered.
+
+### 29.2 ⚠ RETRACTION — §28.4's "faithful rather than convenient" is WITHDRAWN
+
+§28.4 claimed the local grant repair "was chosen to be faithful rather than convenient", offered
+two safeguards, and made an explicit no-masking argument **for the EXECUTE grant only**. There was
+no equivalent argument for the *table* grants, and the equivalent argument would have been false.
+
+`GRANT SELECT, INSERT, UPDATE, DELETE … TO anon, authenticated` across every `relkind='r'` in
+`public` silently reversed four controls that **are** in the tree. Verified live on the B2 target:
+
+| Control in `000`–`134` | State on the B2 target |
+|---|---|
+| `118:262` `REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon` — the tree's defence-in-depth, "a missing GRANT fails closed where a missing policy failed open" | **`anon` holds DML on all 91 public tables** |
+| `113:216` withholds `invite_token`/`invite_id` at column level — bearer credentials, with a comment warning that a table grant defeats a column withholding | **`anon` holds `INSERT, SELECT, UPDATE` on `invite_token`** |
+| `114` re-grants `weekly_checkins` narrowly and deliberately grants **no** `DELETE` ("this is health-record history") | **`authenticated` holds `DELETE`** |
+| `118` leaves `workouts` `SELECT`-only | `authenticated` and `anon` hold `INSERT/UPDATE/DELETE` |
+
+**Consequences, stated rather than softened.** The claim of fidelity is retracted. The B2 target is
+a faithful reconstruction *for the three surfaces d10 exercises* and **is not a faithful
+reconstruction of the pre-fix tree generally**. It **must not be reused for any other suite**
+without re-deriving its grant state. Nothing here reaches QA: the repair was applied by `psql` to
+the disposable local container only, and no grant statement was written to any migration.
+
+### 29.3 The audit also STRENGTHENED B2 — an argument §28 was entitled to and failed to make
+
+The auditor was asked the one question that could have invalidated B2: **could the grant repair
+have manufactured the 8 pre-fix failures?** It cannot, and the reasoning is worth recording
+because it converts B2 from "suggestive" to "sound":
+
+- A table privilege in PostgreSQL is **necessary but never sufficient**. RLS is evaluated
+  independently, and `authenticated` is neither the table owner nor `BYPASSRLS`.
+- A missing `SELECT` grant yields PostgREST **`401`/`403` permission denied — an error, never a
+  row**. The four substantive failures reported `status=200 rows=1` / `objects=1`. Only an RLS
+  policy can admit a row.
+- Therefore the bias runs **conservative**: adding grants converts "permission denied" errors into
+  genuine RLS evaluations, which makes *deny*-assertions **harder** to pass. The 22 pre-fix passes
+  are if anything understated, and the 8 failures are genuine policy defects.
+- Two independent corroborations: the storage failures sit **outside the repair's blast radius**
+  (`storage.objects` carries all seven privileges for `anon`/`authenticated` from the native
+  Supabase storage bootstrap, which a DML-only repair cannot produce); and the post-fix
+  `403`-on-view-write assertion remains valid because **`135:125-126` itself** revokes and re-grants
+  `SELECT` only, and the one-shot repair on `relkind='r'` could not leak into a view 135 created later.
+
+**§28.5's conclusion therefore stands, and stands on firmer ground than §28 claimed for it.**
+
+### 29.4 CONNECTIVITY — diagnosed, with two of my own hypotheses killed
+
+The live-verification channel is the binding constraint on everything §21.4 lists, so it was
+characterized directly. **Two hypotheses I advanced were wrong, and both are recorded rather than
+quietly dropped:**
+
+1. **"It is IPv6 vs IPv4."** Wrong. The host publishes **no AAAA record**; `curl -6` reported
+   `connected to ::ffff:104.18.38.10`, an IPv4-**mapped** address. It was IPv4 throughout.
+2. **"It is the system resolver."** Wrong. `getaddrinfo` measured **40/40 successful in 0.1 s**.
+   DNS is healthy.
+
+Both apparent effects were an artifact of **running A/B tests sequentially against a bursty
+fault**. An interleaved test settled it:
+
+| Interleaved, alternating, 24 pairs | Result |
+|---|---|
+| plain system resolution | 23 reached / 1 failed |
+| pinned via `--resolve` | 22 reached / 2 failed |
+
+**No difference.** Address family, resolver path and IP selection are all non-causal.
+
+**What is actually true.** Intermittent, bursty TCP/TLS **connection-establishment** failures to
+the Cloudflare edge fronting QA (`104.18.38.10`, `172.64.149.246`). Node surfaces them as
+`TimeoutError` / `UND_ERR_CONNECT_TIMEOUT` / `read ETIMEDOUT`. The measured rate moved from
+**~50 % to ~6 % within roughly twenty minutes**. Established connections survive on keep-alive,
+which is why `1D` completed 66/66 on one connection while neighbouring suites died at random
+points — and why the abort position drifts (§28.9).
+
+**Operational consequence:** live verification is *possible but unreliable on demand*. A long suite
+is fragile by construction; the isolated single-suite invocation with retry is the only sound way
+to obtain a completed run, and **a completed run is the only readable one** (§28.9).
+
+### 29.5 DECISION B — a protocol was designed, NOT executed
+
+Because rule 4 of the handoff specifies how a rollback must be conducted *if* authorized, the
+protocol was designed in advance so that authorization is not delayed by engineering. It is a
+**proposal held in the scratchpad and deliberately not in the repository**; nothing in it has been
+run, and QA has not been altered.
+
+Findings that bear on the decision itself, and that the owner should see **before** answering:
+
+- **The window is irreducible, and the standard anticipates exactly this.**
+  `QA_CLOSURE_STANDARD.md:144-145` says a security-sensitive probe "uses transaction rollback where
+  possible. Where they cannot, **the probe is not run and the limitation is recorded**." This probe
+  reaches the database only over HTTP, so PostgREST runs in a different backend session and cannot
+  see uncommitted DDL. The rollback must COMMIT before the probe can observe it. **No transaction,
+  savepoint or DO block collapses the window.** Declining the rollback is therefore a *reading of
+  the standard*, not a concession against it.
+- **The hazard I raised is solvable, because the two channels have opposite health.** The probe
+  rides degraded HTTPS; `psql` to QA is healthy (corroborated at §23). A restore driven over `psql`,
+  armed as a `pg_cron` watchdog **in the same transaction as the rollback**, cannot be stranded by
+  an HTTPS failure — and if any rollback statement raises, the transaction aborts and neither
+  happened.
+- **Minimum evidence is 4 assertions / 4 in-window requests** (3 is the absolute floor, one per
+  finding), with every fixture arranged before and torn down after. The rollback is **three
+  `CREATE POLICY` statements transcribed verbatim from committed pre-fix text** — `132:235-242`,
+  `035:182-185`, `029:35-45`. **None of 135/136/137 needs reverting**; in particular the
+  `is_active_coach_of(text)` overload must NOT be dropped, or the PGRST203 regression 137 exists to
+  fix reopens.
+- **A severity asymmetry the owner must weigh.** The profile path is not self-serve (`001:399`
+  blocks registering a victim), but the photo and score-event paths **are**: `113:271-284` lets any
+  QA account with a coach profile unilaterally insert a `pending` relationship with no client
+  consent, and the pre-fix predicates ignore status. For the duration of the window, **any QA coach
+  account could read an arbitrary user's progress photographs and score events.** Low probability
+  in ~15 s; high severity regardless.
+- **A trap in the probe itself.** The two profile assertions test row count only, so a `401`,
+  `503` or `fetch failed` **scores as a pass** — a pre-fix run that fails to reproduce the leak is
+  uninformative and will tempt a second window. Any authorization should cap the number of windows
+  and require raw status capture for all four requests.
+- A narrower variant exists that reproduces the pre-fix *predicate* scoped to a single synthetic
+  `is_demo` fixture rather than the global pre-fix *state*. It is recorded in the proposal as an
+  option. **Choosing between it and a full revert is the owner's call and is not made here.**
+
+### 29.6 Unchanged
+
+QA remains at 135/136/137 with no policy rolled back and no migration applied in this section.
+Production was not contacted. `MASTER_PRODUCT_DECISIONS.md` and `MASTER_REMEDIATION_REGISTRY.md`
+are untouched and no ID was allocated. §25's P0 finding is preserved exactly as documented.
+`QAX-SEC-09`, `SEC-PHI-9` and `SEC-PHI-10` remain **OPEN**. Nothing was pushed.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
