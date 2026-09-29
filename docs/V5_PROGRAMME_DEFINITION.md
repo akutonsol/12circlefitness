@@ -6016,6 +6016,89 @@ and the CI web builds pass it by `--dart-define`. That is why §46 called it a c
 staged behind the evidence rather than bundled into this change.
 
 
+---
+
+## 48 · A2 CAPABILITY MATRIX COMPLETED — ONE ROW WAS MISSING, AND IT MATTERED
+
+§47 declared the mapping complete. It was **incomplete**: two rows the lead's Phase 1 list names
+explicitly — **timeout/retry** and **logging/privacy** — had not been inventoried. Completing them
+found a real behavioural delta.
+
+### 48.1 The completed matrix
+
+| Capability | Verdict | Evidence |
+|---|---|---|
+| Request/DTO contract | **PASS** | limits ported verbatim; live QA probe returns **400** with the exact message for all five cases |
+| Authentication | **PASS** | `verify_jwt = true` + explicit `getUser()`; live **401** for absent and malformed tokens |
+| Authorization | **PASS** | same as Nest — any authenticated user; no role gate existed to lose |
+| Prompt construction | **PASS** | `NUTRITION_SYSTEM_PROMPT` verbatim; image block before text, as before |
+| Anthropic request | **PASS** | model / `max_tokens` / `system` / `messages` identical |
+| Model configuration | **PASS** | `ANTHROPIC_MODEL`, `ANTHROPIC_MAX_TOKENS` from env, as Nest read them from config |
+| Image handling | **PASS** | `analyze-food-image` already does base64 + `mediaType` → Anthropic image block, **deployed and already invoked by the app** |
+| Response schema | **PASS** | `{ text }`, text blocks joined and trimmed, empty → 503 |
+| Error behaviour | **PASS** | generic 503, detail logged never returned |
+| Secrets | **PASS** | server-side only; guard asserts the key can never reach a response body |
+| **Timeout / retry** | **GAP — FOUND AND CLOSED** | see §48.2 |
+| Logging / privacy | **PASS** | upstream failures logged **by status only**; no body, no key, no prompt |
+| Dependencies | **PASS** | `@anthropic-ai/sdk` → `fetch`; `class-validator` → explicit `validate()`; `@nestjs/jwt` → gateway + `getUser()` |
+
+### 48.2 ⚠ The gap: retry was part of the contract and the house pattern would have dropped it
+
+`ai-nutrition.service.ts` constructed `new Anthropic({ apiKey })` and **overrode neither
+`maxRetries` nor `timeout`**, so it inherited the SDK default —
+**`maxRetries = 2`** (`@anthropic-ai/sdk/client.d.ts:207`).
+
+The sibling functions `ai-coach` and `analyze-food-image` use a **bare `fetch` with no retry**. So
+*following the house pattern faithfully would have silently removed two retries*, turning transient
+`429`s and upstream `5xx`s into a user-visible *"The AI coach is temporarily unavailable"* far more
+often. **That is client-visible, so it is contract, not embellishment.**
+
+Closed: 2 attempts, exponential backoff, on the SDK's own retryable set
+(`408/409/429/5xx` and connection errors), never on a `4xx` the caller can fix.
+
+**This is the second time the house pattern was the wrong guide.** The first was §47.3's ordering
+defect — the house pattern checks configuration early, while Nest's pipeline validates first.
+Matching the neighbours would have been wrong both times; matching the *contract* was right.
+
+### 48.3 Coverage — repository-native and shown non-vacuous
+
+`AI-005` in `ai_nutrition_client_test.dart` asserts the **server** half: `verify_jwt = true`, the
+persona server-side, all five limits and four media types, that an unknown property is **refused**,
+that **validation precedes the configuration check**, retry parity, and that no failure path can
+return the credential.
+
+It is the repository-native mechanism — there is no Deno harness, and the other nineteen functions
+are covered exactly this way. **Shown non-vacuous, not assumed:** with the function removed it
+produces **7 failure signals**; restored byte-identical; passes again. **21 tests in the file pass**,
+of which the **12 original client tests are untouched** — the evidence the port preserved the
+contract.
+
+### 48.4 Evidence ladder for the nutrition capability
+
+| Rung | State |
+|---|---|
+| FIXED IN CODE | ✅ function, client repoint, guards committed |
+| FIXED ON QA | ✅ deployed to `eyqtldjqpgpljlqvpowh` |
+| VERIFIED LIVE | ⚠ **PARTIAL** — auth and all validation verified by live probe; **the happy path cannot be exercised** |
+| VERIFIED IN CI | ✅ `AI-005` + the 14 client tests green in CI (`36646605521`) |
+
+### 48.5 The boundary is unchanged, and Phase 5 stays closed
+
+`ANTHROPIC_API_KEY` is **absent from QA's function secrets** — `supabase secrets list` returns only
+Supabase's own defaults. **Six** functions read it, including the shipped `ai-coach`,
+`ai-generate-workout` and `analyze-food-image`, so **every AI Edge Function on QA is unconfigured.**
+Pre-existing; not introduced here.
+
+Per the guardrail *"require evidence that the Edge implementation actually works against QA before
+removing the NestJS implementation"*, and *"do not declare closure from static code inspection
+alone"* — **`apps/api` stands and `API_BASE_URL` is untouched.** Installing a paid credential on a
+shared environment is an owner action.
+
+**Nothing is at risk while it waits:** `API_BASE_URL` was empty in every environment, so the NestJS
+route was unreachable in every build. The Edge path is strictly better than what it replaces even
+unconfigured — it returns honest `400`s and `401`s where the old path returned nothing at all.
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
