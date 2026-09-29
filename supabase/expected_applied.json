@@ -35,14 +35,9 @@
     "qa": {
       "ref": "eyqtldjqpgpljlqvpowh",
       "name": "12Circle QA",
-      "applied_through": "138",
+      "applied_through": "139",
       "excluded": [],
-      "pending": {
-        "139": {
-          "reason": "Repairs the FG-1/SP-5 posture regression migration 138 introduced: 138 issued no grant statement, so enforce_registration_integrity() kept the default EXECUTE to PUBLIC, which CI run 36596636664 caught as 'EXECUTE grants to PUBLIC or anon: 1' where 36368081140 had 0. No known exploit path -- the function RETURNS trigger and Postgres refuses a direct call -- but SP-5 is a ratchet and is not weakened to go green.",
-          "gate": "Owner authorization to apply a migration to QA, as migration 138 required. Once applied, move applied_through to 139 and remove this entry."
-        }
-      }
+      "pending": {}
     }
   }
 }
