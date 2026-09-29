@@ -4047,6 +4047,48 @@ containers and volumes were never pruned.
 
 ---
 
+### 28.9 CORROBORATION — the 1E figure is not stable, which settles it
+
+A second full run was taken against QA after §28.6 was written, as a test of the prediction that
+the four "failures" were aborts rather than defects. The network was **worse**, and the result
+corroborates the attribution more strongly than a clean run would have:
+
+| | 217/221 run | This run |
+|---|---|---|
+| `SUITE ERROR: fetch failed` lines | 4 | **7** |
+| `FAIL` rows in the summary | 4 | **7** |
+| Assertion-level `FAIL` lines in the detail | **0** | **0** |
+| 1E reported as | `23/24` | **`24/25`** |
+| P1 reported as | `37/37` (complete) | **`28/29`** |
+| Headline | 217/221 | 137/144 |
+
+Two things follow, and neither depends on reading any suite's source:
+
+1. **The `SUITE ERROR` count equals the `FAIL` count in both runs, one-to-one.** Every reported
+   failure is a thrown suite. In this run all seven `FAIL` lines sit at 240–248, inside the
+   summary block that begins at line 238 — there is **not one** assertion-level `FAIL` anywhere
+   in the detail of either run.
+2. **1E's figure moved from `23/24` to `24/25`, and P1's from `37/37` to `28/29`.** A genuine
+   failing assertion is stable across runs; an abort point drifts with the network. 1E aborted
+   one assertion later this time (banner 107 → `SUITE ERROR` 140 → next banner 143), and P1 —
+   which completed 37/37 earlier in this same session — aborted at 29.
+
+**Conclusion, now established rather than inferred: there is no failing assertion in 1E, and
+there never was.** The `n-1/n` and `-1/0` shapes are the same encoding at different abort points.
+
+**The operational hazard this exposes is worth more than the attribution itself.** The summary
+table renders a partially-run suite and a genuinely failing suite *identically* — `P1 28/29`
+reads exactly like a real regression, yet P1 is the suite proven green 37/37 on QA and again
+37/37 on the B2 target. Any future reader of these runs, human or agent, will misread a degraded
+network as a security regression unless the `SUITE ERROR` count is checked first. That is a
+defect in the harness's reporting, not in the product; it is recorded here as an observation and
+**no ID is allocated and no registry is edited.**
+
+QA was not mutated by either run beyond the suites' own fixture writes; no policy was rolled
+back; 135/136/137 remain applied.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
