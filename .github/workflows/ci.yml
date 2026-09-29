@@ -396,7 +396,7 @@ jobs:
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Live QA suites skipped::EB-1 has not provisioned QA_URL / QA_ANON / QA_SERVICE. 188 live authorization assertions are NOT running."
+            echo "::notice title=Live QA suites skipped::EB-1 has not provisioned QA_URL / QA_ANON / QA_SERVICE. 397 live authorization assertions across 10 suites are NOT running — including K-04 (d11), which is the VERIFIED IN CI rung that finding's closure depends on."
           fi
 
       - uses: actions/setup-node@v4
