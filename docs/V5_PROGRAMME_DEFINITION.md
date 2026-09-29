@@ -5182,6 +5182,113 @@ the static manifest guard stays green while it is authored-but-unapplied.
 
 ---
 
+## 38 · ENV-3 DID NOT FAIL — CORRECTING THE ATTRIBUTION, AND WHY K-04 STILL CANNOT CLOSE
+
+### 38.1 ⚠ The step-10 failure was NOT ENV-3
+
+Step 10 runs `supabase/scripts/live-evidence.sh`, which drives **several** SQL sub-suites. ENV-3 is
+one of them, and it is the one that **passed**:
+
+```
+  ENV-3 · declared vs observed vs authored
+    PASS L-1  expected migrations missing from the ledger: 0
+    PASS L-2  applied but undeclared: 0
+    PASS L-3  stale ledger rows (no authored migration): 0
+    PASS L-4  holes in the applied sequence (000-138): 0
+    PASS L-5  ledger rows 139 vs declared expected 139
+    assertions: 5 PASS · 0 FAIL        RESULT: PASS
+```
+
+`L-2` and `L-3` are precisely the two arms §35.2 predicted would fail before the frontier was moved
+to 138. **They pass.** The manifest fix worked, and ENV-3 needs no investigation.
+
+The two sub-suites that actually failed inside step 10 were **FG-1 (SP-5)** and **FG-2a**, both
+already diagnosed in §37. Nothing in this section changes those diagnoses; it corrects only which
+check the failure belongs to.
+
+### 38.2 Authoritative ledger comparison — three sources, no inconsistency
+
+| Source | State |
+|---|---|
+| repository (authored) | **140 files, `000`–`139`** |
+| `supabase/expected_applied.json` (declared) | `applied_through = 138`, `pending = {139}`, `excluded = []` |
+| **QA remote ledger** (authoritative) | applied through **138**; `139` shows local-only |
+
+All three reconcile exactly. **There is no stale CI expectation, no migration/ledger inconsistency,
+and no environment configuration problem.** The one difference — 139 authored but not applied — is
+*declared as pending with a reason and a gate*, which is the state the manifest contract requires,
+and ENV-3's `INFO` line reports it rather than failing on it.
+
+### 38.3 Root cause, restated against the four candidates
+
+- **Stale CI expectation?** No — ENV-3 passed.
+- **Migration/ledger inconsistency?** No — §38.2.
+- **Environment configuration problem?** No — the credential gate, exact-host gate and `QA_DB_URL`
+  all worked; step 10 connected and ran every sub-suite.
+- **A concrete issue?** **Yes, two, neither of them ENV-3:**
+  1. **FG-1/SP-5 — mine.** Migration 138 created `enforce_registration_integrity()` with no grant
+     statement, leaving the default `EXECUTE` to `PUBLIC`. `SP-5` was `0` at `16ba19f` and `1` at
+     `b700c30`. Repaired by **139**, which is committed and **not yet applied to QA**.
+  2. **FG-2a — not mine, and not K-04's.** A leftover `in_progress` `workout_sessions` row
+     (`user_id 5470a95f…`, not a `d11` fixture) collides with
+     `workout_sessions_one_active_per_user`. `FG-2a` passed in the previous run. This is
+     `SEC-11`/Phase 2 fixture-hygiene debt — the same class as the `d10-probe` leftover that made a
+     `d11` assertion vacuous in §33.4.
+
+### 38.4 Is K-04's CI verification itself complete? **Yes.**
+
+Both artefacts the rung requires exist in run `36596636664` at `b700c30`, and both are green:
+
+- `K-04  event_registration integrity: 9/9 passed`, inside `396/396 across 10 suites`
+- `✅ billing_entitlement_contract_test.dart: K-04 …` — the tree-sensitive guard, which §35.3 proved
+  fails on a 138-less tree
+
+**Neither is invalidated by FG-1 or FG-2a.** They are different sub-suites, run after the security
+suite had already completed, and neither touches `event_registrations`. The K-04 CI evidence stands
+on its own and is preserved.
+
+### 38.5 But K-04 **cannot** move to `VERIFIED_CLOSED` — and not because the workflow was red
+
+All four rungs of §2.1's Security / authorization ladder now have evidence. The blocker is a
+different clause of the same standard, and it is squarely on point —
+`QA_CLOSURE_STANDARD.md:149-151`:
+
+> **"A closure that redefines a database object must prove it preserved every property the object
+> carried — `search_path`, authorization wrapper, **grants**, triggers, comments."**
+
+**Migration 138 did not.** It introduced a function whose grant posture is wrong, and the ratchet
+that exists to catch exactly that caught it. The defect is **still live on QA**, because 139 is not
+applied. Closing K-04 now would be signing a closure whose own change left a grant-posture
+assertion red on the environment it closed against — which is the precise thing that clause
+forbids.
+
+This is a stronger reason than "the workflow failed", and it does not depend on FG-2a at all: even
+if the unrelated `workout_sessions` leftover were cleaned and the workflow went green apart from
+SP-5, K-04 would still not close.
+
+**K-04 therefore remains `REMEDIATED`. The registry is not touched.** §5.3 is noted but does not
+apply — K-04 was never closed, so nothing has *reopened*; this is a defect in the remediation
+before closure, not a regression of a closed finding.
+
+### 38.6 The correction required, and what it is gated on
+
+**Apply migration 139 to QA** via `supabase db push --linked`, then re-run CI. That is the whole of
+it for K-04. It is gated on **owner authorization to apply a migration to QA** — the same gate 138
+required, where the apply was twice refused as `Blind Apply` until authorized. That gate is
+recorded as 139's `gate` field in `expected_applied.json`.
+
+Two things deliberately **not** done here:
+
+- **QA was not altered.** No migration applied, no row cleaned, no grant changed.
+- **The `workout_sessions` leftover was not touched.** Removing it would make a red suite go green
+  by editing the environment's data rather than fixing the suite's hygiene, and it belongs to
+  `SEC-11`, not to K-04. It is surfaced for that owner.
+
+Nothing was suppressed or bypassed: `SP-5` remains exactly as written, and its own output states
+the rule this section followed — *"the assertion is not weakened to go green."*
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
