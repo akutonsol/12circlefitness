@@ -27,6 +27,13 @@ const SUITES = [
   // recorded in docs/V5_PROGRAMME_DEFINITION.md §23.2, because 135/136 were
   // already applied before a request-level probe existed.
   ['P1    profile + status boundaries', './d10-p1-profile-and-status-boundaries.mjs'],
+  // BIL-3/K-04, pulled into P1 by owner Decision A. Unlike d10 this suite has
+  // BOTH halves of §5.2 on QA and needed no rollback to get them: the defect
+  // was live on QA and had never been remediated there, so the red half is a
+  // real pre-138 run (2/8) recorded in §32.4. Registering it here is the
+  // VERIFIED IN CI rung the Security/authorization class demands (§2.1); until
+  // CI actually runs it, K-04 is REMEDIATED and not VERIFIED_CLOSED.
+  ['K-04  event registration integrity', './d11-event-registration-integrity.mjs'],
 ];
 
 let totalFailures = 0;

@@ -4640,6 +4640,128 @@ distinction is preserved: every figure above is a completed run, never a partial
 
 ---
 
+## 33 · MIGRATION 138 APPLIED TO QA · BIL-3/K-04 **VERIFIED LIVE** · REMEDIATED, NOT CLOSED
+
+The §32.6 permission boundary was resolved by owner authorization. 138 was applied to QA through
+the established `supabase db push --linked` workflow — **no `psql`, no pooler, no sub-agent, no
+alternate route.** Production was never contacted.
+
+### 33.1 Application
+
+Target reconfirmed immediately before applying: `supabase/.temp/project-ref` = `eyqtldjqpgpljlqvpowh`
+(**QA**), with an explicit abort arm for the production ref. A fresh `--dry-run` reconfirmed
+**exactly one** pending migration. Result: `Applying migration 138_event_registration_integrity.sql`,
+exit 0. The single `NOTICE` is the `DROP TRIGGER IF EXISTS` no-op.
+
+**Remote ledger:** `138 | 138 | 138` — applied.
+
+### 33.2 Live catalog verification (fresh read-only dump)
+
+| Object | State on QA |
+|---|---|
+| `trg_registration_integrity` | `CREATE OR REPLACE TRIGGER … BEFORE INSERT OR UPDATE ON "public"."event_registrations" FOR EACH ROW` |
+| `enforce_registration_integrity()` | present |
+| `"vendors check in own event registrations"` | now `USING (…) **WITH CHECK (…)**` — the reused-`USING` shape K-04 is recorded against is gone |
+| **135 undisturbed** | `user_profiles` SELECT policy still `((id = auth.uid()) OR is_active_coach_of(id))`; the view still present |
+| **136/137 undisturbed** | `is_active_coach_of("target_path" "text")` intact; `score_events` policy intact |
+
+### 33.3 Request-level before/after on QA — every assertion
+
+| Assertion | **QA before 138** | **QA after 138** |
+|---|---|---|
+| fixture: registration starts owned by the attacker | PASS | PASS |
+| precondition: attacker cannot already see the victim | *(added, see §33.4)* | **PASS — `200 rows=0`** |
+| vendor cannot rewrite `user_id` to the victim | **FAIL — `204`, read-back = VICTIM** | **PASS — `403`, read-back = attacker** |
+| victim PII unreachable via `event_attendee_profiles` | **FAIL — `200 rows=1`, EMAIL DISCLOSED** | **PASS — `200 rows=0`** |
+| vendor cannot self-grant `paid = true` | **FAIL — `204`, `paid=true`** | **PASS — `403`, `paid=false`** |
+| member cannot INSERT `paid = true` | **FAIL — `201`, `paid=true`** | **PASS — `201`, `paid=false`** |
+| vendor cannot forge `qr_code` | **FAIL — `204`** | **PASS — `403`** |
+| vendor cannot move the registration | **FAIL — `204`** | **PASS — `403`** |
+| **REGRESSION:** vendor can still check in | PASS — `204 affected=1` | **PASS — `204 affected=1`** |
+| | **2/8** | **9/9** |
+
+Every result is an explicit HTTP status **plus a service-role read-back**. No error response is
+treated as an authorization pass anywhere: the `403`s are each corroborated by reading the row
+back and confirming the value did not change, and the member-INSERT arm returns `201` — a
+**success** — whose `paid=false` read-back is what proves the trigger forced it.
+
+**§5.2 is satisfied on QA for this finding.** Both halves are real QA requests, and **no rollback
+was required or performed**, because the defect was live on QA and had never been remediated
+there. §24.3 is untouched by this and remains **FIXED ON QA, not VERIFIED LIVE**.
+
+### 33.4 ⚠ A vacuous assertion, caught on QA and fixed — the probe changed between halves
+
+The first post-138 run returned **7/8**, failing on *"the victim's PII is NOT reachable"* with
+`200 rows=1, EMAIL DISCLOSED` — while the `user_id` rewrite it depends on was correctly `403`.
+That is incoherent as a vulnerability, so it was investigated rather than rerun or explained away.
+
+**Cause: fixture contamination from a different suite.** QA held an event titled `d10-probe`
+owned by the attacker with the victim registered for it. `hosts_event_for(victim)` was therefore
+**legitimately true**, and the view returning the victim's row was **correct behaviour** — exactly
+what `event_attendee_profiles` exists to do. d11's pre-clean matched only `d11-probe%`.
+
+Fixed by widening the pre-clean to any `d1<N>-probe` event owned by the attacker, and — more
+importantly — by adding a **precondition assertion** that fails loudly if the attacker can already
+see the victim before any attack. *A vacuous test that reports PASS is worse than one that fails.*
+
+**Disclosure, because it bears on the before/after comparison:** the probe is **not byte-identical**
+across the two halves. The six attack assertions that failed pre-fix are unchanged; what was added
+is fixture hygiene and one precondition guard, both of which make the suite **stricter**. The
+pre-fix 2/8 was not re-measured after the change, because doing so would mean reverting 138 — a
+rollback, and not authorized.
+
+This is the **third** soundness defect found in my own probe, after the FK-409 false pass and the
+cross-assertion contamination recorded in §32.5.
+
+### 33.5 Regression
+
+**`397/397` assertions across 10 suites, 0 `SUITE ERROR`, 0 assertion-level failures** — the first
+fully clean run of the programme, on a quiescent network.
+
+| | |
+|---|---|
+| D-01 43/43 · D-02 40/40 · D-03 27/27 · 1D 66/66 · 1E **75/75** | 1F 34/34 · 3A-10 42/42 · 3A-11 24/24 · P1 **37/37** · K-04 **9/9** |
+
+**This retrospectively confirms §28.6 and §28.9 from the other direction.** 1E is 75/75, not
+`23/24` or `24/25`; P1 is 37/37, not `28/29`; and D-02, 1F and 3A-10 — each previously `-1/0` —
+all pass. Every earlier "failure" was a network abort, exactly as those sections concluded.
+
+Also green: `check:migrations` (139 migrations, contiguous `000`–`138`, clean and tracked),
+`check:guards` (all 19 functions declare a JWT posture; `stripe-webhook` still the only
+`verify_jwt = false` and still verifying its signature), `test:contract` (PASS — and it still
+flags `event_registrations.ticket_code` as the known `I-COM-01` violation, which 138 deliberately
+did not touch), and **`check:prod-refs` — no unallowlisted reference to the production project.**
+
+### 33.6 Fixture cleanup
+
+`leftover_probe_events=0`, `attacker_role=client` (restored from the `vendor` the suite sets),
+`victim_registrations=0`. The `d10-probe` leftover that caused §33.4 is also gone.
+
+### 33.7 Status — `REMEDIATED`, and deliberately NOT `VERIFIED_CLOSED`
+
+`QA_CLOSURE_STANDARD` §2.1 requires for **Security / authorization**:
+`FIXED IN CODE · FIXED ON QA · VERIFIED LIVE · VERIFIED IN CI`, and states plainly that
+*"`VERIFIED_CLOSED` requires every state its class demands. There are no partial closures and no
+exceptions granted at implementation time."*
+
+Present: FIXED IN CODE, FIXED ON QA, VERIFIED LIVE. **Absent: VERIFIED IN CI.** `d11` is now
+registered in `run.mjs`, but CI has not executed it. **`REMEDIATED` is therefore the correct
+established status, and `VERIFIED_CLOSED` is not available.** No status vocabulary was invented.
+
+*(Note for whoever closes this: `BIL-3` sits under the billing prefix, and §2.1's
+**Billing / entitlement** row demands `VERIFIED IN CI` as well, plus `VERIFIED END-TO-END` for
+anything that moves money. The `paid` self-grant confers an entitlement without moving money, so
+END-TO-END is arguably not triggered — but that classification call is not made here.)*
+
+### 33.8 Unchanged
+
+`MASTER_PRODUCT_DECISIONS.md` untouched. No finding ID allocated; `BIL-3`/`K-04` keeps its
+identity and its `DAT-4` linkage. `DAT-4`/`I-COM-01` remains **Wave 3 and untouched**.
+`QAX-SEC-09`, `SEC-PHI-9`, `SEC-PHI-10` remain **OPEN**. §24.3 unchanged. §25 preserved, with its
+chain now executed rather than derived. Production never contacted. Nothing git-pushed.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled

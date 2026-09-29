@@ -949,8 +949,10 @@ directly. Combined with **P-11** (no Anthropic spend cap in QA and no rate limit
 ---
 
 ### BIL-3 · A paid event ticket can be self-granted — **and a vendor can harvest attendee PII**
-`K-04` · **P0** · `READY_TO_REMEDIATE` · **V5 P1 (pulled forward from Wave 6 by OWNER DECISION A,
-2026-09-29)** — identity and linkage unchanged; no new finding ID allocated
+`K-04` · **P0** · `REMEDIATED` *(2026-09-29 — migration 138 applied to QA; **FIXED IN CODE ·
+FIXED ON QA · VERIFIED LIVE** present, **VERIFIED IN CI pending**)* · **V5 P1 (pulled forward
+from Wave 6 by OWNER DECISION A, 2026-09-29)** — identity and linkage unchanged; no new finding
+ID allocated
 
 `event_registrations`' policy has no `WITH CHECK`, so a member sets `paid`/`payment_id`
 themselves. **Fix in one change with DAT-4** — same table. Corrected repro: omit
@@ -978,9 +980,21 @@ only the NEW row and cannot express immutability) freezes `user_id`, `event_id`,
 `paid`, `payment_id`; the missing `WITH CHECK` is added. Verified **8/8 on a disposable local
 target**, including that the vendor's real check-in still works.
 
-**STATUS DELIBERATELY NOT ADVANCED.** 138 is **not applied to QA** — the apply was refused by a
-permission control (see §32). This entry is **not** `REMEDIATED` and **not** `VERIFIED_CLOSED`;
-the local 8/8 is supplemental and is **not** `VERIFIED LIVE`.
+**APPLIED TO QA 2026-09-29 under owner authorization.** Remote ledger shows `138 | 138 | 138`;
+the live catalog carries `trg_registration_integrity` (BEFORE INSERT OR UPDATE) and the policy
+now reads `USING (…) WITH CHECK (…)`. 135/136/137 verified undisturbed in the same dump.
+
+**VERIFIED LIVE — `d11` on QA after 138: 9/9.** `user_id` rewrite `403`; victim PII `200 rows=0`;
+`paid` self-grant `403`; member INSERT `201` with `paid=false`; `qr_code` forge `403`; event move
+`403`; **and the vendor's real check-in still `204 affected=1`.** A precondition assertion proves
+the PII arm is not vacuous (`rows=0` before any attack). Full regression: **397/397 across 10
+suites, zero aborts.** Fixtures cleaned: 0 leftover probe events, attacker role restored.
+
+**NOT `VERIFIED_CLOSED`.** `QA_CLOSURE_STANDARD` §2.1 requires, for Security / authorization,
+`FIXED IN CODE · FIXED ON QA · VERIFIED LIVE · VERIFIED IN CI`, and states that
+*"`VERIFIED_CLOSED` requires every state its class demands. There are no partial closures."*
+**`VERIFIED IN CI` is absent** — `d11` is registered in `run.mjs` but CI has not executed it.
+`REMEDIATED` is the honest status until it does.
 
 ---
 

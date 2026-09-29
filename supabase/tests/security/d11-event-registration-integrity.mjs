@@ -46,8 +46,17 @@ const svcJson = async (path, opts) => (await svc(path, opts)).body;
 // the write 409s on the duplicate while the read-back still finds a paid row,
 // which reads as a failure for the wrong reason. Remove any prior d11 state
 // before arranging new state.
+//
+// The filter is deliberately WIDER than this suite's own marker. d10 also
+// arranges an attacker-owned event with the victim registered for it, and d10
+// does not always clean it up. That leftover makes hosts_event_for(victim)
+// legitimately TRUE, which makes the PII assertion below VACUOUS: the view
+// correctly returns the victim, and the suite reports a failure that has
+// nothing to do with the defect under test. Observed exactly that on QA after
+// 138 was applied. Any `d<N>-probe` event owned by the attacker is fixture
+// state by construction, so all of them go.
 {
-  const stale = await svcJson(`events?title=like.${encodeURIComponent(MARK + '%')}&select=id`);
+  const stale = await svcJson(`events?title=like.${encodeURIComponent('d1%-probe%')}&select=id`);
   for (const e of (Array.isArray(stale) ? stale : [])) {
     await svc(`event_registrations?event_id=eq.${e.id}`, { method: 'DELETE', prefer: 'return=minimal' });
     await svc(`events?id=eq.${e.id}`, { method: 'DELETE', prefer: 'return=minimal' });
@@ -97,6 +106,17 @@ check('fixture: the registration starts owned by the attacker themselves',
 
 // ── 1. the §25 PII path — reassigning whose registration it is ───────────────
 section('1. A vendor cannot reassign a registration to another user');
+
+// PRECONDITION. If the attacker can ALREADY read the victim through the view
+// before attacking anything, they legitimately host an event the victim
+// attends, and the PII assertion below proves nothing either way. Assert the
+// clean precondition explicitly so this suite can never silently measure
+// nothing — a vacuous test that reports PASS is worse than one that fails.
+const baseline = await rest(attackerJwt,
+  `event_attendee_profiles?id=eq.${ids.victim}&select=id`);
+check('precondition: the attacker cannot already see the victim through the view',
+  n(baseline.body) === 0,
+  `status=${baseline.status} rows=${n(baseline.body)}${n(baseline.body) ? ' — FIXTURE CONTAMINATION, the PII assertion below is vacuous' : ''}`);
 
 const rewrite = await mutate(attackerJwt, `event_registrations?id=eq.${reg.id}`,
   'PATCH', { user_id: ids.victim });
