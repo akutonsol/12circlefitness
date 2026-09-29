@@ -5767,9 +5767,20 @@ calls no `/auth` or `/users` route; the only inbound references were `app.module
 `auth.module`'s own import of `UsersModule` — a closed island. Remaining routes: `@Controller()`
 and `@Controller('ai')`.
 
-**Evidence it was genuinely dead:** the **root lockfile — which is what CI's `npm ci` installs
-from — never contained `firebase-admin`, `passport-jwt` or `bcryptjs` at all.** That code imported
-packages CI never installed.
+**⚠ A claim I made here was wrong, and is corrected rather than quietly dropped.** I first
+reported that *"the root lockfile never contained `firebase-admin`, `passport-jwt` or `bcryptjs`"*
+and offered it as evidence the stack was dead. **It is false.** My grep pattern missed them:
+`git show 23e2310:package-lock.json` matches all **three** entries. The lockfile carried the entire
+`firebase-admin` dependency tree — removing the packages from the workspace manifest deleted
+**1702 lines** from it. This is the **third** time in this programme a failed grep has read to me
+as an absent fact (§30.5 records the first two), and the lesson there evidently did not take.
+
+The stack is dead on the evidence that actually holds — no inbound reference, no route called by
+the client, `ai.controller` on `SupabaseAuthGuard` — not on that one.
+
+**Consequence, and it mattered:** the lockfile had to be synced in the same change. `npm ci` fails
+on a manifest/lockfile mismatch, so committing the manifest edit alone would have broken **every**
+CI job at the install step.
 
 **Verified:** 54 unit + 6 e2e pass (from 58 + 6; the four removed suites were the deleted modules'
 own specs), `tsc --noEmit` clean, `npm ci --dry-run` in sync, and **CI run `36619448820` green
