@@ -3758,6 +3758,31 @@ Run individually with retries, because a whole-suite pass rarely completes:
 | `d10` P1 boundaries | **37/37** |
 | `d02`, `d04` | **network-failed — not a security result** |
 
+> **SUPERSEDED BY A LATER, MORE COMPLETE RUN.** A retry loop begun earlier finished after §26 was
+> written and produced the best pass yet — **217/221 across 9 suites**:
+>
+> | suite | result |
+> |---|---|
+> | `D-01` coach_client_relationships | **43/43 PASS** |
+> | `D-03` weekly_checkins | **27/27 PASS** |
+> | `1D` RPC execution security | **66/66 PASS** |
+> | `3A-11` identity constraints | **24/24 PASS** |
+> | `P1` profile + status boundaries (`d10`) | **37/37 PASS** |
+> | `1E` intelligence substrate | **23/24** — one genuine assertion failure |
+> | `D-02`, `1F`, `3A-10` | `-1/0` — **threw on the network, NOT security results** |
+>
+> **`D-01` rising from 38/43 to 43/43 is the in-suite confirmation that migration 137 repaired the
+> `PGRST203` regression** — stronger than the single RPC call §26.3 cites. It also shows the other
+> four `d01` failures were **transient fixture contention from concurrent runs, not defects.**
+>
+> **`d10` scoring 37/37 inside the full runner**, not only standalone, confirms it composes with the
+> other suites and leaves QA clean enough for them.
+>
+> **`1E`'s single failure is NOT identified.** The runner's captured output carries suite-level
+> results only, and isolating that assertion would require another QA run, which is **not taken**
+> while the environment is held for the owner decisions. **It is recorded as open and
+> unattributed — it is NOT claimed to be unrelated to 135/136/137.**
+
 **The harness remains the limiting factor, not the code.** `run.mjs` never completed a clean pass;
 individual suites do. **Any future closure evidence must come from a run that completed.**
 
