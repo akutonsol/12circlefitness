@@ -97,8 +97,19 @@ const reset = async () => {
   await svc(`${LOG}?client_id=eq.${ids.victim}`, { method: 'DELETE' });
 };
 await reset();
-await svc(REL, { method: 'POST', body: JSON.stringify(
-  { coach_id: ids.coach, client_id: ids.victim, status: 'active', initiated_by: 'coach' }) });
+// NOTE: `svc()` stringifies `body` itself (lib.mjs:156). Passing an
+// already-stringified string double-encodes it, PostgREST rejects the write, and
+// because this call's result was discarded the arrange silently did nothing --
+// leaving no relationship, so section 1's coach was 403'd and every audit
+// assertion failed downstream. The result is now checked.
+{
+  const mk = await svc(REL, { method: 'POST',
+    body: { coach_id: ids.coach, client_id: ids.victim,
+            status: 'active', initiated_by: 'coach' } });
+  if (mk.status >= 300) {
+    throw new Error(`arrange failed: could not make the coach coach-of-record — ${mk.status} ${JSON.stringify(mk.body)}`);
+  }
+}
 
 // These MUST be captured. `lib.mjs`'s `hdrs()` treats `who` as 'anon' | 'service'
 // | <a JWT> — anything else is sent verbatim as `Authorization: Bearer <who>`.
@@ -136,11 +147,11 @@ section('2. Unassigned callers are refused (QA-2)');
 
   // Ending the relationship must revoke access immediately.
   await svc(`${REL}?client_id=eq.${ids.victim}`, { method: 'PATCH',
-            body: JSON.stringify({ status: 'ended' }) });
+            body: { status: 'ended' } });
   const after = await rpc(coachJwt, 'get_client_assessment', { p_client: ids.victim });
   check('a coach whose relationship ended is refused', after.status >= 400, `status=${after.status}`);
   await svc(`${REL}?client_id=eq.${ids.victim}`, { method: 'PATCH',
-            body: JSON.stringify({ status: 'active' }) });
+            body: { status: 'active' } });
 }
 
 // ═══ 3. the client's own access is unchanged ═══════════════════════════════
@@ -162,8 +173,8 @@ section('4. Missing assessment data is reported honestly (QA-4)');
   // A client the coach is assigned to but who has no profile row at all must
   // yield zero rows — "no assessment on file", never an empty-looking one.
   const ghost = '00000000-0000-0000-0000-0000000000ff';
-  await svc(REL, { method: 'POST', body: JSON.stringify(
-    { coach_id: ids.coach, client_id: ghost, status: 'active', initiated_by: 'coach' }) });
+  await svc(REL, { method: 'POST',
+    body: { coach_id: ids.coach, client_id: ghost, status: 'active', initiated_by: 'coach' } });
   const g = await rpc(coachJwt, 'get_client_assessment', { p_client: ghost });
   check('absent profile returns no row rather than a blank assessment',
         g.status >= 400 || n(g.body) === 0, `status=${g.status} rows=${n(g.body)}`);

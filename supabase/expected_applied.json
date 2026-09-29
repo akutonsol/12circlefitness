@@ -35,14 +35,9 @@
     "qa": {
       "ref": "eyqtldjqpgpljlqvpowh",
       "name": "12Circle QA",
-      "applied_through": "140",
+      "applied_through": "141",
       "excluded": [],
-      "pending": {
-        "141": {
-          "reason": "Repairs migration 140's get_client_assessment() return type: sleep_hours was declared numeric but user_profiles.sleep_hours is text, so the function raised 42804 on every call. A return type cannot be changed by CREATE OR REPLACE, so 141 drops and recreates it; 140 is not rewritten in place.",
-          "gate": "Applying in this change under OD-56 = A; the frontier moves to 141 once the QA catalog and d09 verify."
-        }
-      }
+      "pending": {}
     }
   }
 }
