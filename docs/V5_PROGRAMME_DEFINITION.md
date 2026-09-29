@@ -5654,6 +5654,90 @@ and it is not inferred or resolved here.
 
 ---
 
+## 43 · DECISION RECONCILIATION — `OD-30` IS NOT A BLOCKER; THE REAL GATE IS `OD-56`
+
+Preparation only. **No owner decision is made, `MASTER_PRODUCT_DECISIONS.md` is untouched, nothing
+was applied, registered or deployed.** Each ID was re-read from the current repository rather than
+carried over from a prior handoff — and one of the three turned out to be wrong.
+
+### 43.1 ⚠ `OD-30` does not block N-07 — it is a known ID collision
+
+My §42 reported "N-07 is blocked on owner decision OD-30", sourced from
+`FINAL_SCREEN_INVENTORY.json:1523` (*"OD-30 coach access to PAR-Q (blocks N-07)"*). **That is
+stale, and the repository already says so in two places:**
+
+- **`QA_EVIDENCE.md:4634`** names `OD-30` explicitly as a **collision** — *"a calorie constant vs a
+  PAR-Q privacy question … two registers, two owners, one counter"* — and instructs that
+  **`N-07` on its own should be treated as ambiguous**. `QA_EVIDENCE.md:3131` assigns `OD-30` to
+  the fabricated `_elapsedSeconds ~/ 60 * 8` calorie figure, which is a different matter entirely.
+- **`QA_EVIDENCE.md` §3ch** is titled **"N-07 is BUILT AND SHIPPED — the commission document is
+  stale"** and refutes the premise directly: `client_detail_screen.dart` carries a live
+  `TabBarView` with `Assessment` and `PAR-Q` tabs rendering `parq_answers`, `medical_conditions`,
+  `has_injuries`, `injury_locations`, `injury_description`, `risk_level`, `risk_score` and
+  `risk_flags`. **Corrected conclusion, verbatim: *"N-07 is not a missing screen. It is a shipped
+  PHI viewer whose authorization model is the open question."*** Flagged there as **`OD-54`**.
+
+**`OD-30` is therefore removed from the blocker list.** It was never the gate.
+
+### 43.2 The real gate is `OD-56` — and it is narrow
+
+`SECURITY_LEDGER_PHI.md:139` (**SEC-PHI-AUDIT**, *"no PHI access logging exists"*):
+**Governance blocker — "Migration number + owner sign-off (`OD-56`)."**
+`QA_EVIDENCE.md:5748` and `QA_REMEDIATION_FINAL_REPORT.md:104` agree: *"SEC-PHI-AUDIT, N-07 —
+**BLOCKED (OD-56)** — Migration number + sign-off."*
+
+`N07_IMPLEMENTATION_STATUS.md` §4 explains why nothing landed, and **none of the gates is a
+privacy or clinical policy question**: `MASTER_REMEDIATION_WAVES.md` §0.2 assigns migration
+numbers `132+` *"at wave entry, never before"*, and the hygiene guard fails on any untracked
+migration, so the file cannot be created without being committed in the same change.
+
+### 43.3 ⚠ The one genuine privacy question in N-07 is ALREADY ANSWERED by V5's own work
+
+`N07_IMPLEMENTATION_STATUS.md` §2 recorded as **"Still open"**: *"the base-table exposure is
+unchanged. The RPC does not fix it and never claimed to … Narrowing it is a separate decision with
+regression cost on two coach/vendor screens."* Its §7 next-step 2 asks the owner to *"rule on the
+§2 base-table exposure (S-N07-a)"*.
+
+**That ruling has since been made and implemented.** The two arms it names were removed:
+
+| Arm | Removed by | Recorded |
+|---|---|---|
+| `is_team_lead_of` | **migration 132** | §21.2 — *"corrected `SEC_PHI_1` — team-lead arm"* |
+| `hosts_event_for` | **migration 135** | §21.2 / §23 — `QAX-SEC-09` |
+
+The live QA policy is now `USING ((id = auth.uid()) OR is_active_coach_of(id))` — verified in the
+post-139 dump. **`d09`'s `S-N07-a`** (*"a team lead cannot read a member's medical columns"*,
+written to **fail**, `d09:203-205`) **would now pass.** Both coach/vendor screens were preserved by
+giving them column-limited views instead (`team_member_profiles`, `event_attendee_profiles`), which
+is the "regression cost" the 2026-09-24 note was worried about.
+
+**So N-07's substantive privacy decision is settled by evidence and is not an owner question.**
+What remains under `OD-56` is governance: a wave-entry migration number and sign-off.
+
+### 43.4 `PD-A24` and `PD-A17` — verified current, and each is narrower than reported
+
+Both re-read from `MASTER_PRODUCT_DECISIONS.md`. Both are genuinely open, and **both have a half
+the document already marks as proceeding without a decision**:
+
+- **`PD-A24`** — *"Observability vendor, cost, and data-residency posture."* Blocks
+  `EC-01`, `REL-26`, `LRE-27`, `LRE-28` — **it does not list N-07 or `d09`.** Proceed column:
+  **"Partly — the sink is unconditional and is Wave 3B-0"**, with the recommendation that
+  *"the sink abstraction (`reportFailure`) can and should be built **before** the vendor is
+  chosen — it is one interface."*
+- **`PD-A17`** — *"Where does the NestJS API run, and does the parallel auth stack stay?"*
+  Proceed column: **"Partly — the stack removal proceeds now"**, with the recommendation
+  *"decide the platform; **delete the parallel stack regardless** … unused authentication is
+  unmaintained attack surface."*
+
+### 43.5 Net effect
+
+The blocker list changes from **three owner decisions** to **two open decisions plus one
+governance sign-off**, with three work items already released by the documents themselves (the
+observability sink, the parallel-auth-stack deletion, and N-07's base-table ruling). The
+consolidated packet is delivered to the owner separately.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
