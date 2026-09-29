@@ -4762,6 +4762,104 @@ chain now executed rather than derived. Production never contacted. Nothing git-
 
 ---
 
+## 34 · CI FRONTIER — INFRASTRUCTURE IS READY; THE BLOCKER IS THE PUSH PROHIBITION
+
+`VERIFIED IN CI` is the one rung `BIL-3`/`K-04` still needs (§33.7). The finding here is that
+**CI is not the problem.** No credential value was printed, decoded or reproduced at any point;
+only secret *names* were listed, which reveals existence and nothing else.
+
+### 34.1 The CI path exists and is well built
+
+`.github/workflows/ci.yml` — job **"Live QA suites (security / AI / contract)"**, `environment: qa`:
+
+| Step | Purpose |
+|---|---|
+| `Are the QA credentials provisioned?` (`id: creds`) | sets `present=true/false` from whether `QA_URL`/`QA_ANON`/`QA_SERVICE` are non-empty. Its own comment: *"This exposes whether a credential EXISTS, never the credential."* |
+| `Confirm the target is QA and not production` | exact-host allowlist **before anything connects** — *"A target is QA because its ref says so, never because the secret is called QA_URL"* |
+| `Fixture identities (setup-identities.mjs → ids.json)` | `ids.json` is gitignored, so an ephemeral checkout cannot contain it |
+| `Live security suite` | **`npm run test:security`** — the runner `d11` is now registered in |
+
+Triggers are `push: branches: ['**']`, `pull_request`, and `workflow_dispatch`.
+
+### 34.2 Secrets and egress — **verified, not assumed**
+
+Rule: *"do not assume CI has secrets merely because local execution works."* So both were checked
+against GitHub directly rather than inferred.
+
+- **Secrets exist.** The `qa` environment holds `QA_URL`, `QA_ANON`, `QA_SERVICE` (and
+  `QA_DB_URL`), provisioned 2026-08-25. **Names only were read.**
+- **Egress and runtime are proven by execution, not by configuration.** CI run **36368081140** on
+  this branch shows the step **`Live security suite: success`** — it *ran*, it did not skip. That
+  single fact establishes the credential gate passed, the exact-host QA confirmation passed, the
+  runner reached the QA project over the network, and `npm ci` + Node worked. The job
+  `Live QA suites (security / AI / contract)` concluded **success**.
+
+**CI is ready. There is no missing infrastructure dependency, no missing secret, no egress gap.**
+
+### 34.3 ⚠ THE ACTUAL BLOCKER — the code is not on GitHub
+
+| | |
+|---|---|
+| local `HEAD` | `98cdf47` (at the time of this section) |
+| `origin/reconcile/12circle-integrated` | `16ba19f` |
+| commits local-only | **52** |
+| `d11-event-registration-integrity.mjs` on remote | **ABSENT** |
+| `138_event_registration_integrity.sql` on remote | **ABSENT** |
+
+CI checks out a ref from GitHub. **The remote ref contains neither the suite nor the migration**,
+so `workflow_dispatch` against it would run the *old* suite list, produce no `d11` evidence, and
+would be worthless as closure evidence for K-04 — while superficially reporting success.
+
+**`VERIFIED IN CI` for K-04 therefore requires `git push`, which is explicitly and repeatedly
+forbidden.** That is the boundary.
+
+### 34.4 Classification — permission, not infrastructure
+
+This is a **permission boundary**. Nothing needs provisioning, configuring or requesting from an
+infrastructure owner. One authorized `git push` of this branch makes CI run `d11` automatically,
+because `push: branches: ['**']` already covers it.
+
+**No route around it was taken, and none should be.** `workflow_dispatch` on the stale remote ref
+is not a workaround — it is a way to manufacture a green CI run that does not contain the code
+under test, which would be exactly the "green for the wrong reason" failure §32.5 and §33.4 were
+about. It is recorded here so that it is not mistaken for a solution later.
+
+### 34.5 Two CI-adjacent defects fixed while here
+
+1. **The runner rendered an abort as a failure (§28.9).** A suite that died on a network error
+   after 24 passing assertions printed `23/24`; one that died at assertion 0 printed `-1/0`. Both
+   read as regressions. **In CI — where this output is next going to be read by someone who was
+   not present for the run — a dropped connection would present as a security regression.** The
+   state is now named: `ABORT · "N ran, DID NOT FINISH"`, with assertion failures counted
+   separately and a warning naming the suites that did not finish. Exit semantics unchanged, so an
+   abort still fails the build. **Both branches verified** — the full suite still reports 397/397,
+   and the abort path was exercised synthetically because it only fires during an incident.
+2. **The skip-notice understated lost coverage.** It said "188 live authorization assertions are
+   NOT running"; the suite is now **397 across 10 suites**. Corrected, and it now names `d11`
+   explicitly, because a silent skip of that suite is precisely what would strand K-04's closure.
+   The file header's "188" was **left alone deliberately** — it is historical narrative about what
+   was manual before `ENV-6` existed, not a current-state claim.
+
+### 34.6 K-04 status — unchanged, and deliberately so
+
+**`REMEDIATED`. Not `VERIFIED_CLOSED`.** The registry was not touched in this section. Local and
+QA results being green is explicitly *not* a reason to advance it: §2.1 demands `VERIFIED IN CI`
+for the Security / authorization class and states *"no partial closures and no exceptions granted
+at implementation time."* CI has not executed `d11` even once.
+
+The evidence chain from §32 and §33 is preserved intact, as is all §24 evidence. §24.3 remains
+**FIXED ON QA, not VERIFIED LIVE**.
+
+### 34.7 The exact next action
+
+**Authorize `git push` of `reconcile/12circle-integrated` (52 commits) to `origin`.** CI then runs
+on the pushed ref with no further intervention, executes `d11` inside `npm run test:security`, and
+produces the `VERIFIED IN CI` evidence. Only after that run is inspected — and only if `d11`'s nine
+assertions are confirmed to have actually executed rather than skipped — may K-04 move to
+`VERIFIED_CLOSED`.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
