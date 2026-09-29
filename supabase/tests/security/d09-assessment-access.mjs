@@ -75,8 +75,25 @@ const ids  = await loadIds();
 
 // Arrange: coach is coach-of-record for victim; attacker is a client with no
 // relationship to victim at all.
+// Scoped to the two coach/client PAIRS this suite owns.
+//
+// This previously deleted EVERY coach_client_relationships row for the victim:
+//
+//     await svc(`${REL}?client_id=eq.${ids.victim}`, { method: 'DELETE' });
+//
+// `coach_client_relationships` is the authorization root, and `d01` asserts on
+// the same fixture. A blanket delete there is the cross-suite contamination
+// class that made a `d11` assertion vacuous in V5 §33.4 and broke `FG-2a` in CI
+// twice — a suite must own its fixtures or leave them alone, never both.
+//
+// `assessment_access_log` IS wholly owned by this suite: migration 140 creates
+// it, only `get_client_assessment()` writes it, and no other suite reads it — so
+// clearing the victim's rows there is scoped by construction.
 const reset = async () => {
-  await svc(`${REL}?client_id=eq.${ids.victim}`, { method: 'DELETE' });
+  for (const coach of [ids.coach, ids.attacker]) {
+    await svc(`${REL}?client_id=eq.${ids.victim}&coach_id=eq.${coach}`,
+              { method: 'DELETE' });
+  }
   await svc(`${LOG}?client_id=eq.${ids.victim}`, { method: 'DELETE' });
 };
 await reset();

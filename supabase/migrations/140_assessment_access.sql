@@ -1,10 +1,21 @@
--- PROPOSED MIGRATION — N-07 Coach Client Assessment
+-- 140_assessment_access.sql — N-07 Coach Client Assessment
 --
--- NOT YET A MIGRATION. `docs/MASTER_REMEDIATION_WAVES.md` §0.2 assigns numbers
--- 132+ "at wave entry, never before", so this file deliberately carries no
--- number and does not sit in supabase/migrations/. On wave entry: rename to
--- NNN_assessment_access.sql, move, and commit in the same change (the hygiene
--- guard fails on any untracked migration).
+-- LANDED 2026-09-29 under OWNER DECISION OD-56 = A. Authored as
+-- docs/proposed/N07_assessment_access.sql and held unnumbered because
+-- `docs/MASTER_REMEDIATION_WAVES.md` §0.2 assigns numbers "at wave entry, never
+-- before". 140 was verified free before the move: authored migrations topped out
+-- at 139, the QA ledger read 139, and the declared frontier was 139 — the number
+-- was checked, not assumed.
+--
+-- ONE CHANGE was made to the proposed text when it landed, and nothing else:
+-- `SET search_path` was widened from `public` to `public, pg_temp`. V5 §30.2
+-- recorded that exactly four functions carry the weaker `public`-only pin and
+-- that they are the whole authorization surface; Postgres searches the temp
+-- schema FIRST for relation names when `pg_temp` is not listed. This body does
+-- schema-qualify every reference, so the weaker pin was not exploitable — but
+-- 136/137 and 128 of the schema's 133 functions use the stronger form, and
+-- landing a fifth weakly-pinned definer function onto the PHI surface would have
+-- been a step backwards. Nothing else in the file was altered.
 --
 -- ===========================================================================
 -- WHY
@@ -148,7 +159,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 BEGIN
   -- ONLY the active assigned coach. Deliberately NOT is_team_lead_of() and
