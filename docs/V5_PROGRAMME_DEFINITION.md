@@ -5416,6 +5416,102 @@ after itself, which is `SEC-11`'s to fix. Surfaced, not swept.
 
 ---
 
+## 40 · 139 APPLIED · SP-5 GREEN · K-04 EVIDENCE COMPLETE — BLOCKED ON A CLASS RULING
+
+### 40.1 Application and post-apply verification
+
+Applied under owner authorization via `supabase db push --linked`, after preflight confirmed the
+linked ref was **QA** (`eyqtldjqpgpljlqvpowh`, with an explicit production abort arm), 138 applied,
+139 the only pending migration, tree clean and 139 committed.
+
+| Check | Result |
+|---|---|
+| QA ledger | **`135` → `139` all applied, in order**; `139 \| 139 \| 139` |
+| Function ACL | dump carries **`REVOKE ALL ON FUNCTION … FROM PUBLIC`**, matching 113's posture |
+| Any `PUBLIC`/`anon` EXECUTE grant anywhere | **0** |
+| 135 policy + view, 137 overload, 138 trigger + `WITH CHECK` | **all intact** |
+| `d11` on QA | **9/9**, including the legitimate check-in at `204 affected=1` |
+| Manifest | `applied_through = 139`, nothing pending, guards exit 0 |
+
+**SP-5, measured authoritatively by CI rather than inferred:**
+
+| Run | Commit | SP-5 |
+|---|---|---|
+| 36596636664 | `b700c30` | **FAIL — 1** |
+| **36603451032** | **`c60bb89`** | **PASS — 0** |
+
+`FG-1` moved from `4 PASS · 1 FAIL` to **`5 PASS · 0 FAIL — RESULT: PASS`**.
+
+### 40.2 CI run 36603451032 — what passed
+
+`Static guards`, `Flutter`, `API`, `Negative control` all **success**. Inside `live-qa`: every step
+executed, none skipped; `Live security suite` **success** with **`K-04 9/9`**; `Live AI suite`
+**success**. Inside step 10: `FG-1` **PASS**, `FG-2b` **PASS**, `F-J-17` **PASS**, `F-J-07`
+**PASS**, `ENV-3` **PASS (5 · 0)**.
+
+**`FG-2a` is the sole remaining failure**, and the workflow is red because of it alone.
+
+### 40.3 FG-2a diagnosed — and my earlier characterisation was wrong
+
+§37.4 and §38.3 called this a "leftover row / missing cleanup". **That is incorrect.**
+`phase2-contract.sql` ends with `raise exception`, which rolls the entire `DO` block back, so the
+suite **cannot** leave rows behind — and its teardown at `:204-207` is explicitly labelled "belt
+and braces" for that reason.
+
+The real defect is at **`phase2-contract.sql:17`**:
+
+```sql
+v_client uuid := '5470a95f-bcae-4e01-b2be-7c16964fa432';
+```
+
+The suite **hardcodes a shared, real QA user** and then inserts an `in_progress` session for them
+(`:104`). `workout_sessions_one_active_per_user` (migration `108:98`) permits one active session
+per user, so the moment that real account has an active session — ordinary QA usage is enough —
+the fixture insert fails and the suite dies before its report banner. **It is an unsound
+precondition, not a cleanup failure.**
+
+**Deliberately not fixed here.** The remedy is a judgement between two options that belong to
+`SEC-11`: make the suite self-isolating (clear the active session *inside* its own rolled-back
+transaction, which alters no QA data), or treat a stuck active session as a finding in its own
+right. Choosing for them — and editing another finding's test asset — is out of scope. **No QA row
+was deleted, rewritten or reset, and no assertion was weakened or suppressed.**
+
+### 40.4 K-04 — every rung evidenced, and still not closed
+
+| Rung | Evidence |
+|---|---|
+| FIXED IN CODE | migrations 138 + 139 committed |
+| FIXED ON QA | ledger `139`; trigger, `WITH CHECK` and the revoke all in the live catalog |
+| VERIFIED LIVE | `d11` on QA **2/8 → 9/9**, each verdict a status **plus** a service-role read-back, with an anti-vacuity precondition |
+| VERIFIED IN CI | `d11` **9/9** in runs **36596636664** and **36603451032**; the tree-sensitive guard green in both Flutter jobs |
+| §5.2 grants preservation | **`PASS SP-5 … : 0`** on QA in run 36603451032 |
+
+Under **Security / authorization** this closes. **It is not closed, for one reason:**
+
+This finding carries the **`BIL`** prefix, its title leads with *"A paid event ticket can be
+self-granted"*, and §2.1's **Billing / entitlement** row demands *"**VERIFIED LIVE** against
+Stripe **test mode**"*. That rung is **not evidenced and was never attempted** — and arguably does
+not map onto this defect at all, since the self-grant bypasses Stripe entirely and the control is a
+Postgres trigger verified at the layer it operates.
+
+**The standard does not say how to classify a finding that is both.** It does say
+*"no partial closures and **no exceptions granted at implementation time**"* — and deciding, at
+implementation time, that the lenient class applies is precisely what that forbids. **So the class
+determination is left to the owner and K-04 stays `REMEDIATED`.** The registry entry records the
+full evidence and names the single missing item, so closure is a one-line ruling away.
+
+*(§39.9's caveat also stands and is recorded: FG-2a keeps the workflow red, so any closure must
+state in the entry that the red is identified, attributed to `SEC-11`, and touches nothing K-04
+owns.)*
+
+### 40.5 State
+
+Production never contacted. `MASTER_PRODUCT_DECISIONS.md` untouched. `PD-A24`/`PD-A17` untouched.
+§24.3 unchanged — no rollback, still **FIXED ON QA**. `d09` still untracked and unadopted. No QA
+data altered beyond the probes' own self-cleaning fixtures.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled

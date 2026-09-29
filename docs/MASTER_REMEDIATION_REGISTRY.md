@@ -990,11 +990,28 @@ now reads `USING (…) WITH CHECK (…)`. 135/136/137 verified undisturbed in th
 the PII arm is not vacuous (`rows=0` before any attack). Full regression: **397/397 across 10
 suites, zero aborts.** Fixtures cleaned: 0 leftover probe events, attacker role restored.
 
-**NOT `VERIFIED_CLOSED`.** `QA_CLOSURE_STANDARD` §2.1 requires, for Security / authorization,
-`FIXED IN CODE · FIXED ON QA · VERIFIED LIVE · VERIFIED IN CI`, and states that
-*"`VERIFIED_CLOSED` requires every state its class demands. There are no partial closures."*
-**`VERIFIED IN CI` is absent** — `d11` is registered in `run.mjs` but CI has not executed it.
-`REMEDIATED` is the honest status until it does.
+**ACL REGRESSION FOUND AND REPAIRED — migration 139, applied to QA 2026-09-29.** 138 created
+`enforce_registration_integrity()` with no grant statement, leaving the default `EXECUTE` to
+`PUBLIC`; the `FG-1/SP-5` ratchet caught it (`0` at `16ba19f`, `1` at `b700c30`). 139 revokes it,
+matching the posture migration 113 sets for its own trigger function. QA ledger reads `139 | 139
+| 139`; the live dump carries `REVOKE ALL ON FUNCTION … FROM PUBLIC` and no function in the
+schema grants `EXECUTE` to `PUBLIC`/`anon`.
+
+**VERIFIED IN CI — obtained.** CI run **36596636664** (`b700c30`) and run **36603451032**
+(`c60bb89`) each executed `d11` at **9/9** inside a ten-suite live run, and the tree-sensitive
+guard in `billing_entitlement_contract_test.dart` passed in the Flutter job of both. Run
+36603451032 also shows **`PASS SP-5 EXECUTE grants to PUBLIC or anon: 0`**, so §5.2's
+grants-preservation requirement is now discharged on QA.
+
+**STILL `REMEDIATED`, and the missing item is a CLASSIFICATION RULING, not evidence.**
+Under **Security / authorization** every rung is present — FIXED IN CODE, FIXED ON QA,
+VERIFIED LIVE (`2/8` → `9/9`), VERIFIED IN CI — and this entry would close. But this finding
+carries the **`BIL`** prefix and its own title leads with a paid-ticket self-grant, and §2.1's
+**Billing / entitlement** row demands *"**VERIFIED LIVE** against Stripe **test mode**"*, which
+is **not** evidenced and was never attempted. §2.1 also states *"no partial closures and no
+exceptions granted at implementation time"* — so choosing the lenient class here, at
+implementation time, is exactly what that sentence forbids. **The class determination is the
+owner's and is not made here.**
 
 ---
 
