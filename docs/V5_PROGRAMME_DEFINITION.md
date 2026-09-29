@@ -3598,6 +3598,91 @@ suite's own expected total.
 
 ---
 
+## 25 · ⚠ ADVERSARIAL FINDING — migration 135's gate is ATTACKER-WRITABLE
+
+An independent adversarial pass against the **live QA catalog** found a composition migration 135
+did not close and whose severity its own header **understates**. **Every link below was
+re-verified independently against the live dump.**
+
+### 25.1 · The chain — five links, each confirmed live
+
+1. **Zero `FORCE ROW LEVEL SECURITY` anywhere.** `event_attendee_profiles` runs
+   `security_invoker='off'` and is owned by `postgres`, so it **bypasses `user_profiles` RLS by
+   construction**. `hosts_event_for()` is the **entire** authorization.
+2. **`hosts_event_for()` trusts `event_registrations.user_id`.**
+3. **That column is attacker-writable.** The live policy
+   `"vendors check in own event registrations" FOR UPDATE` has **NO `WITH CHECK`** — verified, zero
+   occurrences. Postgres then reuses `USING`, which constrains **`event_id → vendor_id` only, never
+   `user_id`**. The sibling `"users manage own registrations"` is **permissive**, so its stricter
+   predicate is OR-ed away, not AND-ed. **No trigger exists on `event_registrations`** — verified.
+4. **Vendor is self-assignable at signup.** `handle_new_user()` takes the role from signup metadata
+   and admits `'vendor'`.
+5. **Victim UUIDs are freely enumerable.** `public_profiles` is `security_invoker='off'` with
+   **no `WHERE` clause at all** — verified — and `GRANT SELECT` to `authenticated`.
+
+**Result: a self-registered vendor can rewrite a registration's `user_id` to any victim and read
+that victim's `first_name`, `last_name`, `email`, `avatar_url` through the new view — repeatable
+across the entire user base.**
+
+### 25.2 · What this is, and what it is NOT
+
+**It is NOT a regression introduced by 135.** Before 135, the *same* forgeable `hosts_event_for()`
+gate granted the **whole `user_profiles` row including PAR-Q** through the base-table policy.
+**135 genuinely reduced the blast radius from full PHI to four PII columns** — confirmed by the
+live before/after in §23.
+
+**It IS an understatement in 135's header**, which records only that the access **lifetime** is
+unbounded. **The gate is also attacker-writable, and the header does not say so.**
+*(Migration 135 is NOT edited — §8:219: "Never rewrite a migration in place unless the wave plan
+explicitly authorizes it." The correction lives here.)*
+
+### 25.3 · The underlying defect is ALREADY REGISTERED — under a different impact
+
+**`BIL-3` / `K-04` · P0 · `READY_TO_REMEDIATE` · Wave 6** records exactly this policy defect:
+*"`event_registrations`' policy has no `WITH CHECK`, so a member sets `paid`/`payment_id`
+themselves."*
+
+**Its recorded impact is billing self-grant. The PII-harvesting path is NOT recorded**, because
+`event_attendee_profiles` did not exist until 135 created it. **This is the same shape §8.11
+recorded for QAX-SEC-08 — *"three separately recorded facts that nobody had joined up."***
+
+**No registry edit is made. No new finding ID is allocated.** `BIL-3`'s status, wave and ownership
+are the registry's to change.
+
+### 25.4 · Why this is an owner boundary, not something to fix here
+
+Closing it means adding a `WITH CHECK` or an immutability trigger to `event_registrations` — which
+is **`BIL-3`/`K-04`'s remediation, assigned to Wave 6**, and touches the **`F-21`/`OD-14`
+policy-shape population, itself an open owner decision.** Doing it inside P1 would be scope
+expansion into another wave's work on a P0 that has its own owner.
+
+> **THE DECISION: does migration 135 stand as applied, or must `BIL-3` be pulled forward into P1?**
+> Standing pat leaves a self-registered vendor able to enumerate the user base's names and email
+> addresses. Pulling `BIL-3` forward means P1 absorbs a Wave 6 P0 and an `OD-14`-adjacent policy
+> change. **Not decided here.**
+
+### 25.5 · Two gaps that must not be papered over
+
+1. **Bucket publicity is unverified.** The storage dumps are schema-only. **If `progress-photos` has
+   `public = true`, all five of its policies are moot for reads via the public object URL** — and
+   §24's `SEC-PHI-9` result would not mean what it appears to. **This must be checked before any
+   "progress photos are protected" claim is signed.**
+2. **The bypass is derived from the catalog, not executed.** Every link is individually verified and
+   the Postgres semantics are documented behaviour, but **no exploit was run**. An executed proof
+   should precede remediation scoping.
+
+### 25.6 · What the pass confirmed
+
+`diff` of pre/post public dumps is **exactly six hunks** and the storage diff **one** — the new
+overload and its grants, the new view and its two grants, the `score_events` rewrite, the
+`hosts_event_for` arm removal and its comment, and the storage policy. **No stray grant, policy or
+function rode along. 135 and 136 did on QA precisely what they claim, and no more.**
+Also confirmed: `is_active_coach_of(text)` **delegates** to the uuid overload in the live catalog,
+`status = 'active'` is present in the uuid body, the guard **cannot** raise `22P02`, and **all 109**
+`SECURITY DEFINER` functions have a pinned `search_path`.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
