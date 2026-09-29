@@ -4277,6 +4277,118 @@ view, and its grants — and in **no** `user_profiles` policy. This is the inten
 
 ---
 
+## 30 · ADVERSARIAL REVIEW OF 135/136/137 — NO NEW MATERIAL DEFECT, ONE STRUCTURAL CAVEAT
+
+An independent adversarial reviewer was tasked to break migrations 135, 136 and 137, with §25's
+bypass and 137's PGRST203 repair excluded as already-known. **Verdict: no new material security
+defect.** Every attack constructed was defeated by a property verified in the live catalog rather
+than inferred from SQL text. **No finding is opened, no ID is allocated, no registry is edited.**
+
+### 30.1 What was attacked and held
+
+- **The view.** `relowner = postgres`, `security_invoker = off`, and `user_profiles.relforcerowsecurity = f`,
+  so the view genuinely bypasses `user_profiles` RLS and `hosts_event_for()` is the entire gate —
+  as §25.1 already records. `pg_get_viewdef` is exactly five columns; no PHI, no billing, no `role`.
+- **Grant hardening works, and demonstrably.** The view's ACL is
+  `postgres=arwdDxtm | service_role=Dxtm | authenticated=r` — **no write grant to `authenticated`,
+  nothing at all to `anon`**. `pg_default_acl` would have handed the new view `authenticated=Dxtm`
+  on creation; **135's `REVOKE ALL … FROM PUBLIC, anon, authenticated` stripped it.** The comment
+  at `135:125-126` insisting those two lines not be simplified is correct.
+- **Policy surgery left no residue.** `user_profiles` has exactly **one** SELECT policy; `score_events`
+  exactly two; `storage.objects` exactly one coach policy. A `pg_policy` scan finds **zero** policies
+  anywhere still referencing `hosts_event_for`. No orphaned permissive duplicate survived the
+  drop-by-name in 135 or the drop/recreate in 137.
+- **The fail-open hypothesis for 135's narrowing is dead.** All **8** policies in the database whose
+  expressions reference `user_profiles` read only `user_profiles.id = auth.uid()` — the caller's own
+  row, which 135 preserves. None has a `NOT EXISTS`/`NOT IN` dependency on reading another user's
+  row, so 135 cannot have flipped any other policy open.
+- **The uuid guard is tight.** 15 crafted inputs tested against the regex *and* by calling the live
+  function: uppercase hex and canonical pass and cast cleanly; braced, hyphen-less, fullwidth-digit,
+  Kelvin-sign, path-suffixed, empty, NULL and all whitespace/newline variants are rejected. The
+  classic `uuid\njunk` bypass fails because **Postgres ARE `$` does not match before a trailing
+  newline**. **No input produced 22P02** — the fail-closed promise in 137 holds.
+- **Storage paths are sealed on the write side too.** Leading `/`, missing folder and extra leading
+  segment all deny; and `own progress photos insert`/`update` bind `foldername(name)[1] = auth.uid()`
+  on **both** `USING` and `WITH CHECK`, so no one can place or move an object into another user's
+  folder to farm a coach's read.
+- **137 left no SQL-side ambiguity.** A bare untyped literal binds `::text` silently, which is
+  **fail-closed** — the text path adds the regex, so the braced form that `uuid_in` would accept is
+  rejected rather than resolved.
+
+### 30.2 OBSERVATION — four functions carry the weaker `search_path` pin, and they are the four that matter
+
+Confirmed **on QA**, from the read-only dump of §29.7:
+
+| Pin form on QA | Count |
+|---|---|
+| `SET "search_path" TO 'public'` — **no `pg_temp`** | **4** |
+| `SET "search_path" TO 'public', 'pg_temp'` | **128** |
+
+The four are exactly `is_active_coach_of(uuid)`, `hosts_event_for(uuid)`, `is_team_lead_of(uuid)`
+and `shares_conversation_with(uuid)` — **the entire authorization surface that 135/136/137
+rewired.** The text overload 136 added, and 137 recreated, correctly uses the stronger form.
+
+Postgres searches the temp schema **first** for relation names when `pg_temp` is not listed, and
+`pg_database.datacl` shows PUBLIC (hence `authenticated`) holds `TEMPORARY`. That is the complete
+precondition set for temp-table shadowing of a definer function.
+
+**The attack was executed, not asserted, and it FAILS.** With `request.jwt.claims` set to an
+attacker sub and temp `coach_client_relationships`, `events` and `event_registrations` pre-loaded
+with attacker-favourable rows, all three gates returned `f` before and after. **The property that
+saves them is that every body schema-qualifies** — confirmed on QA's own definitions:
+`FROM public.coach_client_relationships`, `FROM public.event_registrations JOIN public.events`,
+`FROM public.coach_team_members`, `FROM public.conversations`.
+
+**Why it is recorded anyway.** It is **not exploitable today** — PostgREST exposes no DDL, so no
+attacker can create the temp tables. But 136/137 made `is_active_coach_of(uuid)` the delegated core
+of two *additional* PHI boundaries (progress photos, score events), so the weakest-pinned function
+now carries the most load, and the only thing between it and shadowing is a `public.` prefix that a
+future `CREATE OR REPLACE` could drop silently. **§25.6's clean bill — "all 109 SECURITY DEFINER
+functions have a pinned search_path" — is true but does not distinguish the two pin forms.** This
+is defence-in-depth, recorded as an **observation**; no ID is allocated and nothing is remediated.
+
+The reviewer's only non-read operation anywhere was that shadowing test, inside `BEGIN … ROLLBACK`
+on the disposable local container. Nothing persisted; QA and production were never contacted.
+
+### 30.3 The reviewer's second finding does NOT hold on QA — and the cause was my own sequencing
+
+The reviewer reported that 136's comment *"Grant posture mirrors the uuid overload exactly"* is
+false, because `service_role` lacked EXECUTE on the text overload — correctly flagging that it had
+only the local build and that the claim needed re-reading against QA. **Checked: it does not hold
+on QA.** `qa_state.sql:9998` carries
+`GRANT ALL ON FUNCTION "public"."is_active_coach_of"("target_path" "text") TO "service_role";`
+
+The local divergence was **an artifact of my own repair ordering in §28.4**: I granted `service_role`
+EXECUTE across the 134 then-existing functions, and *afterwards* applied 137, which drops and
+recreates the text overload — so the new object inherited the narrower `postgres` default ACL
+instead. It is not a migration defect, and it is a fifth instance of the §29.2 collateral-damage
+class rather than a new one. **136's comment stands as written for any real environment.**
+
+### 30.4 Independent corroboration of §25 on a second database
+
+§25.5 flags that the P0 bypass was derived from the catalog and never executed. The reviewer
+re-derived it independently on a different database and it holds: `event_registrations` has **zero**
+non-internal triggers, `user_id` is **nullable**, and `"vendors check in own event registrations"`
+is `polcmd = w` with `polwithcheck = NULL` while its `USING` constrains only `event_id → vendor_id`.
+`"users manage own registrations"` is `FOR ALL` and **permissive**, so it is OR-ed, not AND-ed.
+**§25 is preserved exactly as documented and is not reclassified here.**
+
+### 30.5 Two more grep failures of mine, recorded
+
+Twice in this section's work I reported a claim unsupported because my own pattern missed it: the
+`118:262` revoke (multiple spaces in `ALL TABLES    IN SCHEMA`, §29.1) and the QA `search_path`
+pins (the dump writes `SET "search_path" TO 'public'`, not `= public`). Both citations were
+correct and my refutations were wrong. Recorded because a failed grep reads exactly like an absent
+fact, and this document has now been wrong that way twice.
+
+### 30.6 Unchanged
+
+QA remains at 135/136/137, verified in §29.7. No policy rolled back, no migration applied, no
+registry edited, no ID allocated, production never contacted, nothing pushed. **Decision A and
+Decision B remain unmade.**
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
