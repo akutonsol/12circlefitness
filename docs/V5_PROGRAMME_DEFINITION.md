@@ -3460,6 +3460,83 @@ probes §5.2 requires, and the three findings become closable on their own evide
 
 ---
 
+## 23 · QA VERIFICATION — MIGRATIONS 135/136 APPLIED · **FIXED ON QA**
+
+**Reached: `FIXED ON QA`. NOT reached: `VERIFIED LIVE`.** §2's ladder defines `FIXED ON QA` as *"the
+migration, function or configuration is applied to QA and the object exists in the live catalog"* and
+`VERIFIED LIVE` as *"a real request against QA reproduces the secure/correct behaviour."* **The first
+is now evidenced; the second is blocked by infrastructure.** **No finding is closed.**
+
+### 23.1 · Environment — verified, not assumed
+
+`QA_URL`/`QA_ANON`/`QA_SERVICE` present and clean (single-line, pure ASCII). **All three, and the
+linked project, verified NOT to reference the production ref before any contact.** Docker running.
+`setup-identities.mjs` succeeded — five fixture identities, `ids.json` written.
+
+### 23.2 · PRE-FIX baseline — captured from the **live QA catalog** before applying anything
+
+Migration list confirmed **135 and 136 unapplied** (Local present, Remote empty). All three
+vulnerabilities were then observed **live**:
+
+| finding | live pre-fix state |
+|---|---|
+| **QAX-SEC-09** | `user_profiles` policy carried `… OR "public"."hosts_event_for"("id")` — the whole-row arm |
+| **SEC-PHI-10** | `score_events` *"coach reads client events"* = `EXISTS(… WHERE r.coach_id = auth.uid() AND r.client_id = score_events.user_id)` — **no status condition** |
+| **SEC-PHI-9** | `storage.objects` *"coach reads client progress photos"* = `EXISTS(… r.client_id::text = foldername(name)[1])` — **no status condition** |
+
+`event_attendee_profiles`: **absent**. **The source analysis in §21 is confirmed against the real
+database — the two D3 policies genuinely lacked `status = 'active'` in QA, and 029's comment claiming
+*"an ACTIVE client's photos"* was false in the live catalog.**
+
+### 23.3 · Applied, then POST-FIX state re-read
+
+`supabase db push` applied **135** and **136**. Re-dumped catalog:
+
+| object | live post-fix state |
+|---|---|
+| `user_profiles` policy | `(("id" = auth.uid()) OR is_active_coach_of("id"))` — **`hosts_event_for` GONE** |
+| `score_events` policy | `is_active_coach_of("user_id")` |
+| `storage.objects` policy | `bucket_id = 'progress-photos' AND is_active_coach_of(foldername("name")[1])` |
+| `event_attendee_profiles` | exists, `security_invoker='off'`, `security_barrier='true'`, **exactly 5 columns** |
+| `is_active_coach_of(text)` | overload present |
+| grants on the new view | `GRANT ALL … service_role` · `GRANT SELECT … authenticated` — **no write grant to `authenticated` or `anon`**, identical to `team_member_profiles` |
+
+**This is a genuine before/after comparison against the live catalog, not an inference.**
+
+### 23.4 · Why `VERIFIED LIVE` was NOT reached — infrastructure
+
+**PostgREST (`/rest/v1/`) is unreachable from this host.** Diagnosed, not guessed:
+
+- `curl /rest/v1/user_profiles?select=id&limit=1` → **`http=000`, `connect=0.000000s`, twice at 20 s.
+  TCP never establishes.**
+- `curl /auth/v1/health` → **`200`, but `connect=5.88 s`** — the same host and port answer, slowly.
+- `supabase db dump` → **succeeds** (10,619 lines). **The database and auth are reachable; only
+  PostgREST is not, so the project is NOT paused.**
+- Harness result: `58/65` across 8 suites, with **six suites reporting `-1/0`** — which
+  `run.mjs:36-38` shows means the suite **threw before recording any assertion**, cause
+  `UND_ERR_CONNECT_TIMEOUT`. **`3A-10 chat-media storage` passed 42/42** because it exercises the
+  **Storage** API, not PostgREST — which is exactly why the failure pattern is endpoint-shaped.
+
+**The harness asserts over PostgREST. With PostgREST unreachable, request-level evidence cannot be
+produced at all — for these findings or any other.**
+
+### 23.5 · A second, independent gap in the harness itself
+
+**No existing suite probes any of the three surfaces.** Verified: zero matches for `progress-photos`,
+`score_events` or `event_registrations`/`event_attendee_profiles` across every
+`supabase/tests/security/*.mjs`. **Even with PostgREST restored, `run.mjs` as it stands would not
+produce §5.2 evidence for these findings — new probes must be written.** `d08` is the established
+precedent for a suite authored against a migration and failing by design before its gate.
+
+### 23.6 · Status
+
+**`QAX-SEC-09`, `SEC-PHI-9`, `SEC-PHI-10`: OPEN — now `FIXED ON QA`, previously `FIXED IN CODE`.**
+**`MASTER_REMEDIATION_REGISTRY.md` is NOT edited** — §2.1 requires `VERIFIED LIVE` for a security
+finding's closure and that rung is not met. `QAX-SEC-08` unchanged at 3 of 4.
+**P1: CODE COMPLETE and APPLIED TO QA, not VERIFIED COMPLETE.**
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
