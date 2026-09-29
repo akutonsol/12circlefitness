@@ -7,6 +7,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:circle_fitness/core/config/app_env.dart';
 import 'package:circle_fitness/features/ai_nutrition/data/ai_nutrition_service.dart';
@@ -70,6 +72,8 @@ AiNutritionService serviceWith(
 }
 
 void main() {
+  _ai005();
+
   // AI-001
   //
   // PD-A17 = A, resolved as A2 (V5 §46). These used to assert
@@ -258,6 +262,104 @@ void main() {
           expect(e.message.toLowerCase(), isNot(contains('api key')));
         }
       }
+    });
+  });
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// AI-005 · the SERVER half of the contract.
+//
+// PD-A17 = A via A2 (V5 §46/§47). The tests above prove what the client SENDS;
+// these prove the Edge Function still honours it. They are the repository-native
+// mechanism for Edge coverage — there is no Deno harness, and the other nineteen
+// functions are covered exactly this way, by parsing index.ts.
+//
+// They are tree-sensitive: delete or hollow out the function and they fail. That
+// is deliberate. The live QA probe in §47.3 is VERIFIED LIVE evidence and cannot
+// serve as the CI rung, because its verdict comes from the deployed function
+// rather than the checked-out tree.
+// ───────────────────────────────────────────────────────────────────────────
+
+Directory _repoRootDir() {
+  var dir = Directory.current;
+  while (!Directory('${dir.path}/supabase/functions').existsSync()) {
+    final parent = dir.parent;
+    if (parent.path == dir.path) {
+      throw StateError('Could not locate supabase/functions');
+    }
+    dir = parent;
+  }
+  return dir;
+}
+
+String _edgeFn(String name) {
+  final f = File('${_repoRootDir().path}/supabase/functions/$name/index.ts');
+  if (!f.existsSync()) {
+    throw StateError('supabase/functions/$name/index.ts should exist');
+  }
+  return f.readAsStringSync();
+}
+
+String _configToml() =>
+    File('${_repoRootDir().path}/supabase/config.toml').readAsStringSync();
+
+void _ai005() {
+  group('AI-005 the ai-nutrition Edge Function honours the ported contract', () {
+    test('it is JWT-verified in config.toml', () {
+      expect(_configToml(), contains('[functions.ai-nutrition]'));
+      final block = _configToml().split('[functions.ai-nutrition]')[1];
+      expect(block.split('[functions.')[0], contains('verify_jwt = true'),
+          reason: 'it spends a paid Anthropic credential; an unauthenticated '
+              'caller must never be able to spend it');
+    });
+
+    test('the persona lives server-side, not in the client', () {
+      expect(_edgeFn('ai-nutrition'),
+          contains('You are an expert AI Nutrition Coach for 12 Circle Fitness'));
+    });
+
+    test('the validation limits still match what the client relies on', () {
+      final fn = _edgeFn('ai-nutrition');
+      expect(fn, contains('MAX_MESSAGE_LENGTH = 8_000'));
+      expect(fn, contains('MAX_HISTORY_TURNS = 40'));
+      expect(fn, contains('MAX_HISTORY_CONTENT_LENGTH = 16_000'));
+      expect(fn, contains('MAX_IMAGE_BASE64_LENGTH = 7_000_000'));
+      for (final t in ['image/jpeg', 'image/png', 'image/gif', 'image/webp']) {
+        expect(fn, contains("'$t'"));
+      }
+    });
+
+    test('an unknown property is REFUSED, not ignored', () {
+      expect(_edgeFn('ai-nutrition'), contains('should not exist'),
+          reason: "reproduces Nest's forbidNonWhitelisted: a client must not be "
+              'able to smuggle a field a later version might start honouring');
+    });
+
+    test('validation runs BEFORE the configuration check', () {
+      // The ordering defect a QA probe caught (§47.3): checking the key first
+      // turned five 400s into 503s on an unconfigured environment.
+      final fn = _edgeFn('ai-nutrition');
+      final validateAt = fn.indexOf('const invalid = validate(body)');
+      final configAt = fn.indexOf("if (!ANTHROPIC_API_KEY) return json");
+      expect(validateAt, greaterThan(-1));
+      expect(configAt, greaterThan(validateAt),
+          reason: "Nest's order is guard -> ValidationPipe -> service, so a "
+              'malformed body is a 400 whether or not a key is configured');
+    });
+
+    test('upstream retry parity with the Anthropic SDK default is kept', () {
+      // ai-nutrition.service.ts overrode neither maxRetries nor timeout, so it
+      // inherited the SDK default of 2. A bare fetch would silently drop it.
+      expect(_edgeFn('ai-nutrition'), contains('ANTHROPIC_MAX_RETRIES = 2'));
+    });
+
+    test('no failure path returns the credential or the upstream body', () {
+      final fn = _edgeFn('ai-nutrition');
+      expect(fn, contains("json({ error: 'AI is temporarily unavailable' }, 503)"));
+      // The key may only ever be read into a request header.
+      final leaks = RegExp(r'json\([^)]*ANTHROPIC_API_KEY').hasMatch(fn);
+      expect(leaks, isFalse,
+          reason: 'the key must never reach a response body');
     });
   });
 }

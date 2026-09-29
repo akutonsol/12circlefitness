@@ -183,20 +183,60 @@ Deno.serve(async (req: Request) => {
       { role: 'user', content: userContent },
     ];
 
-    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: ANTHROPIC_MAX_TOKENS,
-        system: NUTRITION_SYSTEM_PROMPT,
-        messages,
-      }),
+    // RETRY IS PART OF THE CONTRACT BEING PRESERVED, not an embellishment.
+    // `ai-nutrition.service.ts` used the Anthropic SDK and overrode neither
+    // `maxRetries` nor `timeout`, so it inherited the SDK default of
+    // **maxRetries = 2** (`@anthropic-ai/sdk/client.d.ts:207`). A bare fetch --
+    // which is what the sibling functions use -- would have silently dropped
+    // that, turning transient 429s and 5xxs into a user-visible 503 far more
+    // often. Retried on the SDK's own retryable set (408/409/429/5xx and
+    // connection errors), never on a 4xx the caller can fix.
+    const ANTHROPIC_MAX_RETRIES = 2;
+    const retryable = (status: number) =>
+      status === 408 || status === 409 || status === 429 || status >= 500;
+
+    const upstreamBody = JSON.stringify({
+      model: ANTHROPIC_MODEL,
+      max_tokens: ANTHROPIC_MAX_TOKENS,
+      system: NUTRITION_SYSTEM_PROMPT,
+      messages,
     });
+
+    let upstream: Response | null = null;
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt <= ANTHROPIC_MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        // Exponential backoff, as the SDK does. Short: an Edge Function has a
+        // wall-clock budget and the caller is a user waiting on a chat reply.
+        await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
+      }
+      try {
+        upstream = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json',
+          },
+          body: upstreamBody,
+        });
+      } catch (e) {
+        // A connection-level failure is retryable; the SDK treats it so.
+        lastError = e;
+        upstream = null;
+        continue;
+      }
+      if (upstream.ok || !retryable(upstream.status)) break;
+      console.warn(`Anthropic ${upstream.status}, attempt ${attempt + 1} of ${ANTHROPIC_MAX_RETRIES + 1}`);
+    }
+
+    if (!upstream) {
+      console.error(
+        `Anthropic unreachable after ${ANTHROPIC_MAX_RETRIES + 1} attempts: ` +
+        (lastError instanceof Error ? lastError.name : 'unknown'),
+      );
+      return json({ error: 'AI is temporarily unavailable' }, 503);
+    }
 
     if (!upstream.ok) {
       // Logged by status, NEVER returned. `toClientSafeError()`'s whole purpose
