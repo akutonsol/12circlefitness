@@ -420,15 +420,59 @@ void main() {
       }
     }, skip: 'Open finding K-03 — AI Edge Functions authenticate but never check the plan');
 
-    test('K-04 a paid event registration cannot be self-granted', () {
-      final sql = _migration(1);
-      expect(
-          sql,
-          isNot(contains(
-              'CREATE POLICY "users manage own registrations" ON event_registrations FOR ALL TO authenticated USING (user_id = auth.uid());')),
-          reason: 'FOR ALL with no WITH CHECK lets a user insert their own '
-              'registration with paid = true for a paid event');
-    }, skip: 'Open finding K-04 — event_registrations FOR ALL policy permits a self-granted paid ticket');
+    // K-04 · CLOSED by migration 138 (owner Decision A pulled BIL-3 into V5 P1).
+    //
+    // This is the VERIFIED IN CI rung. QA_CLOSURE_STANDARD §2 defines that state
+    // as "an automated check fails against the pre-fix tree and passes against
+    // the post-fix tree, IN CI", proving "a standing guard that a future edit
+    // cannot silently undo".
+    //
+    // The live suite d11 CANNOT serve that purpose, and the distinction matters:
+    // d11's verdict is decided by QA's DATABASE state, not by the checked-out
+    // tree, so it returns 9/9 even against a tree with 138 deleted. It is
+    // VERIFIED LIVE evidence, not a standing guard. THIS test is tree-sensitive
+    // — _migration(138) throws outright on a pre-138 tree — so deleting or
+    // hollowing out the migration turns CI red, which is the property the rung
+    // is actually asking for.
+    //
+    // The previous version of this test was skipped AND vacuous: it asserted a
+    // policy string was absent from migration 001, which is not what the defect
+    // was or what 138 fixed. Replaced rather than un-skipped.
+    test('K-04 a paid event registration cannot be self-granted, and an '
+        'attendee cannot be reassigned', () {
+      final sql = _migration(138);
+
+      // The trigger exists and is a BEFORE trigger on both write paths. A
+      // WITH CHECK alone cannot express immutability — it sees only NEW.
+      expect(sql, contains('enforce_registration_integrity'));
+      expect(sql, contains('CREATE TRIGGER trg_registration_integrity'));
+      expect(sql, contains('BEFORE INSERT OR UPDATE ON public.event_registrations'),
+          reason: 'INSERT matters as much as UPDATE: the self-granted paid '
+              'ticket K-04 records is created, not edited');
+
+      // The billing half — K-04 as originally registered.
+      expect(sql, contains('NEW.paid IS DISTINCT FROM OLD.paid'));
+      expect(sql, contains('NEW.payment_id IS DISTINCT FROM OLD.payment_id'));
+      expect(sql, contains(RegExp(r'NEW\.paid\s*:=\s*false')),
+          reason: 'a client INSERT must be forced unpaid, not merely checked');
+
+      // The authorization half — the PII path recorded in V5 §25. user_id is
+      // the whole of hosts_event_for()'s trust, and therefore the whole of
+      // event_attendee_profiles' authorization.
+      expect(sql, contains('NEW.user_id IS DISTINCT FROM OLD.user_id'),
+          reason: 'without this a vendor reassigns a registration to any victim '
+              'and reads their name and email through event_attendee_profiles');
+      expect(sql, contains('NEW.event_id IS DISTINCT FROM OLD.event_id'));
+      expect(sql, contains('NEW.qr_code IS DISTINCT FROM OLD.qr_code'),
+          reason: 'qr_code is a bearer credential, the invite_token class');
+
+      // The missing WITH CHECK the registry names as the remediation.
+      final policy = sql.substring(
+          sql.indexOf('CREATE POLICY "vendors check in own event registrations"'));
+      expect(policy, contains('WITH CHECK'),
+          reason: 'FOR UPDATE with no WITH CHECK makes Postgres reuse USING, '
+              'which constrains event_id -> vendor_id and never user_id');
+    });
 
     test('K-05 booking a session draws down a purchased session credit', () {
       final booking = _mobileFile(

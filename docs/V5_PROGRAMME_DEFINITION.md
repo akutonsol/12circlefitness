@@ -4860,6 +4860,111 @@ assertions are confirmed to have actually executed rather than skipped — may K
 
 ---
 
+## 35 · CORRECTION TO §34 — TWO BLOCKERS IT MISSED, BOTH NOW CLOSED
+
+§34 concluded that CI was ready and *"one authorized `git push` … makes CI run `d11` automatically."*
+**That was wrong in two ways.** An independent review was commissioned to falsify §34, and it did.
+Every claim below was **re-verified by me directly** before being recorded.
+
+### 35.1 ⚠ BLOCKER A — `static-guards` fails at HEAD, so `live-qa` would never have started
+
+`supabase/expected_applied.json` declared `qa.applied_through: "134"` while 135–138 are authored.
+Run directly:
+
+```
+node supabase/scripts/check-migration-manifest.mjs   → EXIT=1
+FAIL — 4 problem(s): [rule 7] [qa] authored migration 135 … is declared nowhere   (also 136, 137, 138)
+```
+
+`live-qa` declares `needs: [static-guards]`. **A push of §34's tree would therefore have produced a
+red run with no `live-qa` job at all — worse than no evidence, because the failure would have
+looked like the security work rather than an undeclared frontier.** §34's confidence came from CI
+run `36368081140` being green, but at that commit the tree stopped at 134 and the declaration
+matched. §34 checked the wrong thing: that CI *had* worked, not that it *would*.
+
+**Fixed.** `qa.applied_through` → `"138"`, which is what QA's ledger actually reads (§33.1, verified
+`138 | 138 | 138`). Guard now `EXIT=0`. Only the `qa` entry exists in that manifest — there is no
+production declaration, so nothing production-facing was touched.
+
+### 35.2 BLOCKER B — the ENV-3 live half, cured by the same line
+
+`supabase/scripts/env3-live-check.mjs` fails on "applied but undeclared" and "stale ledger rows".
+QA's ledger reads 138 against a declaration of 134, so that step would have gone red *after* the
+security suite had already run. The single frontier change cures it. **Not executed locally** — the
+script emits SQL for `live-evidence.sh` to run against a database connection rather than executing
+it here, so this one is reasoned, not measured, and is flagged as such.
+
+### 35.3 ⚠ BLOCKER C — the deepest: `d11` cannot be the `VERIFIED IN CI` rung
+
+`QA_CLOSURE_STANDARD.md:41` defines the state as *"An automated check **fails against the pre-fix
+tree** and passes against the post-fix tree, **in CI**"*, proving *"the change has a standing guard
+that a future edit cannot silently undo"*.
+
+**`d11` does not have that property.** Its verdict is decided by **QA's database state, not by the
+checked-out tree**: check out a tree with migration 138 deleted and `d11` still returns 9/9,
+because QA still carries the trigger. `d11` is `VERIFIED LIVE` evidence — it is not a standing
+guard, and registering it in `run.mjs` does **not** by itself satisfy §2. `run.mjs`'s own comment
+asserting that it does is **overstated**, and §34 repeated the error.
+
+**Closed with a tree-sensitive guard, in the place the repo had already reserved for it.**
+`billing_entitlement_contract_test.dart` already carried a `K-04` test — **skipped, and vacuous**:
+it asserted a policy string was absent from migration **001**, which is neither the defect nor what
+138 fixed. Un-skipping it would have produced a guard that passes for no reason. It was **replaced**,
+not un-skipped, with one that asserts 138's actual controls: the trigger, `BEFORE INSERT OR UPDATE`,
+the `paid`/`payment_id` freeze and the forced-unpaid INSERT, the `user_id`/`event_id`/`qr_code`
+freeze, and the `WITH CHECK` on the vendor policy.
+
+**Both halves of the definition were proven, not assumed:**
+
+| Tree | Result |
+|---|---|
+| post-fix (138 present) | **passes** — 21 passed, K-04 no longer skipped |
+| pre-fix (138 removed) | **fails — `Bad state: migration 138 not found`, "Some tests failed"** |
+
+The removal was reversible and the file was restored byte-identical (`sha 202b566c…` before and
+after, `git status` clean). It runs in CI inside the existing `flutter test` step, which run
+`36368081140` shows executing successfully.
+
+### 35.4 Routes to CI verification — searched and closed
+
+Verified directly, not taken:
+
+- `workflow_dispatch` declares **no inputs** — nothing to point at another tree.
+- **No** `actions/checkout` step uses a custom `ref:` (0 occurrences) — CI runs the pushed ref only.
+- The `qa` environment has **`protection_rules: []` and `deployment_branch_policy: null`** — the
+  second blocker §34 hypothesised does **not** exist.
+- `gh run rerun` replays the same `head_sha`, so it yields no `d11`, and it is a CI-triggering
+  write besides.
+
+**A `workflow_dispatch` on the stale remote ref remains recorded as something NOT to mistake for a
+solution:** it would produce a green run that does not contain the code under test.
+
+### 35.5 A silent-skip hazard worth carrying forward
+
+If any of the three QA secrets is emptied or rotated, or the job runs somewhere environment secrets
+are unavailable (a fork PR), **every step from `setup-node` onward skips and the job still reports
+`success`** — marked only by a `::notice`. **Job-level green is therefore not evidence.** Step-level
+conclusions must be read, which is how `Live security suite: success` was established in §34.2. The
+`Confirm the target is QA` step cannot silently skip while credentials are present: it is an exact
+host match with `exit 1`.
+
+### 35.6 State
+
+K-04 remains **`REMEDIATED`**. The registry was not touched. Three of four rungs are present; the
+fourth now has a correct and proven guard, but **CI has still never executed it**, and that is what
+`VERIFIED IN CI` requires. Static guards green at HEAD: `check:migrations` (000–138 contiguous),
+`test:contract`, `check:prod-refs`, and the migration manifest. Production never contacted.
+
+### 35.7 The exact next action, restated correctly
+
+**Authorize `git push` of `reconcile/12circle-integrated` to `origin`.** With §35.1's manifest fix
+the `static-guards` job now passes, so `live-qa` will start, `d11` will run inside
+`npm run test:security`, and the `flutter test` step will run the new tree-sensitive K-04 guard.
+Only after inspecting that run — confirming both actually executed rather than skipped — may K-04
+move to `VERIFIED_CLOSED`.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
