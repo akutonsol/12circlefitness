@@ -31,11 +31,24 @@
 //   node supabase/tests/security/d10-p1-profile-and-status-boundaries.mjs
 
 import {
-  URL_, SERVICE, IDENT, signIn, rest, svc, mutate,
+  URL_, ANON, SERVICE, IDENT, signIn, rest, svc, mutate,
   check, section, beginSuite, summary, blocked, n, loadIds,
 } from './lib.mjs';
 
-const H = (jwt) => ({ apikey: SERVICE, Authorization: `Bearer ${jwt}` });
+// POSITIVE allowlist, matching d07/d08. lib.mjs only BLOCKS the production ref,
+// and "is not production" is not "is QA" — a third project would sail through.
+// This is the most write-heavy suite in the directory (service_role inserts and
+// deletes, a storage upload, and a PATCH that attempts first_name='PWNED' on a
+// real profile row), so it takes the stronger guard.
+const QA_REF = 'eyqtldjqpgpljlqvpowh';
+if (!URL_.includes(QA_REF)) {
+  console.error(`REFUSING TO RUN: "${URL_}" is not the 12 Circle QA project (${QA_REF}).`);
+  process.exit(2);
+}
+
+// apikey: ANON, not SERVICE — this must be the request a phone makes, and the
+// service-role key has no business on the wire here. Matches lib.mjs hdrs() and d07.
+const H = (jwt) => ({ apikey: ANON, Authorization: `Bearer ${jwt}` });
 const parse = async (r) => {
   const t = await r.text();
   let body; try { body = t ? JSON.parse(t) : null; } catch { body = t; }
@@ -53,13 +66,22 @@ const attackerJwt = await signIn('attacker');
 const COACH = ids.coach, VICTIM = ids.victim, HOST = ids.attacker;
 
 // ── fixtures, arranged with service_role only ────────────────────────────────
+// The whole suite is differential — only `status` changes between the positive
+// and negative cases — so an INSERT that silently failed would leave NO row, the
+// coach would be denied, and the negative assertion would pass while proving
+// nothing about the status predicate. So the row is PROVED, not assumed.
 async function setRelationship(status) {
   await svc(`coach_client_relationships?coach_id=eq.${COACH}&client_id=eq.${VICTIM}`, { method: 'DELETE' });
-  if (status === null) return;
-  return svc('coach_client_relationships', {
+  if (status === null) return true;
+  const ins = await svc('coach_client_relationships', {
     method: 'POST',
-    body: { coach_id: COACH, client_id: VICTIM, status, initiated_by: COACH },
+    body: { coach_id: COACH, client_id: VICTIM, status, initiated_by: 'coach' },
   });
+  const back = await svc(`coach_client_relationships?coach_id=eq.${COACH}&client_id=eq.${VICTIM}&select=status`);
+  const ok = ins.status < 300 && Array.isArray(back.body) && back.body[0]?.status === status;
+  check(`fixture: the relationship is actually at status '${status}'`, ok,
+    `insert=${ins.status} readback=${Array.isArray(back.body) ? back.body[0]?.status : 'none'}`);
+  return ok;
 }
 
 async function cleanup() {
@@ -82,13 +104,20 @@ const se = await svc('score_events', {
 check('fixture: a score event exists for the client', se.status < 300,
   `status=${se.status} ${se.status >= 300 ? JSON.stringify(se.body) : ''}`);
 
-for (const [status, shouldSee] of [['active', true], ['pending', false], ['ended', false]]) {
+// 'cancelled' is the status the product actually writes on termination (025's
+// cancelled_by/cancelled_at). 'ended' appears nowhere in the schema, so the
+// earlier version never exercised a real terminal state.
+for (const [status, shouldSee] of [['active', true], ['pending', false], ['cancelled', false]]) {
   await setRelationship(status);
   const r = await rest(coachJwt, `score_events?user_id=eq.${VICTIM}&dedup_key=eq.${MARK}&select=id`);
+  // `status < 400` is load-bearing: n() returns 0 for an error body, so without
+  // it a 500 raised from inside the RLS predicate — exactly the 22P02 regression
+  // 136's fail-closed guard prevents — would score as a successful denial.
+  const clean = r.status < 400;
   const saw = n(r.body) > 0;
   check(
     `relationship '${status}' → coach ${shouldSee ? 'READS' : 'is DENIED'} the client score event`,
-    saw === shouldSee,
+    clean && saw === shouldSee,
     `status=${r.status} rows=${n(r.body)}`,
   );
 }
@@ -153,8 +182,10 @@ check('a user who hosts no event for the client reads nothing through the view',
 // The view is auto-updatable and runs security_invoker=off — writes must be refused.
 const wr = await mutate(attackerJwt, `event_attendee_profiles?id=eq.${VICTIM}`, 'PATCH',
   { first_name: 'PWNED' });
-check('a write THROUGH the view is refused (112 class: owner-privileged view)',
-  blocked(wr), `status=${wr.status} affected=${wr.affected}`);
+// 403 specifically, not merely "an error": blocked() accepts any status >= 400,
+// so a 405 or a 500 would pass and the grant hardening would go untested.
+check('a write THROUGH the view is refused with 403 — the GRANT, not any error',
+  wr.status === 403, `status=${wr.status} affected=${wr.affected}`);
 
 const confirm = await svc(`user_profiles?id=eq.${VICTIM}&select=first_name`);
 const stillOk = Array.isArray(confirm.body) && confirm.body[0]?.first_name !== 'PWNED';
@@ -182,12 +213,13 @@ const listAs = async (jwt) => fetch(`${URL_}/storage/v1/object/list/${PHOTO_BUCK
   body: JSON.stringify({ prefix: `${VICTIM}/`, limit: 100 }),
 }).then(parse);
 
-for (const [status, shouldSee] of [['active', true], ['pending', false], ['ended', false]]) {
+for (const [status, shouldSee] of [['active', true], ['pending', false], ['cancelled', false]]) {
   await setRelationship(status);
   const l = await listAs(coachJwt);
+  const clean = l.status < 400;   // see the note in the score_events loop
   const saw = Array.isArray(l.body) && l.body.some(o => o.name?.includes(MARK));
   check(`relationship '${status}' → coach ${shouldSee ? 'LISTS' : 'is DENIED'} the client photo`,
-    saw === shouldSee, `status=${l.status} objects=${n(l.body)}`);
+    clean && saw === shouldSee, `status=${l.status} objects=${n(l.body)}`);
 }
 
 await setRelationship(null);
@@ -201,6 +233,37 @@ const lOwn = await listAs(victimJwt);
 const sawOwn = Array.isArray(lOwn.body) && lOwn.body.some(o => o.name?.includes(MARK));
 check('the client still lists their OWN photo (self-access not broken)', sawOwn,
   `status=${lOwn.status}`);
+
+// ═════════════════════════════════════════════════════════════════════════════
+section("136's fail-closed guard — a non-uuid folder must DENY, never raise");
+
+// This is the property migration 136 exists to protect and which nothing else
+// tested: (storage.foldername(name))[1] is user-controlled text, so a bare
+// ::uuid cast would raise 22P02 from INSIDE an RLS predicate — a query error,
+// not a denial. service_role places the object (the owner policy would refuse a
+// non-uuid folder), then the coach lists it: the policy must evaluate
+// is_active_coach_of('not-a-uuid') and get false, cleanly.
+const badPath = `not-a-uuid/${MARK}.txt`;
+const upBad = await fetch(`${URL_}/storage/v1/object/${PHOTO_BUCKET}/${badPath}`, {
+  method: 'POST',
+  headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'text/plain' },
+  body: 'probe',
+}).then(parse);
+check('fixture: an object sits at a NON-uuid folder path', upBad.status < 300, `status=${upBad.status}`);
+
+await setRelationship('active');   // an ACTIVE coach, so only the guard can deny
+const badList = await fetch(`${URL_}/storage/v1/object/list/${PHOTO_BUCKET}`, {
+  method: 'POST',
+  headers: { ...H(coachJwt), 'Content-Type': 'application/json' },
+  body: JSON.stringify({ prefix: 'not-a-uuid/', limit: 100 }),
+}).then(parse);
+const badSeen = Array.isArray(badList.body) && badList.body.some(o => o.name?.includes(MARK));
+check('a non-uuid folder DENIES cleanly — no rows AND no error (not 22P02)',
+  !badSeen && badList.status < 400, `status=${badList.status} objects=${n(badList.body)}`);
+
+await fetch(`${URL_}/storage/v1/object/${PHOTO_BUCKET}/${badPath}`,
+  { method: 'DELETE', headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } })
+  .then(parse).catch(() => null);
 
 // ═════════════════════════════════════════════════════════════════════════════
 section('cleanup');
