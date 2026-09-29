@@ -4965,6 +4965,97 @@ move to `VERIFIED_CLOSED`.
 
 ---
 
+## 36 · WHAT CI ACTUALLY RAN — `d11` HAS NEVER EXECUTED, AND NO ROUTE EXISTS WITHOUT A PUSH
+
+§34.2 established that CI *infrastructure* works. This section establishes what that proves about
+**K-04**, which is a different question, and answers it: **nothing.**
+
+### 36.1 The exact ref CI executed, and the suites it ran
+
+| | |
+|---|---|
+| run | `36368081140`, `event=push`, `conclusion=success`, 2026-09-28 |
+| `headSha` | **`16ba19f0a612edf18754851f98bc2000205eff2b`** |
+| branch | `reconcile/12circle-integrated` |
+
+`run.mjs` **at that commit** registers **eight** suites — `d01`–`d08`. Local `HEAD` registers **ten**.
+The two that CI has never seen are:
+
+- `d10-p1-profile-and-status-boundaries.mjs` — the P1 profile/status surfaces (135/136)
+- `d11-event-registration-integrity.mjs` — **K-04**
+
+**So `Live security suite: success` executed 8 suites, not 10. `d11` did not run. It has never run
+in CI, not once.** That step proves the credential gate, the exact-host QA check, egress and the
+Node runtime — and proves **nothing whatever** about K-04.
+
+**Corollary worth recording separately:** `d10` has never run in CI either. Any future claim that
+the 135/136 work is `VERIFIED IN CI` is unsupported by this or any earlier run.
+
+### 36.2 No mechanism exists to execute the current state without a push
+
+Checked exhaustively rather than assumed:
+
+| Route | Result |
+|---|---|
+| `workflow_dispatch` | declares **no inputs** — nothing to point at another tree |
+| custom `ref:` on any `actions/checkout` | **0 occurrences** — CI runs the checked-out ref only |
+| **every remote ref** | `chore/qa-environments-secure-ai-backend`, `claude/dreamy-ptolemy-3sk1vz`, `main`, `reconcile/12circle-integrated` — **`d11=0` on all four** |
+| `gh run rerun` | replays the same `head_sha`; yields no `d11`, and is a CI-triggering write |
+| `qa` environment protections | `protection_rules: []`, `deployment_branch_policy: null` — not a blocker either way |
+
+**There is no ref on GitHub that a dispatch could target which contains `d11`.** Any mechanism that
+places the commits where CI can check them out **is a push**. The established mechanism *is* the
+push; it is simply not authorized.
+
+A dispatch against the stale remote ref is recorded once more as **not a solution**: it would
+report success on a tree containing neither `d11` nor migration 138 — a green run that does not
+contain the code under test, which is the precise failure mode §32.5, §33.4 and §35.3 each caught
+in a different disguise.
+
+### 36.3 Evidence reconciliation — what each rung rests on
+
+| Rung | Evidence | State |
+|---|---|---|
+| FIXED IN CODE | migration 138 committed | **present** |
+| FIXED ON QA | remote ledger `138 \| 138 \| 138`; live catalog carries the trigger and the `WITH CHECK` (§33.2) | **present** |
+| VERIFIED LIVE | `d11` on QA: **2/8 before 138, 9/9 after**, every verdict a status **plus** a service-role read-back, with an anti-vacuity precondition (§33.3–33.4) | **present** |
+| **VERIFIED IN CI** | the tree-sensitive guard exists and was proven to fail on a 138-less tree (§35.3) — **but CI has never executed it, and CI has never executed `d11`** | **ABSENT** |
+
+Local and QA evidence reconcile cleanly with each other; there is **no CI evidence to reconcile
+them against.** Per §2.1 — *"no partial closures and no exceptions granted at implementation
+time"* — K-04 therefore stays **`REMEDIATED`**. **The registry was not touched in this section.**
+
+### 36.4 OBSERVATION — an authored security suite that is in no commit and runs nowhere
+
+`supabase/tests/security/d09-assessment-access.mjs` (174 lines, **N-07** — assessment access and
+PHI on `user_profiles`) is **untracked** (`??`) and **registered in `run.mjs` zero times**. It
+therefore exists only in this working tree: it is in no commit, protects nothing, and would be lost
+with the directory.
+
+Two further facts, because they decide what should happen to it rather than leaving it as a
+to-do:
+
+- It is **write-heavy** — service_role `DELETE`/`POST` against `coach_client_relationships` and the
+  audit log, plus `PATCH` attempts as a coach.
+- It carries **no positive `QA_REF` allowlist**, unlike every other write-heavy suite (`d07`, `d08`,
+  `d10`, `d11`). `lib.mjs` blocks only the production ref, and *"is not production" is not "is QA"*.
+
+**It was deliberately NOT run.** Running an unregistered, unguarded, write-heavy suite against
+shared QA is exactly how §33.4's cross-suite fixture contamination happened — there, a leftover
+`d10-probe` row made a `d11` assertion vacuous. Nor was it committed or registered: it belongs to
+**N-07**, a different finding, and adopting it is not within the authorized scope here.
+
+Recorded so the decision is visible: **either N-07's owner adopts it — committed, given the
+positive QA guard the other write-heavy suites carry, and registered — or it is deleted.** Leaving
+an unguarded write-heavy probe loose in the working tree is the worst of the three.
+
+### 36.5 Unchanged
+
+§24.3 remains **FIXED ON QA**, not `VERIFIED LIVE`. `MASTER_PRODUCT_DECISIONS.md` untouched.
+`PD-A24`/`PD-A17` neither invented nor resolved. Production never contacted. Nothing pushed.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
