@@ -3768,6 +3768,74 @@ request-level half is still absent (§24.3), and §25's attacker-writable gate i
 
 ---
 
+## 27 · DECISION B HAS A THIRD OPTION — non-mutating analysis, no decision taken
+
+Recorded to inform Decision B, **not to make it.** Nothing here changes QA, the registry or any
+finding.
+
+### 27.1 · The `G-3` precedent and why its scope matters here
+
+`G-3` (owner-ruled 2026-08-25) permits a **negative control** in place of a historical pre-fix red —
+but the registry records its scope precisely: it covers *"the case where **no defective tree is
+recoverable from history**."* The registry also shows the programme **refusing** to invoke it where a
+defective tree *was* recoverable, and amending a CI header so the step *"is never later mis-filed"*
+alongside genuine G-3 cases.
+
+**Applied to Decision B, that distinction splits cleanly:**
+
+- The pre-fix **database state** is **not** recoverable — 135/136/137 are applied, and recovering it
+  is exactly what Decision B would authorize.
+- The pre-fix **migration tree IS recoverable** — `04c5301` is the commit immediately before 135
+  existed. **So `G-3`'s precondition is NOT met, and `G-3` cannot be invoked here.**
+
+### 27.2 · But a recoverable tree opens a path that does not touch QA
+
+Because the pre-fix tree is recoverable, the before/after demonstration can in principle be run
+against a **disposable database** rather than shared QA: apply migrations `000–134`, probe (expect
+**red**), apply `135–137`, probe again (expect **green**). **The same `d10` suite, unmodified, on a
+throwaway target.**
+
+The repository already carries local-harness infrastructure for this — `supabase/tests/local/`
+holds `shim.sql` (which reimplements the `auth.*` claim accessors every RLS policy depends on),
+`mutations.json` and `ext-stubs`.
+
+**This would be a genuine request-level before/after with zero exposure on any shared environment.**
+
+### 27.3 · What it would and would NOT establish — stated so it is not overclaimed
+
+§2's `VERIFIED LIVE` requires *"a real request against **QA**."* **A local or disposable instance is
+not QA**, so this path would **not** by itself reach `VERIFIED LIVE`. What it would establish is that
+**the probe genuinely fails against the pre-fix schema and passes against the post-fix schema** —
+i.e. that the post-fix QA evidence already captured (§24, §26) is **discriminating rather than
+vacuous**, which is the specific doubt the missing pre-fix half leaves open.
+
+**Whether that combination — post-fix live on QA plus a before/after on a disposable target — is
+sufficient for closure is an owner call, not a reading of the ladder.** It is **not** proposed as
+equivalent to `VERIFIED LIVE`.
+
+### 27.4 · It is currently BLOCKED, and not by a decision
+
+**Disk is at 97% with 6.5 GB free**, down from 18 GB earlier in this session — Docker Desktop is
+running and image layers accumulated. `supabase start` pulls a multi-gigabyte stack. **This path is
+infeasible until disk is reclaimed**, independent of any owner decision.
+
+*(Flagged on its own account: 6.5 GB free is low enough to risk build and tooling failures. Earlier
+sessions recorded a Flutter test hang traced to a full volume.)*
+
+### 27.5 · Net effect on Decision B
+
+**Decision B is three-way, not binary:**
+
+| option | shared-QA exposure | reaches `VERIFIED LIVE`? |
+|---|---|---|
+| **B1** authorize a controlled QA rollback/reproduction | **yes — reintroduces a PHI exposure on QA** | **yes**, on the ladder's own terms |
+| **B2** before/after on a disposable target (§27.2) | **none** | **no** — proves the probe discriminates, not a QA request |
+| **B3** leave the three findings at `FIXED ON QA` | none | no |
+
+**No option is recommended and none is taken.**
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
