@@ -44,21 +44,45 @@ for (const [label, path] of SUITES) {
   beginSuite();
   const before = results.length;
   let failures;
+  let aborted = false;
   try {
     failures = (await import(path)).default ?? 0;
   } catch (err) {
     console.error(`  SUITE ERROR: ${err.message}`);
     failures = 1;
+    aborted = true;
   }
   const ran = results.length - before;
   totalFailures += failures;
-  summary.push({ label, ran, failures });
+  summary.push({ label, ran, failures, aborted });
 }
 
 console.log(`\n${'█'.repeat(74)}\n██  PHASE 1 SECURITY REGRESSION SUMMARY\n${'█'.repeat(74)}`);
+// V5 §28.9. An ABORTED suite used to render IDENTICALLY to a failing one: the
+// catch above scores a throw as failures=1, so a suite that died on a network
+// error after 24 passing assertions printed "23/24" -- visually indistinguishable
+// from one real regression, and "-1/0" when it died at assertion 0. During the
+// connectivity degradation of §31 that misreading happened repeatedly, and in CI
+// it would present a dropped connection as a security regression. The state is
+// now named rather than inferred.
 for (const s of summary) {
-  console.log(`  ${s.failures === 0 ? 'PASS' : 'FAIL'}  ${s.label.padEnd(36)} ${String(s.ran - s.failures).padStart(3)}/${String(s.ran).padEnd(3)}`);
+  const verdict = s.aborted ? 'ABORT' : s.failures === 0 ? 'PASS' : 'FAIL';
+  const score = s.aborted
+    ? `${String(s.ran).padStart(3)} ran, DID NOT FINISH`
+    : `${String(s.ran - s.failures).padStart(3)}/${String(s.ran).padEnd(3)}`;
+  console.log(`  ${verdict.padEnd(5)} ${s.label.padEnd(36)} ${score}`);
 }
 const total = summary.reduce((a, s) => a + s.ran, 0);
-console.log(`\n  ${total - totalFailures}/${total} assertions passed across ${SUITES.length} suites`);
+const abortedSuites = summary.filter(s => s.aborted);
+const assertionFailures = totalFailures - abortedSuites.length;
+console.log(`\n  ${total - assertionFailures}/${total} assertions passed across ${SUITES.length} suites`);
+if (abortedSuites.length) {
+  console.log(
+    `\n  ⚠  ${abortedSuites.length} suite(s) ABORTED and did not finish: ` +
+    `${abortedSuites.map(s => s.label.trim().split(/\s{2,}/)[0]).join(', ')}.` +
+    `\n     An abort is an INCOMPLETE RUN, not a failed assertion. Assertion-level` +
+    `\n     failures in this run: ${assertionFailures}. Re-run before reading the result` +
+    `\n     as a regression -- see V5 §28.9 and §31.`
+  );
+}
 process.exit(totalFailures ? 1 : 0);
