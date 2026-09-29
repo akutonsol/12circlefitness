@@ -3861,6 +3861,192 @@ sessions recorded a Flutter test hang traced to a full volume.)*
 
 ---
 
+## 28 · B2 EVALUATED (SUPPLEMENTAL) · 1E ATTRIBUTED · A REBUILD-FIDELITY OBSERVATION
+
+Non-mutating work only. **No owner decision is taken here. Decision A and Decision B remain
+unmade.** QA was not written to, no policy was rolled back, no registry was edited, no
+migration was applied to QA or production, and no finding was closed.
+
+### 28.1 What B2 is, and the evidence tier it does NOT reach
+
+B2 asked whether the P1 probe genuinely *discriminates* — whether it fails on a defective tree
+and passes on the repaired one — rather than passing vacuously.
+
+**This is SUPPLEMENTAL EVIDENCE. It is NOT `VERIFIED LIVE` under §2.** §5.2 requires that "a
+real request against QA reproduces the secure/correct behaviour, and the same probe demonstrably
+failed before the fix". The second half of that sentence is satisfied here only against a
+**local reconstruction**, not against QA. §26 therefore stands unamended: the request-level
+pre-fix half on QA was never observed, and obtaining it would still require reintroducing a PHI
+exposure on a shared environment.
+
+`QA_CLOSURE_STANDARD.md` **G-3** permits a negative control only "where no defective tree is
+recoverable from history". A defective tree **is** recoverable here (`04c5301`), so the G-3
+allowance does not apply and **was not used**. The real pre-fix tree was used instead.
+
+### 28.2 The disposable target — built without destroying anything
+
+| Step | What was done |
+|---|---|
+| Pre-fix tree | `git worktree add --detach … 04c5301` — migrations `000`–`134` only; `135/136/137` absent (verified: 0 files matching) |
+| Isolation | `project_id` changed to `v5b2prefix` **in the worktree copy of `config.toml` only** |
+| Why | `supabase start` derives container and volume names from `project_id`. A distinct id gives the B2 stack its own namespace |
+| Preserved | The stale local stack from 2026-09-06 — **12 exited containers and 3 volumes** — was left **completely untouched**. Nothing was pruned, stopped or deleted to make room |
+| Services | Started with `-x studio,edge-runtime,logflare,vector,realtime,imgproxy,mailpit,supavisor,postgres-meta` — only `db`, `auth`, `rest`, `storage`, `kong` |
+
+State confirmed on the target **before** any probe ran:
+
+- `supabase_migrations.schema_migrations` top version = **134**
+- `event_attendee_profiles` view count = **0**
+- `user_profiles` SELECT policy = `((id = auth.uid()) OR is_active_coach_of(id) OR hosts_event_for(id))`
+  — i.e. the `hosts_event_for` clause that 135 removes was **observed present**, not assumed
+- `progress-photos` bucket present with `public=false`, matching QA
+
+### 28.3 The probe — one line changed, every assertion byte-identical
+
+The committed probe carries a **positive** `QA_REF` allowlist, so it refuses any non-QA target
+by design. Rather than weaken that guard, the whole suite directory was copied to a scratchpad
+and **one hunk** was changed in the copy:
+
+```
+-const QA_REF = 'eyqtldjqpgpljlqvpowh';
+-if (!URL_.includes(QA_REF)) {
++const LOCAL_ONLY = '127.0.0.1';
++if (!URL_.includes(LOCAL_ONLY)) {
+```
+
+Properties of that change, stated rather than implied:
+
+- It is a change of **target**, not of any assertion. `diff -u` against the committed file
+  reports exactly this one hunk and nothing else.
+- The copy's guard is **strictly tighter in the direction that matters**: it now *refuses* to run
+  against QA or production. The B2 copy cannot reach a shared environment.
+- The **identical file** (sha256 `4ba024e1…`) was used for both the pre-fix and the post-fix run,
+  so the before/after comparison is internally valid.
+- The committed probe was **not edited**: `git diff HEAD` on it is empty.
+- `setup-identities.mjs` writes `ids.json` back into its own directory. Running it from the copy
+  is why the repo's `ids.json` is unchanged — sha256 `8ee4db09…` **before and after**.
+- Working tree at the end: **no tracked file modified**, HEAD still `7f0b8a7`.
+
+### 28.4 OBSERVATION — the migration tree is not self-sufficient for a from-scratch rebuild
+
+Building from migrations alone produced a database that **no role could use**:
+
+| Measured on the clean local build | Result |
+|---|---|
+| Public tables with no `SELECT/INSERT/UPDATE/DELETE` grant to `authenticated` | **89 of 91** |
+| `user_profiles` grants to `authenticated` / `service_role` | `REFERENCES, TRIGGER, TRUNCATE` only |
+| `GRANT` or `REVOKE` statements on `user_profiles` anywhere in `000`–`134` | **zero** |
+| Functions lacking `EXECUTE` for `service_role` | **134** |
+
+The migration tree never grants table DML at all. On QA and production those grants come from the
+**Supabase platform bootstrap** (`ALTER DEFAULT PRIVILEGES`), not from anything under version
+control. A from-scratch rebuild — a new environment, or disaster recovery — would therefore not
+reproduce QA's authorization surface.
+
+**This is recorded as an observation only.** No finding ID is allocated, no registry is edited,
+nothing is remediated, and it is not asserted to be a vulnerability: the missing grants fail
+*closed*, not open. It is logged because §2's "a closure that redefines a database object must
+prove it preserved every property" depends on knowing which properties the tree actually owns.
+
+The adjustment applied **to the local target only** was chosen to be faithful rather than
+convenient:
+
+- DML granted to `anon, authenticated, service_role` on `relkind='r'` **only** — tables, not
+  views — so migration 112's view posture survives. Verified after: **0** views hold a
+  non-`SELECT` grant to `authenticated`.
+- `EXECUTE` granted to **`service_role` only**. No migration in the tree revokes from
+  `service_role`, so this cannot mask a deliberate revocation; the deliberate revokes from
+  `PUBLIC`/`anon`/`authenticated` in 100, 113, 115, 117 and 121 were left alone. Verified after:
+  `is_active_coach_of(uuid)` and `hosts_event_for(uuid)` remain `EXECUTE`-able by `authenticated`,
+  and only **one** `is_active_coach_of` overload existed pre-136.
+
+### 28.5 B2 RESULT — the probe discriminates
+
+Same stack, same probe file, only migrations 135 → 136 → 137 applied between the two runs
+(all three applied cleanly; `hosts_event_for` observed gone from the policy afterwards, view
+present, two overloads present).
+
+| Run | Result |
+|---|---|
+| **Pre-fix** (`000`–`134`) | **22/30 passed — 8 failures** |
+| **Post-fix** (`135`–`137` applied) | **37/37 passed — 0 failures** |
+
+The eight pre-fix failures map exactly onto what the three migrations were written to close:
+
+| Pre-fix failure | Observed | Closed by |
+|---|---|---|
+| event host still reads the attendee `user_profiles` row | `200 rows=1` | 135 |
+| PHI columns reachable through `user_profiles` for the host | `200 rows=1` | 135 |
+| relationship `pending` → coach reads the client **score event** | `200 rows=1` | 136 |
+| relationship `cancelled` → coach reads the client **score event** | `200 rows=1` | 136 |
+| relationship `pending` → coach reads the client **photo** | `200 objects=1` | 136 |
+| relationship `cancelled` → coach reads the client **photo** | `200 objects=1` | 136 |
+| host reads through `event_attendee_profiles` | `404` | view does not exist pre-135 |
+| write through the view refused with 403 | `404` | view does not exist pre-135 |
+
+**What this establishes.** The probe is not vacuous. The four status-boundary leaks are now
+*demonstrated pre-fix behaviour* rather than inferred from policy text — a coach on a `pending`
+or `cancelled` relationship really did read client score events and client progress photos, on
+both the table path and the storage path.
+
+**What this does NOT establish, stated plainly.** That QA was ever in this state. The pre-fix
+behaviour is reproduced from the tree, not observed on QA.
+
+**One honest asymmetry.** The assertion *counts* differ — 30 pre-fix versus 37 post-fix — because
+several assertions are conditional on objects migration 135 creates. This is not a like-for-like
+30-versus-30 comparison, and the last two rows of the table above are "the object is absent",
+not "the boundary leaked".
+
+### 28.6 1E ATTRIBUTED — there was never a failing assertion
+
+The single outstanding 1E failure is **fully explained, and it is not a security defect**.
+
+`supabase/tests/security/run.mjs:38-48` catches a suite that throws, sets `failures = 1`, and
+reports `ran` as the number of assertions recorded *before* the throw. So:
+
+- a throw at assertion 0 prints `${0-1}/${0}` → **`-1/0`** (D-02, 1F, 3A-10), and
+- **the same throw after 24 assertions had already passed prints `23/24`** (1E).
+
+`23/24` and `-1/0` are the *same* encoding, differing only in how far the suite got before the
+network died. Confirmed directly in the 217/221 run's output:
+
+- the 1E block runs from the banner at line 207 to the next banner at 242;
+- inside it, **24 assertions were recorded and all 24 are `PASS`**;
+- the block ends at line 239 with **`SUITE ERROR: fetch failed`**, immediately after
+  `client cannot INSERT into predictions`;
+- that run contains **4 `SUITE ERROR` lines and exactly 4 `FAIL` summary rows** — they correspond
+  one-to-one.
+
+**Independent corroboration:** `d05-intelligence-substrate.mjs` run in isolation to completion
+passes **75/75**.
+
+**Conclusion:** the 217/221 headline *understates* the result. There were **zero genuine
+assertion failures**; there were four network aborts. The honest reading is 221 recorded
+assertions, all passing, across four suites that did not finish.
+
+**Caveat, not minimised:** the degradation is still live. The first isolated `d05` attempt in this
+session also died with `read ETIMEDOUT` mid-suite; attempt 2 completed. Any future run must be
+read with the `-1/0` / `n-1/n` encoding in mind, because a partial suite is *not* visually
+distinct from a real failure in the summary table.
+
+### 28.7 What is unchanged
+
+- **Decision A and Decision B remain unmade.** §27's third option stands as recorded.
+- QA: 135/136/137 applied, nothing rolled back, no policy mutated in this section.
+- `MASTER_PRODUCT_DECISIONS.md` and `MASTER_REMEDIATION_REGISTRY.md` untouched; no ID allocated.
+- `QAX-SEC-09`, `SEC-PHI-9`, `SEC-PHI-10` remain **OPEN**. §25's P0 finding is unchanged.
+- Production `nxdbooufqzkpslkcogxc` was not contacted.
+
+### 28.8 Disposition of the B2 target
+
+The stack is left **running** under `project_id = v5b2prefix` so the result is re-checkable. It
+is disposable and holds no evidence that is not recorded here; it can be removed with
+`supabase stop --no-backup` from the worktree, and the worktree with `git worktree remove`.
+Disk after all of this work: **23 GB free (43% used)**. The pre-existing Docker images,
+containers and volumes were never pruned.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
