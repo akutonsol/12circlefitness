@@ -3537,6 +3537,67 @@ finding's closure and that rung is not met. `QAX-SEC-08` unchanged at 3 of 4.
 
 ---
 
+## 24 · REQUEST-LEVEL QA VERIFICATION — 28/28 · **POST-FIX PROVEN**
+
+New suite `d10-p1-profile-and-status-boundaries.mjs`, registered in `run.mjs`. **28/28 against live
+QA.** **No finding is closed — see §24.3.**
+
+### 24.1 · Why it had to be written
+
+**No existing suite probed any of the three surfaces** — verified: zero matches for
+`progress-photos`, `score_events` or `event_registrations` across every other
+`supabase/tests/security/*.mjs`. §4:105's *"necessary, never sufficient"* applies exactly: the static
+guards assert migration **text**; only a request proves the policies, column grants and PostgREST
+**compose** into a boundary.
+
+### 24.2 · What is now proven at request level
+
+| surface | proven |
+|---|---|
+| **QAX-SEC-09** | host can **no longer** read the attendee `user_profiles` row (rows=0) · PHI unreachable there · host **does** still read via `event_attendee_profiles` (rows=1) · **exactly** the five columns · six PHI columns individually absent · selecting PHI *through* the view rejected (400) · a non-host reads nothing · **a write through the view refused (403) and the profile unmodified** |
+| **SEC-PHI-10** | `active` **READS** (rows=1) · `pending` **DENIED** · `ended` **DENIED** · no relationship denied without erroring |
+| **SEC-PHI-9** | `active` **LISTS** (objects=1) · `pending` **DENIED** · `ended` **DENIED** · no relationship denied · **self-access preserved** |
+
+**The positive cases are what make the negatives meaningful.** An all-deny result would pass a
+broken probe equally well — and did, on the first run, until the positive assertion exposed that the
+fixture insert had failed.
+
+**Two probe defects were found and fixed rather than worked around:** `score_events` requires
+`category` and `action` (both `NOT NULL`), read from the live catalog rather than assumed; and the
+resulting vacuous all-deny pass was caught by the positive case.
+
+### 24.3 · Why the findings are still NOT closed
+
+§2's `VERIFIED LIVE` rung requires *"a real request against QA reproduces the secure/correct
+behaviour, **and the same probe demonstrably failed before the fix**."*
+
+**The second half cannot now be produced.** 135/136 were applied to QA (§23) **before** a
+request-level probe existed, so the pre-fix state no longer exists there to probe. The pre-fix
+evidence that does exist is **catalog-level** (§23.2) and is genuine, but it is not a request.
+
+> **The only way to obtain the request-level pre-fix half is to temporarily revert these policies on
+> QA — deliberately reintroducing a PHI exposure on a shared environment. That is an authorization
+> decision, not a test detail, and it is NOT taken here.** The `I-WRK-01` precedent did run its live
+> probe against a pre-fix tree, so the pattern exists — but it reverted **application code**, not a
+> **PHI access-control policy**.
+
+**`QAX-SEC-09`, `SEC-PHI-9`, `SEC-PHI-10` remain OPEN.** `MASTER_REMEDIATION_REGISTRY.md` is **not
+edited**.
+
+### 24.4 · Harness reliability — a standing infrastructure caveat
+
+**QA connectivity from this host is intermittently unreliable.** Across runs, `run.mjs` produced
+`58/65`, then `17/24`, with **different** suites failing each time (`3A-10` passed 42/42 in one run
+and threw in the next), all with `UND_ERR_CONNECT_TIMEOUT` / `read ETIMEDOUT`. The new suite itself
+needed **three attempts** before it completed.
+
+**This is not a security result and must never be read as one.** `run.mjs:36–38` renders a thrown
+suite as `-1/0`, which is visually indistinguishable from a failure. **Any future closure evidence
+from this harness must come from a run that completed**, and the count must be checked against the
+suite's own expected total.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
