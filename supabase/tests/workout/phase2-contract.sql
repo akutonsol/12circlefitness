@@ -14,11 +14,49 @@
 
 do $$
 declare
-  v_client uuid := '5470a95f-bcae-4e01-b2be-7c16964fa432';
+  -- SEC-11 / FG-2a. This was hardcoded to a single real QA account:
+  --
+  --     v_client uuid := '5470a95f-bcae-4e01-b2be-7c16964fa432';
+  --
+  -- The suite then inserts an `in_progress` session for it (below), and
+  -- `workout_sessions_one_active_per_user` permits exactly one active session
+  -- per user. So the moment that shared account had a live session -- ordinary
+  -- QA usage is enough, and it is not a defect -- the fixture insert was
+  -- refused with 23505 and the suite died before emitting its report banner.
+  -- Observed in CI runs 36596636664 and 36603451032.
+  --
+  -- This was NOT a leaked fixture: the DO block ends by RAISEing its report, so
+  -- everything here rolls back and the suite cannot leave a session behind. The
+  -- defect was an unsound PRECONDITION -- the suite asserted on state it did
+  -- not own.
+  --
+  -- The client is now chosen deterministically from the demo fixture population
+  -- and must already satisfy the precondition. Shared QA state is never
+  -- deleted or mutated to make room: a user with a live session is simply not
+  -- selected. `order by id` keeps the choice stable across runs.
+  v_client uuid;
   v_prog uuid; v_sess uuid; v_done uuid; v_res text := ''; v_n int; v_txt text;
 
   procedure_note text;
 begin
+  select p.id into v_client
+    from public.user_profiles p
+   where p.is_demo is true
+     and not exists (
+       select 1 from public.workout_sessions s
+        where s.user_id = p.id and s.status = 'in_progress')
+   order by p.id
+   limit 1;
+
+  if v_client is null then
+    -- Fail loudly and specifically. A suite that silently skips its own setup
+    -- is worse than one that fails, and "no eligible fixture" is a different
+    -- diagnosis from "an assertion broke".
+    raise exception
+      'PHASE 2 SETUP: no demo user_profiles row without an active workout_sessions '
+      'row. Seed one (setup-identities.mjs flags its identities is_demo) or clear a '
+      'stale in_progress session for a DEMO account -- never for a real one.';
+  end if;
   -- ── AFTER-7 · every stored row is canonical ───────────────────────────────
   select count(*) into v_n from program_workouts
    where not public.is_canonical_exercise_prescription(exercises);
