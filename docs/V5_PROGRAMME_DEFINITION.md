@@ -4258,6 +4258,25 @@ are untouched and no ID was allocated. §25's P0 finding is preserved exactly as
 
 ---
 
+### 29.7 QA STATE VERIFIED INDEPENDENTLY — not asserted from memory
+
+§29.6 claims QA is unchanged at 135/136/137. That claim was **checked rather than assumed**, using
+a read-only `supabase db dump --linked` (404 KB). The linked ref was confirmed to be
+`eyqtldjqpgpljlqvpowh` (**QA**) before the command was issued; production was never addressed.
+
+| Claim | Evidence in the dump |
+|---|---|
+| **135 applied** | `user_profiles` SELECT policy reads `(("id" = "auth"."uid"()) OR "public"."is_active_coach_of"("id"))` — the `hosts_event_for` arm is **gone** |
+| **135's view present** | `event_attendee_profiles` defined at `qa_state.sql:5443` as `WHERE (("id" = "auth"."uid"()) OR "public"."hosts_event_for"("id"))` — the host path moved **into** the column-limited view, which is the design |
+| **136 applied** | `score_events` policy is `USING ("public"."is_active_coach_of"("user_id"))`; both overloads exist |
+| **137 applied** | the text overload is live as `is_active_coach_of("target_path" "text")` — the rename that repairs PGRST203 is **on QA**, not merely in the tree |
+| **The §29.2 grant repair did NOT reach QA** | no matching blanket `GRANT` appears anywhere in the dump |
+
+`hosts_event_for` survives on QA in exactly three legitimate places — its own definition, the new
+view, and its grants — and in **no** `user_profiles` policy. This is the intended post-135 shape.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
