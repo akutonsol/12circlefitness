@@ -5738,6 +5738,66 @@ consolidated packet is delivered to the owner separately.
 
 ---
 
+---
+
+## 44 · THE TWO DECISION-INDEPENDENT ITEMS — ONE EXECUTED, ONE ALREADY DONE
+
+The consolidated packet arrived with all three decision slots **unfilled** — `PD-A24 = A / B / C`,
+`PD-A17 API = A: ____ / B`, `OD-56 = A / B` are option lists, not selections, and the packet says
+engineering proceeds *"once these three decisions are supplied"*. **No owner decision was inferred
+or made.** But the same message explicitly released two items, and both are now settled.
+
+### 44.1 ✅ PD-A17's auth-stack half — EXECUTED
+
+*"DELETE THE PARALLEL AUTH STACK = AUTHORIZED NOW. No separate owner decision is required for that
+portion."* — and `PD-A17`'s own record: *"unused authentication is unmaintained attack surface …
+delete the parallel stack regardless."*
+
+**Deleted:** `auth.controller` (`/auth/register`, `/auth/login`), `auth.service`, `auth.module`,
+the `firebase` and `jwt` strategies, the `jwt-auth` and `roles` guards, the `roles` decorator, the
+login/register DTOs, and the whole `users` module (`/users`) — unwired from `app.module`. Packages:
+`@nestjs/passport`, `bcryptjs`, `firebase-admin`, `passport`, `passport-jwt`, and their `@types`.
+
+**Kept:** `auth/supabase/*`, now the API's only authentication. **`@nestjs/jwt` was deliberately
+NOT removed** — `supabase-auth.module` and `supabase-token.service` both use it, so removing it
+would have broken the live path. That is the one trap in this change.
+
+**Checked before deleting, not after.** `ai.controller` uses `SupabaseAuthGuard`; the mobile app
+calls no `/auth` or `/users` route; the only inbound references were `app.module` and
+`auth.module`'s own import of `UsersModule` — a closed island. Remaining routes: `@Controller()`
+and `@Controller('ai')`.
+
+**Evidence it was genuinely dead:** the **root lockfile — which is what CI's `npm ci` installs
+from — never contained `firebase-admin`, `passport-jwt` or `bcryptjs` at all.** That code imported
+packages CI never installed.
+
+**Verified:** 54 unit + 6 e2e pass (from 58 + 6; the four removed suites were the deleted modules'
+own specs), `tsc --noEmit` clean, `npm ci --dry-run` in sync, and **CI run `36619448820` green
+across all seven jobs including `API — unit + e2e`.**
+
+**This decides nothing about where the API runs.** `PD-A17`'s platform half remains open.
+
+### 44.2 ✅ PD-A24's sink half — ALREADY DONE, and the packet understates it
+
+The packet lists the observability sink as *"already authorized … buildable now"*. It is not
+merely buildable — **it is built, shipped and closed.**
+
+`EC-01` (= `REL-26`, `LRE-27/28`, `EC-23`) is **`VERIFIED_CLOSED` 2026-08-27**:
+`lib/core/observability/app_failure.dart` provides `AppFailure`, `FailureSink`, `reportFailure`
+and `reportError`, **vendor-free per PD-A24**, with 7 guard tests in `error_sink_test.dart`.
+Its closure carries both rungs its RELEASE / ENVIRONMENT class demands, including a strict §2
+pre-fix half — run `#34` step 7 shows the `EC-23` guard failing against a tree carrying the seven
+historical `print()` sites and passing against the restored tree, in CI.
+
+**So there is no sink work to do.** `PD-A24`'s remaining scope is purely the telemetry/vendor
+posture, and nothing in the repository is waiting on the interface.
+
+### 44.3 What is now genuinely blocked
+
+With both released items settled, **every remaining workstream sits behind one of the three
+unfilled decisions.** There is no reachable engineering work left that does not require one.
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
