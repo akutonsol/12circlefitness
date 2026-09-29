@@ -5809,6 +5809,71 @@ With both released items settled, **every remaining workstream sits behind one o
 unfilled decisions.** There is no reachable engineering work left that does not require one.
 
 
+---
+
+## 45 · OWNER DECISIONS APPLIED · N-07 LANDED · SEC-PHI-AUDIT **VERIFIED_CLOSED**
+
+Lead decisions of 2026-09-29 recorded and applied: **`PD-A24 = C`** (sink only, defer vendor),
+**`PD-A17 = A`** (deploy the NestJS API), **`OD-56 = A`** (approve N-07). None was inferred.
+
+### 45.1 PD-A24 = C — nothing to build
+
+The sink was already `VERIFIED_CLOSED` as `EC-01` on 2026-08-27 (§44.2), vendor-free by
+construction. **`C` is satisfied by the existing implementation**: the abstraction stays, no
+third-party vendor is introduced, and the choice remains reversible behind one interface.
+
+### 45.2 OD-56 = A — N-07 landed, and three defects surfaced only by running it
+
+`140` was **verified free, not assumed**: authored migrations topped out at 139, the QA ledger read
+139, the declared frontier was 139. `docs/proposed/N07_assessment_access.sql` moved to
+`supabase/migrations/140_assessment_access.sql`. One deliberate change on landing — `SET search_path`
+widened from `public` to `public, pg_temp`, because §30.2 recorded that the four weakly-pinned
+functions are the whole authorization surface and landing a fifth onto the PHI surface would be a
+step backwards.
+
+**The suite had only ever been authored** — `N07_IMPLEMENTATION_STATUS.md` §5: *"None of these has
+been executed."* Executing it surfaced **three defects, none visible from source review**:
+
+| # | Defect | Symptom |
+|---|---|---|
+| 1 | **140 declared `sleep_hours numeric`; the column is `text`** | PostgreSQL validates a `RETURNS TABLE` signature at **execution** time, so 140 applied cleanly and then raised **`42804` on every call**. Authorization was never at fault — `is_active_coach_of(victim)` returned `true` in the same session. Repaired by **141** (drop + recreate; a return type cannot be changed by `CREATE OR REPLACE`). 140 is **not** rewritten in place — the shape 137 used for 136. |
+| 2 | **`d09` called `signIn()` and discarded the tokens** | It passed the literal strings `'coach'`/`'attacker'`/`'victim'`/`'admin'` as `lib.mjs`'s `who`, which sends them verbatim as `Authorization: Bearer coach`. QA answered **401 to all eighteen assertions, and seven scored that blanket rejection as a PASS.** |
+| 3 | **All four fixture writes were double-encoded** | `svc()` stringifies `body` itself (`lib.mjs:156`); `d09` passed `JSON.stringify(...)`. Every write was rejected, and because the arrange **discarded its result** it silently did nothing — no coach-of-record relationship, so §1's coach was correctly 403'd and every audit assertion failed downstream. The arrange now **throws** if the write fails. |
+
+`N07_IMPLEMENTATION_STATUS.md` §6 claims all 36 column types *"were verified against the migrations
+before writing; five type errors were caught and corrected"*. Defect 1 was the sixth. **This is the
+concrete vindication of §42's refusal to register `d09` on the strength of it being "authored".**
+
+**Also fixed: `d09`'s `reset()`** deleted **every** `coach_client_relationships` row for the victim —
+the authorization root `d01` asserts on. Now scoped to the two pairs `d09` owns. **`D-01` still
+reads 43/43**, which is the evidence the scoping worked.
+
+### 45.3 SEC-PHI-AUDIT → **`VERIFIED_CLOSED`**
+
+| Rung | Evidence |
+|---|---|
+| FIXED IN CODE | 140 + 141 committed |
+| FIXED ON QA | ledger `141 \| 141 \| 141`; table, RLS, both policies and the function verified in the live catalog |
+| VERIFIED LIVE | `d09` **18/18 on QA** — coach 200/36 cols, unassigned 403, anon 401, **ended relationship 403**, audit row naming actor/subject/event/time, subject reads own log, third party 0 rows, `UPDATE` **and** `DELETE` both **403** |
+| VERIFIED IN CI | `d09` 18/18 inside **414/414 across 11 suites** (runs `36625112249`, `36626036076`), **plus** a tree-sensitive guard in `phase1_security_boundary_test.dart`, proven to fail when 140/141 are removed |
+
+The guard exists because **`d09` cannot be the CI rung** — its verdict comes from QA's database
+state, not the checked-out tree, exactly as §35.3 established for `d11`/K-04. One of my own guard
+assertions was wrong and **failed loudly rather than passing vacuously**: it matched 140's *header*,
+which legitimately names both removed policy arms while explaining their exclusion; it now strips
+comments and asserts on executable SQL only.
+
+**A by-product worth recording:** `d09`'s `S-N07-a` — written to **fail**, asserting a team lead
+cannot read a member's medical columns — now **PASSES**, confirming §43.3's reconciliation that
+migrations 132 and 135 already answered N-07's base-table question.
+
+### 45.4 State
+
+CI **green** across runs `36625112249` and `36626036076`; 414/414 live security assertions,
+0 aborts; `SP-5` still 0; `ENV-3` `L-5` reads 142 vs 142. QA frontier **141**. Production never
+contacted. `MASTER_PRODUCT_DECISIONS.md` untouched.
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
