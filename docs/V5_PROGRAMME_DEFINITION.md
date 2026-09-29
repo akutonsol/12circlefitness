@@ -5512,6 +5512,78 @@ data altered beyond the probes' own self-cleaning fixtures.
 
 ---
 
+## 41 · K-04 **VERIFIED_CLOSED** · FG-2a REPAIRED · CI GREEN
+
+### 41.1 The owner class ruling, and K-04's closure
+
+**OWNER RULING 2026-09-29: `BIL-3`/`K-04` is classified Security / authorization / database
+integrity for closure purposes.** The bypass is in the **database write path** and the remediation
+is a PostgreSQL integrity/authorization control, so the control is verified at the layer where it
+operates. §2.1's **Billing / entitlement** *"VERIFIED LIVE against Stripe test mode"* rung is
+**not** required here merely because the finding carries the `BIL` prefix or touches
+`paid`/`payment_id`. **The ruling is scoped: it claims nothing about Stripe or payment flows
+generally.** It is recorded in the registry entry itself so the reason is explicit.
+
+`BIL-3`/`K-04` → **`VERIFIED_CLOSED`**, with all four rungs evidenced:
+
+| Rung | Evidence |
+|---|---|
+| FIXED IN CODE | migrations **138** + **139** committed |
+| FIXED ON QA | ledger `139 \| 139 \| 139`; trigger, `WITH CHECK` and `REVOKE ALL … FROM PUBLIC` all in the live catalog |
+| VERIFIED LIVE | `d11` on QA **2/8 → 9/9**, each verdict an HTTP status **plus** a service-role read-back, with an anti-vacuity precondition. **No rollback was needed** |
+| VERIFIED IN CI | `d11` **9/9** in runs `36596636664`, `36603451032` and `36605282711`; the tree-sensitive guard green in every Flutter job, and §35.3 proved it **fails** on a 138-less tree |
+
+**§5.2 grants preservation — satisfied.** `SP-5` transitioned **`1 → 0`** after 139, confirmed
+authoritatively by CI; `FG-1` moved to `5 PASS · 0 FAIL`. The legitimate vendor check-in still
+returns `204 affected=1`, so the bypass is closed without breaking the feature.
+
+### 41.2 FG-2a repaired — a precondition, not hygiene debt
+
+My earlier sections (§37.4, §38.3) called this a leftover row or a missing cleanup. **Both were
+wrong, and the correction stands recorded.** `phase2-contract.sql` ends by `RAISE`-ing its report,
+so the whole `DO` block rolls back and the suite **cannot** leave a session behind — its own
+teardown is even labelled *"belt and braces"* for that reason.
+
+The defect was line 17: it **hardcoded a single real QA account** and then inserted an
+`in_progress` session for it. `workout_sessions_one_active_per_user` permits one active session
+per user, so the moment that shared account had a live session — ordinary usage, **not** a defect —
+the setup was refused with `23505` and the suite died before emitting its banner.
+
+**Fix:** the client is now selected deterministically from the demo fixture population, and only
+from rows that **already satisfy** the precondition. A user with a live session is simply not
+selected. If no eligible fixture exists the suite raises a specific setup error rather than
+skipping, because *"no eligible fixture"* is a different diagnosis from *"an assertion broke"*.
+
+**No QA row was deleted, rewritten or reset. No assertion was weakened, suppressed or removed.**
+`SEC-11`'s own finding (migration 120) is untouched — the defect was in its **test asset**, not in
+the control it guards.
+
+### 41.3 CI GREEN — run `36605282711` at `3dc73bd`
+
+**All seven jobs `success`**, including `UIX-1` and `I-WRK-01`, which had been skipped in the two
+previous runs because `live-qa` failed. Every step of `live-qa` executed, none skipped — checked at
+step level per §35.5, not taken from the job colour.
+
+| | |
+|---|---|
+| `Live security suite` | **396/396 across 10 suites**, incl. **`K-04 9/9`** |
+| `Live AI suite` | 49/49 across 5 suites |
+| `FG-1` | `PASS SP-5 … : 0` |
+| `FG-2a` | **`RESULT: PASS`** |
+| `FG-2b`, `F-J-17`, `F-J-07`, `ENV-3` | PASS |
+| `Static guards`, `Flutter`, `API`, `Negative control` | success |
+
+**This is the first fully green CI run of the programme.**
+
+### 41.4 Unchanged
+
+Production **never contacted**. `MASTER_PRODUCT_DECISIONS.md` untouched. `PD-A24`/`PD-A17`
+untouched and unresolved. **§24.3 unchanged — `FIXED ON QA`, not `VERIFIED LIVE`; no rollback was
+performed.** No migration history rewritten. `d09-assessment-access.mjs` still untracked and
+unadopted (§36.4).
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
