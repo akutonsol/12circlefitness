@@ -21,6 +21,12 @@ const SUITES = [
   // Until it runs, this suite fails by design; that is the pre-fix reading,
   // not a defect. Do not remove it to make the runner green.
   ['3A-11 identity constraints',       './d08-identity-constraints.mjs'],
+  // P1. The three surfaces migrations 135/136 changed. No other suite probed
+  // any of them — verified by search before this one was written. It asserts
+  // POST-FIX behaviour only; the pre-fix half of §5.2 is catalog-level and is
+  // recorded in docs/V5_PROGRAMME_DEFINITION.md §23.2, because 135/136 were
+  // already applied before a request-level probe existed.
+  ['P1    profile + status boundaries', './d10-p1-profile-and-status-boundaries.mjs'],
 ];
 
 let totalFailures = 0;
