@@ -686,4 +686,77 @@ void main() {
       }
     });
   });
+
+  // SEC-PHI-AUDIT / N-07 — migrations 140 + 141, landed under owner decision
+  // OD-56. This is the VERIFIED IN CI rung.
+  //
+  // `d09-assessment-access.mjs` cannot serve that purpose, for the same reason
+  // `d11` could not serve it for K-04 (V5 §35.3): d09's verdict is decided by
+  // QA's DATABASE state, not by the checked-out tree, so it would still report
+  // 18/18 against a tree with 140 and 141 deleted. It is VERIFIED LIVE evidence,
+  // not a standing guard. These tests read the migrations, so removing or
+  // hollowing them out turns CI red — which is what §2 actually asks for.
+  group('SEC-PHI-AUDIT · N-07 PHI access is audited and the log is append-only', () {
+    String n07() {
+      final m = _allMigrations();
+      final sql = (m[140]?.sql ?? '') + '\n' + (m[141]?.sql ?? '');
+      if (!sql.contains('assessment_access_log')) {
+        throw StateError('migrations 140/141 (N-07 assessment access) not found');
+      }
+      return sql;
+    }
+
+    test('the audit table exists and carries RLS', () {
+      final sql = n07();
+      expect(sql, contains('CREATE TABLE IF NOT EXISTS public.assessment_access_log'));
+      expect(sql, contains('ALTER TABLE public.assessment_access_log ENABLE ROW LEVEL SECURITY'));
+    });
+
+    test('the log is append-only — no client may rewrite its own audit trail', () {
+      expect(n07(),
+          contains('REVOKE INSERT, UPDATE, DELETE ON public.assessment_access_log FROM authenticated'),
+          reason: 'an audit trail the audited party can edit is not an audit trail');
+      expect(n07(), contains('REVOKE ALL ON public.assessment_access_log FROM anon'));
+    });
+
+    test('the subject can read their own access history', () {
+      expect(n07(), contains('"client reads own assessment access log"'),
+          reason: '"Opening it is logged" must be verifiable by the person it protects');
+    });
+
+    test('the narrow read path admits an ACTIVE COACH ALONE', () {
+      final sql = n07();
+      expect(sql, contains('IF NOT public.is_active_coach_of(p_client) THEN'));
+      expect(sql, contains("RAISE EXCEPTION 'not authorized to read this assessment'"));
+      // Neither of the two arms migrations 132 and 135 removed from the base-table
+      // policy may reappear here as a way back in. Asserted against EXECUTABLE SQL
+      // only: 140's header legitimately NAMES both while explaining why they are
+      // excluded, and an earlier revision of this test matched that prose and
+      // failed. Comments are documentation, not an authorization surface.
+      final code = sql
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('--'))
+          .join('\n');
+      expect(code, isNot(contains('is_team_lead_of')));
+      expect(code, isNot(contains('hosts_event_for')));
+    });
+
+    test('the access is logged BEFORE the read returns', () {
+      final sql = n07();
+      final insertAt = sql.indexOf('INSERT INTO public.assessment_access_log');
+      final returnAt = sql.indexOf('RETURN QUERY');
+      expect(insertAt, greaterThan(-1));
+      expect(returnAt, greaterThan(insertAt),
+          reason: 'if the log write happens after the read, a failed insert '
+              'yields an UNLOGGED disclosure and falsifies the on-screen claim');
+    });
+
+    test('the definer function is not executable by PUBLIC or anon', () {
+      final sql = n07();
+      expect(sql, contains('REVOKE ALL ON FUNCTION public.get_client_assessment(uuid) FROM PUBLIC'));
+      expect(sql, contains('REVOKE ALL ON FUNCTION public.get_client_assessment(uuid) FROM anon'));
+      expect(sql, contains('SET search_path = public, pg_temp'),
+          reason: 'V5 §30.2 — the weaker public-only pin leaves pg_temp searched first');
+    });
+  });
 }
