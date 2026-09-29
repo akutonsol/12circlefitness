@@ -5874,6 +5874,73 @@ CI **green** across runs `36625112249` and `36626036076`; 414/414 live security 
 contacted. `MASTER_PRODUCT_DECISIONS.md` untouched.
 
 
+---
+
+## 46 · PD-A17 = A · THE PLATFORM IS NOT DETERMINED BY THE ARCHITECTURE — AND THERE IS A THIRD OPTION
+
+`PD-A17 = A` authorizes deploying the NestJS API, with the instruction *"do not assume a platform
+… resolve the platform implementation from the existing architecture/evidence and stop only if an
+actual owner decision is required."* The evidence was gathered; it resolves to **a boundary**, and
+it also surfaces an option the packet did not contain.
+
+### 46.1 Nothing in the repository determines a platform
+
+| Searched | Result |
+|---|---|
+| `Dockerfile`, `docker-compose.yml`, `Procfile`, `fly.toml`, `vercel.json`, `render.yaml`, `railway.{json,toml}`, `app.yaml`, `nixpacks.toml`, `captain-definition`, `.dockerignore` | **none exist anywhere** |
+| a deploy job in `.github/workflows/` | **none** |
+| any hosting precedent (firebase / vercel / netlify / cloudflare / amplify) | **none** |
+| a documented platform candidate in `docs/` | **none** — the only `vercel` hits are an MCP-plugin audit, not deployment |
+
+This matches `PD-A17`'s own wording — *"No deployment target of any kind exists"* — and its
+assessment that the platform *"is a cost and ops commitment and is genuinely open."*
+**The architecture does not choose for us.**
+
+### 46.2 What would actually be deployed — one endpoint
+
+The API's entire live surface, after §44.1 removed the parallel auth stack:
+
+- `POST /ai/nutrition/message` — `ai.controller.ts`, guarded by `SupabaseAuthGuard`
+- `GET /` — a health route
+
+Runtime requirements: `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `ANTHROPIC_MAX_TOKENS`,
+`SUPABASE_URL`, `SUPABASE_JWT_SECRET`, `CORS_ORIGINS`, `PORT`.
+
+### 46.3 ⚠ The third option — the project already runs this class of workload
+
+`supabase/functions/` holds **19 deployed Edge Functions**, and **three of them are already
+Anthropic-calling AI endpoints**: `ai-coach`, `ai-coaching-engine`, `ai-generate-workout`. They are
+already authenticated, already hold the Anthropic key, already carry a JWT posture that
+`check:guards` enforces (*"all 19 functions declare a JWT posture"*), and already have a deployment
+path. **There is no `ai-nutrition` function — that one endpoint is the only reason the NestJS API
+needs to exist at all.**
+
+So the real choice is wider than the packet's A/B:
+
+| Option | Consequence |
+|---|---|
+| **A1 — deploy NestJS to a new platform** | A new hosting account, cost and ops commitment, secret management, CORS config and a CI deploy path, to serve **one** endpoint. Keeps the Nest codebase and its tests. |
+| **A2 — port `/ai/nutrition/message` to a Supabase Edge Function and retire the API** | **Zero new platform.** Reuses infrastructure that is already deployed, authenticated, CI-guarded and holds the same Anthropic key. Retires `apps/api` — and with it `API_BASE_URL`, `ENV-8`, and the `REL-28/29/30` and `LRE-14/22/23/38` cluster, which exist *because* an undeployed API is referenced. Cost: the Nest service, its DTO/validation layer and its 60 tests are rewritten as a Deno function. |
+
+**A2 is not proposed as a decision and is not taken.** It is surfaced because it is materially
+cheaper on the evidence, because the packet's A/B did not contain it, and because choosing A1
+without seeing it would commit real money and ops surface to serve a single endpoint whose three
+siblings already run elsewhere. **Retiring a whole application is a product/architecture decision,
+not an implementation detail** — it is exactly the kind of thing §25.4 warned against deciding
+inside another workstream.
+
+### 46.4 Why this is a genuine boundary
+
+Both remaining paths require something only the owner can supply:
+
+- **A1** needs a **named platform** — a cost and ops commitment `PD-A17` itself calls genuinely open.
+- **A2** needs authorization to **retire `apps/api`**, which is an architectural decision about the
+  product's backend shape.
+
+**No platform was assumed, nothing was deployed, and `apps/api` was not touched beyond §44.1's
+authorized auth-stack removal.**
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
