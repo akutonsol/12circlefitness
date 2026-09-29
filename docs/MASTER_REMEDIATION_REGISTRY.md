@@ -949,10 +949,22 @@ directly. Combined with **P-11** (no Anthropic spend cap in QA and no rate limit
 ---
 
 ### BIL-3 · A paid event ticket can be self-granted — **and a vendor can harvest attendee PII**
-`K-04` · **P0** · `REMEDIATED` *(2026-09-29 — migration 138 applied to QA; **FIXED IN CODE ·
-FIXED ON QA · VERIFIED LIVE** present, **VERIFIED IN CI pending**)* · **V5 P1 (pulled forward
-from Wave 6 by OWNER DECISION A, 2026-09-29)** — identity and linkage unchanged; no new finding
-ID allocated
+`K-04` · **P0** · ✅ `VERIFIED_CLOSED` **2026-09-29** *(migrations 138 + 139 applied to QA; all
+four Security / authorization rungs evidenced — see the evidence block below)* · **V5 P1 (pulled
+forward from Wave 6 by OWNER DECISION A, 2026-09-29)** — identity and linkage unchanged; no new
+finding ID allocated
+
+**CLOSURE CLASS — OWNER RULING 2026-09-29: Security / authorization / database integrity.**
+Recorded explicitly so the reason is not implicit. The vulnerability is the ability to alter the
+authoritative registration identity/entitlement fields through the **database write path** and
+thereby reach access belonging to another registration; the remediation is a PostgreSQL
+integrity/authorization control — frozen registration and event identity, frozen QR/payment
+fields, forced `paid = false` on client INSERT, trigger enforcement, policy `WITH CHECK`, and the
+corrected function ACL. **The control is verified at the layer where the bypass exists and where
+the remediation operates.** §2.1's **Billing / entitlement** "VERIFIED LIVE against Stripe test
+mode" rung is therefore **NOT** required here merely because the finding carries the `BIL` prefix
+or touches `paid`/`payment_id`. **This ruling does not claim Stripe or payment flows have been
+verified generally; it governs the closure classification of `BIL-3`/`K-04` only.**
 
 `event_registrations`' policy has no `WITH CHECK`, so a member sets `paid`/`payment_id`
 themselves. **Fix in one change with DAT-4** — same table. Corrected repro: omit
@@ -1003,15 +1015,28 @@ guard in `billing_entitlement_contract_test.dart` passed in the Flutter job of b
 36603451032 also shows **`PASS SP-5 EXECUTE grants to PUBLIC or anon: 0`**, so §5.2's
 grants-preservation requirement is now discharged on QA.
 
-**STILL `REMEDIATED`, and the missing item is a CLASSIFICATION RULING, not evidence.**
-Under **Security / authorization** every rung is present — FIXED IN CODE, FIXED ON QA,
-VERIFIED LIVE (`2/8` → `9/9`), VERIFIED IN CI — and this entry would close. But this finding
-carries the **`BIL`** prefix and its own title leads with a paid-ticket self-grant, and §2.1's
-**Billing / entitlement** row demands *"**VERIFIED LIVE** against Stripe **test mode**"*, which
-is **not** evidenced and was never attempted. §2.1 also states *"no partial closures and no
-exceptions granted at implementation time"* — so choosing the lenient class here, at
-implementation time, is exactly what that sentence forbids. **The class determination is the
-owner's and is not made here.**
+**CLOSURE EVIDENCE — all four Security / authorization rungs, per §2.1.**
+
+| Rung | Evidence |
+|---|---|
+| **FIXED IN CODE** | migrations **138** (trigger + `WITH CHECK`) and **139** (ACL repair), both committed |
+| **FIXED ON QA** | ledger `139 \| 139 \| 139`; live dump carries the trigger, the `WITH CHECK` and `REVOKE ALL … FROM PUBLIC` |
+| **VERIFIED LIVE** | `d11` on QA **2/8 before 138 → 9/9 after 139**; every verdict an HTTP status **plus** a service-role read-back; an anti-vacuity precondition proves the PII arm is not hollow. **No rollback was needed** — the defect was live on QA and had never been remediated there |
+| **VERIFIED IN CI** | `d11` **9/9** in runs **36596636664** and **36603451032**, inside a ten-suite live run; the tree-sensitive guard in `billing_entitlement_contract_test.dart` passed in both Flutter jobs, and §35.3 proved that guard **fails** on a 138-less tree |
+
+**§5.2 grants preservation — satisfied.** 138 left `enforce_registration_integrity()` with the
+default `EXECUTE` to `PUBLIC`; `FG-1/SP-5` caught it (`0` at `16ba19f`, `1` at `b700c30`).
+**Migration 139 restored the grant posture, and `SP-5` transitioned `1 → 0`**, confirmed
+authoritatively by CI run **36603451032** (`PASS SP-5 EXECUTE grants to PUBLIC or anon: 0`), with
+`FG-1` moving to `5 PASS · 0 FAIL`. The legitimate vendor check-in still returns
+`204 affected=1`, so the control closes the bypass without breaking the feature.
+
+**The CI workflow is red, and that red is NOT this finding.** The sole remaining failure is
+`FG-2a`, a `SEC-11`/Phase-2 **test-precondition** defect: `phase2-contract.sql:17` hardcodes a
+shared real QA user and assumes it has no active workout session, which
+`workout_sessions_one_active_per_user` refuses once that account does. It touches nothing `K-04`
+owns — no policy, trigger, grant or table of this finding — and every K-04 assertion passed in the
+same run. Tracked separately under `SEC-11`.
 
 ---
 
