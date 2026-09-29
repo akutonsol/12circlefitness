@@ -5941,6 +5941,81 @@ Both remaining paths require something only the owner can supply:
 authorized auth-stack removal.**
 
 
+---
+
+## 47 · A2 EXECUTED — THE EDGE PORT IS LIVE; RETIREMENT BLOCKED ON A MISSING QA SECRET
+
+`PD-A17 = A` resolved as **A2**. The evaluation cycle was run in the order the lead set, and it
+stops at step 6 — **`apps/api` is NOT retired.**
+
+### 47.1 Steps 1–3 · Inventory and mapping — **complete, no capability lost**
+
+The API's only live surface was `POST /ai/nutrition/message`. Every requirement maps:
+
+| Requirement | Edge equivalent | Evidence |
+|---|---|---|
+| Auth: HS256 JWT, `role = authenticated` | `verify_jwt = true` **plus** an explicit `getUser()` check | the pattern `ai-coach` and `analyze-food-image` already use |
+| Base64 image + `mediaType` → Anthropic image block | identical | **`analyze-food-image` already does exactly this, deployed, and the mobile app already invokes it** |
+| Anthropic call with system prompt / model / max_tokens | `fetch` to `api.anthropic.com` | the house pattern in five existing functions |
+| `ValidationPipe({whitelist, forbidNonWhitelisted})` | hand-written `validate()` | reproduced explicitly, including refusing unknown properties |
+| Generic 503, detail logged never returned | identical | ported verbatim |
+| Image size | equivalent | both paths send `imageQuality: 80`; `analyze-food-image` already carries this load |
+
+**No capability requires a persistent NestJS deployment.** The one genuine delta is test
+infrastructure: the repo has **no Deno test harness** — its nineteen functions are covered by Dart
+guards that parse `index.ts` plus the live suites — so the 54 Jest unit tests could not be ported
+like-for-like. That is a verification-tooling gap, not a runtime capability.
+
+### 47.2 Steps 4–5 · Implementation and coverage
+
+`supabase/functions/ai-nutrition/index.ts`, registered `verify_jwt = true` (`check:guards`: **all
+20 functions declare a JWT posture**). The client keeps **Dio** and changes only the URL — which is
+precisely what made the port verifiable: of the 14 tests in `ai_nutrition_client_test.dart`, the
+**12 covering authorization, payload shape, the `{ text }` field and every status mapping are
+unchanged and still pass.** Only the AI-001 URL assertions moved, and two were added for the
+trailing-slash join and for the anon key riding alongside the user token.
+
+`flutter analyze`: **0 errors**. Full mobile suite: **1698 tests pass**. CI green across all seven
+jobs (`36635440465`).
+
+### 47.3 Step 6 · QA verification — and a real defect it caught
+
+Deployed to QA. The first probe returned **503 for five validation cases that should have been
+400**. Cause: I checked `ANTHROPIC_API_KEY` **before** validating, while Nest's order is
+guard → `ValidationPipe` → service, so a malformed body was a 400 *whether or not* the server held
+a key. Fixed and redeployed. **A source review would not have found this; the live probe did.**
+
+| Probe | Result |
+|---|---|
+| no token / garbage token | **401** (gateway) |
+| unknown property | **400** `property bogus should not exist` |
+| empty message · over 8000 chars | **400**, exact messages |
+| unsupported media type · history over 40 turns | **400**, exact messages |
+| **valid authenticated request** | **503 `AI is not configured`** |
+
+### 47.4 ⚠ THE BOUNDARY — `ANTHROPIC_API_KEY` is absent from QA
+
+`supabase secrets list` on QA returns only Supabase's own defaults. The key is **not set**, and
+**six** functions read it — including the already-shipped **`ai-coach`**, **`ai-generate-workout`**
+and **`analyze-food-image`**. So every AI Edge Function on QA is unconfigured. **This is
+pre-existing and was not introduced here.**
+
+Consequence: the happy path cannot be exercised on QA, so **step 6 is incomplete**, and step 8's
+*"only then retire"* is not satisfied. **`apps/api` therefore stands.** Setting a paid credential
+on a shared environment is an owner action — the key is not mine to invent or install.
+
+**Nothing of value is at risk in the meantime.** The NestJS route was never reachable either:
+`API_BASE_URL` was empty in **every** environment, so this feature could not work in any build
+before this change, and cannot regress by waiting.
+
+### 47.5 What retirement will involve when it is unblocked
+
+Larger than deleting `apps/api`: `API_BASE_URL` is embedded in the mobile env contract
+(`app_env.dart`, `resolveEnvConfig`, the required-vars list) and asserted across **six** test files,
+and the CI web builds pass it by `--dart-define`. That is why §46 called it a cluster and why it is
+staged behind the evidence rather than bundled into this change.
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
