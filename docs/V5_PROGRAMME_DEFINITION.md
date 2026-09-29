@@ -4389,6 +4389,129 @@ Decision B remain unmade.**
 
 ---
 
+## 31 · RELIABILITY CHARACTERIZATION AND THE ROLLBACK GATE
+
+Decision-independent work. **No owner decision is taken, no QA state was mutated, production was
+not contacted.** Nothing in §24–§28 is rewritten except the one correction §31.4 forces.
+
+### 31.1 Methodology — and why the earlier method was wrong
+
+The fault is **episodic**: it alternates between quiescent phases (DNS 3 ms, TCP 18 ms, TLS 26 ms,
+0 % ICMP loss, every arm 100 %) and degraded phases. **Sequential A/B testing against an episodic
+fault attributes time-variation to whatever variable is being changed**, which is exactly how
+§29.4 produced two wrong hypotheses before an interleaved test killed both.
+
+Every measurement below is therefore **round-robin**: all arms are sampled inside the same round,
+so a burst hits every arm equally. 48 rounds, 6 arms, ~12 s apart, plus a 30-round confirmation
+matrix, plus 49 paired rounds for the joint analysis.
+
+| Arm | What it isolates | Result |
+|---|---|---|
+| `A` QA HTTPS via **curl** | application path | **29.2 %** |
+| `F` QA HTTPS via **Node** | local runtime / undici | **29.2 %** |
+| `B` QA **bare TCP :443** (`nc -z`) | below TLS | **43.8 %** |
+| `C` **DB pooler TCP :5432** (AWS ELB) | the restore channel | **62.5 %** |
+| `D` **cloudflare.com** | Cloudflare-wide / link outage | **100 %** |
+| `E` **api.github.com** | non-Cloudflare internet | **64.6 %** |
+
+### 31.2 What the fault is NOT — each excluded by controlled evidence
+
+- **Not local runtime, and not `undici`.** `curl` and Node agree in **48 of 48 rounds, with zero
+  disagreements**. This is the cleanest result in the set.
+- **Not the resolver.** `getaddrinfo` measured **40/40 successful in 0.1 s** (§29.4).
+- **Not address family or IP selection.** Interleaved plain-vs-`--resolve`: 23/24 vs 22/24 (§29.4).
+  The host publishes no AAAA; `curl -6` reached `::ffff:104.18.38.10`, IPv4-mapped.
+- **Not Cloudflare-wide, and not a link outage.** In **34 of 34** rounds where QA failed,
+  `cloudflare.com` succeeded. `D` is **48/48** across the whole run.
+- **Not Supabase-specific.** `api.github.com` (non-Cloudflare) and the AWS pooler degrade in the
+  same rounds as QA.
+- **Not response size / MTU.** Both QA endpoints tested return 101 bytes, and both failed during
+  bursts and succeeded outside them.
+
+### 31.3 What the evidence DOES support — and where it stops
+
+A **transport/path-layer fault on this host's egress**, below TLS (bare TCP `:443` fails), episodic,
+affecting most destinations simultaneously while sparing at least one. The gradient is consistent
+and ordered: QA HTTPS 29 % < QA bare TCP 44 % < DB pooler / GitHub ~63 % < cloudflare.com 100 %.
+
+**I decline to name a mechanism.** ICMP to both the gateway and `1.1.1.1` showed **0 % loss over 60
+packets each**, but only during a quiescent phase — no burst was captured with ping running, so no
+hop-level localization exists. MTU is unsupported (above). A single default route via `en0` was
+confirmed, with no IPv4-carrying tunnel interfaces, so route flapping is not evidenced either.
+Per instruction, the cause is recorded as **localized to the layer, not to the mechanism.**
+
+### 31.4 ⚠ CORRECTION TO §29.5 — the two channels are NOT independent
+
+§29.5 recorded, from the protocol design, that "the two channels have opposite health" — the probe
+riding degraded HTTPS while `psql` stays healthy — and treated that as what makes the
+rollback-succeeds/restore-fails hazard solvable. **Measurement refutes this.** Over 49 paired rounds:
+
+| | |
+|---|---|
+| HTTPS failed | 35 rounds (71.4 %) |
+| DB channel failed | 18 rounds (36.7 %) |
+| **Both failed in the same round** | **18 rounds** |
+| **P(DB down │ HTTPS down)** | **51.4 %** |
+
+**Every single DB-channel failure coincided with an HTTPS failure — 18 of 18.** The channels are
+positively correlated, not complementary. The DB channel is *more available*, not *independently*
+available.
+
+**Consequence.** Any protocol whose restore step requires a **new successful network round-trip
+after the rollback has committed** has a roughly **one-in-two** chance of finding its channel
+unavailable at the moment it needs it, *given* that conditions are already degraded. "Use `psql`
+for the restore" is **not** a safety mechanism. §29.5's structural conclusion — that the restore
+must be armed **inside the database, in the same transaction as the rollback** — is unaffected and
+is now the *only* thing standing between a rollback and an unbounded exposure.
+
+### 31.5 THE RELIABILITY GATE — what must hold before any QA rollback is attempted
+
+Stated as criteria, not as a recommendation, and **not** as an argument for either answer to
+Decision B. No rollback is performed, and the gate is not asserted to be satisfied.
+
+**R — Network-independent restore (MANDATORY, structural).** The restore must require **zero**
+network round-trips after the rollback commits: armed in-database, in the **same transaction** as
+the rollback, so that if any rollback statement raises, neither happened. Any protocol in which an
+operator or client must successfully issue the restore afterwards is **rejected outright** by
+§31.4. This criterion is satisfied by construction or not at all — **it cannot be satisfied by
+measuring the network.**
+
+**T — Bounded exposure (MANDATORY).** Maximum exposure must equal the in-database watchdog deadline
+`D` **independent of connectivity**, and `D` must be explicitly owner-accepted. Because the fault is
+episodic and can begin *mid-window*, `D` — not the measured failure rate — is the real exposure
+bound. §29.5's severity note applies for the whole of `D`: any QA account with a coach profile can
+unilaterally create a `pending` relationship (`113:271-284`), and the pre-fix predicates ignore
+status, so progress photographs and score events of arbitrary users are reachable for `D`.
+
+**P — Pre-flight (efficiency, NOT safety).** The probe half needs 4 consecutive HTTPS successes.
+At the measured degraded rate of 0.292 that is `0.292⁴ ≈ 0.7 %`; quiescent it is ≈100 %. A
+pre-flight of **20 consecutive successes spanning ≥2 minutes** has probability `0.292²⁰ ≈ 4×10⁻¹¹`
+of passing during degradation, so it reliably detects the *current* phase. **It guarantees nothing
+about the next 30 seconds**, which is precisely why R is mandatory and P only stops windows being
+wasted.
+
+**A — Proof of restoration (MANDATORY).** Restoration must be proven by a catalog query, over
+whichever channel recovers, and **until that proof lands QA must be treated as possibly
+vulnerable** — not assumed restored because the watchdog was armed.
+
+**W — Window accounting.** Authorization must cap the number of windows. The two profile assertions
+score on row count only, so a `401`/`503`/`fetch failed` **counts as a pass** — during degradation a
+pre-fix run can report "leak not reproduced" purely from network failure and will tempt a second
+window. Raw status must be captured for all four requests, and a window whose four requests did not
+all return `< 400` must be recorded as **void, not as evidence**.
+
+**Note on §12.** None of this reclassifies a transient abort as an assertion failure. Every figure
+above is a *network* measurement; the suite-abort-versus-assertion distinction established in §28.6
+and §28.9 is unchanged and still governs how any run output is read.
+
+### 31.6 Unchanged
+
+QA remains at 135/136/137, verified independently in §29.7. No policy rolled back, no migration
+applied, no registry edited, no ID allocated, nothing pushed, production never contacted.
+**Decision A and Decision B remain unmade and are not inferred.**
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
