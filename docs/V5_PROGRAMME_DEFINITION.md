@@ -5584,6 +5584,76 @@ unadopted (§36.4).
 
 ---
 
+## 42 · N-07 / `d09` — ADOPTED AND GUARDED, DELIBERATELY NOT REGISTERED
+
+§36.4 recorded `d09-assessment-access.mjs` as untracked, unregistered, write-heavy and unguarded,
+and said the choice was *adopt-and-guard or delete*. The evidence settles it: **adopt.**
+
+### 42.1 Provenance — established from the repository, not the filename
+
+| Evidence | Finding |
+|---|---|
+| `git log --all -- d09…` | **zero commits, on every branch.** It existed only in this working tree and would have been lost with the directory |
+| file mtime | `2026-09-24 10:17` |
+| `docs/proposed/N07_assessment_access.sql` | exists, `2026-09-24 10:16` — **written one minute before the probe** |
+| `d09`'s own header | *"Every assertion below requires the proposed migration in `docs/proposed/N07_assessment_access.sql`, which is authored and NOT applied … this suite fails by design. That is the pre-fix reading, not a defect … **Do not delete it to make the runner green.**"* |
+
+**Classification: a legitimate security probe pre-staged with its proposed migration (C/E), not an
+abandoned experiment and not a duplicate.** The author anticipated exactly this conversation and
+left the instruction in the file.
+
+### 42.2 Why it cannot run today
+
+`get_client_assessment()` and `assessment_access_log` **do not exist** — zero references in
+`supabase/migrations`, zero in the live QA catalog. All seven RPC assertions would fail on a
+*missing function*, not on a boundary.
+
+And the migration that would create them is blocked: `FINAL_SCREEN_INVENTORY.json:1523` records
+**"OD-30 coach access to PAR-Q (blocks N-07)"**, with `blocked_by: OD-30` on the N-07 entry;
+`SECURITY_LEDGER_PHI.md:138` records the audit table as *"SECURITY GAP — REMEDIATION REQUIRED …
+has never been applied"*. **OD-30 is an owner decision and is not resolved here.**
+
+### 42.3 Coverage — unique, but only of things that do not exist
+
+| Surface | Covered elsewhere? |
+|---|---|
+| `get_client_assessment()` RPC path (7 assertions) | **nowhere** — but the function does not exist |
+| `assessment_access_log` audit write (1 assertion) | **nowhere** — but the table does not exist |
+| medical/PAR-Q columns on the base table | **yes** — `d02` (9 refs), `d10` (3), `d01` (1) |
+
+So registering `d09` today would add **no coverage of any behaviour that exists**, while turning a
+green baseline permanently red with no path to green. That is the opposite of what the ratchet is
+for.
+
+### 42.4 What was done
+
+**Adopted:** the file is now committed, so the asset survives the working directory — which was
+§36.4's actual complaint.
+
+**Guarded:** a positive `QA_REF` allowlist matching `d07`/`d08`/`d10`/`d11`, verified to refuse a
+non-QA target before any database work. This suite needed it more than any other in the directory:
+its arrange step issues `service_role` **DELETE**s against `coach_client_relationships` and
+`assessment_access_log` filtered only by `client_id`. Pointed at the wrong project that is
+destructive, not merely wrong.
+
+**Not registered**, and the two conditions that release it are written into the file itself:
+
+1. N-07's migration numbered, applied, and its objects present — which needs **OD-30** first.
+2. The arrange step must stop mutating **shared** fixture state. `reset()` deletes every
+   `coach_client_relationships` row for the victim — the same fixture `d01` asserts on. **This is
+   the cross-suite contamination class that made a `d11` assertion vacuous in §33.4**, and it must
+   be fixed *before* this suite ever runs alongside the others.
+
+**Not deleted**, and not run against shared QA.
+
+### 42.5 Boundary
+
+`d09` is now safe, preserved and honestly labelled. Taking it further requires **owner decision
+OD-30**, which gates N-07's migration. That is a second owner decision alongside `PD-A24`/`PD-A17`,
+and it is not inferred or resolved here.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
