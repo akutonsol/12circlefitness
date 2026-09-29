@@ -21,6 +21,11 @@ const SUITES = [
   // Until it runs, this suite fails by design; that is the pre-fix reading,
   // not a defect. Do not remove it to make the runner green.
   ['3A-11 identity constraints',       './d08-identity-constraints.mjs'],
+  // N-07. Registered under owner decision OD-56 = A, now that migration 140 is
+  // applied and `get_client_assessment()` / `assessment_access_log` exist. It was
+  // deliberately held OUT of this list while they did not (V5 §42): its seven RPC
+  // assertions would have failed on a missing function rather than on a boundary.
+  ['N-07  assessment access',          './d09-assessment-access.mjs'],
   // P1. The three surfaces migrations 135/136 changed. No other suite probed
   // any of them — verified by search before this one was written. It asserts
   // POST-FIX behaviour only; the pre-fix half of §5.2 is catalog-level and is

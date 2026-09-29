@@ -100,12 +100,23 @@ await reset();
 await svc(REL, { method: 'POST', body: JSON.stringify(
   { coach_id: ids.coach, client_id: ids.victim, status: 'active', initiated_by: 'coach' }) });
 
-await signIn('coach'); await signIn('attacker'); await signIn('victim'); await signIn('admin');
+// These MUST be captured. `lib.mjs`'s `hdrs()` treats `who` as 'anon' | 'service'
+// | <a JWT> — anything else is sent verbatim as `Authorization: Bearer <who>`.
+// This file previously called signIn() and DISCARDED the tokens, then passed the
+// literal strings 'coach'/'attacker'/'victim'/'admin', so every request became
+// `Bearer coach` and QA answered 401 to all eighteen assertions. Seven "passed"
+// on that 401 — a blanket auth rejection scored as a boundary decision. The bug
+// survived because the suite was authored and never executed (N07_IMPLEMENTATION_
+// STATUS.md §5: "None of these has been executed").
+const coachJwt    = await signIn('coach');
+const attackerJwt = await signIn('attacker');
+const victimJwt   = await signIn('victim');
+const adminJwt    = await signIn('admin');
 
 // ═══ 1. the assigned coach ═════════════════════════════════════════════════
 section('1. Assigned coach can read the assessment (QA-1)');
 {
-  const r = await rpc('coach', 'get_client_assessment', { p_client: ids.victim });
+  const r = await rpc(coachJwt, 'get_client_assessment', { p_client: ids.victim });
   check('assigned coach receives the assessment', r.status < 300 && n(r.body) === 1,
         `status=${r.status} rows=${n(r.body)}`);
   const row = Array.isArray(r.body) ? r.body[0] : r.body;
@@ -117,7 +128,7 @@ section('1. Assigned coach can read the assessment (QA-1)');
 // ═══ 2. an unassigned coach ════════════════════════════════════════════════
 section('2. Unassigned callers are refused (QA-2)');
 {
-  const a = await rpc('attacker', 'get_client_assessment', { p_client: ids.victim });
+  const a = await rpc(attackerJwt, 'get_client_assessment', { p_client: ids.victim });
   check('client with no relationship is refused', a.status >= 400, `status=${a.status}`);
 
   const an = await rpc('anon', 'get_client_assessment', { p_client: ids.victim });
@@ -126,7 +137,7 @@ section('2. Unassigned callers are refused (QA-2)');
   // Ending the relationship must revoke access immediately.
   await svc(`${REL}?client_id=eq.${ids.victim}`, { method: 'PATCH',
             body: JSON.stringify({ status: 'ended' }) });
-  const after = await rpc('coach', 'get_client_assessment', { p_client: ids.victim });
+  const after = await rpc(coachJwt, 'get_client_assessment', { p_client: ids.victim });
   check('a coach whose relationship ended is refused', after.status >= 400, `status=${after.status}`);
   await svc(`${REL}?client_id=eq.${ids.victim}`, { method: 'PATCH',
             body: JSON.stringify({ status: 'active' }) });
@@ -135,7 +146,7 @@ section('2. Unassigned callers are refused (QA-2)');
 // ═══ 3. the client's own access is unchanged ═══════════════════════════════
 section("3. The client still reads their own record (QA-3)");
 {
-  const own = await rest('victim', `user_profiles?id=eq.${ids.victim}&select=${MED}`);
+  const own = await rest(victimJwt, `user_profiles?id=eq.${ids.victim}&select=${MED}`);
   check('client reads their own assessment fields', own.status < 300 && n(own.body) === 1,
         `status=${own.status} rows=${n(own.body)}`);
 }
@@ -143,7 +154,7 @@ section("3. The client still reads their own record (QA-3)");
 // ═══ 4. honest emptiness ═══════════════════════════════════════════════════
 section('4. Missing assessment data is reported honestly (QA-4)');
 {
-  const r = await rpc('coach', 'get_client_assessment', { p_client: ids.victim });
+  const r = await rpc(coachJwt, 'get_client_assessment', { p_client: ids.victim });
   const row = Array.isArray(r.body) ? r.body[0] : r.body;
   check('has_assessment is present and boolean',
         !!row && typeof row.has_assessment === 'boolean', `value=${row && row.has_assessment}`);
@@ -153,7 +164,7 @@ section('4. Missing assessment data is reported honestly (QA-4)');
   const ghost = '00000000-0000-0000-0000-0000000000ff';
   await svc(REL, { method: 'POST', body: JSON.stringify(
     { coach_id: ids.coach, client_id: ghost, status: 'active', initiated_by: 'coach' }) });
-  const g = await rpc('coach', 'get_client_assessment', { p_client: ghost });
+  const g = await rpc(coachJwt, 'get_client_assessment', { p_client: ghost });
   check('absent profile returns no row rather than a blank assessment',
         g.status >= 400 || n(g.body) === 0, `status=${g.status} rows=${n(g.body)}`);
   await svc(`${REL}?client_id=eq.${ghost}`, { method: 'DELETE' });
@@ -162,7 +173,7 @@ section('4. Missing assessment data is reported honestly (QA-4)');
 // ═══ 5. no alternate route ═════════════════════════════════════════════════
 section('5. No leak through an alternate route (QA-7)');
 {
-  const direct = await rest('attacker', `user_profiles?id=eq.${ids.victim}&select=${MED}`);
+  const direct = await rest(attackerJwt, `user_profiles?id=eq.${ids.victim}&select=${MED}`);
   check('unassigned client cannot read medical columns directly',
         direct.status >= 400 || n(direct.body) === 0,
         `status=${direct.status} rows=${n(direct.body)}`);
@@ -172,7 +183,7 @@ section('5. No leak through an alternate route (QA-7)');
         anon.status >= 400 || n(anon.body) === 0, `status=${anon.status} rows=${n(anon.body)}`);
 
   // The view used for names must not carry clinical columns.
-  const pv = await rest('attacker', `public_profiles?id=eq.${ids.victim}&select=*`);
+  const pv = await rest(attackerJwt, `public_profiles?id=eq.${ids.victim}&select=*`);
   const leaked = Array.isArray(pv.body) && pv.body[0]
     ? Object.keys(pv.body[0]).filter(k => MED.split(',').includes(k)) : [];
   check('public_profiles projects no clinical column', leaked.length === 0, leaked.join(',') || 'none');
@@ -182,7 +193,7 @@ section('5. No leak through an alternate route (QA-7)');
 section('6. Access is actually logged, and the log is honest (QA-8)');
 {
   await svc(`${LOG}?client_id=eq.${ids.victim}`, { method: 'DELETE' });
-  await rpc('coach', 'get_client_assessment', { p_client: ids.victim });
+  await rpc(coachJwt, 'get_client_assessment', { p_client: ids.victim });
 
   const rows = await svc(`${LOG}?client_id=eq.${ids.victim}&select=coach_id,client_id,event,accessed_at`);
   const row  = Array.isArray(rows.body) ? rows.body[0] : null;
@@ -194,19 +205,19 @@ section('6. Access is actually logged, and the log is honest (QA-8)');
 
   // The subject can inspect who opened their record — this is what makes the
   // on-screen privacy claim verifiable rather than merely asserted.
-  const mine = await rest('victim', `${LOG}?select=coach_id,event,accessed_at`);
+  const mine = await rest(victimJwt, `${LOG}?select=coach_id,event,accessed_at`);
   check('the client can read their own access log', mine.status < 300 && n(mine.body) >= 1,
         `status=${mine.status} rows=${n(mine.body)}`);
 
-  const other = await rest('attacker', `${LOG}?client_id=eq.${ids.victim}&select=coach_id`);
+  const other = await rest(attackerJwt, `${LOG}?client_id=eq.${ids.victim}&select=coach_id`);
   check('a third party cannot read the log', other.status >= 400 || n(other.body) === 0,
         `status=${other.status} rows=${n(other.body)}`);
 
   // An audit trail a caller can edit or erase is not an audit trail.
-  const upd = await mutate('coach', `${LOG}?client_id=eq.${ids.victim}`, 'PATCH',
+  const upd = await mutate(coachJwt, `${LOG}?client_id=eq.${ids.victim}`, 'PATCH',
                            { event: 'assessment_view' });
   check('nobody can UPDATE an audit row', blocked(upd), `status=${upd.status} affected=${upd.affected}`);
-  const del = await mutate('coach', `${LOG}?client_id=eq.${ids.victim}`, 'DELETE');
+  const del = await mutate(coachJwt, `${LOG}?client_id=eq.${ids.victim}`, 'DELETE');
   check('nobody can DELETE an audit row', blocked(del), `status=${del.status} affected=${del.affected}`);
 }
 
@@ -216,7 +227,7 @@ section('7. RESIDUAL FINDING — the base-table path is still wider than N-07');
   // Recorded as an assertion so the exposure cannot be quietly forgotten once
   // the narrow RPC exists. These are EXPECTED TO FAIL until the owner rules on
   // the base-table policy; the RPC does not fix them and never claimed to.
-  const lead = await rest('admin', `user_profiles?id=eq.${ids.victim}&select=${MED}`);
+  const lead = await rest(adminJwt, `user_profiles?id=eq.${ids.victim}&select=${MED}`);
   check('S-N07-a  a team lead cannot read a member\'s medical columns',
         lead.status >= 400 || n(lead.body) === 0,
         `status=${lead.status} rows=${n(lead.body)} — is_team_lead_of() grants the whole row`);
