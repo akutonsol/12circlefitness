@@ -5056,6 +5056,132 @@ an unguarded write-heavy probe loose in the working tree is the worst of the thr
 
 ---
 
+## 37 · CI RAN THE REAL THING — K-04 EVIDENCED IN CI, BUT 138 TRIPPED A RATCHET. **NOT CLOSED.**
+
+The branch was pushed under owner authorization: `16ba19f..b700c30`. CI run **`36596636664`**
+executed **`headSha b700c303e0b21df9a9c0e9893f5d33100b3399a6`** — the intended commit, not an older
+SHA. **Workflow conclusion: `failure`. K-04 is therefore NOT closed.**
+
+### 37.1 Every required step, and whether it actually executed
+
+| # | Step | Result |
+|---|---|---|
+| 3 | Are the QA credentials provisioned? | **success** — `present=true`, so nothing downstream skipped |
+| 6 | Confirm the target is QA and not production | **success** — exact-host gate held |
+| 7 | Fixture identities | **success** |
+| 8 | **Live security suite** | **success — executed, not skipped** |
+| 9 | Live AI suite | **success** — 49/49 |
+| 10 | **Live SQL evidence — FG-1, FG-2, ENV-3** | **FAILURE** |
+| — | Static guards (job) | **success** — §35.1's manifest fix worked; without it `live-qa` would never have started |
+| — | Flutter — analyze, test, QA web build (job) | **success** |
+| — | Negative control (job) | **success** |
+
+No required step was skipped. Per §35.5 the job-level result was **not** taken on trust — step
+conclusions were read individually.
+
+### 37.2 K-04 in CI — it ran, and it passed
+
+```
+██  K-04  event registration integrity
+K-04  event_registration integrity: 9/9 passed
+  PASS  K-04  event registration integrity     9/9
+  396/396 assertions passed across 10 suites
+```
+
+**Ten suites, not the eight of §36.1.** And the tree-sensitive guard executed in the Flutter job:
+
+```
+✅ billing_entitlement_contract_test.dart: K-04 a paid event registration cannot be
+   self-granted, and an attendee cannot be reassigned
+```
+
+So both CI artefacts the rung needs exist and are green. *(396 in CI vs 397 locally: `D-02` ran
+39/39 in CI against 40/40 locally — fixture-dependent variance in another suite, not a K-04
+result. Recorded rather than smoothed over.)*
+
+### 37.3 ⚠ THE FAILURE IS MINE — migration 138 tripped the SP-5 ratchet
+
+```
+FAIL SP-5  EXECUTE grants to PUBLIC or anon: 1        (run 36596636664, b700c30)
+PASS SP-5  EXECUTE grants to PUBLIC or anon: 0        (run 36368081140, 16ba19f)
+RESULT: FAIL — reported as found. The assertion is not weakened to go green.
+```
+
+**Cause, verified against the live QA dump rather than guessed.** 138 created
+`enforce_registration_integrity()` and issued **no grant statement at all**, so the function kept
+PostgreSQL's default EXECUTE-to-PUBLIC. Once Supabase's default privileges added `authenticated`
+and `service_role`, its `proacl` became **non-NULL** — which makes the PUBLIC entry explicit and
+countable by SP-5. The contrast with the migration 138 copied its shape from is exact:
+
+| | |
+|---|---|
+| `113` `enforce_relationship_integrity()` | **`REVOKE ALL … FROM PUBLIC`** present |
+| `138` `enforce_registration_integrity()` | **absent** — 138 copied the trigger and the reasoning and missed the grant line |
+
+**Severity, stated honestly rather than inflated: there is no known exploit path.** The function
+`RETURNS trigger`, and PostgreSQL refuses a direct call (`0A000`); PostgREST does not expose
+trigger-returning functions as RPC. This is a **posture** regression against a ratchet the
+programme keeps at zero — not a live exposure. It is repaired anyway, because the guard's own
+output states the rule: *the assertion is not weakened to go green.*
+
+**Repair: migration `139_registration_trigger_grant_posture.sql`** — `REVOKE ALL … FROM PUBLIC`
+and `FROM anon`. **138 is NOT rewritten in place** (§8:219); it is applied on QA and its ledger row
+stands. `authenticated`/`service_role` are deliberately left alone: PostgreSQL does not check
+EXECUTE on a trigger function when the trigger fires, so revoking them buys nothing and risks the
+check-in path.
+
+**Verified what could be verified locally, and honest about what could not.** `d11` still passes on
+the local target after 139, so the revoke does not stop the trigger firing. **The SP-5 condition
+itself cannot be reproduced locally** — the disposable target's ACL is `postgres=X/postgres`
+(NULL-equivalent for SP-5's purposes) because of the §29.2 grant repair, whereas QA's is non-NULL.
+**139's fix is therefore FIXED IN CODE and unvalidated until it reaches QA.**
+
+### 37.4 The second failure is NOT mine
+
+```
+FG-2a … psql:supabase/tests/workout/phase2-contract.sql:211: ERROR: duplicate key value
+violates unique constraint "workout_sessions_one_active_per_user"
+DETAIL: Key (user_id)=(5470a95f-…) already exists.
+```
+
+`FG-2a` **passed** in run `36368081140`, so this is leftover `workout_sessions` fixture state on QA
+— a `P2-PROBE session` row left `in_progress` and colliding on the next run. That uuid is **not**
+one of the `d11` fixtures. It is pre-existing test-hygiene debt in that suite, of the same class as
+the `d10-probe` leftover that made a `d11` assertion vacuous in §33.4, and it is **not touched
+here**: it belongs to `SEC-11`/Phase 2, not to K-04.
+
+### 37.5 Evidence reconciliation, and why K-04 still does not close
+
+| Rung | Evidence | State |
+|---|---|---|
+| FIXED IN CODE | 138 committed | present |
+| FIXED ON QA | ledger `138 \| 138 \| 138`; trigger and `WITH CHECK` in the live catalog | present |
+| VERIFIED LIVE | `d11` on QA **2/8 → 9/9**, each verdict a status **plus** read-back | present |
+| VERIFIED IN CI | `d11` **9/9 in CI run 36596636664**, plus the tree-sensitive guard green in the same run | present |
+
+All four rungs are individually evidenced, and CI, QA and local evidence reconcile.
+**K-04 nonetheless remains `REMEDIATED`, and the registry was not touched.** Two reasons, and the
+second is the one that matters:
+
+1. The workflow concluded **`failure`**, and the standing instruction is not to close on a failed
+   run.
+2. **K-04's own remediation left a security ratchet red.** Closing a finding whose fix introduced a
+   posture regression — one that is still live on QA, because 139 is not applied — would be
+   closing it on a state nobody should sign. The guard is doing exactly its job.
+
+### 37.6 Unchanged
+
+§24.3 remains **FIXED ON QA**, not `VERIFIED LIVE`. `MASTER_PRODUCT_DECISIONS.md` untouched.
+`PD-A24`/`PD-A17` neither invented nor resolved. `d09` neither adopted, executed nor modified — it
+remains untracked, and `check:migrations` would now fail on it for the same reason it failed on an
+uncommitted 139: *"an untracked migration is a schema change that exists on somebody's laptop and
+nowhere else."* Production never contacted.
+
+`139` is declared **`pending`** in `supabase/expected_applied.json` with its reason and its gate, so
+the static manifest guard stays green while it is authored-but-unapplied.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
