@@ -71,27 +71,43 @@ AiNutritionService serviceWith(
 
 void main() {
   // AI-001
-  group('AI-001 requests go to the environment API', () {
-    test('posts to {API_BASE_URL}/ai/nutrition/message', () async {
+  //
+  // PD-A17 = A, resolved as A2 (V5 §46). These used to assert
+  // `{API_BASE_URL}/ai/nutrition/message` on a NestJS API that was never
+  // deployed — `API_BASE_URL` was empty in every environment, so this feature
+  // could not work in any build. They now assert the Edge Function URL. The
+  // rest of this file is UNCHANGED and still passes: the auth header, the
+  // payload shape, the `{ text }` response and every status mapping are the
+  // same, which is the evidence the port preserved the contract.
+  group('AI-001 requests go to the ai-nutrition Edge Function', () {
+    test('posts to {SUPABASE_URL}/functions/v1/ai-nutrition', () async {
       final adapter = _RecordingAdapter();
       await serviceWith(adapter).sendMessage(message: 'hi', history: []);
 
       expect(adapter.lastRequest!.uri.toString(),
-          'https://qa-api.12circle.test/ai/nutrition/message');
+          'https://qa-ref.supabase.co/functions/v1/ai-nutrition');
       expect(adapter.lastRequest!.method, 'POST');
     });
 
-    test('a dev build targets the dev API instead', () async {
+    test('it follows the build\'s own Supabase project, not a fixed host',
+        () async {
       final adapter = _RecordingAdapter();
-      final dev = resolveDefaults('dev');
-      await serviceWith(adapter, env: dev)
+      const other = EnvConfig(
+        environment: AppEnvironment.dev,
+        supabaseUrl: 'https://dev-ref.supabase.co/',
+        supabaseAnonKey: 'dev-anon-key',
+        stripePublishableKey: 'pk_test_dev',
+        apiBaseUrl: '',
+      );
+      await serviceWith(adapter, env: other)
           .sendMessage(message: 'hi', history: []);
 
+      // Note the trailing slash on the configured URL: it must not double.
       expect(adapter.lastRequest!.uri.toString(),
-          'http://localhost:3000/ai/nutrition/message');
+          'https://dev-ref.supabase.co/functions/v1/ai-nutrition');
     });
 
-    test('a build with no API base URL fails before sending anything',
+    test('a build with no Supabase URL fails before sending anything',
         () async {
       final adapter = _RecordingAdapter();
       final unconfigured = resolveDefaults('qa');
@@ -102,6 +118,16 @@ void main() {
         throwsA(isA<AiNutritionException>()),
       );
       expect(adapter.lastRequest, isNull);
+    });
+
+    test('the anon key rides alongside the user token, and it is only the '
+        'publishable one', () async {
+      final adapter = _RecordingAdapter();
+      await serviceWith(adapter).sendMessage(message: 'hi', history: []);
+
+      expect(adapter.lastRequest!.headers['apikey'], 'qa-anon-key');
+      expect(adapter.lastRequest!.headers['Authorization'],
+          'Bearer supabase-access-token');
     });
   });
 

@@ -73,6 +73,12 @@ verify_jwt = true
 [functions.analyze-food-image]
 verify_jwt = true
 
+# PD-A17 = A, resolved as A2 (V5 §46). The Edge replacement for the NestJS route
+# POST /ai/nutrition/message, which was that API's only live surface. Spends a
+# paid Anthropic credential, so it is JWT-verified like every other AI function.
+[functions.ai-nutrition]
+verify_jwt = true
+
 [functions.explain-decision]
 verify_jwt = true
 

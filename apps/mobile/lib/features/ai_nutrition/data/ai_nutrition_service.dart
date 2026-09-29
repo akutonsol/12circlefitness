@@ -14,12 +14,19 @@ class AiNutritionException implements Exception {
 
 /// Client for the AI Nutrition Coach.
 ///
-/// The Anthropic integration lives behind the 12 Circle NestJS API — this class
-/// holds no AI credential of any kind. It forwards the user's turn together
-/// with their Supabase access token; the API verifies that session and calls
-/// Claude with the server-held key.
+/// The Anthropic integration lives behind the `ai-nutrition` Supabase Edge
+/// Function — this class holds no AI credential of any kind. It forwards the
+/// user's turn together with their Supabase access token; the function verifies
+/// that session and calls Claude with the server-held key.
+///
+/// PD-A17 = A, resolved as A2 (V5 §46). This used to POST to
+/// `{API_BASE_URL}/ai/nutrition/message` on a NestJS API that was never
+/// deployed anywhere — `API_BASE_URL` was empty in every environment, so the
+/// feature could not work in any build. It now targets the Edge Function, which
+/// is deployed alongside the other nineteen. The transport is still Dio and the
+/// request/response contract is unchanged.
 class AiNutritionService {
-  static const String messageEndpoint = '/ai/nutrition/message';
+  static const String functionName = 'ai-nutrition';
 
   final Dio _dio;
   final EnvConfig _env;
@@ -37,16 +44,21 @@ class AiNutritionService {
       Supabase.instance.client.auth.currentSession?.accessToken;
 
   /// Absolute URL of the AI nutrition endpoint for this build's environment.
-  String get endpointUrl => _env.apiUri(messageEndpoint);
+  String get endpointUrl {
+    final base = _env.supabaseUrl.endsWith('/')
+        ? _env.supabaseUrl.substring(0, _env.supabaseUrl.length - 1)
+        : _env.supabaseUrl;
+    return '$base/functions/v1/$functionName';
+  }
 
   Future<String> sendMessage({
     required String message,
     required List<Map<String, dynamic>> history,
     File? imageFile,
   }) async {
-    if (!_env.hasApiBaseUrl) {
+    if (_env.supabaseUrl.isEmpty) {
       throw const AiNutritionException(
-        'AI coach is unavailable: this build has no API_BASE_URL configured.',
+        'AI coach is unavailable: this build has no SUPABASE_URL configured.',
       );
     }
 
@@ -69,6 +81,9 @@ class AiNutritionService {
         options: Options(headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          // The Edge gateway requires an apikey alongside the user's token; it
+          // is the publishable anon key, never a service credential.
+          'apikey': _env.supabaseAnonKey,
         }),
         data: body,
       );
