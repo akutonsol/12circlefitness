@@ -1031,12 +1031,17 @@ authoritatively by CI run **36603451032** (`PASS SP-5 EXECUTE grants to PUBLIC o
 `FG-1` moving to `5 PASS · 0 FAIL`. The legitimate vendor check-in still returns
 `204 affected=1`, so the control closes the bypass without breaking the feature.
 
-**The CI workflow is red, and that red is NOT this finding.** The sole remaining failure is
-`FG-2a`, a `SEC-11`/Phase-2 **test-precondition** defect: `phase2-contract.sql:17` hardcodes a
-shared real QA user and assumes it has no active workout session, which
-`workout_sessions_one_active_per_user` refuses once that account does. It touches nothing `K-04`
-owns — no policy, trigger, grant or table of this finding — and every K-04 assertion passed in the
-same run. Tracked separately under `SEC-11`.
+**CI is GREEN — run `36605282711` at `3dc73bd`, all seven jobs `success`.** Step 10 passes,
+`SP-5` reads `0`, `K-04` reads `9/9` inside `396/396` across ten suites, and `FG-2a` reads
+`RESULT: PASS`.
+
+`FG-2a` had been the sole remaining failure and was never this finding: it was a `SEC-11`/Phase-2
+**test-precondition** defect — `phase2-contract.sql` hardcoded a shared real QA account and then
+inserted an `in_progress` session for it, which `workout_sessions_one_active_per_user` refuses
+once that account has a live session. It is fixed by giving the suite a deterministic demo
+fixture that already satisfies the precondition; **no QA row was deleted or mutated and no
+assertion was weakened.** `SEC-11`'s own finding (migration 120) is unaffected — the defect was in
+its test asset, not in the control.
 
 ---
 
