@@ -5289,6 +5289,133 @@ the rule this section followed — *"the assertion is not weakened to go green."
 
 ---
 
+## 39 · OWNER-AUTHORIZATION PACKET — APPLY MIGRATION 139 TO QA
+
+**Preparation only. Nothing in this section was executed against QA, nothing was pushed,
+production was not contacted, and no QA row was cleaned.**
+
+### 39.1 What 139 is
+
+Three statements, and only three:
+
+```sql
+BEGIN;
+REVOKE ALL ON FUNCTION public.enforce_registration_integrity() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.enforce_registration_integrity() FROM anon;
+COMMENT ON FUNCTION public.enforce_registration_integrity() IS '…';
+COMMIT;
+```
+
+No policy, no trigger, no column, no data, no behaviour. It removes the two grantees `SP-5`
+counts and restores the posture migration **113** already carries for its equivalent trigger
+function — the line **138** omitted.
+
+### 39.2 Ordering and dependency
+
+139 references `enforce_registration_integrity()`, which **138 creates**. So 138 must be applied
+first, and it is: the QA ledger reads `138 | 138 | 138`. 139 is the highest authored version, is
+declared `pending` with a reason and a gate, and a read-only `supabase db push --linked --dry-run`
+confirms it is **the only** migration that would be applied:
+
+```
+Would push these migrations:
+ • 139_registration_trigger_grant_posture.sql
+```
+
+### 39.3 The mechanism, validated rather than asserted
+
+§37.3 could not reproduce `SP-5` on the disposable target, because its ACL is
+`postgres=X/postgres` — no `PUBLIC` entry — while QA's is non-NULL and retains one. So QA's shape
+was **reconstructed deliberately** on the local target and the fix measured end to end:
+
+| Local step | `proacl` | SP-5 |
+|---|---|---|
+| grant `EXECUTE … TO PUBLIC` (reproduces QA) | `postgres=X/postgres \| **=X/postgres**` | **1** |
+| apply 139's revokes | `postgres=X/postgres` | **0** |
+
+`=X/postgres` is the PUBLIC entry — grantee `0` — which is exactly what `SP-5` counts. **139 drives
+the assertion from 1 to 0 by removing it.** This is the same transition expected on QA.
+
+### 39.4 That it does not disturb K-04
+
+`d11` re-run on the local target **after** the revokes: **8/8, every assertion unchanged** —
+`user_id` rewrite `403`, victim PII `rows=0`, `paid` self-grant `403`, member INSERT forced
+`paid=false`, `qr_code` `403`, event move `403`, and the vendor's real check-in still
+`204 affected=1`.
+
+The reason it cannot disturb K-04 is structural, not empirical: **PostgreSQL does not check
+`EXECUTE` on a trigger function when the trigger fires.** The grant is irrelevant to the boundary;
+only the `SP-5` ratchet reads it. *(The local copy carries 8 assertions rather than 9 — it predates
+the anti-vacuity precondition added in §33.4. The 9-assertion version is what runs on QA and in
+CI.)*
+
+### 39.5 Preconditions to check immediately before applying
+
+1. `supabase/.temp/project-ref` = `eyqtldjqpgpljlqvpowh` (**QA**), with an explicit abort if it
+   reads the production ref `nxdbooufqzkpslkcogxc`.
+2. `supabase db push --linked --dry-run` lists **exactly one** migration, `139`.
+3. QA ledger still reads `138` applied.
+4. Working tree clean; `139` committed (an untracked migration fails `check:migrations`).
+
+### 39.6 The exact command
+
+```
+supabase db push --linked
+```
+
+Run from the repository root, against the already-verified linked QA project. **No `psql`, no
+pooler, no `--db-url`, no sub-agent** — the same established workflow 138 used.
+
+### 39.7 Post-apply verification
+
+- `supabase migration list --linked` shows `139 | 139 | 139`.
+- A read-only `supabase db dump --linked`: the function's grants show **no** `PUBLIC`/`anon` entry;
+  `trg_registration_integrity` and the `WITH CHECK` on
+  `"vendors check in own event registrations"` are **unchanged**; 135/136/137 undisturbed.
+- `d11` against QA: still **9/9**.
+- Move `expected_applied.json` → `applied_through: "139"` and delete the `pending` entry, then
+  `node supabase/scripts/check-migration-manifest.mjs` → exit 0.
+
+### 39.8 CI rerun
+
+Commit the manifest move, push the branch, and read **step conclusions, not the job result**
+(§35.5 — a missing secret makes the job report `success` while skipping everything):
+
+- `FAIL SP-5 … : 1` must become **`PASS SP-5 … : 0`**.
+- `K-04 event_registration integrity: 9/9` must still appear inside the ten-suite run.
+- The tree-sensitive guard must still pass in the Flutter job.
+- `ENV-3` must stay `5 PASS · 0 FAIL` with `L-5` now reading 140 rows vs 140 declared.
+
+### 39.9 K-04 closure implications
+
+With `SP-5` green on QA, the §5.2 objection in §38.5 — *"a closure that redefines a database object
+must prove it preserved every property … grants"* — is discharged, and all four §2.1 rungs remain
+evidenced. **K-04 would then be eligible for `VERIFIED_CLOSED`.**
+
+**One caveat that must not be lost:** `FG-2a` will still fail, so the workflow will still be red.
+That failure is `SEC-11`/Phase 2 and touches nothing K-04 owns. Closing K-04 against a red workflow
+is defensible **only** because the specific failure is identified, attributed elsewhere, and
+unrelated — and that reasoning must be written into the registry entry rather than left implicit.
+
+### 39.10 FG-2a — deliberately untouched
+
+A leftover `in_progress` `workout_sessions` row (`user_id 5470a95f…`) collides with
+`workout_sessions_one_active_per_user`. **Not cleaned.** Deleting QA data to turn a suite green is
+editing the environment to fit the test; the defect is that `phase2-contract.sql` does not clean up
+after itself, which is `SEC-11`'s to fix. Surfaced, not swept.
+
+### 39.11 Remaining risks
+
+- **Low.** 139 is three statements, transactional, and touches one function's ACL.
+- **Reversibility:** re-granting is a one-line inverse; no data is touched.
+- **The `SP-5 → 0` transition is validated by construction locally, not observed on QA** — that is
+  the one thing only the apply can prove.
+- If `SP-5` does **not** go to 0 after applying, a second function carries a `PUBLIC`/`anon`
+  `EXECUTE` grant and the count was coincidentally 1. The post-apply dump would identify it, and
+  K-04 would stay `REMEDIATED` until resolved.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
