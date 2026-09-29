@@ -141,10 +141,12 @@ Deno.serve(async (req: Request) => {
     const { data: { user } } = await userDb.auth.getUser();
     if (!user) return json({ error: 'Missing or invalid access token' }, 401);
 
-    // Mirrors the Nest service's `isConfigured` check: a MISCONFIGURED server
-    // must not be reported as a rejected credential.
-    if (!ANTHROPIC_API_KEY) return json({ error: 'AI is not configured' }, 503);
-
+    // ORDER MATTERS, and it is Nest's: guard -> ValidationPipe -> service. The
+    // pipe ran before anything touched the Anthropic client, so a malformed body
+    // was a 400 whether or not the server held a key. Checking configuration
+    // first would turn every validation error into a 503 on an unconfigured
+    // environment — which is what this function did until a QA probe showed
+    // `unknown property` returning 503 instead of 400.
     let body: unknown;
     try {
       body = await req.json();
@@ -154,6 +156,10 @@ Deno.serve(async (req: Request) => {
 
     const invalid = validate(body);
     if (invalid) return json({ error: invalid }, 400);
+
+    // Mirrors the Nest service's `isConfigured` check: a MISCONFIGURED server
+    // must not be reported as a rejected credential.
+    if (!ANTHROPIC_API_KEY) return json({ error: 'AI is not configured' }, 503);
 
     const dto = body as {
       message: string;
