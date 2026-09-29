@@ -3683,6 +3683,91 @@ Also confirmed: `is_active_coach_of(text)` **delegates** to the uuid overload in
 
 ---
 
+## 26 · CORRECTION TO §24, A REGRESSION REPAIRED, AND ONE GAP CLOSED
+
+### 26.1 · §24's "28/28" was OVERSTATED — corrected
+
+An independent review of the probe found **four of the 28 assertions could pass while the boundary
+they name was broken** — and **those four were the entire load-bearing evidence for `SEC-PHI-9` and
+`SEC-PHI-10`.**
+
+| defect | why it mattered |
+|---|---|
+| `setRelationship` **discarded its INSERT return** | a failed `pending`/`cancelled` insert left **no row**, the coach was denied, and the negative assertion passed **proving nothing about the status predicate** — it merely re-proved "no relationship → denied" |
+| the loops **never asserted `status < 400`** | `n()` returns 0 for an error body, so **a 500 raised from inside the RLS predicate — precisely the `22P02` regression 136's guard exists to prevent — would have scored as a successful denial** |
+
+**Both are fixed.** The relationship row is now **read back and its status asserted**
+(`insert=201 readback=pending` appears in the evidence), and both loops require `status < 400`.
+
+**Three further weaknesses fixed:** the write-refusal used `blocked()`, which accepts **any** status
+≥ 400, so a 405 or 500 would pass and the grant hardening would go untested — it now asserts **403
+specifically**; storage requests sent `apikey: SERVICE` instead of `ANON`, which is not the request a
+phone makes; and the suite carried only `lib.mjs`'s production **blocklist** — it now also carries
+d07/d08's **positive `QA_REF` allowlist**, because *"is not production" is not "is QA"* and this is
+the most write-heavy suite in the directory.
+
+**Also corrected: `'ended'` is not a status this product writes.** It appears **nowhere** in the
+schema; `'cancelled'` is the real terminal state. The suite now exercises the real one.
+
+### 26.2 · NEW COVERAGE — 136's headline property was entirely untested
+
+136 exists to make a non-uuid storage path **deny rather than raise `22P02` from inside an RLS
+predicate**. **Nothing tested that.** An arm now places an object at a non-uuid folder via
+`service_role`, then lists it as an **ACTIVE** coach so **only the guard can deny**:
+
+> **Result: `status=200`, `objects=0` — denies cleanly, no error.** The fail-closed guard is now
+> actually exercised.
+
+**Revised result: 37/37**, up from 28/28, with the four unsound assertions **made sound**.
+
+### 26.3 · A regression migration 136 introduced — found live, repaired in 137
+
+**`PGRST203` — the two `is_active_coach_of` overloads shared the parameter name `target_user`, and
+PostgREST resolves RPC overloads BY PARAMETER NAME**, so every `/rpc/is_active_coach_of` call became
+ambiguous. Found by `d01` against live QA (status 300).
+
+**Scope, stated accurately:** **the RLS policies were never ambiguous** — inside SQL the argument
+type is known at parse time, and the live catalog confirmed both resolved. **Only the PostgREST RPC
+path broke.** No application code calls it, but it is `EXECUTE`-granted to `authenticated` and
+reachable at `/rpc/`, so it was a real regression in a reachable surface.
+
+**Migration 137** renames the text overload's parameter to `target_path`. Because Postgres cannot
+rename a parameter via `CREATE OR REPLACE`, the function is dropped and recreated **with the
+dependent policy dropped and recreated in the same transaction**, so the boundary is never absent
+from a committed state. **`D3` is unchanged** — same overload, body, delegation and grants; only the
+name differs, invisible to positional callers.
+**Verified live: `/rpc/is_active_coach_of` now returns `false` cleanly, zero `PGRST203`.**
+
+### 26.4 · The §25 bucket gap is CLOSED
+
+**`progress-photos` is `public = false`** — confirmed via the Storage API. **The RLS policies
+genuinely govern reads, so §24's `SEC-PHI-9` result is not moot.**
+
+*(Recorded as corroboration, not as new findings: `coach-media`, `avatars` and `exercise-media` are
+`public = true` — already registered as **`REL-31`** (P1, Wave 7) and **`QAX-SEC-10`** (P3). **No new
+ID allocated.**)*
+
+### 26.5 · Suite results — genuine assertions vs infrastructure
+
+Run individually with retries, because a whole-suite pass rarely completes:
+
+| suite | result |
+|---|---|
+| `d01` coach_client_relationships | **38/43** — real failures, one of which was the `PGRST203` regression above |
+| `d03` weekly_checkins | **27/27** |
+| `d10` P1 boundaries | **37/37** |
+| `d02`, `d04` | **network-failed — not a security result** |
+
+**The harness remains the limiting factor, not the code.** `run.mjs` never completed a clean pass;
+individual suites do. **Any future closure evidence must come from a run that completed.**
+
+### 26.6 · Status — unchanged
+
+**`QAX-SEC-09`, `SEC-PHI-9`, `SEC-PHI-10` remain OPEN.** Registry **not** edited. The §5.2 pre-fix
+request-level half is still absent (§24.3), and §25's attacker-writable gate is still undecided.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
