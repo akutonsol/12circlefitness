@@ -948,12 +948,39 @@ directly. Combined with **P-11** (no Anthropic spend cap in QA and no rate limit
 
 ---
 
-### BIL-3 · A paid event ticket can be self-granted
-`K-04` · **P0** · `READY_TO_REMEDIATE` · Wave 6
+### BIL-3 · A paid event ticket can be self-granted — **and a vendor can harvest attendee PII**
+`K-04` · **P0** · `READY_TO_REMEDIATE` · **V5 P1 (pulled forward from Wave 6 by OWNER DECISION A,
+2026-09-29)** — identity and linkage unchanged; no new finding ID allocated
 
 `event_registrations`' policy has no `WITH CHECK`, so a member sets `paid`/`payment_id`
 themselves. **Fix in one change with DAT-4** — same table. Corrected repro: omit
 `ticket_code`.
+
+**IMPACT EXTENDED 2026-09-29 — the same missing `WITH CHECK` is an authorization defect, not
+only a billing one.** `"vendors check in own event registrations"` is `FOR UPDATE` with no
+`WITH CHECK`, so Postgres reuses `USING`, which constrains `event_id → vendor_id` and **never
+`user_id`**. Since migration 135, `event_attendee_profiles` is gated solely by
+`hosts_event_for()`, which trusts that column — so a self-registered vendor reassigns a
+registration to any victim and reads their `first_name`, `last_name`, `email`, `avatar_url`.
+Recorded in `V5_PROGRAMME_DEFINITION.md` §25; **that surface did not exist when K-04 was
+written**, which is why the registry carried only the billing impact.
+
+**EXECUTED PROOF ON QA, 2026-09-29** (§25.5 required one before remediation scoping; this
+replaces the catalog-derived chain). `d11-event-registration-integrity.mjs`, **2/8** —
+`user_id` rewritten to the victim (`204`, confirmed by service-role read-back) and the
+victim's **email actually disclosed** through the view (`200 rows=1`); `paid` self-granted
+(`204`); `qr_code` forged (`204`); registration moved between events (`204`). **No rollback
+was performed to obtain this: the defect is live on QA and has never been remediated there.**
+
+**REMEDIATION WRITTEN — `supabase/migrations/138_event_registration_integrity.sql`.**
+`trg_registration_integrity` (the migration-113 trigger pattern, because a `WITH CHECK` sees
+only the NEW row and cannot express immutability) freezes `user_id`, `event_id`, `qr_code`,
+`paid`, `payment_id`; the missing `WITH CHECK` is added. Verified **8/8 on a disposable local
+target**, including that the vendor's real check-in still works.
+
+**STATUS DELIBERATELY NOT ADVANCED.** 138 is **not applied to QA** — the apply was refused by a
+permission control (see §32). This entry is **not** `REMEDIATED` and **not** `VERIFIED_CLOSED`;
+the local 8/8 is supplemental and is **not** `VERIFIED LIVE`.
 
 ---
 

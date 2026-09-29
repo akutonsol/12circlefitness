@@ -4512,6 +4512,134 @@ applied, no registry edited, no ID allocated, nothing pushed, production never c
 
 ---
 
+## 32 · OWNER DECISIONS A AND B APPLIED · BIL-3/K-04 REMEDIATION · A PERMISSION BOUNDARY
+
+Both owner decisions arrived explicit and final and are applied as given. Neither was inferred.
+
+### 32.1 Decision B — applied by NOT acting
+
+**NO rollback.** QA stays in its secure 135/136/137 state. **§24.3 is NOT upgraded to
+`VERIFIED LIVE`**, and the missing QA pre-fix half for `QAX-SEC-09` remains documented as
+**unavailable because the required rollback is not authorized**. The B2 disposable-target
+evidence is retained exactly as recorded in §28/§29 — supplemental probe-discrimination evidence,
+nothing more. Per the owner's instruction, **no rollback-safety argument is built on an
+independent restore channel**; §31.4 measured those channels at `P(DB down │ HTTPS down) = 51.4 %`
+and that finding stands.
+
+### 32.2 ⚠ CORRECTION — §25.4's OD-14 blocker does not exist
+
+§25.4 stated that closing K-04 "touches the **`F-21`/`OD-14`** policy-shape population, itself an
+open owner decision." **That is wrong, and it was load-bearing** — it was one of the two reasons
+§25 gave for treating this as an owner boundary rather than fixing it.
+
+Verified: `F21_BLAST_RADIUS.md` defines the population as **4 tables** in its §2a
+(`workout_program_assignments`, `client_nutrition_plans`, `client_habits`, `coaching_calls`) and
+**11** in its §2b. **`event_registrations` is in neither** — it does not appear in that document at
+all. `OD-14` is a decision about the **programme-assignment** model ("who may create a programme",
+`F21_BLAST_RADIUS.md:181-199`) and does not gate this table. **No owner decision beyond Decision A
+was required to write this remediation.**
+
+### 32.3 The remediation — `138_event_registration_integrity.sql`
+
+Decision A instructed: preserve the finding identity, invent no new architecture. The registry's
+own remediation for `K-04` is the missing `WITH CHECK`; §25.4 adds "or an immutability trigger".
+Both are implemented, and the trigger is the primary control **because a `WITH CHECK` cannot do
+the job**: it sees only the NEW row, so it cannot express "this column did not change". That is
+not a new pattern — **migration 113 solved the identical problem on
+`coach_client_relationships` (113:118-176)** and states the same reasoning in its header. 138
+follows that shape, including the `auth.uid() IS NULL` passthrough for internal callers.
+
+Frozen on UPDATE: `user_id` (the whole of `hosts_event_for()`'s trust, and therefore the §25 PII
+path), `event_id`, `qr_code` (a bearer credential, the `invite_token` class), `paid`, `payment_id`.
+Forced on a client INSERT: `paid := false`, `payment_id := NULL`.
+
+**The legitimate writers were read, not assumed** — `event_ticket_screen.dart:62-67` sends
+`{event_id, user_id, qr_code, status}` and `vendor_service.dart:90-93` sends
+`{checked_in_at, status}`. Nothing 138 freezes is sent by either.
+
+**Deliberately out of scope:** `DAT-4`/`I-COM-01`. The registry says to fix it "in one change" with
+K-04, but it is a **Wave 3 application-layer** defect and Decision A pulled forward **BIL-3/K-04
+only**. Absorbing it would be the scope expansion §25.4 warned against.
+
+### 32.4 REQUEST-LEVEL EVIDENCE — and why this one needs no rollback
+
+**Unlike `QAX-SEC-09`, the §5.2 pre-fix half is obtainable here without reverting anything**: the
+defect is live on QA right now and has never been remediated there. The red half below is a real
+QA request set against synthetic fixture identities. **No exposure was manufactured to obtain it.**
+
+| Assertion | **QA · BEFORE 138** | **local · AFTER 138** |
+|---|---|---|
+| vendor cannot rewrite `user_id` to the victim | **FAIL — `204`, read-back = VICTIM** | PASS — `403` |
+| victim's PII unreachable via `event_attendee_profiles` | **FAIL — `200 rows=1`, EMAIL DISCLOSED** | PASS — `200 rows=0` |
+| vendor cannot self-grant `paid = true` | **FAIL — `204`, `paid=true`** | PASS — `403` |
+| member cannot INSERT `paid = true` | **FAIL — `201`, `paid=true`** | PASS — `201`, `paid=false` |
+| vendor cannot forge `qr_code` | **FAIL — `204`** | PASS — `403` |
+| vendor cannot move the registration | **FAIL — `204`** | PASS — `403` |
+| **REGRESSION:** vendor can still check in | PASS — `204 affected=1` | PASS — `204 affected=1` |
+| | **2/8** | **8/8** |
+
+**This is the executed proof §25.5 required** *("the bypass is derived from the catalog, not
+executed … an executed proof should precede remediation scoping")*. §25's five-link chain is now
+demonstrated end to end with real requests, not inferred from Postgres semantics.
+
+**The local pre-fix run reproduced QA's pre-fix result exactly — 2/8, the same six failures** —
+which is direct fidelity evidence for these assertions specifically. The §29.2 caveat still
+applies to the target generally, and the §29.3 argument applies here too: the local grant repair
+made `anon`/`authenticated` **more** privileged, so it biases these deny-assertions toward
+**failing**, never toward passing. An 8/8 on that target is therefore conservative.
+
+**The post-fix half is `FIXED IN CODE` plus a disposable-target result. It is NOT `VERIFIED LIVE`
+and NOT `FIXED ON QA`,** because 138 could not be applied to QA (§32.6).
+
+### 32.5 Two soundness defects found in my own probe, and fixed before recording
+
+Both would have produced **false green**, and neither was reinterpreted away:
+
+1. **A false PASS from a foreign key.** The first revision sent
+   `{paid: true, payment_id: <random uuid>}` and scored the resulting `409` as "blocked". But
+   `event_registrations_payment_id_fkey REFERENCES payments(id)` — the random uuid was rejected by
+   the **FK**, and the authorization control was never exercised. Testing `paid` alone (no FK)
+   revealed `204 paid_now=true`: **the billing self-grant was wide open.** The original reading
+   would have reported a defect as protected.
+2. **Cross-assertion contamination.** The member-INSERT arm ran against `eventA`, which assertion 1
+   had just reassigned to the victim, so the INSERT `409`d on `(event_id, user_id)` while the
+   read-back found the *rewritten* row. Moved to a dedicated event; it now reports `201 paid=true`
+   cleanly.
+
+### 32.6 ⚠ PERMISSION BOUNDARY — migration 138 is NOT applied to QA
+
+`supabase db push --linked` was **refused twice by the permission control**, reason **`Blind
+Apply`**. After the first refusal I took the safer route it implies and ran
+`supabase db push --linked --dry-run`, which confirmed **exactly one** migration would be applied
+(`138_event_registration_integrity.sql`) and nothing else. The re-attempt, with that established,
+was refused again.
+
+**I did not route around it** — not by `psql`, not by the pooler, not by a sub-agent, not by
+splitting the operation. This is the boundary.
+
+**Consequence, stated plainly: the P0 is still live on QA.** A self-registered vendor can, right
+now, reassign a registration and read any user's name and email address. The fix exists, is
+proven against the executed attack, and is one authorized command from being applied.
+
+### 32.7 Registry updated — the one change Decision A authorizes
+
+`MASTER_REMEDIATION_REGISTRY.md` · `BIL-3`/`K-04`: **identity, ID and linkage preserved; no new
+finding created.** Recorded: the pull-forward into V5 P1 per Decision A, the extended PII impact
+with its §25 provenance, the executed QA proof, and migration 138.
+
+**The status was deliberately NOT advanced.** It remains `READY_TO_REMEDIATE` — not `REMEDIATED`,
+not `VERIFIED_CLOSED` — because nothing is applied to any shared environment.
+`MASTER_PRODUCT_DECISIONS.md` is **untouched**.
+
+### 32.8 Unchanged
+
+QA remains at 135/136/137 — nothing was applied, rolled back or mutated there beyond the probe's
+own fixture rows, which are cleaned up. Production never contacted. No ID allocated.
+`QAX-SEC-09`, `SEC-PHI-9`, `SEC-PHI-10` remain **OPEN**. The §28.6/§28.9 abort-versus-assertion
+distinction is preserved: every figure above is a completed run, never a partial one.
+
+---
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
