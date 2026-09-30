@@ -6167,6 +6167,109 @@ reason — `ai-coach`, `ai-coaching-engine`, `ai-generate-workout`, `analyze-foo
 `enrich-exercise` — which is worth knowing independently of this workstream.
 
 
+---
+
+## 50 · THE KEY IS PROVISIONED AND REACHING THE FUNCTION — ANTHROPIC REJECTS IT
+
+`ANTHROPIC_API_KEY` is present in QA's function secrets (`supabase secrets list`). The credential
+boundary of §49 is cleared. **A new and different one replaced it: the key is not accepted by
+Anthropic.**
+
+### 50.1 The evidence chain
+
+The function now gets **past** the configuration check — the 503 changed from
+`AI is not configured` to `AI is temporarily unavailable`, which is the upstream-failure arm. So the
+secret is reaching the runtime.
+
+The CLI in use has **no `functions logs` subcommand**, so a **temporary** diagnostic was deployed to
+obtain the upstream status. It returned the upstream **status** and Anthropic's error **type** only —
+never a response body, never a request echo, never a credential — and was **reverted in the same
+session**, verified byte-identical with **zero** `_diag_` occurrences remaining. It reported:
+
+```
+_diag_status: 401   _diag_type: authentication_error
+```
+
+**Anthropic is rejecting the API key.** Corroboration that the request is well-formed rather than
+the code being at fault:
+
+- the upstream headers are **identical** to the house pattern — `x-api-key`,
+  `anthropic-version: 2023-06-01`, `Content-Type: application/json`;
+- `401` is **not** in the retryable set, so it failed once rather than burning three attempts —
+  the retry logic behaved correctly;
+- the generic `503` leaked nothing: the final probe's *"no credential material anywhere in the
+  response"* assertion **passes** against the raw body.
+
+This is a **credential-validity** boundary. I cannot resolve it: I cannot see or test the value, and
+I hold no valid key to substitute.
+
+### 50.2 A second defect the live call caught — the model literal
+
+My fallback was `claude-sonnet-4-20250514`, **which I chose rather than ported**.
+`api-config.ts:38` defines `DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-6'`, the Nest service used it
+whenever `ANTHROPIC_MODEL` was unset — which it is on QA — and **nine** sibling functions use the
+same literal. Corrected.
+
+**Every negative path passed with the wrong literal in place.** Only an end-to-end call could
+surface it. That is the **second** defect this port produced that source review could not have
+found, after §47.3's validation-ordering bug — and it is why the four-rung ladder insists on
+`VERIFIED LIVE` rather than accepting `FIXED IN CODE` plus a green CI.
+
+### 50.3 ⚠ CORRECTION to §47.4 and §49.5
+
+I twice wrote that the missing key left *"five other **shipped** AI Edge Functions"* unconfigured on
+QA. **That is wrong.** `supabase functions list` returns exactly one deployed function:
+
+```
+ai-nutrition · ACTIVE
+```
+
+The other nineteen exist **in source only and are not deployed to QA at all** — `analyze-food-image`
+returns `404 NOT_FOUND`. So they are not "shipped" on QA and were never affected by the secret.
+It also means they could not serve as an independent control for the key, which is why §50.1 rests
+on the request shape instead.
+
+### 50.4 Final live contract state — 7/12, and all five failures are one cause
+
+| Assertion | Result |
+|---|---|
+| no token refused · malformed token refused | **PASS** `401` |
+| unknown property · empty message · over-length · bad media type | **PASS** `400` |
+| no credential material in the response | **PASS** |
+| happy path `200` · `{ text }` shape · text-only keys · history · image path | **FAIL** — all five are the single upstream `401` |
+
+**Nothing in the 5 failures is a contract defect.** They are one external cause: the upstream
+rejects the credential, so no response body can be produced to parse.
+
+### 50.5 Ladder, and why retirement stays closed
+
+| Rung | State |
+|---|---|
+| FIXED IN CODE | ✅ |
+| FIXED ON QA | ✅ deployed, `ACTIVE` |
+| VERIFIED LIVE | ⚠ **PARTIAL** — auth and all validation verified; the Claude round trip and response parsing are **not** |
+| VERIFIED IN CI | ✅ run `36652277135`, all 7 jobs, `414/414` across 11 suites, `N-07 18/18`, `AI-005` present |
+
+Per the standing guardrail — *"require evidence that the Edge implementation actually works against
+QA before removing the NestJS implementation"* — **`apps/api` stands and `API_BASE_URL` is
+untouched.** Response parsing (text-block join, trim, empty → `503`) remains the one piece of logic
+no evidence reaches.
+
+**Nothing is at risk while it waits.** `API_BASE_URL` is empty in every environment, so the NestJS
+route is unreachable in every build; the Edge path already returns honest `400`s and `401`s where
+the old path returned nothing.
+
+### 50.6 The ask
+
+A **valid** Anthropic API key in QA's function secrets. The one currently set is rejected with
+`authentication_error` — it may be mistyped, revoked, expired, or a key type the Messages API does
+not accept.
+
+```
+supabase secrets set ANTHROPIC_API_KEY=<valid value> --project-ref eyqtldjqpgpljlqvpowh
+```
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
