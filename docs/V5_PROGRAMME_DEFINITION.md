@@ -3264,18 +3264,23 @@ Run after §19. **Nothing below is implemented.**
 |---|---|---|
 | **RESOLVED** under delegated architecture authority (§19) | **35** | Tier 0 (3) · Tier 1 (2) · Tier 2 (17) · beyond-frontier (11) · architect-formulated (2) |
 | **DEFERRED** under a prior owner ruling (`PD-G01`) | **3** | `D-V1`, `D-V2`, `D-V4` |
-| **EXTERNAL OWNER DEPENDENCY** — *not this delegation's to make* | **4** | `D12` `Q7`, `Q8`, `Q10`, `Q11` |
+| **EXTERNAL OWNER DEPENDENCY** — *not this delegation's to make* | **4** | `D12` `Q7`, `Q8`, `Q10`, `Q11` — **classification reversed by owner at §73.3; all four ANSWERED at §74. See §93.** |
 
 Plus previously answered: `CONF-01` · `D4·A1/A2/A3/A6/A11/A12/A13` · `D12` scope · `D12·Q4` ·
 `EC-01·Q1` · `D-D1` · §8.18·Q1 · §8.19·Q1 · `D15` · `D1(iv)`.
 
 ### 20.2 · Phase entry conditions — recomputed
 
+> **This table is MAINTAINED, not a frozen §19 snapshot** — despite the column header. Rows
+> P5/P6/P7 were updated in place at §87 while the P2 row was not, which left the table
+> **self-contradicting**: P2's row said P2 was blocked while P5's row said *"P2 COMPLETE"*.
+> Reconciled at **§93**. Superseded cell text is struck through, never deleted.
+
 | phase | entry condition | state after §19 |
 |---|---|---|
 | **P0** | `CONF-01`, `CONF-02` | ✅ **SATISFIED** — both answered |
 | **P1** | `D1(i)–(iv)`, `D3`, `D17` | ✅ **SATISFIED** — all answered |
-| **P2** | `D4`, `D12` | ⛔ **`D4` COMPLETE** (§19.2); **`D12` INCOMPLETE** — `Q7`/`Q8`/`Q10`/`Q11` await `PD-A24`/`PD-A17` |
+| **P2** | `D4`, `D12` | ~~⛔ **`D4` COMPLETE** (§19.2); **`D12` INCOMPLETE** — `Q7`/`Q8`/`Q10`/`Q11` await `PD-A24`/`PD-A17`~~ → ✅ **SATISFIED, AND P2 IS COMPLETE ON ALL FOUR RUNGS** — the four questions were answered at **§74**, `D12` completed, and P2 closed at **§85**. *Updated §93.* |
 | **P3** | `D-V1`, `D-V2`, `D-V3` | ⛔ deferred under `PD-G01` |
 | **P4** | P3 | ⛔ downstream |
 | **P5** | P2, `D5`–`D7` | ⛔ decisions answered (§19.4); ~~blocked on P2 and~~ **P2 COMPLETE (§85)** — **sole remaining blocker: `CONF-08` artefacts**, 0 of which exist. *Updated §87.* |
@@ -10004,3 +10009,80 @@ this agent does not rank them.**
 
 **No migration, no application file, no production contact. QA at 152. Nothing in this section changes
 behaviour — it changes only the record and adds four tracked design artefacts.**
+
+---
+
+## 93 · §20.2 RECONCILED — THE GATING TABLE WAS CONTRADICTING ITSELF ABOUT P2
+
+Found during the §92 frontier reassessment, not commissioned. **§20.2 — the phase entry-condition table,
+the single place a reader looks to ask "what can start?" — contained two cells that disagreed with each
+other about the same fact.**
+
+### 93.1 The contradiction, quoted
+
+| row | what it said |
+|---|---|
+| **P2** | *"⛔ `D4` COMPLETE (§19.2); **`D12` INCOMPLETE** — `Q7`/`Q8`/`Q10`/`Q11` await `PD-A24`/`PD-A17`"* |
+| **P5** | *"~~blocked on P2 and~~ **P2 COMPLETE (§85)**"* |
+| **P6** | *"**P2 COMPLETE (§85)** — blocked on **P5** alone"* |
+| **P7** | *"**P2 COMPLETE (§85)** — blocked on **P6**"* |
+
+**Three rows asserted P2 was complete. P2's own row asserted it was blocked.** The cause is mechanical:
+§87 updated the rows it was reconciling — P5, P6, P7 — and stamped each *"Updated §87."* It did not
+touch the P2 row, which still read as of §19. A partially maintained table is worse than a frozen one,
+because the *"Updated §87"* stamps make the unstamped rows look current rather than old.
+
+### 93.2 Why the P2 row was wrong — verified against the record, not assumed
+
+Both of its clauses had been overtaken:
+
+1. **The four questions are ANSWERED.** §73.3 was an **owner ruling** that reversed their
+   classification — *"the exclusion … was dependency-based/scheduling-based, not a permanent
+   subject-matter exclusion"* — and **§74** then answered all four: `Q7`/`Q10`/`Q11` discharged by
+   `PD-A24 = C` (§45.1), `Q8` by `PD-A17 = A` resolved as **A2** (§46–§55). §74 states it outright:
+   *"Every external dependency of `D12`'s content is discharged."*
+2. **P2 is not merely unblocked, it is CLOSED.** §85: *"P2 COMPLETE — ALL FOUR RUNGS MET, INCLUDING
+   VERIFIED IN CI … the first phase in this programme to reach all four rungs."*
+
+So the row named a blocker that had been discharged by an owner ruling and a phase that had already
+finished.
+
+### 93.3 What was changed, and what deliberately was not
+
+**Changed:** the P2 cell now carries its superseded text **struck through** beside the current state,
+stamped *"Updated §93."* The §20.1 disposition row that still counted the four as *"EXTERNAL OWNER
+DEPENDENCY — 4"* carries a pointer to §74 and §93. The §20.2 heading now states that the table is
+maintained rather than frozen, and names the self-contradiction it had.
+
+**Not changed:** `D12`'s own decision records, §19, §20.1's counts, §73 or §74. **No historical ruling
+was rewritten to look current** — the standing constraint from §87's authorization. The old cell text
+survives struck through, exactly as §9.5 of the commission survives with a supersession banner rather
+than a deletion.
+
+**Also not changed: no other row moved.** Checked individually, and each still holds on its own terms —
+P3/P4 deferred under `PD-G01`, P5 on `CONF-08` (§92.6), P6 on P5, P7 on P6, P8 on P4 and `CONF-08`, P9
+upstream, P10 on the unresolved *"installation forbidden"* operational constraint. **The P2 row was the
+only stale one.**
+
+### 93.4 Why this is worth a section
+
+This is the **fourth** staleness of the same class this programme has found: §16.3's `hosts_event_for()`
+claim, `run.mjs`'s *"3A-11 fails by design"* comment, §87's D5/D6/D7 rows, and now §20.2's P2 row. The
+class is consistent and so is the hazard direction — **every one of them, if believed, sends a reader to
+re-open work that is closed**, which is the more expensive error than the reverse. The instrument that
+catches them is a frontier reassessment that reads the gating table rather than trusting it.
+
+### 93.5 Frontier — unchanged by this reconciliation
+
+**Nothing became executable.** P2 was already complete; this section only makes the table say so. The
+boundary set from §92.8 stands, in the recorded dependency order:
+
+1. **Approved Admin screen package** — external design authority (`CONF-D4`).
+2. **`CONF-D6`** — owner decision to lock tokens, or a design deliverable.
+3. **`CONF-D7`** — owner decision: the Admin role matrix over `client` · `coach` · `vendor` · `admin` ·
+   `content_manager` · `trust_operator` · `erasure_executor`.
+
+Plus the standing ones, none of which this agent may release: **P3** deferred under `PD-G01` · **P10**'s
+operational installation constraint · **production**, unauthorized throughout.
+
+**No migration, no application file, no production contact. QA at 152.**
