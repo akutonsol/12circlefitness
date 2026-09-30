@@ -501,13 +501,26 @@ void main() {
       expect(cfg, contains('verify_jwt = false'),
           reason: 'a redeploy without --no-verify-jwt silently 401s every '
               'Stripe delivery and no entitlement is ever granted again');
-    }, skip: 'Open finding K-12 — config.toml declares no per-function verify_jwt');
+      // UN-SKIPPED 2026-09-30 (V5 §66). The skip read "config.toml declares no
+      // per-function verify_jwt"; config.toml now declares it for EVERY
+      // function explicitly, and this assertion passes. Note what it does and
+      // does NOT claim: config.toml's own header records that declaring
+      // verify_jwt does not close EDGE-1/EDGE-2, and that the posture reaches
+      // an environment only via `supabase functions deploy`. This guards the
+      // COMMITTED declaration, which is exactly what it always asserted.
+    });
 
     test('K-ENV-1 the entitlement QA harness cannot target production', () {
       final tool = _mobileFile('tool/qa_entitlements.dart');
       expect(tool, isNot(contains('nxdbooufqzkpslkcogxc')),
           reason: 'a script named qa_* must not seed subscriptions into the '
               'production project');
-    }, skip: 'Open finding K-ENV-1 (= REL-18) — tool/qa_entitlements.dart is hardcoded to the production ref');
+      // UN-SKIPPED 2026-09-30 (V5 §66). ENV-5 remediated this: the harness
+      // takes its target from QA_URL/QA_ANON with no default and refuses by
+      // ALLOWLIST via tool/qa_target.dart. The production ref survives only in
+      // qa_target.dart, named so the refusal can say what it refused -- not in
+      // qa_entitlements.dart, which is what this asserts. Leaving it skipped
+      // left the guard against seeding PRODUCTION switched off.
+    });
   });
 }

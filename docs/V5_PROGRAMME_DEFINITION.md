@@ -7564,3 +7564,72 @@ Full live suite re-run after the edits: **414/414 across 11 suites, unchanged.**
 on all four files. **Comments only — no suite added, removed, reordered or re-scored; no assertion,
 migration, policy or registry touched. QA at frontier 141.**
 
+
+## 66 · TWO DISABLED GUARDS — ONE OF THEM GUARDED **PRODUCTION**
+
+§65 swept the *"expected to fail"* class. Its sibling is the **skip**, so the Flutter tree was swept
+too: **8 skips, all in `billing_entitlement_contract_test.dart`, each naming an open `K-*` finding.**
+
+**That pattern is the honest one and was left alone.** A skip citing a named finding does not invert a
+control — the test exists, documents the gap, and says why it is off. Six remain skipped and should.
+
+**Two were checkable against the current tree, and both skip reasons were FALSE.**
+
+### 66.1 `K-ENV-1` — the guard against writing to production was switched off
+
+```dart
+test('K-ENV-1 the entitlement QA harness cannot target production', () {
+  expect(_mobileFile('tool/qa_entitlements.dart'), isNot(contains('<production ref>')));
+}, skip: 'Open finding K-ENV-1 (= REL-18) — tool/qa_entitlements.dart is hardcoded to the production ref');
+```
+
+**It is not hardcoded. `ENV-5` remediated it.** `tool/qa_target.dart` resolves the target from
+`QA_URL`/`QA_ANON` **with no default** and refuses anything it cannot positively identify as QA —
+**by allowlist**, on that file's own reasoning that *"is not production" is not the same claim as
+"is QA", and only the second one is safe to write against.* The production ref survives **only** in
+`qa_target.dart`, named so the refusal can report what it refused — not in `qa_entitlements.dart`,
+which is what the test reads.
+
+**So the assertion passes, and it had been disabled by a reason that stopped being true.** The
+consequence is the sharp part: this programme's most protected invariant is *nothing may write to
+production*, `tool/` holds **20+ DELETEs** and two that delete an `auth.users` row through the admin
+API — and **the automated guard against re-hardcoding the production ref was off.** A regression would
+have been caught by nobody.
+
+### 66.2 `K-12` — the Stripe webhook declaration
+
+Skip read *"config.toml declares no per-function verify_jwt"*. **It declares one for every function
+explicitly**, including `[functions.stripe-webhook] verify_jwt = false` — which is what the test
+asserts, and why: a redeploy without `--no-verify-jwt` 401s every Stripe delivery and entitlements
+silently stop being granted.
+
+**Scope, stated so it is not over-read:** this guards the **committed declaration**. `config.toml`'s
+own header records that declaring `verify_jwt` does **not** close `EDGE-1`/`EDGE-2` — the anon key is
+a valid project JWT, so `verify_jwt` establishes *"someone on the internet"*, never *"this specific
+user"* — and that the posture reaches an environment only via `supabase functions deploy`. The test
+never claimed more.
+
+### 66.3 Both proven NON-VACUOUS before being trusted
+
+An enabled test that cannot fail is worse than a skipped one, so each was **made to fail** and
+restored:
+
+| probe | result |
+|---|---|
+| append the production ref to `tool/qa_entitlements.dart` | **K-ENV-1 FAILS** — `+0 -1` |
+| flip `[functions.stripe-webhook]` to `verify_jwt = true` | **K-12 FAILS** — `+0 -1` |
+
+Both files restored via `git checkout`; `git status` confirmed the test file as the only modification.
+
+**Full suite: 1704 passed / 6 skipped, was 1702 / 8.** Two guards back in service, zero failures.
+
+### 66.4 What this does NOT do
+
+**It closes no finding.** `K-12` and `K-ENV-1` remain whatever the registry says they are —
+`MASTER_REMEDIATION_REGISTRY.md` is owner-controlled and untouched. Restoring a **guard** and closing
+a **finding** are different acts, and only the first is mine.
+
+**This is §62.1's pattern for the third time**: a control disabled for a reason that later stopped
+being true, where nothing re-derives the reason. §62 found it in documentation, §65 in executable
+comments, §66 in a `skip:` argument. **The reason a control is off must be re-checked, not inherited.**
+
