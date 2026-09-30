@@ -37,7 +37,12 @@
       "name": "12Circle QA",
       "applied_through": "150",
       "excluded": [],
-      "pending": {}
+      "pending": {
+        "151": {
+          "reason": "P2 · the four owner-approved emitters B1–B4, each on the REAL mutation path traced in the repository and each reusing the sanctioned A3 mechanism. B1: audit_open_incident(), admin and trust_operator only, actor recorded. B2: status-transition triggers on BOTH coach_client_relationships and coach_team_members, emitting only when status moves. B3: a trigger on `subscriptions` — the authoritative entitlement state written by the Stripe surface — NOT the legacy user_profiles.membership_tier. B4: a trigger on weekly_checkins emitting the changed-column NAME SET only, using migration 114's own coach-column split to identify a subject self-correction. Adds audit_events.changed_columns, distinct from `delta`, which A6 excludes for this category.",
+          "gate": "NOT AUTHORIZED TO APPLY. QA_CLOSURE_STANDARD §82 rule 7 requires wave authorization and MASTER_REMEDIATION_WAVES names no wave for P2. The owner's earlier QA authorization covered 142–147 and the defect repairs that followed from applying them; 151 is NEW implementation, so that authorization is not inferred onto it. Validated locally instead: fresh replay 000–151 clean and all four emitters proven behaviourally, including every non-emission case (V5 §84)."
+        }
+      }
     }
   }
 }
