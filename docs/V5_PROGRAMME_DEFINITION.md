@@ -9768,3 +9768,117 @@ decisions.** Nothing here was decided, chosen, or inferred into a decision.
 
 **No implementation. No migration. No application file. QA at 152. Production not contacted.**
 
+
+## 91 · OWNER DECISIONS APPLIED — `CONF-D2`, `CONF-D1` AND ADMIN SCOPE CLOSED; TWO INPUTS NOT RECEIVED
+
+**Owner decisions 2026-09-30.** Three are applied. Two cannot be, and §91.5 says why.
+
+### 91.1 What was decided
+
+| item | owner decision |
+|---|---|
+| **`CONF-D2`** | **Trust is a top-level area WITHIN the Admin Control Center** — not a separate application or product |
+| **`CONF-D1`** | the adopted Admin IA is **six items**: **Dashboard · People · Ecosystem · Trust · Operations · Settings** |
+| **Admin scope** | the **twelve** enumerated domains; **there is no thirteenth** — the *"13 domains"* figure is a source discrepancy |
+
+### 91.2 ⚠ The commission's third defect, corrected
+
+§88's input table said **"11 state frames | present"**. §89 corrected two rows of that table and
+**left this one wrong**, concluding a designer had *"the 11 state frames and nothing else"*. §5 `:204`
+states: ***"States | ENUMERATED, NOT DESIGNED | 11 states listed (§14); no frames."***
+
+**There are no frames. All four inputs are absent, unlocked or undesigned — not three.** Corrected in
+the commission. **Third correction to one table across three passes**, each from reading a row that
+*names* an input as though it *inventoried* one.
+
+### 91.3 `CONF-D2` reconciled against all four records
+
+| record | reconciliation |
+|---|---|
+| **§2's question** | **CLOSED.** The decision is §2's reading **(B)** — *"capabilities within Admin"* — which §2 recorded as **supported**. Its finding that (A) *"has no support in either source"* is now **moot, not contested** |
+| **§8.17's scope limit** | **UNAFFECTED and still correct.** It answered the governance/reader **role** and expressly declined the product-area question. The owner has now answered that question directly — **not** by inference from `D-D1`, exactly as §8.17 requires |
+| **§19.2's `D11`** | **Its substance survives; its container reading does not.** Trust's scope remains *"Security · Incidents · Audit Logs"*, Guardian remains **P7**, Trust still *"introduces no tables of its own"* and still reads the four populations. What no longer holds is treating Trust as a **separate build surface** |
+| **§20.2's `P6`** | **SUPERSEDED as a distinct phase.** §11 documents the consequence of (B) in terms: *"the 'Trust' build surface disappears and its capabilities become Admin sections — **removing an entire phase**."* The owner's decision triggers that consequence. **Trust's work is Admin work (P5).** |
+
+**Consequence for P7.** Its entry condition read `P2, P6, D-V5`. With P6 superseded, the Trust
+capabilities it depended on are delivered inside P5, so **P7's effective gate is P2 (complete), P5, and
+`D-V5` (answered)** — i.e. **P7 is gated on P5 alone**. Recorded as a derived consequence of the owner
+decision plus §11's documented statement, not as a new decision.
+
+### 91.4 `CONF-D1` reconciled — and nine of twelve placements are NOT established
+
+The six-item IA is adopted. **Neither** of `CONF-D1`'s recorded options (a) or (b) is taken — the 8-item
+nav is not adopted and nav is not extended; a **six-item** IA supersedes the mismatch outright.
+
+**Mapped only where the record establishes it:**
+
+| domain | placement | basis |
+|---|---|---|
+| Security · Incidents · Audit | **Trust** | `D11` §19.2 — Trust's three areas |
+| Health · Users · Roles · Payments · Analytics · Database · Releases | **NOT ESTABLISHED** | no authoritative statement places them |
+| **AI** | **NOT ESTABLISHED** — one negative constraint | §19.2: Guardian is **P7** and *"NOT inside Trust"* |
+| **Wearables** | **NOT ESTABLISHED** — phase deferred | P3, `PD-G01` |
+
+**`Dashboard`, `People`, `Ecosystem`, `Operations` and `Settings` have no authoritative domain
+assignment at all.** Nine of twelve placements are an **explicit remaining design question**. No domain
+behaviour was invented to populate navigation.
+
+### 91.5 `CONF-D5` and `CONF-D6` — NOT APPLIED, because the artefacts were not received
+
+Both decisions rest on *"the supplied screenshots"*. **No screenshots were received with the
+instruction.** They are therefore **not recorded as resolved**, and **nothing was substituted** — §5's
+`~/Desktop/projects/12CIRCLE/screens/` imagery is **not** adopted, because `CONF-D5` requires the
+reference to be **identified** and which files the owner means is unknown. Adopting an unidentified file
+is precisely what §5 refused to do.
+
+**Needed:** the artefacts, or the exact paths. They will then be recorded as the **12Circle+** visual
+reference and visual-system direction — **not** as the unmodified Fitonist product, and **not** as the
+Fitonist identity being 12Circle+'s.
+
+### 91.6 `D-D1` — now fully closed
+
+| component | state |
+|---|---|
+| governance/reader **role** | ANSWERED §8.17 — Trust operator |
+| **Trust product area** | **ANSWERED** — owner, §91.1 |
+| **Admin IA** | **ANSWERED** — owner, §91.1 |
+
+**Nothing of `D-D1` remains open.** §90.3 recorded all three components; two were the live ones and both
+are now decided.
+
+### 91.7 `CONF-D3` — carried as an explicit downstream design question
+
+**Exercise Review** and **Observability** are **implemented** and were outside the authoritative IA.
+The six-item IA does **not** place them: no authoritative statement assigns either to `Operations`,
+`Dashboard` or anywhere else. **Not silently orphaned and not duplicated — carried as an open design
+question**, with the record's own warning preserved: *"risk of orphaning or duplicating them."*
+
+### 91.8 The dependency chain — one input newly discharged
+
+Using the recorded order, unchanged:
+
+| # | input | state |
+|---|---|---|
+| 1 | approved Admin screen package | **OUTSTANDING** — `CONF-D4`, external design authority |
+| 2 | Fitonist reference | **BLOCKED on artefact delivery** (§91.5) |
+| 3 | brand identity package | **BLOCKED on artefact delivery** (§91.5) |
+| **4** | **`D-D1` — Trust container + Admin IA** | ✅ **DISCHARGED by these decisions** |
+| 5 | `CONF-D7` — Admin role matrix | **OUTSTANDING** |
+| 6 · 7 · 8 | `CONF-01` · `D1` · `D4`/`A2`/`A12`/`A13` | discharged earlier |
+| 9 | `D-V1`/`D-V2`/`D-V4` · `D2` | deferred under `PD-G01` |
+
+**Live: 1, 2, 3, 5.** Five of nine now discharged.
+
+### 91.9 `CONF-08` — NOT satisfied
+
+**The commission exists and is now current; the artefacts do not exist.** §20.2 blocks P5 on
+*"`CONF-08` artefacts"*, and `CONF-D4` states *"a brief cannot serve as design authority."* **CONF-08 is
+not claimed satisfied.**
+
+### 91.10 Frontier
+
+**P5 — BLOCKED** on inputs 1, 2, 3 and 5, and on the nine unplaced domains. **P6 — superseded as a
+distinct phase**; Trust is an Admin area. **P7 — gated on P5.** No implementation authorized.
+
+**No migration, no application file, no production contact. QA at 152.**
+

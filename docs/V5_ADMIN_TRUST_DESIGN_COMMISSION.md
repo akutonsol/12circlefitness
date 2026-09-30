@@ -118,12 +118,17 @@ Trust · Security · Incidents · Audit Logs · AI Guardian**.
 |---|---|---|
 | Fitonist reference | **ABSENT** — *"disk: **not found**; unidentified dashboard imagery on Desktop … the stated visual foundation is absent · visual system unspecifiable"* | `CONF-D5` |
 | Brand tokens / identity package | **NOT FINAL** — *"no locked package · brand not final · token values, chart identity **blocked**"* | `CONF-D6` |
-| 11 state frames | present | `:337` |
+| 11 Admin states | **ENUMERATED, NOT DESIGNED** — *"11 states listed (§14); **no frames**"* | `CONF-D5` §5 `:204` |
 | **Approved screen package** | **ABSENT** | `:337` |
 
-**So three of the four design inputs are absent or unlocked.** A designer receiving this commission has
-**the 11 state frames and nothing else** to build a visual system on. `CONF-D5` and `CONF-D6` are
-**owner decisions** in their own right and are added to §6.
+**So ALL FOUR design inputs are absent, unlocked or undesigned.** §89 corrected two of these rows and
+left this one wrong, concluding a designer had *"the 11 state frames and nothing else"*. **There are no
+frames** — §5 `:204` records the 11 states as *"ENUMERATED, NOT DESIGNED"*. **Third correction to the
+same table; recorded at §91.2 rather than quietly amended.**
+
+What a designer actually has: the **logo** (`apps/mobile/assets/images/12circle-logo.png`, verified), a
+**mobile/consumer theme** (`app_theme.dart`, `twelve_circle_theme.dart`, with no shared design-system
+dependency), and — pending §9 — the owner's supplied visual reference.
 
 The member-side precedent is a design **board** (`12Circle Fitness - Complete Board.dc.html`, 110
 `.phone` frames) regenerated into reference images by `capture-references.mjs`. **No Admin or Trust
@@ -194,3 +199,69 @@ that *"introduces no tables of its own"*, yet B1 grants `trust_operator` the aut
 
 **Delivery target:** an approved screen package on the authoritative board, or an equivalent tracked
 source, sufficient to satisfy §20.2's *"`CONF-08` artefacts"*.
+
+---
+
+## 9 · OWNER DECISIONS APPLIED — 2026-09-30
+
+Three of the five §6 items are **resolved by owner decision**. Two are **not yet resolvable** — see §9.5.
+
+### 9.1 `CONF-D2` — RESOLVED: Trust is a top-level area WITHIN the Admin Control Center
+
+**Owner decision.** Trust is a top-level area **inside** the Admin Control Center, consistent with the
+supplied design. **Not a separate application or product.**
+
+This is §2's reading **(B)** — *"capabilities within Admin"* — which §2 recorded as **supported**:
+*"of the four candidate readings, (B) and (C) are supported and (A) is not."*
+
+> **`CONF-D2` is closed. The old ambiguity is not preserved as if the decision had not occurred.**
+> §2's determination that (A) *"has no support in either source"* is now moot rather than contested.
+
+### 9.2 `CONF-D1` — RESOLVED: the adopted Admin IA is six items
+
+**Owner decision.** The navigation in the supplied design is the adopted Admin IA:
+
+**Dashboard · People · Ecosystem · Trust · Operations · Settings**
+
+**No additional navigation item may be invented.** This supersedes the 8-item-vs-13-domain mismatch
+`CONF-D1` recorded: neither the brief's 8 nav items nor an extended nav is adopted — a **six-item** IA is.
+
+### 9.3 Admin scope — RESOLVED: TWELVE domains, and there is no thirteenth
+
+**Owner decision.** The intended Admin-controlled domains are the twelve enumerated:
+
+**Health · Security · Users · Roles · Payments · AI · Wearables · Database · Incidents · Releases ·
+Analytics · Audit**
+
+**There is no thirteenth domain.** The historical *"13 domains"* figure is a **source discrepancy**, and
+`AD-01`'s own restatement enumerates twelve while claiming thirteen. **No thirteenth is invented.**
+
+### 9.4 Domain → IA mapping: THREE established, NINE open
+
+Mapped **only** where the authoritative record establishes it.
+
+| domain | IA placement | basis |
+|---|---|---|
+| **Security** | **Trust** | `D11` §19.2 — Trust's scope is *"Security · Incidents · Audit Logs"* |
+| **Incidents** | **Trust** | `D11` §19.2 |
+| **Audit** | **Trust** | `D11` §19.2 |
+| Health · Users · Roles · Payments · Analytics · Database · Releases | **NOT ESTABLISHED** | no authoritative statement places them |
+| **AI** | **NOT ESTABLISHED**, with one negative constraint | §19.2: *"AI Guardian remains **P7** and is **NOT** inside Trust"* — so not Trust; where it does go is unstated |
+| **Wearables** | **NOT ESTABLISHED**, and its phase is deferred | P3 deferred under `PD-G01` |
+
+> **Nine of twelve placements are an explicit remaining design question**, per the instruction not to
+> invent domain behaviour to populate navigation. `Dashboard`, `People`, `Ecosystem`, `Operations` and
+> `Settings` have **no authoritative domain assignment at all**.
+
+### 9.5 `CONF-D5` and `CONF-D6` — NOT YET RESOLVABLE
+
+The owner's decisions on both rest on *"the supplied screenshots"*. **No screenshots were received.**
+They are therefore **not applied**, and nothing has been substituted for them — §5's lead imagery is
+**not** adopted, because `CONF-D5` requires the reference to be *identified*, and which files the owner
+means is unknown.
+
+**What is needed:** the screenshot artefacts themselves, or the exact paths of the files the owner
+intends, so they can be recorded as the 12Circle+ visual reference (`CONF-D5`) and the 12Circle+ visual
+system direction (`CONF-D6`) — **not** as the unmodified Fitonist product, and **not** as the 12Circle+
+identity being the Fitonist identity.
+
