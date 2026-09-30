@@ -8387,3 +8387,109 @@ section. **Remaining blockers are not decisions:**
 
 **Nothing implemented. QA at frontier 141. Registry untouched. Production not contacted.**
 
+
+## 75 · P2 SCHEMA SPECIFICATION — DERIVED FROM THE `D4` RULINGS, NOTHING INVENTED
+
+**P2's entry conditions are satisfied.** §5.2 gates P2 on **`D4` + `D12`**; `D4` completed at §19.2,
+`D12`'s content completed at §74, and `SQ-10` — the added entry condition (§8.10) — was answered by
+§19.3's `Q1`. **This section enters P2 at the specification step only.**
+
+**No migration is written here, and this is not an implementation.** The standing instruction is to
+use the existing `D4` decisions rather than invent a schema; a traced specification is the artefact
+that makes that checkable. **Every element below cites the ruling it comes from. Where the rulings
+do not determine a detail, §75.5 says so rather than filling it.**
+
+### 75.1 Populations — four, not three
+
+| # | population | authority | note |
+|---|---|---|---|
+| 1 | **Event** | `A1` §8.4 | append-only occurrence record |
+| 2 | **Incident** | `A1` §8.4 | mutable investigation state |
+| 3 | **Control evidence** | `A1` §8.4 | versioned matrix row; no runtime write path |
+| 4 | **Observability** | `D12`·Q4 §8.14 · §19.3 | **separate** — *"not in any of `A1`'s three audit populations"* |
+
+### 75.2 Field sets — all three recovered from the tracked record, quoted not inferred
+
+**Event** — `A1` §8.4 shape: **actor · subject · action · time · outcome.** Plus, each carrying its
+own authority:
+
+| column | authority |
+|---|---|
+| `category` | `A2` §8.3 — the 14 IN categories; **required**, because `A12` ruling 3 makes precedence **PER-CATEGORY** and ruling 4 sets a different window for financial/tax |
+| `actor_provenance` | `A3` sub-ruling 3 — asserted vs `auth.uid()`-grounded *"must remain distinguishable … and must not be equated"*; tag values per §19.3's `D12·Q2` |
+| `correlation_id` | `D12`·Q3 §19.3 — *"a correlation identifier column on the audit Event row"*, classified under `A11`'s freeze as an **identity/occurrence column** |
+
+**Incident** — the **11 fields**, verbatim from `V5_DECISION_RESOLUTION_2026-09-27.md:114` (V2 Admin
+Incident Model):
+
+> *"Each incident records **what happened, when, scope, evidence, severity, suspected cause,
+> recommended action, action taken, actor/agent identity, approval status, and resolution**."*
+
+Severity enum, also specified there: **Critical · High · Warning · Informational.**
+
+**Control evidence** — the **7 fields**, verbatim from `V5_IMPACT_ANALYSIS_2026-09-27.md:191` (SA-03):
+
+> *"**requirement, implementation location, test evidence, result, date/version, exception, owner**.
+> A generic statement that a control 'passes' is insufficient."*
+
+**Observability** — §19.3's `D12·Q5` is decisive and restrictive: *"the observability population
+carries **NO subject identifier** — only the correlation identifier"*, and the identifier must be
+*"a random opaque value with no derivation from subject identity"*.
+
+### 75.3 Per-population properties, fully determined
+
+| property | Event | Incident | Control evidence | Observability |
+|---|---|---|---|---|
+| **write path** (`A3` §8.5) | trigger + RPC + application | RPC + application | authored migration + application | *(§19.3)* |
+| **immutability** (`A11` §8.6) | FREEZE-IDENTITY-COLUMNS | APPEND-STATE-TRANSITIONS | NO RUNTIME WRITE PATH | FREEZE-IDENTITY-COLUMNS (§8.16·Q1) |
+| **retention** (`A12` ruling 4) | 6 years · **financial/tax 7** | 6 years | 6 years | audit events 6y · all other components **90 days** (§8.16·Q2) |
+| **readers** (`A13` §8.8) | active coach · admin · Trust operator | actor · active coach · admin · Trust operator | admin · Trust operator | admin + Trust operator, **role-class only** (§8.16·Q3) |
+| **writer of record** | — | — | — | **`service_role` is NOT** (§8.16·Q4) |
+
+**Erasure — `A12`:** model is **ANONYMISE-AND-RETAIN** (ruling 1); the Event freeze takes **no
+exception**, so anonymisation goes through an **external mapping** and *"the frozen row is never
+mutated"* (ruling 2). The mapping table's shape is already ruled at §8.20·Q1: **a table in `public`,
+RLS enabled, with no policy granting any client role.** The erasure executor is **a new constrained
+role and explicitly NOT `service_role`** (ruling 6), and may not also hold read authority (`A13`
+sub-ruling 4, §8.18·Q2).
+
+**Audit-read recursion — `A13` sub-ruling 5:** audit reads are themselves audit-worthy, with the
+recursion boundary §8.8 sets. The audited party may **not** read its own audit **for admin actions**
+(sub-ruling 1), and a subject loses read access after their own anonymisation (sub-ruling 2).
+
+### 75.4 Claim limits that must be encoded in the migration's own text
+
+These are rulings, not commentary, and every one forbids a claim the schema might otherwise imply:
+
+1. **No tamper-resistance claim.** `A11` sub-ruling 2 requires an **out-of-database trust anchor**
+   before any meaningful append-only claim — **§8.19 DECLINED the anchor**, so the binding is
+   **DML-deep only** (§19.3). §19.3 says it twice: *"Not claimed to be tamper-resistant."*
+2. **No universal access-logging claim.** `A11` sub-ruling 4 and `A3` sub-ruling 1: PHI-read audit
+   observes only RPC-routed reads — **8.7% of data-access calls** (§8.5). *"No document may describe
+   PHI-read auditing as complete."*
+3. **Three accepted blind spots, stated as limitations** (`A3` sub-ruling 2): RLS denials, managed
+   authentication events, storage/media reads. *"Must not be represented as audited."*
+4. **Anonymisation is not irreversible.** §8.20·Q4: severance binds at the DML layer and is **not
+   durable against a party holding DDL rights**. *"The programme must NOT describe anonymisation as
+   irreversible."*
+5. **The correlation identifier is not trustworthy against the function tier.** §71.1's normative
+   statement applies to every row of populations 1 and 4.
+
+### 75.5 What the rulings DO NOT determine — carried, not filled
+
+| # | gap | authority that left it open |
+|---|---|---|
+| 1 | **How a failed audit write becomes visible.** `A3` sub-ruling 4 rules the write **best-effort** — it *"must not automatically abort the audited business action"* — and records *"reliable failure visibility … as an **unresolved implementation concern carried to the downstream design**."* | `A3` §8.5 |
+| 2 | **How `service_role` is constrained.** `A3` sub-ruling 5 requires it; `A11` sub-ruling 3 deferred the binding *"until `A12`'s retention/erasure mechanism is decided"*. **`A12` is now decided**, so the deferral is discharged and the binding is designable — but **no ruling names the mechanism**. The only verified candidate is a BEFORE UPDATE/DELETE trigger that RAISEs unconditionally (the `120_workout_set_identity_authority.sql` precedent §8.5 cites). **§68 is decisive on its limits**: such a trigger binds `service_role` at the DML layer and nothing binds it at the DDL layer. | `A3`·5 · `A11`·3 · `A12` |
+| 3 | **`correlation_signature` / `correlation_key_id` have no producer.** `D12`·Q3 puts the identifier on the Event row; §71's Option A puts signing in **project B, unprovisioned**. The columns are specifiable; the values are not obtainable. | §71 · provisioning |
+| 4 | **Four of `A2`'s fourteen IN categories remain unemittable by any path** — RLS denials, authentication, storage/media reads, control evidence (no runtime occurrence, by construction). Three are accepted blind spots; **control evidence is by design**. | `A3` §8.5 consequences |
+
+**Gaps 1 and 2 are architectural decisions that must be taken before a migration can be authored
+honestly.** They are not owner *product* decisions and may fall inside the §19 delegation — but
+neither is determined by any existing ruling, so **neither is taken here.**
+
+### 75.6 Status
+
+**Specification only. No migration, no schema object, no provisioning, no registry change.** QA at
+frontier **141**. Production not contacted.
+
