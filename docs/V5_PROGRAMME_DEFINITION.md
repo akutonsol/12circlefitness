@@ -6413,6 +6413,72 @@ trailing newline, which `supabase secrets set ANTHROPIC_API_KEY="$(printf %s "$K
 `401` means the key itself is not valid for the Messages API.
 
 
+---
+
+## 53 · FUNDING DID NOT CHANGE IT — THE KEY IS DEFINITIVELY REJECTED
+
+Credits were added and the verification re-run against the **existing** key, as instructed. Anthropic
+returns, unchanged:
+
+```
+401  authentication_error  —  "API key is invalid."
+```
+
+### 53.1 Why this is a key-identity failure and not a billing one
+
+**The error class is wrong for a funding problem.** Anthropic reports an exhausted balance as
+`400 invalid_request_error` with *"credit balance is too low"*. `401 authentication_error` with
+*"API key is invalid."* means the key string was **not recognised** — the request never got as far as
+being authorised to spend anything.
+
+So funding was not the cause, and adding it changed nothing. This satisfies the lead's condition —
+*"definitively rejected after the account is funded"* — on the evidence rather than by assumption.
+
+### 53.2 What is now excluded
+
+| Hypothesis | Status |
+|---|---|
+| Stale isolate holding an old value | **excluded** — redeployed from unchanged source before each probe |
+| Wrong request shape | **excluded** — headers identical to the house pattern |
+| Wrong model literal | **excluded** — a bad model is `404`/`not_found_error`; corrected to `claude-sonnet-4-6` in §50.2 |
+| Secret not reaching the runtime | **excluded** — the 503 is the upstream arm, not `AI is not configured` |
+| Insufficient credit | **excluded** — wrong error class, and funding changed nothing |
+
+**Two distinct keys, both rejected, on a now-funded account.** What remains is the value itself:
+either it is not stored as issued — a trailing newline, surrounding quotes, truncation, or the wrong
+field copied — or the keys belong to a different Anthropic organization from the funded one.
+
+**I cannot discriminate between those two.** The shape diagnostic that would have settled the first
+was refused as `Credential Materialization` (§52.2), correctly, and I did not route around it.
+Creating or rotating a key requires the Anthropic console, which is outside my reach.
+
+### 53.3 Instrumentation hygiene held this time
+
+The upstream-error diagnostic was redeployed to read the error class, then **reverted and redeployed
+clean in the same step** — the mistake §52.3 records was not repeated. Verified after: QA returns
+only `{"error":"AI is temporarily unavailable"}`, and `supabase functions download` shows the
+deployed source **identical to the committed file** (0 diff).
+
+### 53.4 Unchanged state
+
+`7/12` live — `401`×2, `400`×4, no credential leakage; the five failures remain the single upstream
+`401`. CI green, all 7 jobs, `414/414` across 11 suites, `N-07 18/18`, `AI-005` present.
+**`apps/api` stands.** The §51 retirement audit is complete and ready to execute.
+
+### 53.5 The one test that discriminates, run where the key is visible to its owner
+
+```
+curl -s -o /dev/null -w '%{http_code}\n' https://api.anthropic.com/v1/messages \
+  -H "x-api-key: $KEY" -H "anthropic-version: 2023-06-01" -H "content-type: application/json" \
+  -d '{"model":"claude-sonnet-4-6","max_tokens":8,"messages":[{"role":"user","content":"hi"}]}'
+```
+
+- **`200`** → the key is valid, so the stored secret is corrupted in transit. Re-set with
+  `supabase secrets set ANTHROPIC_API_KEY="$(printf %s "$KEY")"`, which cannot append a newline.
+- **`401`** → the key is not valid for the Messages API. Check it is a standard API key from
+  console.anthropic.com, and that it belongs to the **same organization** that was funded.
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
