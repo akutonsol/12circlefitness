@@ -8204,3 +8204,186 @@ but `D12`'s outstanding content plus the two non-decision blockers above.
 **Nothing implemented. No migration, no schema, no provisioning. QA at frontier 141. Registry
 untouched. Production not contacted.**
 
+
+## 74 · §73.3 RULED — THE FOUR ARE INSIDE THE DELEGATION · `Q7`/`Q8`/`Q10`/`Q11` ANSWERED
+
+**OWNER DECISION 2026-09-30 — §73.3.** *"The exclusion of `D12` `Q7`, `Q8`, `Q10` and `Q11` from the
+§19 delegation was dependency-based/scheduling-based, not a permanent subject-matter exclusion."*
+
+The owner required this be **reconciled against the delegation language before being acted on**, and
+that any question remaining outside on subject-matter grounds be reported rather than answered.
+**Reconciled. All four are inside. None is excluded by subject matter.**
+
+### 74.1 The reconciliation — the record distinguishes the two kinds of exclusion explicitly
+
+§18.2 excludes **20 decisions** in five groups, and **every stated reason is structural** — a blocker,
+a phase ordering, or a non-existent subsystem. The four sit in the group whose reason is:
+
+> *"**Another owner's gate** — `D12` `Q7`, `Q8`, `Q10`, `Q11` — blocked on **`PD-A24`**/**`PD-A17`** —
+> TRACKED, OPEN, owner *Julia*. **Not yours to answer; a scheduling matter.**"*
+
+**§18.3 shows what a genuine subject-matter exclusion looks like in this programme**, and it reads
+nothing like the above:
+
+> *"`D-V3` … `D-V6` … **No question text exists in any source.** … **These are NOT answerable
+> decisions. The owner must SUPPLY A QUESTION, not choose an answer.**"*
+
+**The contrast is the evidence.** One group is excluded because *someone else's decision had not yet
+landed*; the other because *the decision has no question*. §19.5 is a third kind again — deferral
+under the prior owner ruling `PD-G01`. The four belong to the first, and §57.2 records the
+consequence without ambiguity:
+
+> **"Every external dependency of `D12`'s content is discharged."**
+
+| question | was blocked on | discharge |
+|---|---|---|
+| `Q7`, `Q10`, `Q11` (via `Q7`) | `PD-A24` | ✅ **`C`** — §45.1 |
+| `Q8` | `PD-A17` | ✅ **`A`, resolved as A2** — §46–§55 |
+
+**Consistency with the scope rules, confirmed.** §19's preamble binds: *"Alternatives are preserved.
+No prior ruling is rewritten. **Where a prior ruling constrains, it governs.**"* Acting here **narrows**
+rather than broadens: `PD-A24 = C` is treated as a **constraint on the answers below**, not as a
+licence. Hierarchy **11 · never silently broaden** is satisfied because no answer below creates a
+permission, data scope, retention period or trust boundary that did not already exist.
+
+### 74.2 `D12 · Q7` — ANSWERED: **IN-DATABASE.**
+
+> *"Is the observability store in-database, external, or both?"*
+
+**Derived from existing authority only:**
+
+1. **`PD-A24 = C` forecloses the external branch.** §45.1: the sink is *"vendor-free by
+   construction"*, **"no third-party vendor is introduced"**, and the choice *"remains reversible
+   behind one interface"*. An external observability store is a third-party vendor. A prior ruling
+   constrains, so it governs.
+2. **§19.3 has already ruled four DML-layer properties of this population** — `service_role` is not
+   the writer of record (§8.16·Q4), freeze-identity-columns (§8.16·Q1), per-component retention
+   (§8.16·Q2), and the mixed admin-plus-Trust role-class reader model (§8.16·Q3). **Every one binds at
+   the Postgres DML layer.** Ruling "external" would strand four answered rulings against a store that
+   cannot enforce them.
+3. **The delegation has already rejected an external store once, on the record.** §8.20·Q1's
+   rationale: *"an external store is speculative and would import `PD-A24`-adjacent decisions"*.
+   Hierarchy **10**.
+4. Hierarchy **6** (minimal irreversible commitment) and **9** (simplest sufficient design).
+
+**"Both" is rejected**: no vendor exists to be the external half, so "both" is "in-database" plus
+speculative infrastructure. *Alternatives preserved.* **Reversibility is intact** — `PD-A24`'s one
+interface is untouched, and a future vendor decision changes the destination behind it.
+
+> ***Qualification required by 13.*** **In-database is NOT a durability or tamper-resistance claim.**
+> §8.20·Q4 already accepted severance as **DML-deep only**, and §19.3 states *"Not claimed to be
+> tamper-resistant"*. §68 applies here with full force: `service_role` writes this population and
+> **nothing in it is trustworthy against the function-tier trust root.**
+
+### 74.3 `D12 · Q8` — ANSWERED: **NO TIER GETS A NEW `/health` OR `/metrics` HTTP ENDPOINT.**
+
+> *"Which tiers get `/health` and `/metrics`?"*
+
+**The blocker resolved by ELIMINATION, not by provisioning.** `PD-A17 = A2` retired the NestJS tier
+and deleted `apps/api` (§55). The original blocking fact — *"no deployment target exists and
+`API_BASE_URL` is empty in every environment"* — is now permanent rather than pending. **The tier
+inventory is: the Flutter client · 20 Supabase Edge Functions · Postgres.** Only Edge Functions serve
+HTTP.
+
+**Inclusion is not in question** — §19.3's `Q1` already ruled *health endpoints* and *metrics* two of
+the six `SQ-10` components D12 owns. **Q8 is placement.**
+
+**Derived:**
+1. **There is no consumer.** `PD-A24 = C` introduces **no uptime monitor, no APM and no external
+   collector**. A `/health` endpoint exists to be probed by something, and under `C` nothing probes
+   it. Building 20 of them is **speculative infrastructure (10)**.
+2. **It would be a new public surface.** `config.toml`'s own header records that `verify_jwt`
+   establishes *"someone on the internet"*, never *"this specific user"*. An unauthenticated
+   `/metrics` is an information-disclosure surface, and 20 new public endpoints is an irreversible
+   broadening — **1** and **11**.
+3. **Verified absent:** zero `/health`, `/metrics`, `healthz` or `readyz` surface exists under
+   `supabase/functions/` or the client today. Nothing is being removed.
+4. **The capability already exists where it is needed.** `pg_stat_statements` is installed on QA
+   (§71.2 inventory), so Postgres metrics are readable **through §19.3's reader model** without a new
+   endpoint.
+
+**ANSWER: health and metrics are RECORDED into the in-database observability population (§74.2) and
+READ through §19.3's admin-plus-Trust reader model. No new HTTP endpoint is created on any tier.**
+
+> **Not foreclosed, and deliberately so (8).** The platform's own `/auth/v1/health` already exists and
+> is what `supabase-keepalive.yml` probes daily — **it is not D12's to create and is untouched.** If a
+> future `PD-A24` vendor decision introduces an external prober, endpoints can be added behind the
+> same interface. *Alternatives preserved.*
+
+### 74.4 `D12 · Q10` — ANSWERED: **THE SINK GETS A DESTINATION UNDER D12 — THE IN-DATABASE POPULATION.**
+
+> *"Does the Flutter release sink get a destination under D12, or wait for `PD-A24`?"*
+
+**It does not wait**, because `PD-A24` is **answered**. §45.1: *"The sink was already `VERIFIED_CLOSED`
+as `EC-01` … vendor-free by construction. **`C` is satisfied by the existing implementation**: the
+abstraction stays, no third-party vendor is introduced, and the choice remains reversible behind one
+interface."*
+
+§8.13 scoped `Q10` as blocked *"except an in-repository destination, **which depends on 7**"* — and
+`Q7` is now answered **in-database**. The exception is therefore the whole of the remaining question,
+and it resolves: **the existing vendor-free abstraction is the interface; D12 supplies its
+destination — the in-database observability population.**
+
+> ***Required by §19.3's `Q2` ruling.*** The Flutter client is **not a trusted origin**. Records
+> originating there are minted at the client and carry the **`asserted`** provenance tag; they must
+> **never be equated** with server-origin records. §19.3: *"No identifier is treated as trustworthy
+> merely because it is present."*
+
+### 74.5 `D12 · Q11` — PART ONE ALREADY ANSWERED; PART TWO ANSWERED BY DIRECT PRECEDENT.
+
+> *"Does D12 include alerting, and on what signals?"*
+
+**"Does D12 include alerting" is not open.** §19.3's `D12·Q1` ruled `SQ-10` comprises six components
+D12 owns and named **alerting** as one of them. Re-deciding it would rewrite an answered ruling.
+
+**"On what signals" — derived by exact precedent.** §19.3 answered `Q9` with a split that applies here
+unchanged: *"**D12 specifies the structured log record shape; the TRANSPORT remains `PD-A24`'s.**"*
+Hierarchy **5** makes that precedent genuinely applicable — the two questions have the same shape
+(a record D12 owns, a delivery channel `PD-A24` owns).
+
+**ANSWER: D12 specifies the alerting SIGNALS; the alert TRANSPORT remains `PD-A24`'s.** The signal set
+is the four detection controls already specified at §71.3 under `D12·Q5` Option A:
+
+| signal | fires on |
+|---|---|
+| **DET-1** | a row whose correlation signature does not verify |
+| **DET-2** | a `correlation_id` present in a row but **absent from the signer's issuance log** |
+| **DET-3** | a `correlation_id` binding **inconsistent subjects** across populations |
+| **DET-4** | issuance volume departing from baseline |
+
+> ***Required by 13, and by the `D12·Q5` ruling.*** These are **detection signals, not prevention.**
+> §68 demonstrated the function-tier adversary defeats all five signer designs, and §71.3 measured
+> these controls' limits: **DET-3 catches the naive reuse attack (§68's C-6); a patient adversary
+> spending one issuance per fabrication is NOT DETECTED.** No alert below may be described as
+> preventing correlation forgery.
+>
+> **DET-1…DET-4 are specifiable now and NOT implementable** — every one reads the issuance log, which
+> lives in the unprovisioned project B. Recorded as specification, not capability.
+
+### 74.6 A contradiction found while doing this, recorded and NOT resolved
+
+**§19.3 ANSWERED `D12·Q2`** — *"EACH ORIGIN MINTS, WITH A PROVENANCE TAG"*. **§57.3, written later,
+says `Q2` is *"the one part authority cannot decide"*** and the §58–§71 arc proceeded on that premise.
+
+**Both are about `Q2` and they are not the same `Q2`.** §19.3 answered **where the identifier is
+minted**; §58 onward answered **whether Trust may rely on it**, which §58 framed as `Q2` as well. The
+two are compatible in substance — §19.3's own ruling says *"**No identifier is treated as trustworthy
+merely because it is present**"*, which is the premise §58 built the grounding requirement on.
+
+**Neither ruling is reopened, reinterpreted or merged here.** Per the owner's standing instruction the
+`D12·Q2` cryptographic-grounding ruling, the signer-custody selection and `Q5` = Option A all stand
+untouched. **The numbering collision is recorded so no future reader treats §19.3's `Q2` and §58's
+`Q2` as one decision.**
+
+### 74.7 Frontier after §74
+
+**`D12`'s content is now fully ruled**: `Q1`–`Q12` all answered across §8.14, §19.3, §58–§71 and this
+section. **Remaining blockers are not decisions:**
+
+| blocker | class |
+|---|---|
+| Audit + observability populations decided but **never built** | build authorization (§72.5) |
+| Project B — no key, no endpoint, no issuance log | provisioning |
+
+**Nothing implemented. QA at frontier 141. Registry untouched. Production not contacted.**
+
