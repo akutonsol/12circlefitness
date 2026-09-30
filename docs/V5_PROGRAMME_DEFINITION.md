@@ -9656,3 +9656,115 @@ upstream: `CONF-D8`'s model and `CONF-D9`'s remainder. Trust IA requires **exter
 
 **Nothing was implemented. No migration, no application file. QA at 152. Production not contacted.**
 
+
+## 90 · CONF-D DEPENDENCY ANALYSIS — THE RECORD HAS ITS OWN ORDER, AND IT IS NOT THE PROPOSED ONE
+
+Read-only. Two findings change the picture: **the authoritative record already states a dependency
+order**, and **§89.3's classification of `CONF-D2` was over-claimed.**
+
+### 90.1 ⚠ CORRECTION — `CONF-D2` is NOT "already answered"
+
+§89.3 classified `CONF-D2` **ALREADY ANSWERED**, citing `D-D1` (§8.17) and `D11` (§19.2). **§8.17
+disclaims exactly that reading, in its own words:**
+
+> *"§8.1 phrases `D-D1` as 'Are Security / Incidents / Audit / Guardian a separate **Trust** product
+> area, or Admin domains?' **What was put and answered here is the governance/reader boundary — a
+> ROLE.** **This document does not treat the product-area question as answered**, and **does not answer
+> it.** … **Anyone reading `D-D1` as settling whether a Trust surface exists is reading more than was
+> decided.**"*
+
+`CONF-D2`'s recorded mechanism is **`OPEN (D-D1)`** — and D-D1's answer covers the **role**, not the
+**product area**. **So the mechanism is not discharged.**
+
+**What §19.2 does supply is real but is a different decision ID.** Its `D11` ruling calls Trust *"a
+governance review **surface** over existing audit and observability records"*, gives it *"build scope,
+minimally stated"*, and §20.2 carries **P6** as a phase. That is strong evidence Trust exists as a
+surface — **but concluding `CONF-D2` from it is the inference §8.17 warns against**, and the
+alternative it names is consequential: *"If the owner confirms (B), the 'Trust' build surface
+disappears and its capabilities become Admin sections — **removing an entire phase**."*
+
+**Reclassified: `CONF-D2` — REQUIRES OWNER CONFIRMATION.** Substantially informed by §19.2, mechanism
+undischarged. **Second over-claim in two passes; recorded rather than quietly amended.**
+
+### 90.2 The record's own dependency order
+
+`V5_FINAL_DESIGN_AUTHORITY_RECONCILIATION:383`, verbatim:
+
+> **"Inputs required, in dependency order:** (1) the approved Admin screen package; (2) the Fitonist
+> reference; (3) the brand identity package; (4) **`D-D1`** — Trust container + Admin IA; (5)
+> **`CONF-D7`** — the Admin role matrix; (6) **`CONF-01`** — the canonical 174 inventory; (7) **`D1`**;
+> (8) **`D4` / `A2` / `A12` / `A13`**; (9) **`D-V1` / `D-V2` / `D-V4`** and **`D2`**."
+
+**This does not support the ordering proposed to me, and largely inverts it.** The proposal put
+`CONF-D7` first and the design inputs sixth; the record puts the **three design inputs first** and
+`CONF-D7` **fifth**, behind `D-D1`.
+
+| the record's order | status now |
+|---|---|
+| 1 · approved Admin screen package | **OUTSTANDING** — `CONF-D4`, external design authority |
+| 2 · Fitonist reference | **OUTSTANDING** — `CONF-D5`, absent from disk |
+| 3 · brand identity package | **OUTSTANDING** — `CONF-D6`, not locked |
+| 4 · `D-D1` — Trust container **+ Admin IA** | **HALF ANSWERED** — the role at §8.17; the **product-area and Admin-IA halves are not** |
+| 5 · `CONF-D7` — Admin role matrix | **OUTSTANDING** |
+| 6 · `CONF-01` — canonical 174 inventory | **ANSWERED** §8.2 |
+| 7 · `D1` | **ANSWERED** §19.1 · §20.2 records P1 SATISFIED |
+| 8 · `D4` / `A2` / `A12` / `A13` | **COMPLETE** §19.2 · built and verified §85 |
+| 9 · `D-V1` / `D-V2` / `D-V4` · `D2` | **DEFERRED** under `PD-G01` |
+
+**Four of the nine are discharged.** The live ones are **1, 2, 3, 4 and 5** — and the first three are
+**design-authority supply**, not decisions.
+
+> **`CONF-D8` does not appear in this list at all.** The record's own dependency order does not treat
+> it as a required input — consistent with its class being **`Architecture`**, a follow-on rather than a
+> gate. **§89.5's claim that `CONF-D8`'s model is "downstream of `CONF-D7`" is MY INFERENCE, not a
+> recorded dependency.** It is reasonable — you cannot enumerate a role's columns without a role
+> matrix — but the record does not state it, and it is labelled as inference here rather than left to
+> look like authority.
+
+### 90.3 `D-D1`'s scope is wider than §89 treated it
+
+`:383` defines input 4 as **"`D-D1` — Trust container + Admin IA"** — **both halves under one ID**.
+§89.4 said the shared `OPEN (D-D1)` label was *"discharged for `CONF-D2` and not for `CONF-D1`."*
+**More precisely: it is discharged for neither.** §8.17 answered a **third** thing — the role — and
+explicitly declined the product-area question. So `D-D1` carries **three** components:
+
+| `D-D1` component | state |
+|---|---|
+| the governance/reader **role** | **ANSWERED** §8.17 — Trust operator |
+| the **Trust product area** (`CONF-D2`) | **NOT ANSWERED** — §8.17 declines it explicitly |
+| the **Admin IA** (`CONF-D1`) | **NOT ANSWERED** |
+
+### 90.4 Classification after this analysis
+
+**Genuine owner decisions (6).** `D-D1`'s product-area half (`CONF-D2`) · `D-D1`'s Admin-IA half
+(`CONF-D1`, options (a)/(b)/(c), with `CONF-D3`'s two orphaned surfaces) · `CONF-D7` role matrix ·
+the thirteenth Admin domain · `CONF-D5` visual reference · `CONF-D6` identity package. **B1's authoring
+placement** is a seventh **only if** it survives the above — it is bound up with `CONF-D7` and the IA,
+and may be answered by them.
+
+**Architecture follow-ons (2).** `CONF-D8`'s complete model and `CONF-D9`'s remainder — both class
+`Architecture`, neither in the record's dependency order, both plausibly inside §19's delegation once
+their inputs exist.
+
+**External design authority (2).** The approved Admin screen package (`CONF-D4`: *"a brief cannot serve
+as design authority"*) and Trust's information architecture.
+
+### 90.5 The minimum set before design can proceed
+
+**The record's order says design inputs come first**, so the minimum is not the role matrix — it is:
+
+1. **`CONF-D5`** supply or replace the absent visual reference · 2. **`CONF-D6`** lock the identity
+package · 3. **`D-D1`** product-area half (`CONF-D2`) — because option (B) *removes an entire phase*
+and would make Trust IA moot · 4. **`D-D1`** Admin-IA half (`CONF-D1`) · 5. **the thirteenth domain**,
+which `CONF-D1`'s option (a) presupposes ("map **13** domains beneath").
+
+**`CONF-D7` is fifth in the record's order, not first** — it gates implementation and the `CONF-D8`
+model, not the commencement of design.
+
+### 90.6 P5 readiness, and the boundary
+
+**Blocked. Five live inputs of the record's nine, three of them design-authority supply rather than
+decisions.** Nothing here was decided, chosen, or inferred into a decision.
+
+**No implementation. No migration. No application file. QA at 152. Production not contacted.**
+
