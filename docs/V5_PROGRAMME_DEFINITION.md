@@ -10292,3 +10292,98 @@ isolation between concurrent runners (§95.5). It blocks nothing; it makes the r
 misleading when two runners overlap.
 
 **No migration, no application file, no production contact. QA at 152.**
+
+---
+
+## 96 · §95 VERIFIED IN CI — AND A SECOND SELF-INFLICTED ARTEFACT, PLUS A RED HERRING
+
+§95.6 recorded a prediction before the result was available: *"If it returns 484/484, the diagnosis
+holds; if it returns 480/484 again with the same four, the diagnosis is wrong and there is a real finding
+in D-01/P1 to chase."*
+
+### 96.1 The prediction held
+
+Run `36769827175` — **6/6 jobs green**, `Live security suite` with **no local run overlapping it**:
+
+```
+PASS  D-01  coach_client_relationships      43/43      ← was 41/43 under contention
+PASS  P1    profile + status boundaries     37/37      ← was 35/37 under contention
+484/484 assertions passed across 12 suites
+```
+
+**The two suites that failed are the two now green, at full count.** The four assertions of §95.1 —
+including *"relationship 'cancelled' → coach is DENIED the client photo"* — all pass. §95's diagnosis is
+**VERIFIED IN CI**: the assertions were sound and the environment was not. **No authorization defect
+existed at any point.**
+
+`D-01 43/43` and `P1 37/37` also match §94.1's local numbers exactly, so the same instrument gives the
+same answer in both places **when it has the QA project to itself**.
+
+### 96.2 The second self-inflicted artefact — I cancelled my own verifying run
+
+The §94 commit's run (`36769514703`) shows **Flutter, I-WRK-01 and UIX-1 as ✗**. None of them failed:
+
+```
+##[error]The operation was canceled.        20:03:22Z
+```
+
+**I pushed §95 at 20:02:27 while that run was still in flight**, and the workflow's concurrency group
+superseded it. GitHub renders a cancelled job as ✗ in the run view, indistinguishable at a glance from a
+failure.
+
+**That is the second time in ten minutes that I corrupted my own evidence, by a different mechanism.**
+§95 was *running the suite locally against a project CI was using*. This is *replacing a run before it
+could finish reporting*. The shared lesson is the same and neither instance was a product defect:
+
+> **The evidence-gathering act perturbs the thing being measured.** A regression suite bound to one
+> shared QA project, and a CI workflow with a supersede-on-push concurrency group, are both
+> single-occupancy resources. §95's warning covers the first. **This is the second, and it is recorded
+> for the same reason: a ✗ that is really a cancellation invites exactly the misreading §28.9 was built
+> to prevent.**
+
+**Operating rule adopted for the remainder of this engagement, and followed from §96 onward:** before
+pushing, confirm no run is in flight; before running the live suite locally, confirm the same. The §95
+run was allowed to complete untouched, which is why §96.1 has a number in it.
+
+### 96.3 The red herring — an ambient warning that looks like a cause
+
+While hunting the ✗ I found this in the failing jobs, and it reads like a build break:
+
+```
+Error: unable to find directory entry in pubspec.yaml:
+  /home/runner/work/12circlefitness/12circlefitness/apps/mobile/assets/icons/
+```
+
+**It is not the cause. It appears TWICE in §91's run, which succeeded 6/6.** The word `Error:` is
+Flutter's, and the condition is **non-fatal**.
+
+**The underlying condition is real and pre-existing:** `apps/mobile/pubspec.yaml` declares
+`assets/icons/`; the directory exists in the working copy but is **empty**, so **git tracks nothing in
+it** (`git ls-files apps/mobile/assets/icons/` → 0) and a clean CI checkout has no such directory. It has
+been printing on every Flutter job, including green ones. **Nothing in this session caused it** — the only
+files added were under `docs/`.
+
+**Not fixed here.** The remedy is a one-line `.gitkeep`, but this is an `apps/mobile` asset-tree change,
+it fixes **no failure**, and it is outside anything authorized in this engagement. **Recorded, and
+flagged separately for its own work item.**
+
+**Recorded chiefly as a reading hazard**: a line beginning `Error:` inside a job that shows ✗ is almost
+irresistible as an explanation, and it was wrong. The thing that settled it was **checking the same
+message against a run that had passed** — the same technique that settled §95.
+
+### 96.4 The red run is left red
+
+Run `36768772518` (§93's commit) stays **failed** in the branch's history. **It was not re-run to make
+the history look clean.** §95 and §96 explain it in full, and a green re-run would erase the only direct
+artefact of a contention failure this programme has captured. **The record is the explanation; the
+history is the evidence.**
+
+### 96.5 Frontier — unchanged
+
+Identical to §95.7: three owner/design inputs (approved screen package · `CONF-D6` · `CONF-D7`), the
+standing constraints (`PD-G01`, P10's installation constraint, production), and two **open non-blocking**
+items — fixture isolation between concurrent runners (§95.5) and the untracked `assets/icons/` directory
+(§96.3).
+
+**Nothing became executable. No migration, no application file, no production contact. QA at 152 —
+now green at 484/484 both locally and in CI, uncontended, at that frontier.**
