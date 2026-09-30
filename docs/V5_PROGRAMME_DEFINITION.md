@@ -7633,3 +7633,62 @@ a **finding** are different acts, and only the first is mine.
 being true, where nothing re-derives the reason. §62 found it in documentation, §65 in executable
 comments, §66 in a `skip:` argument. **The reason a control is off must be re-checked, not inherited.**
 
+
+## 67 · THE CI SWEEP — CLEAN, EXCEPT A COUNT THAT COUNTED ITSELF STALE
+
+Fourth and last location for the disabled-control class: **CI**.
+
+**Clean.** Six jobs (`static-guards`, `flutter`, `negative-control`, `live-qa`, `wrk01-live`,
+`uix1-e2e`), **all active**. No `continue-on-error`, no `if: false`, no commented-out job. The two
+`|| true` occurrences are on `grep -c` and `grep -v`, where exit-1-on-no-match is the expected
+behaviour and swallowing it is correct.
+
+**The credential gate is already the honest pattern.** `live-qa` publishes a `creds` output so
+`wrk01-live` can skip cleanly, and when the secrets are absent it emits a `::notice` that names
+exactly what did not run and what depends on it. That is precisely the AI harness's rule (§65.1) —
+**the skip is announced, not silent.**
+
+### 67.1 The one defect — and it is this session's pattern, again
+
+The notice read:
+
+> *"**397 live authorization assertions across 10 suites** are NOT running — including K-04 (d11),
+> which is the VERIFIED IN CI rung that finding's closure depends on."*
+
+**It is 414 across 11.** `d11`/`K-04` was registered after that line was written, and the number went
+stale in the very sentence that exists to tell an operator how much coverage they just lost.
+
+### 67.2 The fix is DERIVATION, not a new number
+
+Updating `397 → 414` would have reproduced the defect on the next registration. The count is now read
+from the registration list itself:
+
+```bash
+n_suites=$(grep -cE "^[[:space:]]*\['" supabase/tests/security/run.mjs)
+echo "::notice ...All ${n_suites} live authorization suites registered in
+      supabase/tests/security/run.mjs are NOT running..."
+```
+
+Verified locally: the pattern yields **11**, matching the runner. The assertion total is **dropped
+rather than derived** — it is not knowable without executing the suites, and a number that can only
+be obtained by doing the thing you are reporting you did *not* do has no honest value in this notice.
+
+`ci.yml` validates as YAML under both `pyyaml` and Ruby's parser.
+
+### 67.3 The rule, now stated once for all four locations
+
+| § | location | disabled control |
+|---|---|---|
+| **62** | documentation | `§16.3` asserted a PHI exposure that migration 135 had removed |
+| **65** | executable comments | four suite headers declared a red run *expected* |
+| **66** | `skip:` arguments | two guards off for reasons that had stopped being true — one guarded **production** |
+| **67** | CI | a coverage-loss notice under-reporting the coverage lost |
+
+> **A fact duplicated into prose outlives the thing it describes.** Every instance this session was a
+> true statement that was never re-checked, and in three of the four the staleness pointed the unsafe
+> way — toward believing a control was working, or that its absence was intended. **Derive it, or put
+> it where it is checked.** §67.2 is the first of the four to be fixed by removing the duplication
+> rather than by correcting the copy.
+
+**No job added, removed, reordered or gated differently. QA at frontier 141.**
+

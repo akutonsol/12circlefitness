@@ -383,7 +383,13 @@ jobs:
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Live QA suites skipped::EB-1 has not provisioned QA_URL / QA_ANON / QA_SERVICE. 397 live authorization assertions across 10 suites are NOT running — including K-04 (d11), which is the VERIFIED IN CI rung that finding's closure depends on."
+            # V5 §67: the suite count is DERIVED, not written here. This line
+            # used to read "397 live authorization assertions across 10 suites";
+            # d11/K-04 was registered afterwards and the number silently went
+            # stale. A count duplicated in prose outlives the thing it counts,
+            # so the only source of truth is run.mjs's own registration list.
+            n_suites=$(grep -cE "^[[:space:]]*\['" supabase/tests/security/run.mjs)
+            echo "::notice title=Live QA suites skipped::EB-1 has not provisioned QA_URL / QA_ANON / QA_SERVICE. All ${n_suites} live authorization suites registered in supabase/tests/security/run.mjs are NOT running — including K-04 (d11), which is the VERIFIED IN CI rung that finding's closure depends on."
           fi
 
       - uses: actions/setup-node@v4
