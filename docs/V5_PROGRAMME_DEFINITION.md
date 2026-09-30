@@ -7072,7 +7072,16 @@ mints or carries a correlation value into it**.
 | **1 · Mint** | The **external signer** issues `(correlation_id, signature, key_id)`, signing over `correlation_id` (and, where available, the actor and operation). | The private key never enters the function tier — §59 proved no in-database custody can achieve this. |
 | **2 · Carry** | The application path calls a `SECURITY DEFINER` function that publishes the triple transaction-locally via `set_config('circle12.correlation_id', …, true)` — **migration 115's proven pattern**. | Uses an existing in-tree mechanism rather than inventing a channel. |
 | **3 · Record** | Audit and observability rows carry `correlation_id`, `signature`, `key_id`. Triggers read them with `current_setting(…, true)`. | Both populations carry the same identifier, as `D4`/`A14` requires. |
-| **4 · Verify** | **Trust verifies the signature against the public key before honouring any correlation.** A row whose signature does not verify is **not correlatable**. | This is the whole security property. |
+| **4 · Verify** | **Trust verifies the signature against the public key before honouring any correlation.** A row whose signature does not verify is **not correlatable**. | This is the whole security property — **against the DATABASE-TIER adversary only; see the marker below and §68/§71.1.** |
+
+> **PRECEDENCE MARKER — THE PARAGRAPH BELOW IS SUPERSEDED. See §68 and §71.1.**
+> It claims the design *defeats* the compromised Edge Function. **It does not.** §68 demonstrated
+> empirically that the adversary obtains valid signatures on demand (C-1…C-6) against **all five**
+> signer designs, because it holds the signer's invoke credential by construction. The claim holds
+> ONLY for the **database-tier** adversary — a leaked `service_role` used directly against PostgREST
+> or the pooler, which has no invoke credential. Under `D12·Q5` = Option A (§71) it is **normative**
+> that cryptographic signing is **never** described as prevention against the function-tier trust
+> root. Preserved unaltered below; §68 and §71.1 take precedence.
 
 **Why it defeats the named adversary.** The compromised Edge Function holds `service_role` and
 `BYPASSRLS`, so it *can* write rows into both populations with any `correlation_id` it likes — and
