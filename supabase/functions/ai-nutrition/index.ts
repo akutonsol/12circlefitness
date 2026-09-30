@@ -19,7 +19,14 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-const ANTHROPIC_MODEL = Deno.env.get('ANTHROPIC_MODEL') ?? 'claude-sonnet-4-20250514';
+// PORTED, not chosen. `api-config.ts:38` defines
+// DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-6' and the Nest service used it
+// whenever ANTHROPIC_MODEL was unset, which it is on QA. Nine of the sibling
+// Edge Functions use the same literal. An earlier revision of this file invented
+// 'claude-sonnet-4-20250514' instead, and the live happy path returned 503
+// because Anthropic rejected it — the negative paths all passed, so only an
+// end-to-end call could surface it.
+const ANTHROPIC_MODEL = Deno.env.get('ANTHROPIC_MODEL') ?? 'claude-sonnet-4-6';
 const ANTHROPIC_MAX_TOKENS = Number(Deno.env.get('ANTHROPIC_MAX_TOKENS') ?? '1024');
 
 // Ported verbatim from `nutrition-message.dto.ts`. Changing any of these is a
