@@ -7114,6 +7114,160 @@ would be unverifiable by construction and would violate the programme's own evid
 **QA unchanged at frontier 141.**
 
 
+## 61 · `D12·Q2` SIGNER SELECTED — CUSTODY **VERIFIED**, AND THE SECURITY CLAIM IT DOES **NOT** SUPPORT
+
+**OWNER DECISION 2026-09-30 — `D12·Q2` signer selection: a dedicated second Supabase project is
+authorized as the external signer / custody boundary, *"subject to architectural verification that
+its private signing capability is inaccessible to the primary project's compromised Edge Function /
+service-role tier."*** The condition is carried forward verbatim because it is load-bearing: this
+section discharges it, and the discharge is **split**.
+
+| claim | verdict |
+|---|---|
+| **V-1** — project A's `service_role` tier confers **nothing** in project B; B's signing key is unreachable from A | **VERIFIED** — 6/6 live, §61.1 |
+| **V-2** — therefore the compromised Edge Function *"cannot fabricate a correlation Trust will honour"* (§60.2) | **REFUTED** — §61.3 |
+
+**The signer selection stands. §60.2's security claim does not, as written.** Custody is necessary
+and is now proven; it is not sufficient, and the gap is structural rather than a defect in the choice
+of signer. **No other signer instance would close it either** — see §61.4.
+
+### 61.1 V-1 — cross-project credential isolation, VERIFIED LIVE
+
+QA's `service_role` key is a legacy **HS256 JWT** whose claims are `{iss, ref, role, iat, exp}`.
+Project B authenticates such a token by verifying the HMAC against **B's own** `jwt_secret`. A token
+minted by project A therefore arrives at B as **well-formed claims carrying a signature B cannot
+verify** — which is exactly what the probe presents.
+
+> **A local two-project test would have been WEAKER, not stronger, and was rejected for that
+> reason.** The Supabase CLI issues every local stack keys signed with the same well-known demo
+> secret, so stack A's `service_role` key would have been **accepted** by stack B and the experiment
+> would have *falsely confirmed* isolation. The foreign-signature probe is the faithful one.
+
+Probe `xproj.mjs`, read-only, against QA `event_registrations`:
+
+```
+PASS  XP-0  CONTROL: the project's OWN service_role key is accepted here   HTTP 200
+PASS  XP-1  foreign-signed service_role token (correct ref+claims) REJECTED  HTTP 401 Invalid API key
+PASS  XP-2  foreign-signed anon token REJECTED                               HTTP 401 Invalid API key
+PASS  XP-3  foreign-signed supabase_admin token REJECTED                     HTTP 401 Invalid API key
+PASS  XP-4  alg=none service_role token REJECTED                             HTTP 401 Invalid API key
+PASS  XP-5  real anon apikey + foreign service_role bearer does NOT elevate  HTTP 401 PGRST301
+            "None of the keys was able to decode the JWT"
+6/6 assertions passed
+```
+
+**XP-0 is the anti-vacuity control** and it earned its place: the first run used `profiles`, which
+**does not exist on QA**, and returned 404 — every negative below it would have been vacuous. The
+table was changed to one the programme already probes.
+
+**XP-5 is the sharpest of the six.** With a *valid* `apikey` the request reaches PostgREST rather
+than being turned away at the gateway, and PostgREST rejects it at **signature verification** —
+`"None of the keys was able to decode the JWT"`. Rejection is therefore **cryptographic**, not an
+allowlist of known key strings. That is the precise property a second project needs.
+
+**Supporting grant evidence (§59, re-read).** `anon` appears in **neither** Vault ACL —
+`vault` nspacl and `vault.secrets` relacl name only `supabase_admin`, `postgres` and `service_role`.
+So **B's `anon` key is a safe invoke credential to place in A**: it is the least-privilege thing that
+can call B's signer, and it reaches no secret material in B.
+
+**Deployment boundary, audited.** A custody boundary is only as strong as the pipeline that deploys
+it. `.github/workflows/` contains **no `supabase functions deploy`, no `db push`, and no
+`SUPABASE_ACCESS_TOKEN`** — CI holds `QA_URL`/`QA_ANON`/`QA_SERVICE`/`QA_DB_URL` and nothing that can
+deploy code or reach the Management API. **CI compromise yields QA's `service_role` and stops there.**
+Deployment is manual and local, so the deploy path does not silently re-join the two projects.
+
+> *Noted while auditing CI, tangential but the ledger should be accurate:*
+> `supabase-keepalive.yml` targets **production** (`ref` decodes to the production project) with a
+> committed **anon** key on a daily cron. That is owner-established and intended — an `anon` key is
+> public by construction and ships in the client. It is recorded only so the programme's
+> *"production is never contacted"* language is read correctly: **I** must not contact production; a
+> pre-existing owner-established workflow does.
+
+### 61.2 What V-1 actually establishes
+
+**A dedicated second Supabase project is a genuine custody boundary.** §59 proved no *in-database*
+custody can exclude `service_role` — the Vault grant is unrevokable because `supabase_admin` made it
+and only a grantor may revoke. Cross-project separation is immune to that argument for a reason V-1
+now demonstrates rather than assumes: **project A's `service_role` is not a privileged principal in
+project B; it is an unverifiable signature.** The key sits behind an authentication boundary A holds
+no material for.
+
+**This is strictly better than every in-project alternative and it is the right selection.**
+
+### 61.3 V-2 — REFUTED. The signer is an oracle, and the legitimate caller is the adversary
+
+§60.2 argued: the compromised function tier *"can write rows into both populations with any
+`correlation_id` it likes … what it **cannot** do is produce a **valid signature**."*
+
+**It can — by asking.** Step 1 of the §60.2 design has the application path call the signer to mint
+`(correlation_id, signature, key_id)`. That application path **runs inside the compromised tier**.
+The adversary therefore holds B's invoke credential and can request signatures on demand. It asks for
+a fresh valid triple and stamps the **same triple on two fabricated rows, one in each population** —
+and step 4 verifies it, because the signature *is* genuine.
+
+**The adversary fabricates a correlation Trust honours, without ever touching the private key.**
+
+The error is a conflation of two adversaries that §60.2 named as one:
+
+| adversary | holds | defeated by the design? |
+|---|---|---|
+| **Database-tier** — a leaked `service_role` key used directly against PostgREST / the pooler | `BYPASSRLS`, full table writes | **YES.** It has no signer credential, so every row it fabricates is unverifiable and non-correlatable. |
+| **Function-tier** — a compromised Edge Function, the adversary §60.2 explicitly names | the above **plus B's invoke credential** | **NO.** Oracle access yields valid signatures on demand. |
+
+**The design defeats the first and not the second.** That is still a real and worthwhile property —
+a leaked `service_role` key is the more common exposure, and the design converts it from
+*undetectable correlation forgery* into *nothing at all*. But it is not the property §60.2 claimed.
+
+**Actor-binding does not rescue it.** The obvious repair — have B independently verify the end user's
+JWT and sign `(correlation_id, actor, operation)` — fails against this adversary, because
+`service_role` reaches GoTrue's admin endpoints and can therefore **mint a session for any subject**.
+An actor assertion the adversary can manufacture adds no authenticity. *(Reasoned from platform
+capability; deliberately **not** tested, because the test is user creation on QA — a mutation with no
+authorization behind it. Recorded as **NOT VERIFIED LIVE**.)*
+
+### 61.4 The irreducible limit — and why it does not reopen the selection
+
+**No signer instance closes this gap.** A cloud KMS, self-hosted custody and a second Supabase
+project are *identical* here: each is an oracle to whoever holds its invoke credential, and the
+legitimate minting path must hold that credential because it is the thing that mints.
+
+The limit is not cryptographic custody but **observation**: signing grounds an identifier only as far
+as the signer can independently observe what it signs. B observes nothing except what A tells it, and
+A is compromised. Pull-based observation (B consuming A's WAL or audit stream under its own
+credential) moves the channel but not the limit — an adversary with `BYPASSRLS` can write a
+fabricated event *into the stream B reads*, and B would sign a genuine-looking observation of a
+fabricated fact.
+
+**The honest statement of what cryptographic grounding buys, and it is the statement that should
+govern D12:**
+
+> A signature makes the correlation identifier **unforgeable without the key** and its issuance
+> **non-repudiable** against B's issuance log. It **cannot** make the underlying event authentic
+> when the adversary controls the tier that produces events. Against the function-tier adversary the
+> residual value is **detection, not prevention**: B's issuance log is outside A's reach, so
+> anomalous issuance volume and issuance without a matching legitimate operation are **visible in a
+> place the adversary cannot edit**.
+
+### 61.5 Consequences
+
+1. **The signer selection is RECORDED and STANDS.** V-1 discharges the owner's stated condition on
+   its own terms — the private signing capability is inaccessible to A's function/`service_role`
+   tier. Verified, 6/6 live.
+2. **§60.2's "Why it defeats the named adversary" paragraph is SUPERSEDED by §61.3** and must be read
+   as scoped to the **database-tier** adversary. The claim is not withdrawn, it is **narrowed**; the
+   original text stays per §8:219 discipline — records are corrected forward, never rewritten.
+3. **A new owner question is raised, `D12·Q5`:** *given that signing cannot prevent function-tier
+   correlation forgery, does D12 accept the design for its database-tier property plus B's
+   independent issuance log as a detection control — or does it require a control that survives
+   function-tier compromise, which this architecture does not currently admit?* **Owner's.** Nothing
+   below decides it.
+4. **§60.3's two consequences are unaffected** and still gate implementation: partial correlation
+   coverage across the 28 trigger statements, and signing on the request path.
+5. **Still not implemented, and correctly so.** The standing instruction is not to implement until
+   custody is proven. Custody is now **proven and selected** — but `D12·Q5` determines whether the
+   §60.2 design is the thing to build. Provisioning project B before that is answered would be
+   building to a superseded security claim. **QA unchanged at frontier 141.**
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
