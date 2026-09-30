@@ -9150,3 +9150,80 @@ Fresh replay **000–150 clean**. Guards: hygiene (151 migrations, contiguous 00
 **QA ledger 150. Closure unchanged at three rungs of four — VERIFIED IN CI still blocked on the push.
 Nothing `VERIFIED_CLOSED`. Production not contacted.**
 
+
+## 84 · `B1`–`B4` IMPLEMENTED — FOUR EMITTERS, EACH ON A TRACED PATH
+
+**Owner decisions B1–B4 approved.** Each is implemented against the **real mutation path found in the
+repository**, reusing the sanctioned `A3` mechanism rather than opening a second audit channel.
+Migration **151**. §83's four boundaries are discharged.
+
+### 84.1 What each was implemented against, and how the path was found
+
+| | decision | real path, traced | non-emission case |
+|---|---|---|---|
+| **B1** | incident creation = `admin` + `trust_operator` only | **no path existed** (§81.2); `audit_open_incident()` is the RPC arm of A3's *"RPC + application"* | client, coach → `42501`; `service_role` not granted EXECUTE **and** refused by the `auth.uid()` gate |
+| **B2** | material status transitions, **both** relationship tables | direct client writes via `coach_relationship_service.dart`, so A3's **trigger arm** is the mechanism | an update touching `specialty`/`request_message` emits **nothing** |
+| **B3** | authoritative entitlement state, **not** the legacy field | **`public.subscriptions`** — carries `status` + `plan_tier`, written by `stripe-webhook`, `update-subscription`, `cancel-subscription` | a `current_period_end` rollover emits **nothing** |
+| **B4** | correction of existing PHI, **names only** | migration **114's own** `v_coach_cols` split | a coach writing only review fields emits **nothing** |
+
+**B4 deserves its own note, because it is the one where inventing would have been easiest.** No
+authoritative PHI column enumeration exists anywhere in the tree — d10's six-column list mixes PHI
+with billing fields and is not one. Rather than classify columns myself, the implementation reuses
+**114's existing distinction**: `v_coach_cols` are the coach's review fields, so *everything else on
+the row is the client's own submitted health data*, and a client changing any of it is **by 114's own
+construction** correcting previously-submitted PHI. **The path was found, not chosen.**
+
+### 84.2 The `changed_columns` column, and why it is not `delta`
+
+A6 §8.9 excludes PHI-correction **deltas** and migration 150 enforces that as a CHECK. B4 requires the
+changed-column **name set**. **These are different objects** — A6 excludes before/after *values*; a
+name set is metadata — and §8.9 recorded the name-set question as *"NOT DECIDED"*, which **B4 now
+decides**. So the names get their own column and `delta` stays NULL for this category. Only
+`array_agg(key)` is ever computed, so **no value can reach the ledger by this route.**
+
+### 84.3 Evidence — local, on a fresh 000–151 replay
+
+```
+B1  admin opens: t   ·  trust_operator opens: t
+    coach: 42501 "only admin or trust_operator may open an incident"
+    client: 42501   ·   service_role: permission denied for function
+    actor_identity = admin, actor_provenance = grounded, 2 incident Events emitted
+B2  incidental metadata change (specialty, request_message): 1 -> 1   NO emission
+    status pending -> active: delta {"before":{"status":"pending"},"after":{"status":"active"}}
+B3  current_period_end rollover: 0 emissions
+    plan_tier basic -> premium: delta {"status":"active","plan_tier":"premium"} / {"..","basic"}
+B4  coach review fields only: 0 emissions
+    client corrects own answers: 1 emission
+    changed_columns = {notes, weight_kg, sleep_hours}   delta IS NULL
+    rows leaking a PHI value: 0   (regex over delta+changed_columns+action for
+                                   79, 80.5, 6.5, "corrected", "felt strong")
+    a phi_correction carrying a delta is still REFUSED by 150's constraint
+```
+
+> **Two of my own test fixtures were wrong and are recorded rather than quietly fixed.** The first run
+> used a `notes` column on `coach_client_relationships` and a `week_start` column on
+> `weekly_checkins`; **neither exists**, so B2's non-emission result and the whole of B4 were
+> **vacuous** — they reported 0 emissions because the statement had errored. Re-run against the real
+> schemas, both became the real results above. A non-emission assertion that passes because the
+> statement failed is the easiest kind of false green to ship.
+
+### 84.4 The team-members arm is INERT, and that is stated not hidden
+
+B2 says **both** tables, so both are covered. `coach_team_members` will not fire today: migration 132
+records *"zero writers of `coach_team_members` in the app or edge functions"* and that the
+`invited → active` transition *"IS the acceptance step, and no acceptance mechanism exists anywhere in
+this system."* The trigger is the control waiting for Wave 2's governed conversion. **Recorded so no
+one later reads silence as coverage.**
+
+### 84.5 QA — deliberately NOT applied
+
+`QA_CLOSURE_STANDARD` §82 rule 7 requires wave authorization and **no wave covers P2**. The owner's
+earlier authorization covered **142–147 and the repairs that followed from applying them**; **151 is
+new implementation**, so that authorization is **not inferred onto it**.
+
+**QA remains at 150. Live regression 448/448 across 12 suites; P2 34/34 — which does not yet exercise
+151, because 151 is not there.** Flutter 1704 / 6 skipped. Guards: hygiene (152, contiguous 000–151),
+I-MIG-03 (0 unrecorded), schema contract, ENV-3 manifest (151 declared PENDING), production-ref.
+
+**Closure for 151: FIXED IN CODE only. Production not contacted.**
+
