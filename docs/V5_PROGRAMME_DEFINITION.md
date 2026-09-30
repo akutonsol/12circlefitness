@@ -7850,3 +7850,49 @@ the owner closes.
 **This was the third instance of §67.3's rule** and the one with the longest life: a true sentence,
 never re-checked, that had come to describe live PHI exposure that migration 135 removed.
 
+
+## 70 · `D12·Q5` — THE OWNER DECISION AT THE BOUNDARY
+
+§68 establishes empirically that **no signer this architecture can host defeats the function-tier
+adversary.** The question is therefore not *which signer* — that was `D12·Q2`, and it is now moot as a
+security measure — but **what D12 requires of correlation given that prevention is unavailable.**
+
+### 70.1 The decision
+
+> **`D12·Q5`.** Given that a compromised primary-project Edge Function can obtain arbitrary valid
+> signatures (§68, C-1…C-6, all five designs), does `D12`:
+>
+> **(a)** accept the design for the property it *does* deliver — defeating a **leaked `service_role`
+> used directly against PostgREST/the pooler** — plus project B's **issuance log as a detection
+> control**, and state plainly in the requirement that correlation is **not** trustworthy against
+> function-tier compromise; or
+>
+> **(b)** require a control that survives function-tier compromise — which **this architecture does
+> not admit**, and which would mean moving audit/observability writes out of the reach of
+> `service_role` entirely, a change of platform shape, not of signer; or
+>
+> **(c)** narrow `D4`/`A14`'s cross-population correlation requirement so that it no longer asserts a
+> property the system cannot provide?
+
+**None of these is derivable from existing authority**, which is why it is the owner's. Option (a)
+is the only one implementable now; option (b) is a platform decision of the class `PD-A17` reserved;
+option (c) changes a ruled requirement and must not be taken merely to unblock implementation.
+
+### 70.2 What must NOT be inferred
+
+- **`D12·Q2` is not reopened.** Option (b)/external custody remains the correct ruling *for custody*,
+  and §61 verified the second Supabase project satisfies it. §68 shows custody was never the binding
+  constraint.
+- **`D4`/`A14` is preserved as written.** Nothing here narrows it; only §70.1(c) would, and that is
+  the owner's to take.
+- **Nothing is implemented.** No signer, verifier, migration, schema or integration. Per the standing
+  instruction, implementation waits on a proven boundary — and the boundary is now **proven absent**,
+  which is a stronger reason to wait, not a weaker one.
+
+### 70.3 The one thing that is safe to build before the ruling
+
+`PD-A24`'s tracked precedent — *"the sink … can and should be built **before** the vendor is chosen —
+it is one interface"* — applies to the **issuance log**, which is the only control §68 leaves
+standing and is **identical under (a) and (b)**. It is not proposed here; it is noted so the owner
+knows one option is not blocked by the others.
+
