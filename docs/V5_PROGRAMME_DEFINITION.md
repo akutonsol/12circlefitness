@@ -8493,3 +8493,105 @@ neither is determined by any existing ruling, so **neither is taken here.**
 **Specification only. No migration, no schema object, no provisioning, no registry change.** QA at
 frontier **141**. Production not contacted.
 
+
+## 76 · TRACEABILITY MATRIX — DECISION → IMPLEMENTATION, AND THE LOCAL EVIDENCE
+
+Migration **142** is the first P2 artefact. This is the matrix required before implementation is
+trusted: **every object, column, constraint and grant traced to the ruling that produced it.** Where
+no ruling determines a choice, §76.3 says so.
+
+### 76.1 Object-level traceability
+
+| artefact | authority | what the ruling says |
+|---|---|---|
+| `trust_operator` role value | **§8.18·Q1** | *"TWO ROLES. The Trust operator reads and reviews; a separate new constrained role executes erasure."* |
+| `erasure_executor` role value | **§8.18·Q1 + A12 ruling 6** | erasure executor is *"A NEW CONSTRAINED ROLE"*; may it be `service_role`? **NO** |
+| no third role | **§19.3** | *"No third role is created."* |
+| `is_trust_operator()` | **A13 §8.8** + hierarchy 5 | Trust operator is an Event reader; mirrors `is_admin()`, the same shape of policy predicate |
+| `audit_events` | **A1 §8.4 population 1** | *"append-only occurrence record — actor · subject · action · time · outcome"* |
+| `actor_id`/`subject_id`/`action`/`occurred_at`/`outcome` | **A1 §8.4** | A1's five, verbatim |
+| **no foreign key** on either id | **A12 ruling 2 · A1 sub-ruling 2 · A3 sub-ruling 3** | *"the frozen row is never mutated"*; audit rows *"must not be `ON DELETE CASCADE`'d merely because the audited subject is deleted"*; asserted actors are permitted |
+| `actor_provenance` + its CHECK | **A3 sub-ruling 3** | asserted and grounded *"must remain distinguishable … and must not be equated"* |
+| provenance vocabulary | **§19.3 `D12·Q2`** | *"client-minted … tagged `asserted`; server-minted tagged by origin"* |
+| `category` + its 14-value CHECK | **A2 §8.3** | the fourteen IN categories; session lifecycle OUT |
+| *why* `category` is NOT NULL | **A12 rulings 3 + 4** | precedence is **PER-CATEGORY**, and financial/tax takes **7 years** against every other category's 6 |
+| `correlation_id` | **`D12·Q3` §19.3** | *"a correlation identifier column on the audit Event row"*, frozen as identity/occurrence |
+| `correlation_signature` nullable | **§71 Option A** | the signer is project B, **unprovisioned**; a NULL signature is not correlatable |
+| `audit_events_freeze()` + trigger | **A11 §8.6 Event · A3 sub-ruling 5 · §8.5** | FREEZE-IDENTITY-COLUMNS, via *"the only mechanism verified to bind every caller including … `service_role`"* — the migration 120 precedent |
+| DELETE also refused | **A12 rulings 1–2** | ANONYMISE-AND-RETAIN, no exception to the freeze |
+| RLS enabled | **A13 §8.8** | the reader model presupposes it |
+| the one SELECT policy | **A13 §8.8 Event row** | *"active coach · admin · Trust operator"* |
+| **no** write policy | **A3 §8.5 · §8.20·Q1** | writes go through the RPC; the `decision_traces` shape (read policy, no write policy) is *"genuinely applicable precedent"* |
+| `audit_record_event()` | **A3 §8.5 Event** | *"COMBINATION — trigger + RPC + application"*, RPC arm |
+| best-effort + boolean + WARNING | **A3 sub-ruling 4** | *"must not automatically abort the audited business action"* |
+| provenance derived, never asserted upward | **A3 sub-ruling 3** | a caller may downgrade to `asserted`; only `auth.uid()` yields `grounded` |
+| `REVOKE … FROM PUBLIC/anon` on every function | **migration 116 posture · §63 audit** | 116 set the default-privileges revoke; 138 regressed this class and 139 repaired it, so it is restated explicitly rather than inherited |
+| five claim limits in object comments | **§75.4** | each forbids a claim the schema would otherwise imply |
+
+### 76.2 Local evidence — and the defect it caught before QA
+
+**A disposable stack applied all 143 migrations.** Then, against that stack:
+
+| # | assertion | result |
+|---|---|---|
+| A | asserted actor records (A3 sub-ruling 3) | **PASS** — `actor_provenance='asserted'` |
+| B | zero foreign keys on `audit_events` | **PASS** — 0 |
+| C | deleting a user neither mutates the audit row nor fails | **PASS** — `subject_id` intact, `DELETE 1` |
+| D | no actor at all yields `system` | **PASS** |
+| E | UPDATE and DELETE refused **as superuser/owner** | **PASS** — `42501` both |
+| F | a plain authenticated client sees **0 of 3** rows | **PASS** |
+| G | a `trust_operator` sees **3 of 3**; predicate true | **PASS** |
+| H | `authenticated` cannot INSERT | **PASS** — permission denied |
+| I | `anon` holds no grant at all | **PASS** — permission denied |
+
+> **A first run of F and G was INVALID and is recorded rather than discarded.** `SET LOCAL` outside a
+> transaction block silently does nothing, so those counts were the **owner** reading past RLS, not a
+> client. Re-run inside explicit transactions, they became the 0-of-3 / 3-of-3 above. **The invalid
+> version briefly looked like a passing RLS test and was not one.**
+
+**THE DEFECT LOCAL VALIDATION CAUGHT.** The first revision declared both identifier columns
+`REFERENCES auth.users(id) ON DELETE SET NULL`. It failed on two independent counts:
+
+1. **It made A3 sub-ruling 3 unimplementable.** The asserted-actor probe failed **23503** against the
+   FK — and the case is not hypothetical: §8.5 records that `stripe-webhook` has no JWT and its actor
+   is `session.metadata.user_id`, *"supplied by a third party's payload."*
+2. **`ON DELETE SET NULL` mutates a frozen row**, which A12 ruling 2 and A1 sub-ruling 2 forbid — and
+   the freeze trigger would have refused it, so **deleting a user would have failed outright.**
+
+Both are corrected, with the reasoning carried in the migration itself.
+
+**CI-equivalence checked, not assumed.** `ci.yml`'s `negative-control` job globs
+`supabase/migrations/*.sql`, so 142 is already inside that gate. Reproduced under its conditions — a
+**bare `postgres:17`**, `shim.sql`, and the committed `ext-stubs` — **all 143 migrations replayed
+clean**, with `audit_events`, `is_trust_operator()`, the freeze trigger and exactly 1 policy present.
+
+### 76.3 What is implemented, and what deliberately is not
+
+**Built: one of four populations.** The **Event** population only. **Incident**, **Control evidence**
+and the **D12 observability** population are separate rulings and separate objects; building them
+inside this migration would have obscured which ruling produced what.
+
+**Not built, with the reason:**
+
+| not built | why |
+|---|---|
+| Incident · Control evidence · observability populations | separate rulings; next migrations |
+| the A12 external identity mapping | §8.20·Q1 shapes it; belongs with the erasure flow |
+| the erasure executor's grants | `erasure_executor` exists as a role **value** only; the flow is a later migration |
+| retention purge at A12's windows | **no ruling defines the purge path.** DELETE is refused outright rather than left open — when a purge is built it must be built as a ruling |
+| `correlation_signature` producer | project B is **unprovisioned** |
+| audit-read recursion (A13 sub-ruling 5) | reads of `audit_events` are themselves audit-worthy; the recursion boundary belongs with the read path, not the table |
+
+**One tension recorded, not resolved.** A13's Event reader list is *"active coach · admin · Trust
+operator"* — **the subject is not on it**; A13 lists the actor only for **Incident**. Yet A13
+sub-ruling 1 asks *"may the audited party read its own audit?"* and answers *"NOT FOR ADMIN
+ACTIONS"*, which presupposes some self-read. **The enumeration is implemented and the narrower
+reading taken**, under hierarchy 1 and 11. If the owner intended subject self-read for non-admin
+categories, that is an **additive ruling**, not a defect in this policy.
+
+### 76.4 Status
+
+**Migration 142 is FIXED IN CODE and validated locally. It is NOT APPLIED TO QA.** QA remains at
+frontier **141**. Applying it is a separate authorization that has not been given — see §77.
+Production not contacted.
+
