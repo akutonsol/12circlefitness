@@ -78,6 +78,36 @@ check('the actor is the calling admin and provenance is GROUNDED (A3 sub-ruling 
   `actor=${row.actor_id === admin.id} provenance=${row.actor_provenance}`);
 
 // ─────────────────────────────────────────────────────────────────────────────
+section('A6 §8.9 · before/after delta — NON-PHI ONLY, phi_correction excluded');
+
+// A6 lists admin actions among the nine delta-bearing categories and names the
+// value they carry: "role". Migration 147 emitted without one because the column
+// did not exist until 150.
+const deltaRow = await (await fetch(`${URL_}/rest/v1/audit_events?select=delta&category=eq.admin_action&order=occurred_at.desc&limit=1`, { headers: SH })).json();
+const dlt = deltaRow[0]?.delta ?? null;
+check('the admin_action Event carries the role before/after pair (A6 — admin actions are delta-bearing)',
+  !!dlt && dlt.before?.role && dlt.after?.role && dlt.before.role !== dlt.after.role,
+  `before=${dlt?.before?.role} after=${dlt?.after?.role}`);
+
+// A6: "PHI-CORRECTION DELTAS ARE EXCLUDED." Enforced as a constraint so a
+// mislabelled record cannot put PHI into the ledger.
+const phiDelta = await fetch(`${URL_}/rest/v1/rpc/audit_record_event`, {
+  method: 'POST', headers: SH,
+  body: JSON.stringify({ p_action: RUN, p_category: 'phi_correction', p_outcome: 'success',
+                         p_delta: { before: { x: 1 }, after: { x: 2 } } }),
+});
+const phiDeltaRes = await phiDelta.json().catch(() => null);
+check('a phi_correction Event carrying a delta is REFUSED (A6 excludes it by name)',
+  phiDeltaRes === false, `result=${phiDeltaRes}`);
+
+const occDelta = await fetch(`${URL_}/rest/v1/rpc/audit_record_event`, {
+  method: 'POST', headers: SH,
+  body: JSON.stringify({ p_action: RUN, p_category: 'phi_read', p_outcome: 'success',
+                         p_delta: { before: {}, after: {} } }),
+});
+check('nor may one of A6\'s five OCCURRENCE categories carry a delta',
+  (await occDelta.json().catch(() => null)) === false, 'phi_read + delta refused');
+
 section('A12 ruling 2 · the subject is a PSEUDONYM, resolvable only through the map');
 
 check('the recorded subject is NOT the target\'s real id',

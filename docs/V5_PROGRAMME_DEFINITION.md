@@ -9084,3 +9084,69 @@ The registry is untouched, and no CI evidence is fabricated or implied.
 **No implementation work remains that existing authority determines.** Every derivable correction has
 been made, applied and verified live. **Production not contacted.**
 
+
+## 83 · THE FOUR BOUNDARIES — ONE SHARED AUTHORITY FOUND, ONE RULING IMPLEMENTED, FOUR STILL OWNER'S
+
+A single reconciliation pass across all four, looking for shared authority rather than treating them
+as silos. **The cross-boundary search paid off — but not where expected.**
+
+### 83.1 The shared authority: `A6` §8.9
+
+`A6` is the ruling all four questions touch, and it was **ANSWERED and unimplementable**. It
+enumerates, verbatim:
+
+> *"Of A2's 14 IN categories, **NINE CARRY A DELTA**: PHI corrections · admin actions ·
+> billing/entitlement changes · financial/charge trail · relationship changes · incidents · agent
+> actions (writing ones only) · export/deletion events · storage/media. **FIVE ARE OCCURRENCES WITH
+> NO DELTA**: PHI reads · authorization denials · authentication · observability audit events ·
+> control evidence. Under this ruling, **PHI CORRECTIONS ARE THE EXCLUDED CASE**; the others carry
+> **role, tier, commission, payout, status** or Stripe-identifier values — **not PHI**."*
+
+**`audit_events` had no delta column**, so the ruling could not be honoured and migration 147's
+`admin_action` Event recorded **no before/after at all** — even though A6 lists admin actions among
+the nine and names their value as `role`. **Migration 150 closes that**, enforcing *both* halves of
+the enumeration as a CHECK so a mislabelled record cannot put PHI in the ledger.
+
+**What A6 deliberately leaves open is not implemented**: *"whether a PHI-correction record still
+carries the changed-column NAME set … is **NOT DECIDED**."* A `phi_correction` Event therefore carries
+neither delta nor name set.
+
+### 83.2 Determinations
+
+| # | boundary | evidence searched | determination |
+|---|---|---|---|
+| **1** | **who may open an Incident** | `MASTER_PRODUCT_DECISIONS` · `MASTER_REMEDIATION_REGISTRY` · `V5_DECISION_RESOLUTION` · `V5_IMPLEMENTATION_READINESS_GATE` · every §8.x · A3 · D4 · D12 · role vocabulary · existing RPC authorization patterns | **(D) OWNER DECISION.** No source names a creator. `V5_DECISION_RESOLUTION:604` says incidents *"require an audit event"* — not who raises them. §19.2 says Trust *"introduces no tables of its own"* and is a **review** surface, which points **away** from Trust but names no one else. |
+| **2** | `relationship_change` | A2 · A6 · migrations 113/132/133 · `coach_relationship_service.dart` · live catalog | **(D) OWNER DECISION — on SCOPE.** A2 puts the category IN; A6 names the delta **`status`**; A3's **trigger arm** authorizes the mechanism. But **two** tables carry a relationship status — `coach_client_relationships` and `coach_team_members` — and nothing selects between them. Choosing is materiality, not identification. |
+| **3** | `billing_entitlement` | A2 · A6 · 010/115 · Edge Functions · client · live catalog | **(D) OWNER DECISION — and the operation does not yet exist.** A6 names the delta **`tier`**; the only tier column is `user_profiles.membership_tier`; and **nothing in the tree writes it.** 115 guards it as *"set by billing, not by the client"*, `PD-A17` retired the API, and no Stripe function touches it. An emitter would fire never — **speculative infrastructure (10)**. |
+| **4** | `phi_correction` | A2 · A6 · 114/115 · N-07 · live catalog | **(D) OWNER DECISION — and A6 makes it the sharpest.** A6 **excludes** phi_correction deltas **by name** and records the changed-column-name-set question as **NOT DECIDED**. So the record's *content* is half-ruled and half-open, and **no operation is named** anywhere. |
+
+**None of the four became implementable.** What the pass produced instead was `A6` — a ruling already
+answered, already binding on all four categories, and simply never built.
+
+### 83.3 Why no emitter was written
+
+A2's criterion is a **principle**: *"durably record events that establish who/what performed a
+security, privacy, administrative, financial, authorization, or material state-changing action."*
+A2 names exactly **one** operation anywhere — `admin_set_user_role()` — which is implemented (147) and
+now delta-bearing (150). Turning the principle into *"this write on this table emits"* is the
+materiality judgment A2 reserved by naming one and leaving the rest to the criterion.
+
+**Two candidate tables for one category, and a category whose column nothing writes**, are the
+concrete forms that reservation takes here.
+
+### 83.4 Evidence
+
+**Live: `P2 audit + observability populations: 34/34`; full regression `448/448 across 12 suites`.**
+
+```
+PASS  the admin_action Event carries the role before/after pair   before=client after=coach
+PASS  a phi_correction Event carrying a delta is REFUSED          (A6 excludes it by name)
+PASS  nor may one of A6's five OCCURRENCE categories carry a delta
+```
+
+Fresh replay **000–150 clean**. Guards: hygiene (151 migrations, contiguous 000–150) · I-MIG-03
+(0 unrecorded) · schema contract · ENV-3 manifest · production-ref.
+
+**QA ledger 150. Closure unchanged at three rungs of four — VERIFIED IN CI still blocked on the push.
+Nothing `VERIFIED_CLOSED`. Production not contacted.**
+
