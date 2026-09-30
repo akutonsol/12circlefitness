@@ -6550,6 +6550,107 @@ deployed source **identical to the committed file** (0 diff).
 round trip verifies.
 
 
+---
+
+## 55 · A2 COMPLETE — NESTJS RETIRED, EVIDENCE CLOSED
+
+`PD-A17 = A` resolved as **A2**. The nutrition capability runs as a Supabase Edge Function, the
+NestJS API is gone, and no second hosting platform was introduced.
+
+### 55.1 What unblocked it
+
+The key was valid all along. It failed three times because of **how the value reached the secret
+store**, not what it was:
+
+| Attempt | Route | Anthropic said |
+|---|---|---|
+| 1 | `secrets set` via shell | `"API key is invalid."` |
+| 2 | `secrets set` with `printf %s` | **`"invalid x-api-key"`** — message *moved*, so the value changed and was still wrong |
+| 3 | **Supabase dashboard**, no shell in the path | **works** |
+
+§54's reading was right: the key was good and the transport was corrupting it. The dashboard removed
+shell argument parsing entirely.
+
+### 55.2 VERIFIED LIVE — 12/12 on QA
+
+| Assertion | Evidence |
+|---|---|
+| happy path | `200`, `{"text":"OK"}` |
+| response shape | `{ text }` and **only** `text` |
+| no credential material in the response | raw body scanned |
+| multi-turn history | `200` |
+| **image path** | `200`, `{"text":"**Red**"}` — **Claude actually read the image** |
+| auth | `401` for absent and malformed tokens |
+| validation | `400` for unknown property, empty message, over-length, bad media type |
+
+**A fixture defect the image path exposed:** a 1×1 PNG is refused by Anthropic with
+`400 invalid_request_error "Could not process image"`. That was my test image, not the function. The
+fixture is now a generated 64×64 PNG and the assertion checks Claude's answer **contains "red"** —
+so it proves the image was *read*, not merely accepted.
+
+### 55.3 Retirement — executed against §51's audit
+
+Removed: `apps/api` (30 files) · its workspace entry and `api`/`test:api` scripts · the
+`API — unit + e2e` CI job (nothing depended on it) · the `API_BASE_URL` cluster in `app_env.dart` ·
+the dead `AppConstants.apiBaseUrl` getter · `API_BASE_URL` from all three `dart_defines` files ·
+`apps/api/src` as a contract-runner scan root · the workspace from a regenerated lockfile.
+
+**Removal fixed a live false signal.** `missingSettings()` listed `API_BASE_URL` whenever empty, and
+it defaulted to empty in **qa and prod** — so every QA and production build reported a missing
+setting for an API that was never deployed.
+
+### 55.4 Seven guards failed on the deletion; none was weakened
+
+Each had a **subject that moved**, so each was repointed:
+
+- **`EC-G4`** — its own header called the NestJS layer *"the reference for the Dart and Edge
+  layers"*. The reference **moved**, it was not lost: all three failure-taxonomy tests now read the
+  Edge source, plus a new one pinning the **validation-before-configuration** ordering a QA probe
+  caught in §47.3.
+- **`F-J-05`, `F-J-25`, `F-J-26`** repointed; `F-J-26` asserts the Edge auth check in place of
+  `@UseGuards(SupabaseAuthGuard)`; `F-J-25`'s central model pin moved from `api-config.ts`.
+- **`F-J-21` got slightly WORSE, and that is recorded rather than glossed.** The NestJS route
+  inherited the Anthropic SDK's 10-minute default — a bound, if a generous one. Retiring `apps/api`
+  removed it, so **every Anthropic call in this repo is now an unbounded Deno fetch.** Retry parity
+  *was* preserved (§48.2); the timeout never existed to preserve.
+
+Adding `ai-nutrition` to `_anthropicFunctions` surfaced **two more**, both because the new function
+**does not have the characterized defect**:
+
+- **`F-J-28`** matched one exact string; the ported Nest phrasing differs. Now matched on the
+  **property** — fails closed when the key is absent.
+- **`F-J-20`** asserts no function reads `stop_reason`. **`ai-nutrition` does**, and refuses empty
+  output with a `503` instead of persisting it. Excluded and recorded as **the counter-example the
+  other six should follow** — the defect is demonstrably fixable.
+
+### 55.5 Post-retirement verification
+
+**CI run `36660194365`: green, 6 jobs** (the API job correctly gone). `1702` mobile tests ·
+`0` analyze errors · contract, migration, guard, prod-ref and function checks all green ·
+security regression `414/414` across 11 suites, 0 aborts.
+
+### 55.6 Ladder — closed
+
+| Rung | Evidence |
+|---|---|
+| FIXED IN CODE | function, client, guards, retirement committed |
+| FIXED ON QA | deployed `ACTIVE`; `functions download` confirms deployed == committed |
+| **VERIFIED LIVE** | **12/12**, including the round trip, response parsing and a read image |
+| VERIFIED IN CI | `AI-005` + 14 client tests green in CI across successive runs |
+
+`PD-A17` is **implemented**. `MASTER_PRODUCT_DECISIONS.md` is deliberately **untouched** — amending
+the decision record is the owner's step, not this workstream's.
+
+### 55.7 Residual risk
+
+- **`F-J-21` is now unbounded** on every Anthropic call. Pre-existing for the other six; newly true
+  for nutrition. The remediation is one line — `AbortSignal.timeout(n)` — and is not taken here
+  because it would invert an open characterization without a finding to hang it on.
+- Two temporary diagnostics were deployed to QA during the credential investigation. Both reverted;
+  the second is recorded in §52.3 because it was briefly left deployed. Current deployed source is
+  verified identical to the committed file.
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
