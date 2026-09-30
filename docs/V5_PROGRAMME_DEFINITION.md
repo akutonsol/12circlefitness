@@ -6867,6 +6867,96 @@ blocked until they are answered.
 | **P10** | `D-V6` | now **answerable** (§57.4); infrastructure already satisfied (§56.4) |
 
 
+---
+
+## 58 · `D12·Q2` RULED — CRYPTOGRAPHIC GROUNDING REQUIRED · THE DERIVED DESIGN AND ITS BLOCKER
+
+**OWNER RULING 2026-09-30 — `D12·Q2`: cryptographic grounding is REQUIRED before Trust may rely on
+the correlation identifier for cross-population correlation.** Recorded here through the established
+workflow. The asserted-identifier option is thereby **foreclosed**.
+
+### 58.1 What the ruling forecloses, and what it therefore demands
+
+§8.13 recorded the identifier as *"forgeable by construction at HEAD"*. The ruling says that is not
+acceptable. So the design must make an audit row's correlation identifier **verifiable** — something
+`A11` sub-ruling 1's named adversary, the **compromised Edge Function holding `service_role`
+(`BYPASSRLS`)**, cannot produce.
+
+**The adversary's capability, stated precisely, because it determines the whole design.** It does
+**not** need to forge a JWT. It holds `BYPASSRLS`, so it can **write arbitrary rows into both the
+audit and the observability population** — *"both sides of the very join the identifier exists to
+make"*. Any scheme that only authenticates the *channel* fails, because the adversary bypasses the
+channel and writes the rows directly.
+
+**Therefore the only scheme that satisfies the ruling is one where the audit record carries a
+signature over its own content, made with a private key the Edge Function tier does not hold, and
+Trust REJECTS records whose signature does not verify.** Verification with a public key is safe to
+expose; the private key is the whole security boundary.
+
+### 58.2 Two platform facts established empirically, both favourable
+
+| Question | Finding |
+|---|---|
+| Can the adversary mint a user JWT and thereby fabricate grounded context? | **No.** QA runs PostgREST `v14.5` / GoTrue `v2.196.0` with **asymmetric signing**: function secrets carry **`SUPABASE_JWKS`** (public verification material) and **not** `SUPABASE_JWT_SECRET`. A compromised function holds no signing key. |
+| Is there a request-scoped channel other than the JWT? | Irrelevant to this ruling. §8.13 found **zero** uses of `request.headers`, caller `set_config` and `SET LOCAL` — but a caller-supplied header is **unsigned**, so using one would be precisely the *"unsupported shortcut"* the ruling excludes. **The signed JWT is the only grounded channel.** |
+
+So the *signing* primitive is sound. The problem is not cryptography.
+
+### 58.3 ⚠ THE BLOCKER — key custody, not scheme
+
+The scheme needs a private key the Edge Function tier cannot read. **In this project, the natural
+in-database custody is already inside the adversary's blast radius:**
+
+- `076_ai_coaching_cron.sql:32-33` documents storing secrets in Supabase Vault — **including
+  `vault.create_secret('<THIS PROJECT SERVICE_ROLE_KEY>', 'service_role_key')`**;
+- `080_accountability_timing.sql:90` reads them: `select decrypted_secret into v_key from
+  vault.decrypted_secrets where name = 'service_role_key'`.
+
+**Vault in this project holds material that *grants* `service_role`.** It is therefore not a
+boundary that excludes the adversary — it is a store the adversary's own privilege level is already
+inside. Placing the signing key there would put it within reach of exactly the party it must
+exclude.
+
+That leaves three candidate custody arrangements, **and each is an owner-level commitment, not a
+derivation**:
+
+| option | what it costs |
+|---|---|
+| **(a)** Vault/pgsodium custody with grants that provably exclude `service_role` | needs verification that managed Supabase permits it; this project's own Vault usage points the other way. **Unverified — see §58.4** |
+| **(b)** An external signer / KMS outside the function tier | a **new platform component** — the precise commitment `PD-A17 = A` (resolved as **A2**) was taken to avoid |
+| **(c)** Narrow Trust's cross-population capability to what can be grounded | contradicts `D4`/`A14` (§19.2): *"Cross-population correlation is permitted **ONLY** through the D12 correlation identifier"* |
+
+**No option is derivable from existing authority.** (a) needs a platform fact I cannot obtain
+(§58.4); (b) reverses a decision made three sections ago; (c) amends an answered ruling. Choosing
+among them is the architectural decision, and it is the owner's.
+
+### 58.4 Two environment conditions that bounded this analysis
+
+Recorded because they limit what was verifiable, not as excuses:
+
+- **`supabase db dump` requires Docker**, and the daemon is stopped — *"Cannot connect to the Docker
+  daemon"*. The dump returned **0 bytes** three times before this was diagnosed. So **Vault's actual
+  grant model on QA could not be inspected**, which is the one fact that could rescue option (a).
+- **Node on `PATH` is `v16.20.2`**, which has no global `fetch`, so the live probes error at
+  `lib.mjs:85`. `v22.23.2` is installed at `~/.nvm/versions/node/v22.23.2/bin`. This is a shell
+  resolution issue in this session only — **no code changed**, and CI is unaffected (it pins
+  `NODE_VERSION: 20`).
+
+Neither affects any conclusion above: the blocker is custody, and the favourable answer to (a) would
+still be a platform commitment rather than a derivation.
+
+### 58.5 Frontier
+
+| Phase | Blocked on | Change |
+|---|---|---|
+| **P0** | — | ✅ `CONF-02` resolved (§57.1) |
+| **P1** | — | ✅ complete |
+| **P2** | **`D12·Q2` key custody** | ruling recorded; design derived; **blocked on an architectural/infrastructure commitment** |
+| **P3** | `D-V1`, `D-V2`, `D-V3` | `D-V3` answerable (§57.4), unanswered |
+| **P4–P9** | upstream | unchanged |
+| **P10** | `D-V6` | answerable (§57.4), unanswered |
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
