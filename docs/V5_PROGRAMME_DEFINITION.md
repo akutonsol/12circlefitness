@@ -7896,3 +7896,109 @@ it is one interface"* — applies to the **issuance log**, which is the only con
 standing and is **identical under (a) and (b)**. It is not proposed here; it is noted so the owner
 knows one option is not blocked by the others.
 
+
+## 71 · `D12·Q5` = **OPTION A** — RULED, DERIVED, AND THE DETECTION CLAIM MEASURED
+
+**OWNER RULING 2026-09-30 — `D12·Q5` = Option A.** *"Accept the external-signing design for the
+security properties it actually provides, with the limitation explicitly documented: correlation is
+not trustworthy against compromise of the function tier itself. Maintain the external issuance log as
+a detection mechanism. Do not represent cryptographic signing as prevention against a compromised
+function/service-role trust root."*
+
+Recorded as the owner's decision. `D12·Q2` is **not** reopened; `D4`/`A14` is **not** narrowed.
+
+### 71.1 The required limitation statement — normative, quote this
+
+> **`D12` CORRELATION — SECURITY LIMITATION (normative).** The signed correlation identifier
+> **prevents** correlation forgery by an adversary holding database write access **without** the
+> signer's invoke credential — a leaked `service_role` key used directly against PostgREST or the
+> pooler. It provides **NO prevention** against a compromised Edge Function / `service_role` trust
+> root, which holds the invoke credential by construction and can obtain valid signatures on demand
+> (§68, capabilities C-1…C-6, defeating all five signer designs). Against that adversary the
+> correlation identifier is **not trustworthy**, and the only remaining control is **detection** via
+> project B's issuance log, with the measured limits in §71.3. **Cryptographic signing must never be
+> described as prevention against the function-tier adversary.**
+
+### 71.2 The architecture, as Option A leaves it
+
+| step | status under Option A |
+|---|---|
+| **1 · Mint** | External signer (project B). Custody verified §61. **Blocked on provisioning.** |
+| **2 · Carry** | `set_config('circle12.correlation_id', …, true)` — migration `115:387`/`:390`'s proven in-tree pattern. |
+| **3 · Record** | Audit + observability rows carry `correlation_id`, `signature`, `key_id`. **Blocked on `D4`** — see §71.4. |
+| **4 · Verify** | **Outside the database.** See the constraint below. |
+| **5 · Detect** | Issuance-log reconciliation. **New under Option A**, and the only control §68 leaves standing. |
+
+> **DERIVED CONSTRAINT — verification cannot happen in Postgres.** `pgcrypto` offers `digest`, `hmac`
+> and PGP functions and **no Ed25519 verify**, so signature verification must run in Trust's
+> application tier. The alternative — HMAC, which `pgcrypto` *can* verify — requires the **secret** in
+> the database, and §59 proved `service_role` holds unrevokable `SELECT` on `vault.decrypted_secrets`.
+> **Verifying in the database would hand the adversary the key.** Asymmetric signing plus
+> out-of-database verification is therefore forced, not chosen.
+
+### 71.3 The detection claim, MEASURED — `d12-detection-lab.mjs`
+
+Option A rests on the issuance log. **Nothing had tested whether it detects anything**, so it was
+measured before being relied on: 200 legitimate operations as baseline, then four attack shapes.
+
+| attack | shape | result |
+|---|---|---|
+| **A1** | unsigned / invalid signature | **DETECTED** — but this is *prevention*: Trust rejects it |
+| **A2** | one valid triple on two **inconsistent** subjects | **DETECTED** |
+| **A3** | **fresh** triple per fabrication, self-consistent rows | **NOT DETECTED** |
+| **A4** | mass fabrication (500 correlations) | **NOT DETECTED** by reconciliation; flagged only by volume (704 vs 200) |
+
+**A2 is a real and previously unclaimed win.** It is exactly §68's C-6 attack — reuse one issued
+triple across two populations — and reconciliation catches it, because one identifier binding two
+different subjects is a contradiction the log exposes. **The naive form of the attack is detectable.**
+
+**A3 is the honest limit.** An adversary that spends **one issuance per fabricated correlation** and
+writes self-consistent rows is **invisible**: every row verifies, every identifier was genuinely
+issued, and the two populations agree. **A4 is caught only by the adversary being greedy**, not by the
+mechanism.
+
+**Net effect, stated precisely:** detection does not stop the attack, but it **forces the adversary to
+spend one issuance per fabricated correlation**. That is what makes volume analysis possible at all,
+and it is the whole of the bar Option A raises.
+
+**Three controls follow, and they are the specification:**
+- **DET-1** reject any row whose signature does not verify *(prevention, database-tier adversary)*
+- **DET-2** flag any `correlation_id` present in a row but **absent from B's issuance log**
+- **DET-3** flag any `correlation_id` binding **inconsistent subjects** across populations *(this is the one that catches C-6)*
+- **DET-4** alert on issuance volume departing from baseline *(catches only A4)*
+
+### 71.4 What is BLOCKED, and it is not the signer
+
+Implementation does not stop at project B. **`D12` has no populations to correlate.**
+
+Live QA carries **92 tables and no general audit table and no observability store.** The only audit
+populations that exist are **`assessment_access_log`** (migration 140, N-07) and **`decision_traces`**.
+The rest — `workout_logs`, `nutrition_logs`, `cycle_logs`, `habit_logs`, `weight_logs`, `score_events`
+— are **domain data, not audit**.
+
+**`D4` owns the audit event schema and is OPEN.** §8.10's whole premise — that `A1` sub-ruling 3
+separated audit from observability, *"which is precisely what makes a shared identifier necessary to
+reconstruct one incident across both"* — presupposes two populations. **One of the two does not
+exist.** Cross-population correlation cannot be implemented, let alone verified, against a single
+population.
+
+| blocker | blocks | owner |
+|---|---|---|
+| **`D4`** — no audit event schema, no observability store | steps 3 and 5 entirely | owner, OPEN |
+| **project B provisioning** — no key, no endpoint, no issuance log | steps 1 and 5 | owner, account action |
+
+### 71.5 Nothing implemented, and why that is the correct outcome
+
+**No migration, function, schema, client or integration was written.** Building the carry mechanism
+against a single existing audit table would produce **half a bridge**: `assessment_access_log` is a
+real population, but with no second population there is no *cross-population* correlation to carry,
+and `D12`'s identifier exists for exactly that purpose. Building a signer client with no signer, or a
+verifier with no public key, is **unverifiable by construction** — the objection §60.5 raised and that
+still holds.
+
+**What Option A delivered is the two things it was asked for**: the normative limitation statement
+(§71.1) and a **measured** — not assumed — account of the detection control (§71.3), including its
+failure mode. Those are now tracked and can be built against the moment `D4` and project B land.
+
+**QA unchanged at frontier 141. Production not contacted. Registry untouched.**
+
