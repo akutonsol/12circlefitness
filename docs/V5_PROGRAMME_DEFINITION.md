@@ -6957,6 +6957,86 @@ still be a platform commitment rather than a derivation.
 | **P10** | `D-V6` | answerable (§57.4), unanswered |
 
 
+---
+
+## 59 · OPTION (a) IS **DISPROVEN** — Supabase Vault cannot exclude the `service_role` adversary
+
+Tested empirically on a **stock Supabase stack** (disposable, project `vaultprobe`, db-only, stock
+platform images — the same images QA runs). No production contact; QA untouched.
+
+### 59.1 The platform default already fails
+
+| Check | Result |
+|---|---|
+| `vault` schema exists by default | yes — `vault.secrets` (table), `vault.decrypted_secrets` (view) |
+| `service_role` → `USAGE` on schema `vault` | **granted** |
+| `service_role` → `SELECT` on `vault.decrypted_secrets` | **granted** |
+| `service_role` → `SELECT` on `vault.secrets` (raw ciphertext) | **granted** |
+| `service_role` attributes | `rolsuper = f`, **`rolbypassrls = t`** |
+
+So out of the box, the adversary reads any key placed in Vault.
+
+### 59.2 And the grant CANNOT be revoked by this project
+
+The ACLs name their grantor:
+
+```
+vault  nspacl : {supabase_admin=UC/supabase_admin, postgres=U*/supabase_admin, service_role=U/supabase_admin}
+secrets relacl: {supabase_admin=arwdDxtm/supabase_admin, postgres=r*d*D*x*/supabase_admin, service_role=rd/supabase_admin}
+```
+
+Every grant is **made by `supabase_admin`**, and PostgreSQL permits only the **grantor** to revoke.
+Executed as `postgres` — the highest role a Supabase project holds:
+
+- `REVOKE USAGE ON SCHEMA vault FROM service_role` → returns **`REVOKE`**, and the ACL is
+  **byte-identical before and after**. A silent no-op.
+- `has_schema_privilege('service_role','vault','USAGE')` → **still `true`**.
+- `SET ROLE supabase_admin` → **`permission denied to set role "supabase_admin"`**.
+
+**`postgres` is not a superuser in this image and cannot assume the grantor role.** The grants are
+therefore **outside this project's control and not revocable by it**.
+
+> **A probe defect of mine, corrected rather than left standing.** My first pass concluded
+> *"B: RE-GRANT SUCCEEDED"* from the absence of an exception. That was wrong: `GRANT` on a schema you
+> do not own emits `WARNING: no privileges were granted` and **does not raise**. The exception-based
+> test was invalid, which is why §59.2 re-establishes everything with `has_schema_privilege` and raw
+> `relacl`/`nspacl` inspection instead of `EXCEPTION WHEN`.
+
+### 59.3 Why this settles option (a) rather than merely complicating it
+
+`D12·Q2` requires the audit record to carry a signature **the compromised Edge Function cannot
+produce**. That demands a private key it cannot read. Vault is the only in-database custody Supabase
+offers, and:
+
+1. it grants `service_role` read access **by default**, and
+2. the project **cannot revoke that grant**, because the grantor is a platform role it cannot become.
+
+The project's own usage confirms the shape independently: `076_ai_coaching_cron.sql:32-33` stores
+**the service_role key itself** in Vault and `080_accountability_timing.sql:90` reads it back — Vault
+here is a store whose contents *confer* the adversary's privilege, not a boundary that excludes it.
+
+**Option (a) is disproven on the platform's own privilege model, not on judgement.**
+
+### 59.4 Options that survive — both owner-level
+
+| option | what it requires | what it costs |
+|---|---|---|
+| **(b) External signer / KMS** outside the function tier | a key-custody component the Edge Functions cannot read | **a new platform component** — the exact commitment `PD-A17 = A` (resolved as **A2**, §46–§55) was taken to avoid. Reversing it is an owner decision, not a consequence |
+| **(c) Narrow Trust's cross-population capability** to what can be grounded | amend `D4`/`A14` | contradicts an **answered** ruling: *"Cross-population correlation is permitted **ONLY** through the D12 correlation identifier, never by joining on subject identity"* (§19.2) |
+
+Two further candidates were considered and **rejected on evidence, not preference**:
+
+- **Function-secret custody** — the secret store the adversary reads by definition. No.
+- **Client-side signing** (device key, Trust rejects unsigned rows) — collapses for exactly the rows
+  that matter: §8.13 establishes a trigger-written audit row sees *"no caller-supplied value
+  whatsoever"*, so the internal paths carrying most audit events could never be signed this way.
+
+### 59.5 Per instruction, implementation was NOT started
+
+*"Do not implement the cryptographic design until key custody is proven."* Custody is **disproven**,
+so **no migration, function, schema or code was written.** QA is unchanged at frontier 141.
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
