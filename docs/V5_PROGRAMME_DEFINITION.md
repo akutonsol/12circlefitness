@@ -7938,6 +7938,26 @@ Recorded as the owner's decision. `D12·Q2` is **not** reopened; `D4`/`A14` is *
 | **4 · Verify** | **Outside the database.** See the constraint below. |
 | **5 · Detect** | Issuance-log reconciliation. **New under Option A**, and the only control §68 leaves standing. |
 
+> **CORRECTION, same session — the constraint below is PARTLY WRONG and is amended here rather than
+> rewritten.** It argued that in-database verification would "hand the adversary the key". That is
+> true of **HMAC** and **false of public-key verification**: verifying an Ed25519 signature needs only
+> the PUBLIC key, so it exposes no secret. The accurate statement is narrower and was checked against
+> the live QA installation rather than assumed —
+>
+> **Extensions installed on QA: `pg_cron`, `pg_net`, `pg_stat_statements`, `pgcrypto`,
+> `supabase_vault`. `pgsodium` is NOT installed, and the dump carries zero `ed25519` /
+> `crypto_sign` surface.** With that extension set there is no in-database Ed25519 verify, so
+> verification must run outside the database **on this installation**. Installing `pgsodium` would
+> make in-database public-key verification possible without exposing any secret — it is a platform
+> change, not an impossibility.
+>
+> **It would not buy anything.** A verifier inside the database is still reachable and bypassable by
+> `service_role`, and §68 shows the adversary obtains *valid* signatures regardless, so verification
+> placement does not change the outcome. **Trust-side verification is preferred on the merits, not
+> forced by a missing primitive.** The HMAC half of the original argument stands: §59 proved
+> `service_role` holds unrevokable `SELECT` on `vault.decrypted_secrets`, so a shared secret in the
+> database is readable by the adversary.
+
 > **DERIVED CONSTRAINT — verification cannot happen in Postgres.** `pgcrypto` offers `digest`, `hmac`
 > and PGP functions and **no Ed25519 verify**, so signature verification must run in Trust's
 > application tier. The alternative — HMAC, which `pgcrypto` *can* verify — requires the **secret** in
