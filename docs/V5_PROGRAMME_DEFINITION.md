@@ -9531,3 +9531,128 @@ cannot conflate them · **0 migrations, 0 application or function files** · QA 
 
 **No implementation. No migration. Production not contacted. Project B not created. P3 not begun.**
 
+
+## 89 · THE `CONF-08` OWNER-INPUT BOUNDARY — SIX ITEMS CLASSIFIED, ONE ALREADY ANSWERED
+
+Read-only assessment of the unresolved inputs §88 identified. **The `CONF-D*` items are defined in
+`V5_FINAL_DESIGN_AUTHORITY_RECONCILIATION_2026-09-27.md:321–329`** — a table §88 cited but had not
+read. Reading it changed three classifications and exposed a defect in the commission.
+
+### 89.1 Classification
+
+| item | classification | authority |
+|---|---|---|
+| **1 · the thirteenth Admin domain** | **REQUIRES NEW OWNER DECISION** | unrecoverable from the repository — see §89.2 |
+| **2a · `CONF-D2`** — does the Trust product area exist? | **ALREADY ANSWERED** | `D-D1` §8.17 · `D11` §19.2 — see §89.3 |
+| **2b · `CONF-D1`** — the Admin surface set / IA | **REQUIRES NEW OWNER DECISION**, and it has a **recorded option set** | `:321` and `V5_DESIGN_AUTHORITY_RECONCILIATION:284` |
+| **3 · `CONF-D7`** — the role matrix | **REQUIRES NEW OWNER DECISION** | *"largest security specification gap"*; **no recorded options** |
+| **4 · `CONF-D8`** — the data-access model | **mechanism ALREADY ANSWERED; the model itself blocked on item 3** | see §89.5 |
+| **5a · Trust information architecture** | **REQUIRES EXTERNAL DESIGN-AUTHORITY INPUT** | `CONF-D4` |
+| **5b · where B1 incident authoring belongs** | **REQUIRES NEW OWNER DECISION** | see §89.6 |
+
+### 89.2 Item 1 — the thirteenth domain is not recoverable, and that is the finding
+
+`AD-01` as restated at `V5_IMPACT_ANALYSIS:133` enumerates **twelve** and claims **thirteen**. The
+enumeration that would name the thirteenth is **`V5 SQ-16`** (`CONF-D1`'s cited source) — and §19.1's
+own qualification on `CONF-02` is decisive: ***"the source specification is absent from the
+repository."***
+
+> **A namespace hazard on top of it.** `SQ-16` in the **tracked** impact analysis (`:106`) is *"Full
+> data realism pass"* — a QA item with no relation to Admin domains. So `CONF-D1`'s *"V5 SQ-16 (13
+> Admin domains)"* points **into the absent specification**, not at the tracked `SQ-16`.
+
+**The owner must name the thirteenth domain, correct the count to twelve, or supply the V5
+specification.** It cannot be derived.
+
+### 89.3 Item 2a — `CONF-D2` is answered, through its own stated mechanism
+
+`CONF-D2` asks whether a whole product area exists: *"V5 (**no 'Trust'**) … Trust container unevidenced
+while its capabilities are required · determines whether a whole product area exists."* Its recorded
+decision mechanism is **`OPEN (D-D1)`**.
+
+**`D-D1` was answered at §8.17**, and §19.2 answered `D11` — Trust's scope is **Security · Incidents ·
+Audit Logs**, and Trust is *"a governance review **surface** over existing audit and observability
+records."* That is an affirmative existence ruling arrived at through the exact mechanism `CONF-D2`
+names. **Answered — and never connected to the commission until now.**
+
+### 89.4 Item 2b — `CONF-D1` is the surface-set decision, and it has options
+
+*"Admin IA mismatch — design's **8 nav items** vs V5's **13 Admin domains**; V5's roles/database/
+releases have **no nav home**; design's Ecosystem/Operations have **no V5 counterpart**."* Recorded
+options: **(a) adopt the 8-item nav and map the 13 domains beneath · (b) extend nav · (c) owner
+reconciles both lists.** Owner.
+
+> **`CONF-D1` and `CONF-D2` both carry `OPEN (D-D1)`, and `D-D1` is answered — but its answer settled
+> the TRUST CONTAINER, not the Admin IA.** So the mechanism label is discharged for `CONF-D2` and
+> **not** for `CONF-D1`. Recorded because the shared label invites treating both as closed.
+
+**`CONF-D3` belongs to this item too:** two Admin surfaces — Exercise Review and Observability — are
+**implemented and outside the authoritative IA**, with *"risk of orphaning or duplicating them."*
+
+### 89.5 Item 4 — `CONF-D8`'s mechanism is settled; its model is not, and it is ARCHITECTURE
+
+`CONF-D8`: brief §12 requires *"respect the same authorization boundaries"*, while the repo has
+`public_profiles` / `conversation_participant_profiles` **deliberately bypassing RLS**
+(`security_invoker=off`), *"documented sound by SEC-G4"*. The conflict is that **Admin needs broad
+cross-user reads**, and the recorded options are *"caller-RLS + new admin policies, **or** curated
+bypassing views."*
+
+**`D7` already chose the second option at the mechanism level** — column-limited views over
+`user_profiles` — and migration **135**'s `event_attendee_profiles` implements exactly that shape, with
+`security_invoker=off`. **But the mechanism is not the model.** Which columns each surface exposes to
+each role is unstated, and it is **downstream of `CONF-D7`**: you cannot enumerate a role's columns
+without the role matrix.
+
+> **Its decision class is `Architecture`, not `Owner`** — the only one of these items so classified.
+> So once `CONF-D7` lands, `CONF-D8`'s remainder may fall inside §19's delegation rather than
+> returning to the owner. **Recorded, not acted on.**
+
+### 89.6 Item 5 — Trust IA, and a tension B1 created
+
+`D11` gives three areas and **no navigation, hierarchy or entry points**; `CONF-D1`'s options concern
+**Admin** IA only. Navigation is a design decision, and `CONF-D4` establishes that *"a brief cannot
+serve as design authority"* — so Trust IA is **external design-authority input**, not an owner ruling.
+
+**Where B1's incident authoring belongs is different, and is the owner's.** B1 grants `admin` and
+`trust_operator` authority to open an incident through `audit_open_incident()`, while §19.2 makes Trust
+a **review** surface that *"introduces no tables of its own."* **Those two are in tension**, and
+resolving it is a placement-and-permission question bound up with `CONF-D7`, not a visual one.
+
+### 89.7 Already answered elsewhere but unconnected — and one premise now false
+
+- **`CONF-D2`** — answered (§89.3).
+- **`CONF-D8`'s mechanism** — answered by `D7` (§89.5).
+- **`CONF-D9`'s premise is now PARTLY FALSE.** It reads *"repo: **no observability/audit/analytics
+  stores** — most Overview metrics have no possible source today — Overview is unbuildable as
+  specified."* **P2 built the audit and observability stores** (§85, six tables live at ledger 152).
+  **Analytics stores still do not exist**, so `CONF-D9` is **partly discharged, not closed** — and its
+  class is `Architecture`.
+- **`CONF-D7`'s own statement is stale**: *"repo has **5** roles incl. unserved `content_manager`."*
+  There are now **seven** — `trust_operator` and `erasure_executor` were added by migrations 142 and
+  147. **The gap is wider than `CONF-D7` records.**
+
+### 89.8 A defect in §88's commission, corrected
+
+§88's §5 listed the **Fitonist reference** and **brand tokens** as **present**, citing the Admin row at
+`:337`. **That row states what the brief claims, not what exists** — and `CONF-D5`/`CONF-D6`, twelve
+lines above it *in the same document*, record the reference as ***"disk: not found … the stated visual
+foundation is absent"*** and the identity package as ***"no locked package · brand not final · token
+values, chart identity blocked."***
+
+**Corrected in the commission.** Three of its four design inputs are absent or unlocked; a designer has
+**the 11 state frames and nothing else**. `CONF-D5` and `CONF-D6` are added to the commission's
+unresolved list as owner decisions in their own right.
+
+> Reading a "stated inputs" row as an inventory is the same error as reading a registry's silence as
+> remediation (§62.1) or a pre-§19 register as current (§87). **Third variant, same shape.**
+
+### 89.9 P5 readiness, and the boundary
+
+**P5 is blocked, and now demonstrably further from ready than §88 recorded.** Six owner inputs stand
+between the commission and a designable brief: the thirteenth domain · the surface set (`CONF-D1`, with
+`CONF-D3`) · the role matrix (`CONF-D7`) · the visual reference (`CONF-D5`) · the identity package
+(`CONF-D6`) · B1's authoring placement. Two further items are **Architecture** class and blocked
+upstream: `CONF-D8`'s model and `CONF-D9`'s remainder. Trust IA requires **external design authority**.
+
+**Nothing was implemented. No migration, no application file. QA at 152. Production not contacted.**
+

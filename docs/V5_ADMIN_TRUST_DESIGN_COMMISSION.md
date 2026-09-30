@@ -107,12 +107,23 @@ Trust · Security · Incidents · Audit Logs · AI Guardian**.
 
 ## 5 · Design inputs that DO exist
 
-| input | state |
-|---|---|
-| Fitonist reference | present |
-| Brand tokens | present |
-| 11 state frames | present |
-| **Approved screen package** | **ABSENT** — `V5_FINAL_DESIGN_AUTHORITY_RECONCILIATION:337` |
+> **CORRECTED.** An earlier revision of this section listed the Fitonist reference and brand tokens as
+> **present**, on the strength of the Admin row at
+> `V5_FINAL_DESIGN_AUTHORITY_RECONCILIATION:337`, which *names* them as Admin's inputs. **That row
+> states what the brief claims, not what exists** — and `CONF-D5`/`CONF-D6`, twelve lines above it in
+> the same document, record both as missing. Reading a "stated inputs" row as an inventory is the same
+> mistake this programme has corrected repeatedly. See V5 §89.
+
+| input | state | authority |
+|---|---|---|
+| Fitonist reference | **ABSENT** — *"disk: **not found**; unidentified dashboard imagery on Desktop … the stated visual foundation is absent · visual system unspecifiable"* | `CONF-D5` |
+| Brand tokens / identity package | **NOT FINAL** — *"no locked package · brand not final · token values, chart identity **blocked**"* | `CONF-D6` |
+| 11 state frames | present | `:337` |
+| **Approved screen package** | **ABSENT** | `:337` |
+
+**So three of the four design inputs are absent or unlocked.** A designer receiving this commission has
+**the 11 state frames and nothing else** to build a visual system on. `CONF-D5` and `CONF-D6` are
+**owner decisions** in their own right and are added to §6.
 
 The member-side precedent is a design **board** (`12Circle Fitness - Complete Board.dc.html`, 110
 `.phone` frames) regenerated into reference images by `capture-references.mjs`. **No Admin or Trust
@@ -144,6 +155,12 @@ surface). **Verified: zero of these appear in §19 or §20's resolved ledger.** 
 
 > **These are NOT the Admin decisions `D4`–`D7`.** §18 warns that `CONF-D4/D5/D6/D7` are different
 > items and that *"that string must never be read as `D5`/`D6`."*
+
+### 6.3b The visual foundation itself — `CONF-D5` and `CONF-D6`
+`CONF-D5`: the Fitonist reference the brief names is **not on disk**, so *"the visual system is
+unspecifiable."* `CONF-D6`: there is **no locked identity package**, so *"token values and chart
+identity are blocked."* **Both are recorded OWNER decisions.** Design cannot begin on a visual system
+that has no reference and no locked tokens.
 
 ### 6.4 Trust's information architecture
 `D11` gives three areas; **no ruling gives their navigation, hierarchy or entry points.**
