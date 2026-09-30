@@ -9011,3 +9011,76 @@ principle. **Not taken here.**
 
 **Nothing is `VERIFIED_CLOSED`. The registry is untouched. Production was not contacted.**
 
+
+## 82 · P2 COMPLETE ON QA — 31/31 LIVE, AND THE LAST DERIVABLE CORRECTION
+
+### 82.1 Migration 149 — the terms §8.16·Q4 actually set
+
+§8.16·Q4 discharges the observability deferral **"ON THE SAME TERMS AS THE AUDIT POPULATIONS —
+`service_role` is NOT the writer of record."** Migration 148 applied those terms to the three audit
+populations — revoking `service_role`'s direct INSERT and leaving writes to definer functions — and
+then **granted `service_role` a direct INSERT on `observability_events`.**
+
+**Those are not the same terms.** With a direct grant the emitting tier *is* the writer of record,
+which is the one thing the ruling denies. Found by re-reading the ruling against my own migration,
+not by a failing test — nothing was red.
+
+149 adds `observability_record()` and revokes the direct grant. **It introduces no authorization
+boundary and answers no open question:** the emitting tier is unchanged and only the route differs.
+
+> **The Incident population is deliberately NOT treated the same way.** There the missing write path
+> turns on **who may open an incident**, which no ruling answers (§81.2). Here there is no such
+> question — machine telemetry has no authorization subject — so the path is derivable and the
+> boundary is not. The difference is the whole reason one was built and the other was not.
+
+### 82.2 Evidence — live on QA
+
+**`P2 audit + observability populations: 31/31`**; full regression **445/445 across 12 suites**.
+
+```
+PASS  service_role CANNOT insert observability directly — not the writer of record  403
+PASS  but the definer write path accepts a correctly-classed record                 true
+PASS  a 6-year class still cannot attach to a non-audit component (§8.16·Q2)        false
+PASS  and the stored record carries NO subject identifier (D12·Q5)
+PASS  service_role CANNOT create an incident — no write path is ruled yet
+PASS  nor may the Trust operator — Trust reviews, it does not author
+PASS  nor may anyone forge a retained transition directly
+```
+
+**ENV-3's live comparison performed and passing.** `env3-live-check.mjs` emits SQL for `psql` with
+`QA_DB_URL`, a CI secret absent here, so the same comparison was run through the authorized read-only
+CLI against the real ledger: **149 rows, 000–149, L-1/L-2/L-3/L-5 all PASS.** The declaration and the
+database agree. *The script itself remains unrun — that is an infrastructure limit, and this is the
+comparison, not a substitute claim for the script.*
+
+**Static guards:** production-ref · hygiene (150 migrations, contiguous 000–149, fully tracked) ·
+I-MIG-03 (0 unrecorded regressions) · schema contract · Edge JWT posture · ENV-3 static manifest.
+**Flutter 1704 passed / 6 skipped.**
+
+### 82.3 Closure ladder — three rungs of four, and the fourth is not ours to reach
+
+| rung | P2 (142–149) |
+|---|---|
+| FIXED IN CODE | ✅ |
+| FIXED ON QA | ✅ ledger **149** |
+| VERIFIED LIVE | ✅ **31/31** |
+| VERIFIED IN CI | ❌ the push remains refused by the environment's permission layer |
+
+**Nothing is `VERIFIED_CLOSED`.** §2.1 requires all four rungs for the Security/authorization class.
+The registry is untouched, and no CI evidence is fabricated or implied.
+
+### 82.4 What remains, and what kind of thing each is
+
+| item | kind |
+|---|---|
+| push → CI | **permission boundary** — the only thing between P2 and `VERIFIED_CLOSED` |
+| `env3-live-check.mjs` itself | **infrastructure** — needs `QA_DB_URL`; the comparison it makes has been made |
+| Project B | **permission / account boundary** — not created |
+| who may open an incident | **owner decision** (§81.2) |
+| the three A2 emitters | **owner decision** (§81.3) |
+| A13·5's audit-read recording | **owner decision** |
+| the anonymisation recursion | **owner decision** |
+
+**No implementation work remains that existing authority determines.** Every derivable correction has
+been made, applied and verified live. **Production not contacted.**
+

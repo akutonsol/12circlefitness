@@ -221,21 +221,36 @@ section('D12 · the observability population carries no subject, and retention i
 const obsCols = await fetch(`${URL_}/rest/v1/observability_events?select=*&limit=1`, { headers: SH });
 check('observability_events is reachable by service_role', obsCols.status === 200, `status=${obsCols.status}`);
 
-const badRet = await fetch(`${URL_}/rest/v1/observability_events`, {
+// Migration 149. service_role's direct INSERT was revoked: §8.16·Q4 discharges
+// this population's deferral "ON THE SAME TERMS AS THE AUDIT POPULATIONS —
+// service_role is NOT the writer of record", and a direct grant made it exactly
+// that. Writes now go through a definer function, as they do for the audit
+// populations.
+const obsDirect = await fetch(`${URL_}/rest/v1/observability_events`, {
   method: 'POST', headers: SH,
-  body: JSON.stringify({ component: 'metric', retention_class: 'audit_6y' }),
-});
-check('a 6-year class cannot be attached to a non-audit component (§8.16·Q2)',
-  badRet.status >= 400, `status=${badRet.status}`);
-
-const goodObs = await fetch(`${URL_}/rest/v1/observability_events`, {
-  method: 'POST', headers: { ...SH, Prefer: 'return=representation' },
   body: JSON.stringify({ component: 'metric', retention_class: 'operational_90d' }),
 });
-const obsRow = (await goodObs.json())[0] ?? {};
-check('a correctly-classed observability record is accepted',
-  goodObs.status < 300, `status=${goodObs.status}`);
-check('and it carries NO subject identifier (D12·Q5)',
+check('service_role CANNOT insert observability directly — it is not the writer of record (§8.16·Q4)',
+  obsDirect.status >= 400, `status=${obsDirect.status}`);
+
+const obsRpc = await fetch(`${URL_}/rest/v1/rpc/observability_record`, {
+  method: 'POST', headers: SH,
+  body: JSON.stringify({ p_component: 'metric', p_retention_class: 'operational_90d' }),
+});
+const obsRpcOk = await obsRpc.json().catch(() => null);
+check('but the definer write path accepts a correctly-classed record',
+  obsRpc.status < 300 && obsRpcOk === true, `status=${obsRpc.status} result=${obsRpcOk}`);
+
+const obsBad = await fetch(`${URL_}/rest/v1/rpc/observability_record`, {
+  method: 'POST', headers: SH,
+  body: JSON.stringify({ p_component: 'metric', p_retention_class: 'audit_6y' }),
+});
+const obsBadRes = await obsBad.json().catch(() => null);
+check('a 6-year class still cannot attach to a non-audit component (§8.16·Q2)',
+  obsBadRes === false, `result=${obsBadRes}`);
+
+const obsRow = ((await (await fetch(`${URL_}/rest/v1/observability_events?select=*&order=recorded_at.desc&limit=1`, { headers: SH })).json())[0]) ?? {};
+check('and the stored record carries NO subject identifier (D12·Q5)',
   !('subject_id' in obsRow) && !('user_id' in obsRow), Object.keys(obsRow).join(','));
 
 const anonObs = await fetch(`${URL_}/rest/v1/audit_events?select=id`, { headers: { apikey: ANON, Authorization: `Bearer ${ANON}` } });

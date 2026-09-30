@@ -35,14 +35,9 @@
     "qa": {
       "ref": "eyqtldjqpgpljlqvpowh",
       "name": "12Circle QA",
-      "applied_through": "148",
+      "applied_through": "149",
       "excluded": [],
-      "pending": {
-        "149": {
-          "reason": "P2 · gives the observability population a SECURITY DEFINER write path and revokes service_role's direct INSERT, so it is no longer that population's writer of record. §8.16·Q4 discharges the deferral \"ON THE SAME TERMS AS THE AUDIT POPULATIONS\"; migration 148 applied those terms to the three audit populations and granted a direct INSERT here, which is the one thing the ruling says service_role is not. No new authorization boundary: the emitting tier is unchanged, only the route.",
-          "gate": "Authorized under the owner's QA authorization for the P2 workstream, as the repair of a deviation in migration 148. Target verified as 12Circle QA (eyqtldjqpgpljlqvpowh) before mutation. Validated locally: fresh replay 000–149 clean."
-        }
-      }
+      "pending": {}
     }
   }
 }
