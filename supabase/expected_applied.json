@@ -35,14 +35,9 @@
     "qa": {
       "ref": "eyqtldjqpgpljlqvpowh",
       "name": "12Circle QA",
-      "applied_through": "151",
+      "applied_through": "152",
       "excluded": [],
-      "pending": {
-        "152": {
-          "reason": "Owner decisions R-1 and S-2. R-1 promotes `audit_read` as a fifteenth A2 category under A2's own explicit-promotion clause and emits it from audit_read_events(), which had to become VOLATILE because a STABLE function cannot write. The recursion boundary stays the audit-read operation itself, enforced by a transaction-local guard on migration 115's pattern. S-2 has audit_sever_identity() emit an export_deletion Event carrying the SEVERED, non-resolving pseudonym — captured before the DELETE, emitted after it — closing the A2 recursion §8.7 and §8.8 both recorded as open, without reintroducing an identifiable subject.",
-          "gate": "Owner-authorized: the same authorization that released 151 covers implementing these two decisions through the established ladder. Target verified as 12Circle QA. Local: fresh replay 000–152 clean and both decisions proven behaviourally."
-        }
-      }
+      "pending": {}
     }
   }
 }

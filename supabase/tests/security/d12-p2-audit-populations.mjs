@@ -435,4 +435,84 @@ const serialised = JSON.stringify(phiRow);
 check('NO PHI VALUE appears anywhere in the Event (B4: never before/after values)',
   !/79|80\.5|6\.5|corrected|felt strong/.test(serialised), `scanned ${serialised.length} chars of the stored row`);
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Migration 152 — owner decisions R-1 and S-2.
+section('R-1 · audit reads are recorded as the A2 category `audit_read`');
+
+const arBefore = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.audit_read`, { headers: SH })).json());
+
+const arAccept = await fetch(`${URL_}/rest/v1/rpc/audit_record_event`, {
+  method: 'POST', headers: SH,
+  body: JSON.stringify({ p_action: `${RUN}-cat`, p_category: 'audit_read', p_outcome: 'success' }),
+});
+check('the promoted category `audit_read` is ACCEPTED (R-1, under A2\'s promotion clause)',
+  (await arAccept.json()) === true, `status=${arAccept.status}`);
+
+const arDelta = await fetch(`${URL_}/rest/v1/rpc/audit_record_event`, {
+  method: 'POST', headers: SH,
+  body: JSON.stringify({ p_action: `${RUN}-d`, p_category: 'audit_read', p_outcome: 'success',
+                         p_delta: { before: {}, after: {} } }),
+});
+check('an audit_read carrying a delta is REFUSED — a read is an occurrence (A6)',
+  (await arDelta.json()) === false, 'delta refused');
+
+// One call through the sanctioned read path must emit exactly one Event.
+const arMid = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.audit_read`, { headers: SH })).json());
+const readCall = await rpc(trustTok, 'audit_read_events', { p_limit: 5 });
+check('the read path still WORKS after gaining the emission (it returned rows)',
+  readCall.status < 300 && n(readCall.body) >= 1, `status=${readCall.status} rows=${n(readCall.body)}`);
+
+const arAfterOne = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.audit_read`, { headers: SH })).json());
+check('ONE call emitted exactly ONE audit_read Event — the recursion boundary holds',
+  arAfterOne === arMid + 1, `${arMid} -> ${arAfterOne}`);
+
+const arRow = ((await (await fetch(`${URL_}/rest/v1/audit_events?select=actor_id,actor_provenance,subject_pseudonym,delta,changed_columns,action&category=eq.audit_read&action=eq.audit_events.read&order=occurred_at.desc&limit=1`, { headers: SH })).json())[0]) ?? {};
+check('the Event identifies the ACTOR performing the read, grounded (R-1)',
+  arRow.actor_id === trust.id && arRow.actor_provenance === 'grounded',
+  `actor=${arRow.actor_id === trust.id} provenance=${arRow.actor_provenance}`);
+check('and carries NO payload — no delta, no column names, no PHI (R-1)',
+  (arRow.delta === null || arRow.delta === undefined)
+  && (arRow.changed_columns === null || arRow.changed_columns === undefined),
+  `delta=${JSON.stringify(arRow.delta)} changed_columns=${JSON.stringify(arRow.changed_columns)}`);
+
+const arSeen = await rest(subjTok, 'audit_events?select=id&category=eq.audit_read');
+check('A13 reader controls apply to the new category — a plain client sees none',
+  n(arSeen.body) === 0, `rows=${n(arSeen.body)}`);
+
+// ─────────────────────────────────────────────────────────────────────────────
+section('S-2 · severance emits export_deletion carrying the SEVERED pseudonym');
+
+const victim = await mkUser('victim2');
+const vps = await (await fetch(`${URL_}/rest/v1/rpc/audit_mint_pseudonym`, {
+  method: 'POST', headers: SH, body: JSON.stringify({ p_subject: victim.id }),
+})).json();
+check('fixture: a second subject has a pseudonym', !!vps, `pseudonym=${String(vps).slice(0,8)}…`);
+
+const exBefore = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.export_deletion`, { headers: SH })).json());
+const sever2 = await rpc(eraserTok, 'audit_sever_identity', { p_subject: victim.id });
+check('the erasure executor severs the second subject', sever2.body === true, `status=${sever2.status}`);
+
+const exAfter = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.export_deletion`, { headers: SH })).json());
+check('severance emitted exactly ONE export_deletion Event (S-2)',
+  exAfter === exBefore + 1, `${exBefore} -> ${exAfter}`);
+
+const exRow = ((await (await fetch(`${URL_}/rest/v1/audit_events?select=subject_pseudonym,delta,action,actor_id&category=eq.export_deletion&order=occurred_at.desc&limit=1`, { headers: SH })).json())[0]) ?? {};
+check('its subject is the SEVERED pseudonym, not the identifiable subject (S-2)',
+  exRow.subject_pseudonym === vps && exRow.subject_pseudonym !== victim.id,
+  `pseudonym match=${exRow.subject_pseudonym === vps}  is raw id=${exRow.subject_pseudonym === victim.id}`);
+check('and it carries no delta — no identity reintroduced (S-2)',
+  exRow.delta === null || exRow.delta === undefined, `delta=${JSON.stringify(exRow.delta)}`);
+
+const stillResolves = n(await (await fetch(`${URL_}/rest/v1/audit_identity_map?select=pseudonym&pseudonym=eq.${vps}`, { headers: SH })).json());
+check('the pseudonym NO LONGER RESOLVES after severance (S-2)',
+  stillResolves === 0, `map rows=${stillResolves}`);
+
+check('the identifiable subject appears NOWHERE in the severance Event (S-2)',
+  !JSON.stringify(exRow).includes(victim.id), `scanned the stored row for ${victim.id.slice(0,8)}…`);
+
+const sever2again = await rpc(eraserTok, 'audit_sever_identity', { p_subject: victim.id });
+const exRepeat = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.export_deletion`, { headers: SH })).json());
+check('a repeat severance emits nothing — there is nothing left to sever',
+  sever2again.body === false && exRepeat === exAfter, `result=${sever2again.body}  ${exAfter} -> ${exRepeat}`);
+
 export default summary('P2 audit populations');

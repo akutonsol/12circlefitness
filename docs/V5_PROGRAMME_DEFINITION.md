@@ -9304,3 +9304,93 @@ plus B1–B4. **Ten migrations, 142–151**, each traced to the ruling that prod
 
 **Production was not contacted at any point.**
 
+
+## 86 · R-1 AND S-2 IMPLEMENTED — THE LAST TWO A2 RECURSIONS CLOSED
+
+**OWNER DECISIONS 2026-09-30.** **R-1**: audit-read activity becomes a dedicated A2 category
+`audit_read`, promoted under A2's own clause, emitted from `audit_read_events()`, recursion boundary
+unchanged. **S-2**: severance emits an `export_deletion` Event carrying the **severed, non-resolving
+pseudonym** — never the pre-severance identifiable subject. Migration **152**, applied to QA, verified
+live.
+
+### 86.1 R-1 — and the two things it forced
+
+`audit_read` is the **fifteenth** category. A2 supplied the only route by which the vocabulary may
+grow, and this is it: *"unless a later requirement **explicitly promotes** a specific event into audit
+scope."*
+
+**Two consequences that were not optional:**
+
+1. **`audit_read_events()` had to become `VOLATILE`.** It was `STABLE`, and PostgreSQL forbids a
+   non-volatile function from writing. **That is precisely why §78.3 recorded the recording as "not
+   implementable as ruled"** — the obstacle was never the category alone.
+2. **The category joins A6's no-delta set.** A6 §8.9 sorted A2's fourteen into nine delta-bearing and
+   five occurrences; a read has no before and after, so `audit_read` is classified as PHI reads are.
+   Enforced by constraint rather than left to callers, and R-1 is consistent with it — the Event
+   identifies actor and pseudonymous subject and carries no payload.
+
+**The recursion boundary is unchanged and now holds by rule, not coincidence.** §8.8 sub-ruling 5 set
+it at *"the audit-read operation itself"*, and §8.18 confined the recursing party to one named role.
+It holds **structurally** — the emission is an `INSERT`, not a read through this path, so one call
+yields one Event however many rows it returns, including rows that are themselves `audit_read` Events,
+because returning a row is not reading it. A transaction-local guard on migration 115's
+`set_config(..., is_local := true)` pattern makes that explicit.
+
+### 86.2 S-2 — the ordering *is* the mechanism
+
+§8.7 recorded the problem exactly: *"the act of anonymising is itself auditable and produces a **new**
+Event naming the subject."* S-2 resolves it by naming the **pseudonym**, and the sequence is what makes
+that true:
+
+1. **capture** the pseudonym while the mapping still exists;
+2. **sever** — delete the mapping;
+3. **emit** carrying that pseudonym, which by then **resolves to nothing**.
+
+The retained ledger gains a record that an erasure occurred and **no way to identify whom it
+concerned**. **No delta**, although A6 counts export/deletion among its nine delta-bearing categories
+and one would be permitted — any before/after here would carry the identity S-2 exists to keep out.
+
+**This closes the last open A2 recursion.** §8.7 and §8.8 each recorded it as unresolved; §8.8's own
+consequence noted sub-ruling 5 *"does not resolve the separate A2 recursion on anonymisation events."*
+It is resolved now, by owner decision, not by inference.
+
+### 86.3 A defect local validation caught, and it would have broken a read path
+
+The first revision looked up the pseudonym with an unqualified `WHERE subject_id = p_subject`. The
+function's `RETURNS TABLE` declares an **OUT parameter of that name**, so plpgsql raised
+`column reference "subject_id" is ambiguous` — **and the error propagated out of the read path.** The
+emission did not merely fail to record; **it broke the read.** Aliased and qualified. Had this reached
+QA it would have taken `audit_read_events()` down for every reader.
+
+### 86.4 Evidence — live on QA, `P2 70/70`
+
+```
+R-1  `audit_read` accepted · a delta on it REFUSED (A6: reads are occurrences)
+     the read path still works and returned rows
+     ONE call -> ONE Event: 3 -> 4     (the recursion boundary)
+     actor = the Trust operator, provenance grounded
+     no delta, no changed_columns, no PHI
+     a plain client sees none          (A13 reader controls apply to the new category)
+S-2  severance emitted exactly ONE export_deletion: 1 -> 2
+     subject IS the severed pseudonym, and is NOT the raw subject id
+     no delta
+     the pseudonym NO LONGER RESOLVES  (map rows = 0)
+     the identifiable subject appears NOWHERE in the stored row
+     a repeat severance emits nothing  (nothing left to sever)
+```
+
+**Full regression `484/484` across 12 suites.** Guards: hygiene (153, contiguous 000–152) · I-MIG-03
+(0 unrecorded) · schema contract · ENV-3 (frontier 152, nothing pending) · production-ref · Edge JWT.
+
+### 86.5 Closure
+
+| rung | status |
+|---|---|
+| FIXED IN CODE | ✅ migration 152 |
+| FIXED ON QA | ✅ ledger **152** |
+| VERIFIED LIVE | ✅ P2 **70/70**, regression **484/484** |
+| VERIFIED IN CI | pending the run for this commit |
+
+**Production not contacted. Project B not created. P3 not begun. `apps/api/.env` untouched. D12·Q5,
+PD-A24 = C and B1–B4 all preserved unchanged.**
+
