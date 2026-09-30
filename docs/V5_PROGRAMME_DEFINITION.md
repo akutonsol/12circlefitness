@@ -6341,6 +6341,78 @@ recorded so that, once the evidence lands, retirement is a single reviewed chang
 investigation.
 
 
+---
+
+## 52 · THE REPLACEMENT KEY IS ALSO REJECTED — `"API key is invalid."`
+
+The secret was replaced (`updated 2026-09-30T01:33:33Z`) and the function redeployed to force fresh
+isolates. **Anthropic still rejects it**, now with its own message:
+
+```
+401  authentication_error  —  "API key is invalid."
+```
+
+That is Anthropic's verdict on the value, not an inference. Twice, on two different keys.
+
+### 52.1 What was ruled out first
+
+- **Not a stale isolate** — the function was redeployed from unchanged source before re-probing.
+- **Not the request shape** — headers are identical to the house pattern (`x-api-key`,
+  `anthropic-version: 2023-06-01`).
+- **Not the model** — a wrong model returns `404`/`400 not_found_error`, not `authentication_error`;
+  and the literal was corrected to `claude-sonnet-4-6` in §50.2.
+- **Not reaching the runtime** — the 503 is the upstream arm, not `AI is not configured`.
+
+### 52.2 A diagnostic I attempted and did NOT complete
+
+To distinguish *"wrong key"* from *"key stored with a trailing newline or quotes"* — the commonest
+cause of a well-formed request being rejected — I tried to report only **shape metadata** about the
+secret: length, whether `trim()` changes it, whether it starts with `sk-ant-`. No part of the value.
+
+**The permission control refused it as `Credential Materialization`, and that call is right:** even
+shape metadata materializes properties of a secret into a response body. **I did not pursue it by
+another route.** So the whitespace hypothesis is *plausible and unconfirmed*, and it stays that way
+on this side of the boundary.
+
+### 52.3 Instrumentation hygiene — and a mistake corrected
+
+Two temporary diagnostics were deployed to QA during this investigation, because the CLI has no
+`functions logs`. The second was reverted **locally** but **I did not redeploy the clean source**, so
+**QA briefly ran a build that returned the upstream status and error message in its 503 body.**
+
+Caught and corrected: the clean committed source is redeployed, QA now returns the generic
+`{"error":"AI is temporarily unavailable"}` only, and `supabase functions download` confirms the
+**deployed source matches the committed file byte-for-byte** (0 diff). Recorded rather than quietly
+fixed, because "reverted locally" is not "reverted".
+
+### 52.4 State — everything except the round trip is verified
+
+| | |
+|---|---|
+| Live contract | **7/12** — `401`×2, `400`×4, no credential leakage. The 5 failures are the single upstream `401` |
+| CI | green, all 7 jobs; `414/414` across 11 suites; `N-07 18/18`; `AI-005` present |
+| Deployed source | verified identical to committed |
+| `apps/api` | **stands** — retirement gated on the round trip, response parsing, image path, regression, CI |
+| Retirement audit | complete and ready (§51) |
+
+**Still unreached, and only this:** the Anthropic round trip, and therefore response parsing — the
+text-block join, the trim, and the empty-response → `503` arm.
+
+### 52.5 What would settle it, without me seeing anything
+
+A direct test from a shell where the key is visible to its owner and not to me:
+
+```
+curl -s -o /dev/null -w '%{http_code}\n' https://api.anthropic.com/v1/messages \
+  -H "x-api-key: $KEY" -H "anthropic-version: 2023-06-01" -H "content-type: application/json" \
+  -d '{"model":"claude-sonnet-4-6","max_tokens":8,"messages":[{"role":"user","content":"hi"}]}'
+```
+
+`200` means the key is good and the fault is in how it reached the secret store — most likely a
+trailing newline, which `supabase secrets set ANTHROPIC_API_KEY="$(printf %s "$KEY")"` avoids.
+`401` means the key itself is not valid for the Messages API.
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
