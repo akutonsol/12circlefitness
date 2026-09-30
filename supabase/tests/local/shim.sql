@@ -73,12 +73,24 @@ create table if not exists auth.users (
 );
 
 -- ── The claim accessors every RLS policy in the tree depends on ─────────────
+-- FIDELITY FIX. These three cast the GUC to jsonb BEFORE guarding it, so an
+-- EMPTY-STRING `request.jwt.claims` raised `invalid input syntax for type json`
+-- rather than returning NULL. `auth.jwt()` on the line below already guards
+-- correctly -- nullif(...,'') OUTSIDE the cast -- and so does hosted Supabase,
+-- whose auth.uid() is
+--   coalesce(nullif(current_setting('request.jwt.claim.sub', true), ''),
+--            (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub'))::uuid
+-- The empty string is reachable in ordinary use: a transaction-local set_config
+-- reverts to '' rather than to unset, so any statement afterwards in the same
+-- session hit the error. That made a correct migration look broken during the
+-- P2 replay (V5 §77). The shim now matches both its own auth.jwt() and the
+-- platform it stands in for. NO MIGRATION WAS CHANGED TO ACCOMMODATE THIS.
 create or replace function auth.uid() returns uuid language sql stable as
-$$ select nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'sub','')::uuid $$;
+$$ select nullif(nullif(current_setting('request.jwt.claims', true),'')::jsonb ->> 'sub','')::uuid $$;
 create or replace function auth.role() returns text language sql stable as
-$$ select coalesce(nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'role',''),'anon') $$;
+$$ select coalesce(nullif(nullif(current_setting('request.jwt.claims', true),'')::jsonb ->> 'role',''),'anon') $$;
 create or replace function auth.email() returns text language sql stable as
-$$ select nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'email','') $$;
+$$ select nullif(nullif(current_setting('request.jwt.claims', true),'')::jsonb ->> 'email','') $$;
 create or replace function auth.jwt() returns jsonb language sql stable as
 $$ select coalesce(nullif(current_setting('request.jwt.claims', true),'')::jsonb,'{}'::jsonb) $$;
 
