@@ -9227,3 +9227,80 @@ I-MIG-03 (0 unrecorded), schema contract, ENV-3 manifest (151 declared PENDING),
 
 **Closure for 151: FIXED IN CODE only. Production not contacted.**
 
+
+## 85 · P2 COMPLETE — ALL FOUR RUNGS MET, INCLUDING **VERIFIED IN CI**
+
+Both boundaries released by owner authorization. **Migration 151 applied to QA, verified live, pushed,
+and verified in CI.** P2 is the first phase in this programme to reach all four rungs.
+
+### 85.1 QA application
+
+Target verified three ways before mutation — linked ref, `config.toml` `project_id`, and the CLI's own
+project list all resolving to **`eyqtldjqpgpljlqvpowh` · 12Circle QA**. Dry run listed **151 alone**.
+Ledger advanced **150 → 151**.
+
+### 85.2 B1–B4 verified live — 22 new assertions, `P2 55/55`
+
+```
+B1  admin opens: 200 · trust_operator opens: 200
+    ordinary client: 403 · erasure executor: 403 · service_role: 403
+    incident records actor_identity = the admin, actor_provenance = grounded
+B2  incidental metadata change (specialty, request_message): 0 -> 0   NO emission
+    status transition: 0 -> 1, delta pending -> active on coach_client_relationships.status
+B3  period rollover: 0 -> 0   NO emission
+    plan_tier transition: 0 -> 1 from subscriptions.entitlement, basic -> premium
+    writing the LEGACY user_profiles.membership_tier: 1 -> 1   NO emission
+B4  coach writing only 114's review columns: 0 -> 0   NO emission
+    subject correcting own health answers: 0 -> 1
+    changed_columns = ["notes","weight_kg","sleep_hours"]   delta = null
+    a scan of the whole stored row finds NO PHI value
+```
+
+**The three non-emission assertions are the ones that matter most**, because each proves a boundary
+rather than a capability: B2 does not fire on metadata, B3 does not treat the legacy field as
+authoritative, and B4 does not fire when a coach writes a review. **And B4's value scan is the proof
+that "names only" is literal** — the stored row is 106 characters and contains none of `79`, `80.5`,
+`6.5`, `corrected` or `felt strong`.
+
+### 85.3 CI — and the check that it was not vacuous
+
+**Run `36750800681`: SUCCESS, 6/6 jobs** — Static guards · Flutter · Negative control · Live QA suites
+· I-WRK-01 · UIX-1.
+
+> The watch stream showed `X 1 test passed, 3 failed` and similar. **Those are the negative-control
+> job's own deliberate mutations**, which it requires in order to prove the harness can fail; the job
+> concluded **success**. Reading them as failures would have been a misreading of the one job designed
+> to go red on purpose.
+
+**Non-vacuity confirmed from the CI log itself**, because `live-qa` skips cleanly when credentials are
+absent and a skip would have left the run green while proving nothing:
+
+```
+PASS  P2    audit + observability populations  55/55
+469/469 assertions passed across 12 suites          ← in CI, not locally
+```
+
+*(469 in CI against 470 locally: a conditional assertion differs with fixture state. Zero failures in
+both.)*
+
+### 85.4 Closure ladder — complete
+
+| rung | evidence |
+|---|---|
+| **FIXED IN CODE** | migrations 142–151, committed, tracked, contiguous 000–151 |
+| **FIXED ON QA** | ledger **151**, local 151 / remote 151 |
+| **VERIFIED LIVE** | P2 **55/55**; full regression **470/470** across 12 suites |
+| **VERIFIED IN CI** | run 36750800681 **SUCCESS**; P2 **55/55** and **469/469** *in CI* |
+
+**No registry edit is made and none is due.** The registry's `P2` column is a **priority** (P0–P3), not
+this phase; no registered finding depends on the audit populations. `MASTER_REMEDIATION_REGISTRY.md`
+remains owner-controlled and untouched.
+
+### 85.5 What P2 delivered
+
+Four populations (Event · Incident · Control evidence · observability), the A12 external identity
+mapping with severance, A13's read path, A6 delta capture, and five emitters — `admin_set_user_role`
+plus B1–B4. **Ten migrations, 142–151**, each traced to the ruling that produced it.
+
+**Production was not contacted at any point.**
+
