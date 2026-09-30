@@ -2,6 +2,17 @@
 
 **Authoritative specification input for the 14 REQUIRED Dashboard areas. No screen is designed here and
 no aggregate is implemented here.**
+
+> ## ⚠ CORRECTED — READ §11 FIRST
+>
+> **§§1–10 below were written without exhausting the product record, and they over-classify.** Items were
+> presented as **OWNER DECISION** that the existing record already determines — and the missing-source
+> problem they describe is **already registered as `CONF-D9`, class ARCHITECTURE**, not as a set of new
+> owner questions.
+>
+> **§11 is the authoritative reconciliation.** Where §§1–10 and §11 disagree, **§11 governs.** §§1–10 are
+> retained unrewritten because the per-area evidence in them is sound; it is the *disposition* that was
+> wrong. One factual error is corrected outright at §11.2.
 Baseline: migration frontier 152, QA ledger 152, `V5_PROGRAMME_DEFINITION.md` §99.
 
 ## 0 · Owner ruling that governs this document
@@ -295,3 +306,103 @@ business definition**, which is why this document ends in questions rather than 
 
 **Nothing here is decided, recommended, ranked or implemented. No migration is authored. No Dashboard area
 is removed, deferred or collapsed.**
+
+---
+
+# 11 · AUTHORITATIVE RECONCILIATION — EXISTING AUTHORITY APPLIED FIRST
+
+**Owner correction, 2026-09-30.** *"Do not reopen product decisions that were already established during
+the 12Circle+ product/Dashboard design process … Before presenting any item as an OWNER DECISION, search
+the existing V5 programme record, product decisions, Dashboard/design specifications, prior approved
+architecture decisions, migrations, and established product requirements for the authoritative definition.
+Apply existing decisions first … Do not ask the owner to redefine something merely because engineering has
+not implemented it yet."*
+
+**The correction is upheld by the evidence.** §§1–10 searched the migrations and the V5 programme ledger
+and stopped there. A full search of the 100-document record found the governing authority in sources
+never opened: **the Dashboard Build Specification's A1–A14 product requirements**, **`CONF-D9`**,
+**`PD-A24`/`PD-C03`**, the **wearable roadmap's WI series**, and **`product-bible` §5**.
+
+## 11.1 The authority that was missed, and what each settles
+
+| authority | where | what it settles |
+|---|---|---|
+| **`A3` · `A9` · `A14`** | Build Spec §3/§11/§17, recorded `V5_FINAL_DESIGN_AUTHORITY_RECONCILIATION:24-36` as **"EXPLICIT PRODUCT REQUIREMENTS — definitively established"** | **The Dashboard areas ARE specified product requirements.** `A14`: an administrator must understand *"platform health, users, revenue, engagement, security, Guardian status, incidents and ecosystem activity"* — the owner's list, as a product requirement. **§§1–10 treated these as undefined. They are defined.** |
+| **`A8`** | Build Spec §10 | ***"No hard-coded KPI values in production; every metric has a defined **source, calculation, freshness expectation, and authorization boundary**."*** **This is the data-realism requirement, and it is also this document's own specification.** §§1–10 omitted **freshness expectation** entirely — added below. |
+| **`A10`** | Build Spec §12 | Seven governance principles, incl. ***"dashboard data must respect the same authorization boundaries as the underlying system"*** and *"every **high-impact administrative action** is auditable"*. |
+| **`A5` · `A7`** | Build Spec §5 | Guardian state vocabulary **Active / Monitoring / Degraded / Disabled**, 10 panel elements, and the ***"clear distinction between observation, recommendation, autonomous action, and human-approved action"***. |
+| **`A4`** | Build Spec §4 | The **persistent system status strip** — *"live, severity-aware, clickable, traceable"*. |
+| **`A13`** | Build Spec §10 | *"QA uses **deterministic, clearly-marked relational data**."* |
+| **`CONF-D9`** | `V5_FINAL_DESIGN_AUTHORITY_RECONCILIATION:329` | *"brief §10 (every metric has a defined source) · repo: no observability/audit/analytics stores · **most Overview metrics have no possible source today** · Overview is unbuildable as specified · **ARCHITECTURE**"* |
+| **`PD-A24` = `C`** | §45.1 | *"the abstraction stays, **no third-party vendor is introduced**, and the choice remains reversible behind one interface."* Its scope is *"crash reporting, **analytics**, APM, structured logging, **uptime monitoring** or alerting"*. |
+| **`PD-C03`** | `MASTER_PRODUCT_DECISIONS:184` | ***Currency*** — *"`'usd'` is hardcoded in every `price_data` and every table default. Single-currency is a decision, not an oversight — but it should be a recorded one."* **Open, and pre-existing.** |
+| **`WI-13` · `WI-15`** | `V5_IMPACT_ANALYSIS:153,155` | *"Wearable observability (**latency, ingestion failures, sync health, quality**)"* and *"**Admin/Guardian wearable telemetry**"*. |
+| **`product-bible` §5** | product bible | **Coaching Mode — `free · self-guided · ai-guided · coach-guided`** and **Session** as the client-facing word for one day's workout. |
+| **`PD-B23`** | `MASTER_PRODUCT_DECISIONS:170` | The integrations screen — **Strava, WHOOP, Garmin, Polar, Spotify, MyFitnessPal**. |
+
+### `CONF-D9` is the decisive one
+
+**The entire "no source of truth" problem §§1–10 reported is already on the conflict register, already
+diagnosed, and already classed ARCHITECTURE.** §90.4 places it among the *"architecture follow-ons …
+plausibly **inside §19's delegation** once their inputs exist."*
+
+**So the missing data paths are not owner decisions. They are architecture work — much of it mine.**
+That is the substance of the owner's correction and it is correct.
+
+## 11.2 A factual error, corrected
+
+§5 stated: *"no device, wearable or HealthKit table exists in the migration set at all."* **That is
+wrong.** **`user_integrations` exists** (`011_coaching_calls.sql:29`) with
+`user_id · provider · connected · connected_at · disconnected_at`, RLS enabled and a `user_own_integrations`
+policy. `V5_DESIGN_AUTHORITY_RECONCILIATION:89` already recorded it as the Admin wearable view's DB basis.
+**It is the source of truth for the connection half of the Wearables tile.** The error came from grepping
+for `device|wearable|healthkit` in table names — the table is named for integrations, not devices.
+
+## 11.3 The reconciliation table
+
+**`freshness` is included because `A8` requires it and §§1–10 omitted it.**
+Authorization is `A10`'s rule throughout — *"dashboard data must respect the same authorization boundaries
+as the underlying system"* — implemented on the `019` pattern (`SECURITY DEFINER` + `is_admin()`), with the
+per-role matrix remaining `CONF-D7`.
+
+| # | Dashboard requirement | existing authoritative definition | existing source | implementation gap | architectural action | genuine owner decision |
+|---|---|---|---|---|---|---|
+| 1 | **Total users** | `A14` "users"; approved card states the composition (4,390+164+246+12 = 4,812) | `user_profiles` by `role`; `admin_platform_stats()` | 3 of 7 roles unrepresented; `is_demo` not excluded | extend the existing aggregate; exclude `is_demo` per `A13`'s clearly-marked-data rule | **none** |
+| 2 | **Active users / DAU** | `A14` "engagement"; `product-bible` §5 — **Session** = one day's workout; card requires DAU/WAU/MAU + MoM | `workout_sessions` (+`weekly_checkins`) | no rollup; freshness undefined | **`CONF-D9`**: daily distinct-user rollup keyed on Session; freshness ≤ *"updated 2 minutes ago"* | **narrow** — does a sign-in with no Session count as active? |
+| 3 | **Active coaches** | **approved card states it** — *"of 164 · 23 with no client this month"* → ≥1 client this month | `coach_client_relationships` + `user_profiles` | the intersection isn't exposed | add to the aggregate | **narrow** — "this month" = calendar month or trailing 30 days (the approved screens use both) |
+| 4 | **Active clients** | `product-bible` §5 **Coaching Mode** — `coach-guided · ai-guided · self-guided` — matching the card's split exactly | `subscriptions.kind` | `free` mode not on the card; ⚠ `K-07` makes local status divergence possible | aggregate by `kind`; decide `free`'s bucket | **none** on the split; ⚠ `K-07` is a **defect**, not a decision |
+| 5 | **Wellness partners** | `B7` — *"Wellness Partner"* = `vendor`; card states *"active of 246 · 9 awaiting approval"* | `user_profiles` `role='vendor'` | **no approval state column exists** | `CONF-D9`: add partner approval state | **yes — the approval state machine.** A business process the record does not define (nearest: `PD-A19`, role-assignment governance, also open) |
+| 6 | **Revenue** | `A14` "revenue"; monetization roadmap names **MRR · ARR · ARPU · monthly churn**; card fixes monthly/£/3 streams | `payments.amount_cents` only; `subscriptions` has **no amount**; `marketplace_commission_rate` (0.10) | subscription + coaching amounts absent locally; **£ vs `'usd'`** | `CONF-D9`: persist amounts at webhook time or reconcile; build MRR/churn per the roadmap's named metrics | **yes ×2** — **`PD-C03` currency** (pre-existing, open) and **whether "coaching" is gross or platform commission** (the roadmap names the metrics, not this split) |
+| 7 | **Health** | **`A4`** — persistent status strip, *"live, severity-aware, clickable, traceable"*; approved screen fixes the **six** subsystems and `Operational`/`Degraded`; banner requires a **member-impact** statement | **none** — and **`D12` does not supply it** (its components are telemetry kinds) | no probes, no status store | **`CONF-D9` + `PD-A24` = `C`**: build the status store **vendor-free, behind the existing interface** — which is what `C` requires and permits | **none** — `PD-A24` already rules the posture; thresholds are engineering SLOs under `A4` |
+| 8 | **Security** | `A10` principles; `D11` scope *"Security · Incidents · Audit Logs"*; V5 fixes the incident **11 fields + severity enum** | `audit_events`, `audit_incidents`, `admin_set_user_role` — **all shipped and CI-verified** | *"sign-in anomalies"* has no detector; *"critical vulnerabilities"* has no scanner | `CONF-D9` for the anomaly rule; scanner is CI-side | **none** — `A10` governs; the anomaly threshold is an engineering SLO |
+| 9 | **AI Guardian** | **`A5`** — 10 elements, state **Active/Monitoring/Degraded/Disabled**, emergency disablement; **`A7`** — the observation → recommendation → autonomous → human-approved distinction, **which is the autonomy scale** | none (P7) | no Guardian state store | **the correct dependency: the card is a read-only summary of P7's state**; `§19.2` keeps Guardian **out of Trust**; no resequencing | **none for the card.** If the level is ever **settable** from Admin that is a `CONF-D7` cell + an audit emitter under `A10` — **the approved card is read-only** |
+| 10 | **Wearable intelligence** | **`WI-13`** *"latency, ingestion failures, sync health, quality"* + **`WI-15`** *"Admin/Guardian wearable telemetry"*; roadmap **APPROVED — FUTURE BUILD**; `PD-B23` names the providers | **`user_integrations`** (`011:29`) — `provider`, `connected` — serves *"Apple HealthKit: Connected"*, *"Apple Watch: Connected"*, *"Connected devices: N"* | **ingestion lag and error counts** have no source — they are `WI-13`, deferred under `PD-G01` | **the architectural dependency, determined:** the tile **splits**. Its **connection half is buildable now** from `user_integrations`; its **ingestion-health half depends on `WI-13`** and waits for `PD-G01`'s release. **`PD-G01` is not overridden and the area is not removed** — it renders its available half and an `A11` state for the rest | **none** — the scope is approved and the dependency is architectural |
+| 11 | **QA & release** | `A14`; `RELEASE_GATES.md` + §20.3's **15 gates (5 PASS · 2 PARTIAL · 8 FAIL)**; CI publishes build + suite totals every push | **GitHub Actions** — already produces `484/484`, per-job conclusions, release gates | not ingested; no version registry | `CONF-D9`: ingest CI conclusions; **`P10`'s installation constraint applies and is not released here** | **narrow** — does the card show the **V5 gate ledger** or **CI status**? They currently disagree (CI green, 8 of 15 gates FAIL) |
+| 12 | **Attention queue** | approved footer — *"Actions open the item. **Nothing is changed from this screen**"* (read-only, matching `D11`); domains Security/QA/Guardian/System/Payments; `A4` severity-awareness | `audit_incidents` (+ the rows above) | the other four domains depend on rows 6–11 | `CONF-D9`: a cross-domain queue view over the sources as they land | **yes — the severity vocabulary.** Approved UI `CRITICAL/HIGH/**MEDIUM**/**LOW**` vs the **V5-specified, shipped** enum `Critical/High/**Warning**/**Informational**` (`143:70`). Two authorities conflict; **altering that CHECK changes a `D4`/`A11` population, so it is not done unilaterally** |
+| 13 | **Ecosystem activity** | `A14` *"ecosystem activity"*; `A6`'s 5 operational layers; approved panel fixes *"last 30 days"* + the six domain tiles | `workout_sessions`, `weekly_checkins`, `events`, `subscriptions`, `user_integrations` | **"pods"** is not a schema term; churn per row 6 | map five of six tiles to existing tables | **narrow** — what a *"pod"* is (`86 pods · 1,940 posts`) |
+| 14 | **Events / community** | `A14`; `K-04` already governs **event registration integrity**, CI-verified 9/9 | `events`, `event_registrations`, `classes` | *"attendance"* undefined — registered / checked-in / completed | `CONF-D9`: define against `event_registrations` | **narrow** — which of the three *"74% attendance"* means |
+| 15 | **Recent admin activity** | `A10` *"every high-impact administrative action is auditable"*; `A13`·1 read policy | **`audit_events`** — shipped, CI-verified | none of substance | read via the existing `A13` path | **none — fully determined** |
+| 16 | **Installs** | approved card fixes the split **Apple / Google Play**; `A14` | **external** — App Store Connect · Play Console | no ingestion, no credentials | `CONF-D9`: scheduled pull into a local rollup | **yes — narrow.** `PD-A24` = `C` forecloses introducing an **analytics vendor**; whether reading **our own** distribution consoles is that, is not settled either way. Console credentials are also an **account boundary** |
+| 17 | **Demographics / age** | approved panel fixes **four buckets** 18–30 · 30–45 · 45–60 · (4th) | **`user_profiles.date_of_birth`** (`000:64`) — **exists** | no aggregate; bucket edges overlap in the capture | `CONF-D9`: half-open buckets; decide null handling; consider a minimum bucket size consistent with `A12`/PHI posture | **narrow** — whether the 4th bucket is **60+** or **unknown** (the capture does not say) |
+| 18 | **Impressions** | approved panel fixes total + **per-territory**; the Installs card's Apple/Play split indicates the same source family | **external** — store-listing impressions (App Store Connect / Play Console) | none; term not defined in the V5 record | as row 16 | **yes** — **which impression** (store-listing vs marketing vs in-app), plus row 16's `PD-A24` question. ⚠ the approved panel also declares a **runtime dependency on `flagcdn.com`** — third-party egress from an authenticated admin surface |
+
+## 11.4 What this reconciliation changes
+
+**Before (§§1–10): ~30 items presented as owner decisions.**
+**After: 5 genuine owner decisions, 6 narrow ones, and 1 pre-existing open register row.**
+
+**Genuine:** partner approval state machine (5) · coaching revenue gross-vs-commission (6) · the attention
+queue's **severity conflict** (12) · store-console ingestion under `PD-A24` (16) · which *"impressions"*
+(18). **Pre-existing and already registered: `PD-C03`** currency (6).
+
+**Everything else is `CONF-D9` architecture** — class `Architecture`, *"plausibly inside §19's delegation"*
+— **or was already determined** and should not have been raised.
+
+**Four areas are fully determined and need no decision at all:** Total users · Recent admin activity ·
+Security · AI Guardian (as a read-only card).
+
+**Nothing is removed, collapsed, deferred or replaced.** Wearable intelligence is the case the owner
+singled out, and the resolution honours both constraints: **the capability is approved** (`WI-13`/`WI-15`,
+roadmap `APPROVED — FUTURE BUILD`), **`PD-G01`'s deferral is not overridden**, and the tile **stays on the
+Dashboard** — rendering the half `user_integrations` already supports, with an `A11` state for the half
+`WI-13` will supply.

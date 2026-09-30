@@ -10743,3 +10743,99 @@ vocabulary** against shipped code, and **whether Wearables and Installs/Impressi
 
 **No ranking is offered.** `CONF-D8` stays behind `CONF-D7`; the definitions are independent of both and
 could be answered in any order.
+
+---
+
+## 100 · §99 OVER-CLASSIFIED — EXISTING AUTHORITY RECOVERED · `CONF-D9` IS THE RIGHT HOME
+
+**Owner correction, 2026-09-30.** *"Do not reopen product decisions that were already established … Before
+presenting any item as an OWNER DECISION, search the existing V5 programme record, product decisions,
+Dashboard/design specifications, prior approved architecture decisions, migrations, and established product
+requirements … Do not ask the owner to redefine something merely because engineering has not implemented it
+yet."*
+
+**Upheld by the evidence.** §99 searched the **migrations** and the **V5 programme ledger** and stopped
+there. `docs/` holds **100 documents**. The governing authority was in files I never opened.
+
+### 100.1 What a complete search found
+
+| authority | settles |
+|---|---|
+| **`A1`–`A14`**, the Build Spec's *"EXPLICIT PRODUCT REQUIREMENTS — **definitively established**"* (`V5_FINAL_DESIGN_AUTHORITY_RECONCILIATION:24-36`) | **`A14` names the Dashboard areas as a product requirement** — *"platform health, users, revenue, engagement, security, Guardian status, incidents and ecosystem activity"*. **They were specified. §99 treated them as undefined.** |
+| **`A8`** (Build Spec §10) | *"**No hard-coded KPI values in production**; every metric has a defined **source, calculation, freshness expectation, and authorization boundary**."* **This is the data-realism requirement the owner named — and it is §99's own deliverable, already specified.** §99 omitted **freshness** entirely. |
+| **`A10`** (§12) | *"dashboard data must respect the **same authorization boundaries as the underlying system**"* and *"every **high-impact administrative action** is auditable"*. **§99 raised both as open questions (`B-AUTH-1`/`B-AUTH-2`). `A10` answers them in principle.** |
+| **`A5`/`A7`** (§5) | Guardian state **Active/Monitoring/Degraded/Disabled**, and the *"distinction between observation, recommendation, autonomous action, and human-approved action"* — **that is the autonomy scale**, not an undefined control. |
+| **`A4`** (§4) | The status strip — *"live, severity-aware, clickable, traceable"*. **The Health tiles have a requirement.** |
+| **`A13`** (§10) | *"QA uses deterministic, **clearly-marked** relational data"* — so *"All figures are sample design-state data"* is **compliance**, not a caveat. |
+| **`CONF-D9`** (`:329`) | *"most Overview metrics have no possible source today · Overview is unbuildable as specified · **ARCHITECTURE**"* |
+| **`PD-A24` = `C`** · **`PD-C03`** · **`PD-B23`** · **`WI-13`/`WI-15`** · **`product-bible` §5** | vendor posture · currency · integration providers · wearable telemetry · **Coaching Mode `free · self-guided · ai-guided · coach-guided`** |
+
+### 100.2 `CONF-D9` — the finding §98.2 and §99 reported already existed
+
+**The entire "six areas have no source of truth" result is `CONF-D9`, registered on 2026-09-27**, three
+days before I reported it as new. Its resolution line reads *"Overview is unbuildable as specified"* and
+its authority column reads **`ARCHITECTURE`**.
+
+**This changes the disposition, which is the point.** §90.4 — my own section — places `CONF-D9` among the
+*"architecture follow-ons … plausibly **inside §19's delegation** once their inputs exist."* **So most of
+what §99 escalated to the owner is architecture work, much of it mine to do.**
+
+**How the error happened, stated plainly:** I searched for *implementations* of each metric, found none,
+and concluded the *definition* was absent. **Absent implementation is not absent definition** — which is
+exactly what the owner's correction says, and exactly what `A8` and `CONF-D9` had already recorded.
+
+### 100.3 One factual error, corrected
+
+§99 and the contract's §5 said *"no device, wearable or HealthKit table exists in the migration set at
+all."* **Wrong. `user_integrations` exists** — `011_coaching_calls.sql:29`, with `provider`, `connected`,
+`connected_at`, `disconnected_at`, RLS enabled — and `V5_DESIGN_AUTHORITY_RECONCILIATION:89` had **already
+recorded it** as the Admin wearable view's DB basis. I grepped table names for `device|wearable|healthkit`;
+the table is named for integrations. **It is the source of truth for the Wearables tile's connection half.**
+
+### 100.4 Wearable Intelligence — the dependency determined, not escalated
+
+The owner: *"already an approved V1 capability; do not treat its existence on the Dashboard as permission
+to override unrelated sequencing/deferral decisions. Use the existing approved wearable scope and determine
+the correct architectural dependency."*
+
+**Determined, and it needs no owner ruling:**
+
+- **Scope exists** — **`WI-13`** *"Wearable observability (latency, ingestion failures, sync health,
+  quality)"* and **`WI-15`** *"Admin/Guardian wearable telemetry"*; the roadmap is
+  **`APPROVED — FUTURE BUILD`**.
+- **The tile splits along an existing boundary.** Its **connection half** — *"Apple HealthKit: Connected"*,
+  *"Apple Watch: Connected"*, *"Connected devices: N"* — is served **today** by `user_integrations`. Its
+  **ingestion-health half** — *"~40 min behind"*, *"14 errors"*, *"Delayed"* — **is `WI-13`**, deferred
+  under `PD-G01`.
+- **So `PD-G01` is not overridden and the area is not removed.** The tile renders what it has and an `A11`
+  state for the rest. §99 framed this as a conflict requiring an owner ruling; **it is an architectural
+  dependency with a determinate answer**, and the owner was right that I should have found it.
+
+### 100.5 The reconciliation — `docs/V5_ADMIN_DASHBOARD_DATA_CONTRACT.md` §11
+
+18 rows in the requested form: **requirement → existing authoritative definition → existing source →
+implementation gap → architectural action → genuine owner decision**. §§1–10 are retained unrewritten with
+a banner; **§11 governs where they disagree.**
+
+**Before: ~30 items presented as owner decisions. After: 5 genuine, 6 narrow, 1 pre-existing.**
+
+- **Genuine (5):** the partner **approval state machine** · **coaching revenue — gross or platform
+  commission** (`marketplace_commission_rate` = 0.10 exists; the monetization roadmap names MRR/ARPU/churn
+  but not this split) · the attention queue's **severity conflict** — approved UI `CRITICAL/HIGH/MEDIUM/LOW`
+  against the **V5-specified, shipped** `Critical/High/Warning/Informational` (`143:70`) · **store-console
+  ingestion** under `PD-A24` · **which "impressions"**.
+- **Pre-existing (1): `PD-C03`** currency — `'usd'` in code against **£** on the approved card. **Already
+  on the register since Wave 0. Not a new question.**
+- **Fully determined, no decision needed (4):** Total users · Recent admin activity · Security · AI
+  Guardian as a read-only card.
+- **Everything else: `CONF-D9` architecture.**
+
+### 100.6 Frontier
+
+The four gates of §97.4 stand — **`CONF-D6`** · **`CONF-D7`** · **Trust's IA** · **nine domain placements**.
+§99's fifth workstream **shrinks from "the Dashboard business definitions" to the 5+1 above**, and the bulk
+of it **converts from an owner boundary into `CONF-D9` architecture work**, which §90.4 places *"plausibly
+inside §19's delegation"* — gated, as ever, behind **`CONF-D7`** for the authorization half (§99.3).
+
+**No Dashboard area removed, collapsed, deferred or replaced. `PD-G01`, `PD-A24` and `P10` not released.
+No migration, no application file, no production contact. QA at 152.**
