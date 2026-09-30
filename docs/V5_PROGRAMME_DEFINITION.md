@@ -163,7 +163,7 @@ Derived from `V5_IMPACT_ANALYSIS_2026-09-27.md` §17–18. **No dependency is in
 ```
 CONF-01 ANSWERED (baseline = 91 routes, §8.2) · CONF-02 OPEN ──► what "V5" means
         │
-D4 AUDIT SCHEMA ◄── deepest dependency  [A2/A1/A3/A6/A11/A12/A13 ANSWERED §8.3-8.9; A14 OPEN, blocked on D11]
+D4 AUDIT SCHEMA ◄── deepest dependency  [COMPLETE — A1/A2/A3/A6/A11/A12/A13 §8.3-8.9; A14 §19.2. See §72]
         ├──► Admin audit domain ──► Admin Control Center (13 domains)
         ├──► Incidents ──────────► Trust → Incidents
         ├──► Agent action trail ─► AI Guardian (AS-05) ──► Guardian QA
@@ -380,8 +380,9 @@ self-allocation.
 
 `CONF-02` · **`D3`** (uniform status predicate — **a P1 entry blocker**, see §5.2; *not* the
 `D-3` of §8, which is a different decision) ·
-**`D4`** (audit schema — the deepest dependency; **`A2`/`A1`/`A3`/`A6`/`A11`/`A12`/`A13` ANSWERED
-§8.3–8.9**; **still OPEN on `A14` alone**, which is blocked on `D11`) ·
+**`D4`** (audit schema — **COMPLETE**: `A2`/`A1`/`A3`/`A6`/`A11`/`A12`/`A13` ANSWERED §8.3–8.9,
+**`A14` ANSWERED §19.2**, and `D11` with it. *This entry previously read "still OPEN on `A14` alone";
+corrected §72.*) ·
 `D12` (observability — **scope answered §8.10**, content still OPEN; `SQ-10` is now a **P2 entry
 condition** and `PD-A24` sits inside it) ·
 `D5`–`D7` (Admin) · `D11` (Trust) · **`D-D1`** (Trust container — see below) ·
@@ -815,6 +816,9 @@ remains OPEN:
   (§8.1 lists it unresolved; an untracked register marks it *"RESOLVED — build open"*; **the
   tracked document governs**).
 
+> **PRECEDENCE MARKER — SUPERSEDED. See §19.2 and §72.** `A14` was **ANSWERED** at §19.2, and with
+> it **`D4` IS COMPLETE**. Preserved as the state when written.
+
 **`D4` therefore remains OPEN pending `A14` alone** (`A6` was answered at §8.9 after this
 paragraph was written), and `A14` is itself blocked on `D11`.
 
@@ -1141,6 +1145,11 @@ records Trust as *"blocked on D4, D11, CONF-08"* under **§11 · DEFERRED SCOPE*
    untracked sources say the build scope is open; the tracked document records `D11` unresolved.
 4. **Should `D11`'s question text be admitted to the tracked record?** It exists only in an
    untracked file. Admitting it is an owner act, not a documentation act — **it is not done here.**
+
+> **PRECEDENCE MARKER — SUPERSEDED ON `D11` AND `A14`. See §19.2 and §72.**
+> `D11` was **ANSWERED** at §19.2 (Trust's scope = Security · Incidents · Audit Logs) and `D4 · A14`
+> with it. The sentence below is preserved as the state when written. `D-D1` and `CONF-08` are
+> unaffected by this marker.
 
 **`D11` is NOT answered. `A14` remains blocked. `D-D1` remains unfilled. `CONF-08` remains open.**
 No status changes.
@@ -8005,7 +8014,7 @@ populations that exist are **`assessment_access_log`** (migration 140, N-07) and
 The rest — `workout_logs`, `nutrition_logs`, `cycle_logs`, `habit_logs`, `weight_logs`, `score_events`
 — are **domain data, not audit**.
 
-**`D4` owns the audit event schema and is OPEN.** §8.10's whole premise — that `A1` sub-ruling 3
+**`D4` owns the audit event schema — and it is COMPLETE, not open. This sentence was WRONG; see §72.** §8.10's whole premise — that `A1` sub-ruling 3
 separated audit from observability, *"which is precisely what makes a shared identifier necessary to
 reconstruct one incident across both"* — presupposes two populations. **One of the two does not
 exist.** Cross-population correlation cannot be implemented, let alone verified, against a single
@@ -8030,4 +8039,99 @@ still holds.
 failure mode. Those are now tracked and can be built against the moment `D4` and project B land.
 
 **QA unchanged at frontier 141. Production not contacted. Registry untouched.**
+
+
+## 72 · THE `D4` BOUNDARY DOES NOT EXIST — `D4` IS COMPLETE, AND FOUR TRACKED LOCATIONS SAID OTHERWISE
+
+**Task:** locate the authoritative `D4` record, recover the exact wording of its unresolved
+questions, and formulate minimum owner-answerable questions only if the exact ones do not exist.
+
+**Result: there are no unresolved `D4` questions.** All fourteen sub-decisions are answered, the last
+two — `A14` and its blocker `D11` — at **§19.2**, under the delegation §19's preamble records:
+*"Every decision below is an OWNER DECISION made under that delegation — not an inference, not a
+recommendation."* **No question is formulated below, because none is needed.**
+
+### 72.1 A premise correction, stated first
+
+The request referred to *"the unresolved `D4` Steps 3 and 5 questions"*. **`D4` has no "Steps 3 and
+5".** Steps 3 and 5 are rows in **§71.2's `D12` pipeline table** — *Record* and *Detect* — which are
+blocked **on** `D4`, not **by** questions belonging to it. `D4`'s sub-decisions are tracked as
+**`A1`–`A14`**. The two are different objects and are not merged here.
+
+### 72.2 The authoritative `D4` map — all fourteen, with locations
+
+| sub-decision | subject | status | exact location |
+|---|---|---|---|
+| **`A2`** | what is audit-worthy | ANSWERED | §8.3 |
+| **`A1`** | audit schema topology — **three populations**: Event · Incident · Control evidence | ANSWERED | §8.4 |
+| **`A3`** | audit write path | ANSWERED | §8.5 |
+| **`A11`** | audit immutability | ANSWERED | §8.6 |
+| **`A12`** | retention, de-identification, erasure | ANSWERED | §8.7 |
+| **`A13`** | who may read audit records | ANSWERED | §8.8 |
+| **`A6`** | before/after state capture — **non-PHI deltas only** | ANSWERED | §8.9 |
+| **`A14`** | Trust visibility rules | **ANSWERED** | **§19.2** |
+| *(blocker)* **`D11`** | Trust's scope | **ANSWERED** | **§19.2** |
+
+**Reproduced faithfully, not paraphrased:**
+
+> **`D11` — ANSWERED: TRUST'S SCOPE IS THE THREE AREAS OF §5.2's P6 — Security · Incidents · Audit
+> Logs. AI Guardian remains P7 and is NOT inside Trust.** … *Build scope, minimally stated:* Trust is
+> a **governance review surface over existing audit and observability records**. **It introduces no
+> tables of its own** — it reads the three audit populations and the D12 population.
+
+> **`D4 · A14` — ANSWERED: TRUST VISIBILITY = EXACTLY `A13`'s GRANTS, AND NOTHING MORE.** … **no PHI
+> payload is surfaced to Trust** — occurrence facts, actor/subject identifiers and control evidence
+> only. **Cross-population correlation is permitted ONLY through the D12 correlation identifier,
+> never by joining on subject identity.**
+
+> **`D4` IS NOW COMPLETE.** `A2`, `A1`, `A3`, `A6`, `A11`, `A12`, `A13` and `A14` are all answered.
+
+### 72.3 Four tracked locations contradicted that — and one of them was mine
+
+All four predate §19 and were never reconciled when it landed:
+
+| location | said | status |
+|---|---|---|
+| §5.1 dependency map `:166` | *"A14 OPEN, blocked on D11"* | **corrected** |
+| §8.1 carried-forward list `:384` | *"still OPEN on `A14` alone, which is blocked on `D11`"* | **corrected** |
+| §8.8 closing status | *"`D4` therefore remains OPEN pending `A14` alone"* | **marker added** |
+| §8.12 `:1145` | *"`D11` is NOT answered. `A14` remains blocked."* | **marker added** |
+| **§71.4 — mine, this session** | *"`D4` owns the audit event schema and is OPEN"* | **corrected, and it was wrong** |
+
+**§71.4 is the one that matters**, because it was written *yesterday in programme time* and became the
+stated reason `D12` could not proceed. I reported a blocking owner decision that **had already been
+taken in §19.2**. The correct statement is in §72.5.
+
+### 72.4 §8.12's provenance gap is **doubly closed**
+
+§8.12 recorded that `D11`'s question text existed **only in untracked analysis** —
+`QA_TO_V5_TRANSITION_RECONCILIATION_2026-09-27.md:336`, *"What is Trust's actual scope?"* — and
+refused to write one, because *"writing a question text here would be inventing the decision's
+content."* **That refusal was correct and is preserved.** It is now moot twice over:
+
+1. **All four of those files are now TRACKED** (`git ls-files` confirms each), so the question text is
+   in the authoritative record.
+2. **`D11` is answered anyway** (§19.2), so the question no longer needs putting.
+
+### 72.5 What actually blocks `D12` — and it is not a `D4` decision
+
+| blocker | class | status |
+|---|---|---|
+| **Project B provisioning** — no key, no endpoint, no issuance log | **owner / account action** | **OPEN** |
+| **The audit + observability populations do not exist as tables** | **implementation**, fully decided | **not built** |
+
+The populations are **decided down to DML level** — topology §8.4, write path §8.5, immutability
+§8.6 and §8.16·Q1 (freeze-identity-columns), retention §8.7, read model §8.8, visibility §19.2, and
+§8.16·Q4 binding `service_role` out of writer-of-record for the observability population on the same
+terms. **Nothing about them is undecided. They have simply never been built.**
+
+> **This does not license building them.** `D4`'s completeness removes an *owner-decision* blocker,
+> not the need for **build authorization**: creating the audit ledger is a large, low-reversibility
+> commitment, and §19's own hierarchy ranks **6 · minimal irreversible commitment**. The standing
+> instruction *"do not invent an audit population merely because `D12` needs one"* is **satisfied by
+> obedience, not by cleverness** — the populations would come from `D4 · A1`, not from `D12`'s need —
+> but the decision to build now is the owner's and is **not taken here.**
+
+**Nothing implemented. No migration, no schema, no provisioning. QA at frontier 141. Registry
+untouched. Production not contacted.**
 
