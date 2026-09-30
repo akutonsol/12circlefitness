@@ -8767,3 +8767,71 @@ frozen rows are never touched, yet the subject can no longer be resolved.**
 
 **QA at frontier 141. Production not contacted.**
 
+
+## 79 · FRONTIER RECLASSIFIED — AND A THIRD DEFECT, FOUND BY READING 115 AGAINST 142
+
+### 79.1 Every carried item, classified
+
+| item | classification | basis |
+|---|---|---|
+| correlation-ID scope (Incident / Control evidence) | **RESOLVED BY EXISTING AUTHORITY** | `D12·Q5` — *"across **both** populations"* |
+| retention / purge | **RESOLVED BY EXISTING AUTHORITY** | A12 rulings 1, 3, 8 — anonymise-and-retain, indefinite anonymised retention; **no purge exists to build** |
+| A13 Event reader / subject self-read | **RESOLVED BY EXISTING AUTHORITY** | §8.8 — *"the subject is not a reader of any audit population … a deliberate ruling"* |
+| A12 identity mapping · severance · resolution | **RESOLVED BY EXISTING AUTHORITY** → implemented (146) | §19.3 answered all four §8.20 questions |
+| Control-evidence writer | **DERIVABLE IMPLEMENTATION DETAIL** → implemented (144) | A11's *"NO RUNTIME WRITE PATH"* is the later, more specific constraint |
+| 142 stored the real subject id | **IMPLEMENTATION DEFECT** → corrected (§78.2) | A12 ruling 2 made the erasure model inoperable against it |
+| 142 admin could read their own admin-action rows | **IMPLEMENTATION DEFECT** → corrected (§78.2) | A13 sub-ruling 1 |
+| **142 made two roles unassignable** | **IMPLEMENTATION DEFECT** → corrected (147) | see §79.2 |
+| `approval_status` vocabulary | **GENUINE OWNER DECISION** — minor, non-blocking | severity is enumerated; this is enumerated nowhere |
+| A13 sub-ruling 5's audit-read *recording* | **GENUINE OWNER DECISION** | no A2 category exists for it; no ruling places it in the database vs the access layer |
+| the A2 recursion on **anonymisation** events | **GENUINE OWNER DECISION** | §8.7 and §8.8 each state it is unresolved |
+| applying 142–147 to QA | **PERMISSION BOUNDARY** | `QA_CLOSURE_STANDARD` §82 rule 7; no wave covers P2 |
+| pushing / running CI | **PERMISSION BOUNDARY** | no push authorization given |
+| Project B provisioning | **PERMISSION / ACCOUNT BOUNDARY** | no authority; CLI capability is not permission |
+| ENV-3's **live** half | **VERIFICATION / EVIDENCE GAP** | needs `QA_DB_URL` in CI; the static half passes |
+
+**Nine of fifteen were closed by evidence rather than by a decision.** The distinction the
+reclassification turns on: *a decision being unresolved* versus *an already-decided design not yet
+implemented*. Only three items are the former.
+
+### 79.2 The third defect — found by reading, not by a test
+
+`admin_set_user_role()` is, in its own comment, *"the only client-reachable path that changes
+`user_profiles.role`."* Its vocabulary list was
+`('client','coach','vendor','admin','content_manager')`.
+
+**142 added `trust_operator` and `erasure_executor` to `user_profiles_role_check` and did not extend
+that list.** The table accepted the two new roles and **the only sanctioned door refused them**
+(`22023`). §8.18·Q1's two roles — and therefore `A12` ruling 6's erasure executor and `A13`'s Trust
+operator — **were unassignable by any authorized route.** Every local test passed throughout, because
+every test set the role with a direct `UPDATE` as owner.
+
+**Corrected in 147**, which also closes the gap §8.3 named: *"`admin_set_user_role()` is unaudited …
+its only record is one `RAISE LOG` … **under A2 that is not an audit record**."* It now emits an
+`admin_action` Event — A3's application arm calling the RPC, best-effort per sub-ruling 4 and
+sequenced **after** the role change so it cannot abort it.
+
+### 79.3 Evidence
+
+**Fresh replay 000–147 clean.** Behaviour: both new roles assignable · unknown role still `22023` ·
+two `admin_action` rows against one distinct subject · **the subject is not the raw id and resolves
+to the target through the map** · actor grounded · non-admin still `42501` · and **the acting admin
+reads 0 of the rows they caused.**
+
+That last one is `A13` sub-ruling 1 proven **through a real emission path** rather than a synthetic
+row — the first end-to-end demonstration that the rule holds where it will actually matter.
+
+**All five CI static guards run locally and pass:** production-ref (ENV-5) · migration hygiene
+(148 files, contiguous 000–147) · **I-MIG-03 durability — 0 unrecorded regressions, and 147's
+`CREATE OR REPLACE` strips nothing** · schema contract (98 tables + 7 views, the 92 live plus the 6
+new, with only the 3 known violations) · Edge JWT posture · ENV-3 static manifest.
+
+The schema-contract count is the check that **no earlier migration contradicts 142–147**: the guard
+derives the whole schema from the migration chain and reconciles it against every call site in the
+tree, and it found nothing outside the pre-existing allowlist.
+
+### 79.4 Status
+
+**142–147 are FIXED IN CODE, locally verified, declared `pending`.** QA at frontier **141** — all six
+P2 objects return HTTP 404 there. **Production not contacted.**
+
