@@ -6651,6 +6651,88 @@ the decision record is the owner's step, not this workstream's.
   verified identical to the committed file.
 
 
+---
+
+## 56 · FRONTIER RECONCILED — THREE STALE CLAIMS CORRECTED, INCLUDING ONE OF MINE
+
+After A2 closed I reassessed what the completed workstreams unblock. **They unblock less than this
+document claimed**, and three claims — one of them mine from §55 — are wrong. Each is corrected here
+rather than amended silently.
+
+### 56.1 ⚠ My §55 claim that PD-A24 unblocks D12 is WRONG
+
+§55 ended by saying P2 was gated *"solely on `PD-A24`'s observability questions being implemented"*
+and offered to take `D12`'s `Q7/Q8/Q10/Q11` next. **§8.10 forbids exactly that reading:**
+
+> *"Owner decisions on **scope only**. **`D12` itself remains OPEN**; nothing below decides its
+> content."*
+> *"`PD-A24` is not superseded and must not be re-decided here… As a subset of D12 it retains its own
+> owner and status; **D12 must not fork it.**"*
+
+`PD-A24` is a **subset** of `D12`, so answering it cannot complete the superset. `D12` still owes its
+**content**: the audit/observability store, and specifically the **correlation identifier** §8.10
+rules that *"`D12` must mint"* — verified as **zero** occurrences of `correlation_id`,
+`x-request-id`, `requestId`, `request_id` or `span_id` in the tracked tree. **P2 remains blocked**,
+and `SQ-10` is an entry condition that cannot be deferred past it.
+
+### 56.2 ⚠ §20.2 says `D-V6` is "answered"; §18.3 says it is UNRECOVERABLE
+
+§18.3 is the dedicated analysis and it is unambiguous:
+
+> *"**`D-V3`** … and **`D-V6`** … **No question text exists in any source.** … **These are NOT
+> answerable decisions. The owner must SUPPLY A QUESTION, not choose an answer.**"*
+
+§20.2's row — *"`D-V6` answered"* — is unsupported by any source and is **withdrawn**. `D-V6` gates
+**P10**; `D-V3` gates **P3** alongside `D-V1`/`D-V2`. **Neither phase can be entered**, and neither
+can be unblocked by an answer, because there is no question to answer yet.
+
+### 56.3 ⚠ §20.2 says P0 is satisfied; three other places say `CONF-02` is OPEN
+
+§20.2: *"**P0** … ✅ **SATISFIED** — both answered."* Against that, §5's phase table
+(*"`CONF-02` OPEN"*), §8.2's own closing line (*"`CONF-02` is a separate decision and **remains
+OPEN**"*) and §20.1's readiness row (*"the critical path is blocked at `CONF-02` and `D4`"*).
+
+**Three specific statements outweigh one summary row. `CONF-02` is OPEN** and §20.2's P0 row is
+withdrawn. `CONF-01` is genuinely answered (§8.2, baseline = the 91 registered routes); only
+`CONF-02` — what "V5" canonically names and versions — is outstanding.
+
+### 56.4 ✅ What the completed work DID unblock — P10's infrastructure half
+
+§21.5 recorded P10 as needing *"`D-V6` (answered) **plus CI secrets and egress**, which are
+infrastructure dependencies, not decisions."* The `D-V6` half is withdrawn above. **The
+infrastructure half is now genuinely satisfied, and that is new:**
+
+- `QA_URL`, `QA_ANON`, `QA_SERVICE` are provisioned in the `qa` GitHub environment;
+- **egress is proven by execution** — the live suites reach QA from CI, `414/414` across 11 suites;
+- `ANTHROPIC_API_KEY` is provisioned and **verified working end-to-end** (§55.2).
+
+So P10's two operational preconditions are met. It remains blocked on `D-V6` alone — and `D-V6` is
+not answerable. **That is a strictly better position than §21.5 recorded**, and it is the only
+forward movement the frontier gained.
+
+### 56.5 The frontier, as it actually stands
+
+| Phase | Blocked on | Kind |
+|---|---|---|
+| **P0** | `CONF-02` | owner decision |
+| **P1** | — | ✅ complete |
+| **P2** | `D12` **content** + `SQ-10` | owner decision (`PD-A24` answered but is only a subset) |
+| **P3** | `D-V1`, `D-V2`, **`D-V3`** | owner must **supply a question** |
+| **P4–P9** | upstream of P2/P3 | downstream |
+| **P10** | **`D-V6`** | owner must **supply a question** — infrastructure now satisfied |
+
+**Every remaining phase is blocked on an owner decision, and two of them cannot be answered at all
+until the owner first formulates the question.** No further engineering work is reachable without
+that input.
+
+### 56.6 Cleanup completed alongside
+
+`apps/api/dist` removed — build output for a deleted application, untracked and regenerable.
+**`apps/api/.env` deliberately left in place:** it holds `JWT_SECRET` (the parallel auth stack's
+signing secret) and `PORT`, both dead, but it is 4 KB and deleting a file containing a secret is
+irreversible. Flagged for the owner rather than destroyed.
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
