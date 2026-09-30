@@ -9480,3 +9480,54 @@ Building an Admin Control Center against no design would be inventing the produc
 **No implementation code or migration was touched in this pass. QA at 152. P5 not begun, Project B
 not created, P3 not begun, production not contacted.**
 
+
+## 88 · `CONF-08` COMMISSIONED — THE BRIEF EXISTS; THE ARTEFACTS DO NOT
+
+**Owner instruction 2026-09-30:** advance the `CONF-08` boundary, determining first whether the
+artefacts can be commissioned under existing authority.
+
+**Determination: commissioning is authorized; producing the designs is not.** §19.4 ruled
+*"THE ANSWER IS COMMISSION"*, and this repository already defines what a commission is —
+`FINAL_NEW_SCREEN_DESIGN_COMMISSION.md` states its own nature exactly: *"Authoritative input to the
+design phase … **no screen was designed**."* A commission is a **brief**, produced from the record; the
+**designs** come from the authoritative board, and no Admin or Trust frame exists on it.
+
+**Produced:** `docs/V5_ADMIN_TRUST_DESIGN_COMMISSION.md`.
+
+### 88.1 What it does and does not do
+
+**It does not unblock P5, and says so in its own second paragraph.** §20.2 blocks P5 on
+*"`CONF-08` artefacts"* — the **design surfaces**. Input to design is not design. **P5 remains blocked.**
+
+It carries the ten settled rulings the design must honour (`D5` no API tier · `D6` added Flutter web
+target, not a new application · `D7` column-limited views · `D11` three Trust areas with Guardian
+outside · `D-D1` Trust reads and introduces no tables · `A13` no PHI to Trust · `A13`·1 an admin never
+sees their own admin actions · §8.18·Q2 read and erasure authority never in one party · `D12`·Q5 no
+subject identifier in observability · §71.1 detection never prevention), the evidenced Admin scope,
+the evidenced Trust scope, and the design inputs that exist.
+
+### 88.2 Four things it could not fill, and did not
+
+| # | gap | why it cannot be inferred |
+|---|---|---|
+| 1 | **the thirteenth Admin domain** | `AD-01` **enumerates twelve** — health, security, users, roles, payments, AI, wearables, database, incidents, releases, analytics, audit — and **claims thirteen**. The thirteenth is named nowhere |
+| 2 | **the surface set** | §19.4 adopts **no** count, and §18 records *"no tracked source states any count"*. The ten named at `V5_IMPLEMENTATION_READINESS_GATE:319` are carried as evidence only — and they **mix Admin with Trust and with P7's Guardian** |
+| 3 | **`CONF-D2` · `CONF-D4`–`CONF-D8`** | **verified: zero appear in §19 or §20's resolved ledger.** Two bite directly — **`CONF-D7`** is the role matrix, without which no surface can be assigned to a role; **`CONF-D8`** is the data-access model, without which no surface can be assigned data. `D7` fixed the *mechanism*, not the columns |
+| 4 | **Trust's information architecture, and where B1's incident authoring lives** | `D11` gives three areas and no navigation. B1 grants `trust_operator` authority to open an incident, while §19.2 makes Trust a **review** surface that *"introduces no tables of its own"* — which surface hosts that action is unruled |
+
+**Trust's design-authority row is partly stale and partly not.** It reads *"`CANNOT START` — none
+exists · V5 has no Trust · container decision (`D-D1`) · `CONF-D2` may not be a surface at all."*
+`D-D1` **is** answered (§8.17) and §19.2's *"governance review **surface**"* appears to settle
+`CONF-D2` — **but no ruling says so in those terms, so `CONF-D2` is carried as unresolved rather than
+declared closed.**
+
+### 88.3 Verification — read-only
+
+§19.4's four governing quotes reproduced **verbatim** and unmodified · the programme document
+**unchanged by this pass** (the commission is a new file; `git diff HEAD` empty) · no decision language
+anywhere in the commission · §68's signer designs **D1–D5 untouched**, and the collision table in §7 of
+the commission now records **four distinct `D5`s** and **two distinct `A14`s** so a future reader
+cannot conflate them · **0 migrations, 0 application or function files** · QA at **152**.
+
+**No implementation. No migration. Production not contacted. Project B not created. P3 not begun.**
+
