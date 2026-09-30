@@ -286,4 +286,153 @@ check('and the stored record carries NO subject identifier (D12·Q5)',
 const anonObs = await fetch(`${URL_}/rest/v1/audit_events?select=id`, { headers: { apikey: ANON, Authorization: `Bearer ${ANON}` } });
 check('anon reads nothing from the audit ledger', anonObs.status >= 400 || n(await anonObs.json()) === 0, `status=${anonObs.status}`);
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Migration 151 — the four owner-approved emitters, B1-B4, verified LIVE.
+// Each assertion names the decision it proves and the ruling behind it.
+section('B1 · incident creation authority — admin and trust_operator ONLY');
+
+const openAsAdmin = await rpc(adminTok, 'audit_open_incident',
+  { p_summary: `${RUN} admin`, p_occurred_at: new Date().toISOString(), p_severity: 'High' });
+check('an ADMIN may open an incident (owner decision B1)',
+  openAsAdmin.status < 300 && !!openAsAdmin.body, `status=${openAsAdmin.status}`);
+
+const openAsTrust = await rpc(trustTok, 'audit_open_incident',
+  { p_summary: `${RUN} trust`, p_occurred_at: new Date().toISOString(), p_severity: 'Warning' });
+check('a TRUST OPERATOR may open an incident (owner decision B1)',
+  openAsTrust.status < 300 && !!openAsTrust.body, `status=${openAsTrust.status}`);
+
+const openAsSubject = await rpc(subjTok, 'audit_open_incident',
+  { p_summary: `${RUN} nope`, p_occurred_at: new Date().toISOString(), p_severity: 'High' });
+check('an ordinary client may NOT — 42501 (B1 excludes clients and coaches)',
+  openAsSubject.status >= 400, `status=${openAsSubject.status}`);
+
+const openAsEraser = await rpc(eraserTok, 'audit_open_incident',
+  { p_summary: `${RUN} nope`, p_occurred_at: new Date().toISOString(), p_severity: 'High' });
+check('nor may the erasure executor (B1 excludes it by name)',
+  openAsEraser.status >= 400, `status=${openAsEraser.status}`);
+
+const openAsService = await fetch(`${URL_}/rest/v1/rpc/audit_open_incident`, {
+  method: 'POST', headers: SH,
+  body: JSON.stringify({ p_summary: `${RUN} nope`, p_occurred_at: new Date().toISOString(), p_severity: 'High' }),
+});
+check('nor may service_role — not granted EXECUTE, and the auth.uid() gate refuses it',
+  openAsService.status >= 400, `status=${openAsService.status}`);
+
+const incRow = (await (await fetch(`${URL_}/rest/v1/audit_incidents?select=actor_identity,actor_provenance,severity&summary=eq.${RUN}%20admin`, { headers: SH })).json())[0] ?? {};
+check('the incident records the ACTOR identity, grounded (B1: "actor identity must be recorded")',
+  incRow.actor_identity === admin.id && incRow.actor_provenance === 'grounded',
+  `actor=${incRow.actor_identity === admin.id} provenance=${incRow.actor_provenance}`);
+
+// ─────────────────────────────────────────────────────────────────────────────
+section('B2 · relationship_change — material STATUS transitions only');
+
+const relBefore = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.relationship_change`, { headers: SH })).json());
+const mkRel = await fetch(`${URL_}/rest/v1/coach_client_relationships`, {
+  method: 'POST', headers: { ...SH, Prefer: 'return=representation' },
+  body: JSON.stringify({ coach_id: trust.id, client_id: subj.id, status: 'pending' }),
+});
+const relId = ((await mkRel.json())[0] ?? {}).id;
+check('fixture: a relationship exists at status pending', !!relId, `status=${mkRel.status}`);
+
+await fetch(`${URL_}/rest/v1/coach_client_relationships?id=eq.${relId}`, {
+  method: 'PATCH', headers: SH, body: JSON.stringify({ specialty: 'strength', request_message: 'hello' }),
+});
+const relAfterMeta = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.relationship_change`, { headers: SH })).json());
+check('an INCIDENTAL metadata change emits NOTHING (B2: not every metadata change)',
+  relAfterMeta === relBefore, `${relBefore} -> ${relAfterMeta}`);
+
+await fetch(`${URL_}/rest/v1/coach_client_relationships?id=eq.${relId}`, {
+  method: 'PATCH', headers: SH, body: JSON.stringify({ status: 'active' }),
+});
+const relAfterStatus = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.relationship_change`, { headers: SH })).json());
+check('a material STATUS transition DOES emit (B2)',
+  relAfterStatus === relBefore + 1, `${relAfterMeta} -> ${relAfterStatus}`);
+
+const relDelta = ((await (await fetch(`${URL_}/rest/v1/audit_events?select=delta,action&category=eq.relationship_change&order=occurred_at.desc&limit=1`, { headers: SH })).json())[0]) ?? {};
+check('and the Event carries the status transition (A6 names this delta "status")',
+  relDelta.delta?.before?.status === 'pending' && relDelta.delta?.after?.status === 'active',
+  `${relDelta.delta?.before?.status} -> ${relDelta.delta?.after?.status} on ${relDelta.action}`);
+
+// ─────────────────────────────────────────────────────────────────────────────
+section('B3 · billing_entitlement — subscriptions is authoritative, NOT membership_tier');
+
+const billBefore = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.billing_entitlement`, { headers: SH })).json());
+const mkSub = await fetch(`${URL_}/rest/v1/subscriptions`, {
+  method: 'POST', headers: { ...SH, Prefer: 'return=representation' },
+  body: JSON.stringify({ user_id: subj.id, kind: 'app', status: 'active', plan_tier: 'basic' }),
+});
+const subId = ((await mkSub.json())[0] ?? {}).id;
+check('fixture: a subscription exists at basic/active', !!subId, `status=${mkSub.status}`);
+
+await fetch(`${URL_}/rest/v1/subscriptions?id=eq.${subId}`, {
+  method: 'PATCH', headers: SH,
+  body: JSON.stringify({ current_period_end: new Date(Date.now() + 2.6e9).toISOString() }),
+});
+const billAfterRoll = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.billing_entitlement`, { headers: SH })).json());
+check('a period rollover is NOT an entitlement change and emits nothing',
+  billAfterRoll === billBefore, `${billBefore} -> ${billAfterRoll}`);
+
+await fetch(`${URL_}/rest/v1/subscriptions?id=eq.${subId}`, {
+  method: 'PATCH', headers: SH, body: JSON.stringify({ plan_tier: 'premium' }),
+});
+const billAfterTier = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.billing_entitlement`, { headers: SH })).json());
+check('a plan_tier transition DOES emit, from the AUTHORITATIVE source (B3)',
+  billAfterTier === billBefore + 1, `${billAfterRoll} -> ${billAfterTier}`);
+
+const billDelta = ((await (await fetch(`${URL_}/rest/v1/audit_events?select=delta,action&category=eq.billing_entitlement&order=occurred_at.desc&limit=1`, { headers: SH })).json())[0]) ?? {};
+check('the Event reads subscriptions(status, plan_tier) — not user_profiles.membership_tier',
+  billDelta.action === 'subscriptions.entitlement'
+    && billDelta.delta?.before?.plan_tier === 'basic' && billDelta.delta?.after?.plan_tier === 'premium',
+  `${billDelta.action}: ${billDelta.delta?.before?.plan_tier} -> ${billDelta.delta?.after?.plan_tier}`);
+
+// The legacy field must not be treated as authoritative: changing it emits nothing.
+const legacyBefore = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.billing_entitlement`, { headers: SH })).json());
+await fetch(`${URL_}/rest/v1/user_profiles?id=eq.${subj.id}`, {
+  method: 'PATCH', headers: SH, body: JSON.stringify({ membership_tier: 'premium' }),
+});
+const legacyAfter = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.billing_entitlement`, { headers: SH })).json());
+check('writing the LEGACY membership_tier emits nothing — it is not authoritative (B3)',
+  legacyAfter === legacyBefore, `${legacyBefore} -> ${legacyAfter}`);
+
+// ─────────────────────────────────────────────────────────────────────────────
+section('B4 · phi_correction — changed column NAMES only, never values');
+
+const phiBefore = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.phi_correction`, { headers: SH })).json());
+const mkChk = await fetch(`${URL_}/rest/v1/weekly_checkins`, {
+  method: 'POST', headers: { ...SH, Prefer: 'return=representation' },
+  body: JSON.stringify({ user_id: subj.id, week_number: 1, week_start_date: new Date().toISOString().slice(0,10),
+                         weight_kg: 80.5, energy_level: 7, notes: 'felt strong' }),
+});
+const chkId = ((await mkChk.json())[0] ?? {}).id;
+check('fixture: a weekly check-in exists with the subject\'s health answers', !!chkId, `status=${mkChk.status}`);
+
+// The coach writes only review fields — 114's v_coach_cols. Not a PHI correction.
+await fetch(`${URL_}/rest/v1/weekly_checkins?id=eq.${chkId}`, {
+  method: 'PATCH', headers: SH,
+  body: JSON.stringify({ feedback_message: 'good work', coach_name: 'T', reviewed_at: new Date().toISOString() }),
+});
+const phiAfterCoach = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.phi_correction`, { headers: SH })).json());
+check('a COACH writing only review fields is NOT a correction and emits nothing (114 v_coach_cols)',
+  phiAfterCoach === phiBefore, `${phiBefore} -> ${phiAfterCoach}`);
+
+// The subject corrects their own submitted health answers. That IS the correction.
+const selfCorrect = await mutate(subjTok, `weekly_checkins?id=eq.${chkId}`, 'PATCH',
+  { weight_kg: 79.0, sleep_hours: 6.5, notes: 'corrected' });
+const phiAfterSelf = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.phi_correction`, { headers: SH })).json());
+check('the SUBJECT correcting their own health answers DOES emit (B4)',
+  phiAfterSelf === phiBefore + 1, `status=${selfCorrect.status}  ${phiAfterCoach} -> ${phiAfterSelf}`);
+
+const phiRow = ((await (await fetch(`${URL_}/rest/v1/audit_events?select=changed_columns,delta,action&category=eq.phi_correction&order=occurred_at.desc&limit=1`, { headers: SH })).json())[0]) ?? {};
+check('it carries the changed column NAME SET (B4: names only)',
+  Array.isArray(phiRow.changed_columns) && phiRow.changed_columns.includes('weight_kg')
+    && phiRow.changed_columns.includes('sleep_hours'),
+  `changed_columns=${JSON.stringify(phiRow.changed_columns)}`);
+
+check('and delta is NULL — A6 excludes PHI-correction deltas, migration 150 enforces it',
+  phiRow.delta === null || phiRow.delta === undefined, `delta=${JSON.stringify(phiRow.delta)}`);
+
+const serialised = JSON.stringify(phiRow);
+check('NO PHI VALUE appears anywhere in the Event (B4: never before/after values)',
+  !/79|80\.5|6\.5|corrected|felt strong/.test(serialised), `scanned ${serialised.length} chars of the stored row`);
+
 export default summary('P2 audit populations');
