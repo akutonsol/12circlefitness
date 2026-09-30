@@ -7037,6 +7037,83 @@ Two further candidates were considered and **rejected on evidence, not preferenc
 so **no migration, function, schema or code was written.** QA is unchanged at frontier 141.
 
 
+---
+
+## 60 · `D12·Q2` = OPTION (b) — THE DERIVED DESIGN, AND THE ONE DECISION IT STILL NEEDS
+
+**OWNER RULING 2026-09-30 — key custody is an EXTERNAL SIGNER/KMS whose private signing capability
+is inaccessible to the Edge Function / `service_role` tier. `D4`/`A14` is PRESERVED: cross-population
+correlation occurs ONLY through the D12 correlation identifier.**
+
+This reverses `PD-A17 = A2`'s "no new platform component" for this one purpose. Recorded as the
+owner's decision, not a consequence.
+
+### 60.1 A delivery channel DOES exist — §8.13 understated it
+
+§8.13 concluded a trigger-written audit row can see *"no caller-supplied value whatsoever"*. Verified
+again, and the first half holds: **`request.headers`, `request.method`, `request.path` and
+`SET LOCAL` are all ZERO** under `supabase/`, and the JWT reaches SQL only indirectly through
+`auth.uid()` (**339 uses across 66 migrations**).
+
+**But `set_config` is not zero, and the exception matters.** `115_profile_privilege_boundary.sql:387`
+and `:390` set **`circle12.privileged_role_write`** with **`is_local := true`** — a
+**transaction-local GUC**, written by a definer function, read later in the same transaction.
+
+**That is a working, in-tree, proven delivery channel.** §8.13 dismissed it as *"not request context
+and not caller-supplied"* — true of *that* flag's purpose, but it establishes the **mechanism**: a
+definer function can publish a value that triggers firing later in the same transaction read via
+`current_setting(..., true)`. The gap was never that the mechanism is absent; it is that **nothing
+mints or carries a correlation value into it**.
+
+### 60.2 The design
+
+| step | what happens | why it satisfies the ruling |
+|---|---|---|
+| **1 · Mint** | The **external signer** issues `(correlation_id, signature, key_id)`, signing over `correlation_id` (and, where available, the actor and operation). | The private key never enters the function tier — §59 proved no in-database custody can achieve this. |
+| **2 · Carry** | The application path calls a `SECURITY DEFINER` function that publishes the triple transaction-locally via `set_config('circle12.correlation_id', …, true)` — **migration 115's proven pattern**. | Uses an existing in-tree mechanism rather than inventing a channel. |
+| **3 · Record** | Audit and observability rows carry `correlation_id`, `signature`, `key_id`. Triggers read them with `current_setting(…, true)`. | Both populations carry the same identifier, as `D4`/`A14` requires. |
+| **4 · Verify** | **Trust verifies the signature against the public key before honouring any correlation.** A row whose signature does not verify is **not correlatable**. | This is the whole security property. |
+
+**Why it defeats the named adversary.** The compromised Edge Function holds `service_role` and
+`BYPASSRLS`, so it *can* write rows into both populations with any `correlation_id` it likes — and
+that remains true. What it **cannot** do is produce a **valid signature**, because the private key is
+outside its tier. Trust rejects unverifiable rows, so the adversary can fabricate rows but **cannot
+fabricate a correlation Trust will honour**. Integrity is enforced at **verification**, not at write
+— which is the only placement that survives `BYPASSRLS`.
+
+### 60.3 Two consequences that must not be discovered later
+
+1. **Correlation coverage will be partial, and that is structural.** Step 2 only fires when a write
+   goes through a function that publishes the GUC. **Most application writes go directly to tables
+   through PostgREST and call no such function**, so their triggers would record no correlation id.
+   Closing that means routing audited writes through a function path — a change of shape for an
+   unknown number of the **28 trigger statements** and their call sites. **Scope unquantified here;
+   it is not a detail.**
+2. **Signing is on the request path.** Every correlated operation gains a network round trip to the
+   signer. Batching or pre-issuing identifiers changes the threat model (a pre-issued identifier can
+   be replayed), so it is **not** a free optimisation.
+
+### 60.4 What is NOT decided, and is the boundary
+
+**Which signer.** The ruling names the *class* — external, key inaccessible to the function tier —
+not the instance. Choosing one is an **account and platform commitment**: a cloud KMS (a new vendor
+relationship), a second Supabase project acting as signer (no new vendor, but a second project's
+lifecycle and `PD-A25` already contemplates a third project), or self-hosted custody (an ops
+commitment PD-A17 declined once).
+
+**This is the same class of decision `PD-A17` reserved to the owner**, and §59's finding does not
+determine it. Per `PD-A24`'s own tracked precedent — *"the sink … can and should be built **before**
+the vendor is chosen — it is one interface"* — the **seam is specifiable now and the vendor is not**.
+
+### 60.5 Nothing was implemented
+
+No migration, function, schema or code was written. The instruction was not to implement until
+custody is **proven**; custody is now **decided** but **not provisioned** — there is no key, no
+endpoint and no public material to verify against, so any signer client or verification function
+would be unverifiable by construction and would violate the programme's own evidence ladder.
+**QA unchanged at frontier 141.**
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
