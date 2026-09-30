@@ -37,7 +37,12 @@
       "name": "12Circle QA",
       "applied_through": "149",
       "excluded": [],
-      "pending": {}
+      "pending": {
+        "150": {
+          "reason": "P2 · implements A6 §8.9, which was ANSWERED but unimplementable: the Event population had no delta column, so migration 147's admin_action Event recorded none. Adds audit_events.delta with a CHECK enforcing both halves of A6's enumeration — the five occurrence categories carry no delta, and phi_correction is excluded BY NAME. Extends audit_record_event and has admin_set_user_role carry the role before/after pair A6 names for admin actions.",
+          "gate": "Authorized under the owner's QA authorization for the P2 workstream as the implementation of an already-answered ruling. Target verified as 12Circle QA. Local: fresh replay 000–150 clean; phi_correction+delta rejected, admin_action+delta accepted."
+        }
+      }
     }
   }
 }
