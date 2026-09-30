@@ -8682,3 +8682,88 @@ with their authorization gate recorded. `check-migration-manifest.mjs` passes.
 to QA only when the wave authorizes it, and never before."* `MASTER_REMEDIATION_WAVES` names **no wave
 for P2**. **QA remains at frontier 141. Production not contacted.**
 
+
+## 78 · THE CARRIED GAPS CLASSIFIED — FIVE CLOSE, TWO REMAIN, AND TWO CORRECTIONS TO 142
+
+§77.3 carried five gaps and §77.4 left `A12`'s mapping and `A13`'s recursion as downstream work.
+**Classified against the authoritative record rather than assumed.** Most were already answered
+somewhere later than the section that raised them — and two of the answers showed **migration 142
+contradicted a ruling.**
+
+### 78.1 Classification
+
+| gap | verdict | authority that settles it |
+|---|---|---|
+| **§77.3·1** `approval_status` vocabulary | **GENUINELY UNSPECIFIED — non-blocking** | severity **is** enumerated (`Critical · High · Warning · Informational`, V5_DECISION_RESOLUTION:117); approval status is enumerated nowhere. Column left unconstrained; a vocabulary would be an additive CHECK. |
+| **§77.3·2** Control-evidence writer | **DERIVABLE — narrow reading governs** | A3 §8.5 *"authored migration + application"* vs A11 §8.6 *"NO RUNTIME WRITE PATH"*. A11 is the later and more specific constraint on this population; the authored-migration arm is unambiguous and a runtime application write is exactly what A11 excludes. **Implemented as built.** |
+| **§77.3·3** correlation-ID scope for Incident / Control evidence | **ANSWERED** | `D12·Q5` §19.3: severing the audit-side mapping *"fully anonymises the operation **across both populations**"* — **two**, the audit Event population and the observability population. `D12·Q3` puts the column on the Event row; nothing puts it on the other two. **143 and 144 correctly omit it.** |
+| **§77.3·4** retention / purge mechanism | **ANSWERED — there is no purge** | A12 ruling 1 **ANONYMISE-AND-RETAIN**; ruling 3 makes erasure *"de-identification where possible"*, not deletion; ruling 8 **stands behind Privacy §6's indefinite anonymised retention**. The windows are when identifying data must be de-identified, not when a row dies. **Refusing DELETE on all four populations is the ruled behaviour, not a gap.** |
+| **§77.3·5** A13 Event reader / self-read | **ANSWERED** | §8.8's own consequence: *"**The subject is not a reader of any audit population.** … Recorded as a **deliberate ruling, not an oversight**, and noted because it is the most consequential divergence in A13."* The narrow reading taken in §76.3 is correct. |
+| **`A12` identity mapping** | **ANSWERED → IMPLEMENTED (146)** | §8.20 was *"PREPARED, NOT ANSWERED"*; **§19.3 answered all four of its questions** — Q1 where it lives, Q2/Q3 + §8.18·Q3 as one (no standing resolver; the erasure executor severs), Q4 DML-deep severance. |
+| **`A13` audit-read recursion** | **PARTIALLY ANSWERED — the recording remains open** | The **boundary** is verbatim (§8.8 sub-ruling 5): *"record audit-read activity at the application/access layer, but do not recursively generate another audit record for the audit-read event itself."* **The recording is not implementable as ruled** — see §78.3. |
+
+### 78.2 Two corrections to migration 142, both forced by evidence
+
+**(1) The Event row stored the real subject identifier.** A12 ruling 2 answers whether the A11 Event
+freeze gets an erasure exception: *"**NO exception — use an external mapping.** The frozen row is
+never mutated"*, and §8.7 glosses it *"an external **pseudonymous** mapping — severed to anonymise,
+leaving the frozen Event row untouched."*
+
+**Storing the real identifier makes that model inoperable.** Severing a map anonymises nothing if the
+row already carries what the map resolves, and the only remaining route to erase would be mutating the
+frozen row — which the same sentence forbids. `subject_id` is now **`subject_pseudonym`**.
+
+> **Scope, and why it is only this population.** Ruling 2 is titled **"A11 Event freeze"**. Incident is
+> **mutable** by A1 sub-ruling 1 and can be anonymised in place; Control evidence carries **no subject**
+> by A1; the observability population carries **none** by `D12·Q5`. **143, 144 and 145 are unaffected
+> and were not redesigned.**
+
+**(2) The policy let an admin read their own admin-action records.** A13 sub-ruling 1: *"May the
+audited party read its own audit? **NOT FOR ADMIN ACTIONS**."* §8.8 names precisely the mechanism that
+was missing: *"excluding an admin from their own admin-action records means a predicate distinguishing
+**actor-identity from reader-identity** within one population. **No policy in the repository does
+this.**"* Now one does — narrowly, removing only the reader's own `admin_action` rows, with the Trust
+operator arm untouched, **because oversight is someone else reading it.**
+
+**A consequence, stated because it is structural.** The active-coach arm **moved out of the table
+policy into the read path**: deciding `is_active_coach_of` on a pseudonym requires **resolving** it,
+and §19.3 rules that *"NO STANDING PARTY"* may resolve, with *"resolution occurring inside the audit
+read path"*. **A policy is a standing resolver by definition.** A13's three readers are honoured across
+the two objects — the table implements the two role-class arms, which need no resolution.
+
+### 78.2b Evidence — fresh 000–146 replay, then behaviour
+
+| assertion | result |
+|---|---|
+| the map: RLS on, **zero** policies (§8.20·Q1) | **PASS** |
+| `audit_events` has the pseudonym column and **no** raw subject column | **PASS** |
+| minting works for `service_role`, **denied** to `authenticated` | **PASS** |
+| **the admin sees 0 of their own `admin_action` rows** (A13·1) | **PASS** |
+| the Trust operator sees both rows | **PASS** |
+| the read path resolves 2 of 2 for an entitled reader | **PASS** |
+| severance **denied** to the Trust operator, **succeeds** for the executor | **PASS** |
+| **after severance: audit rows retained (2), identity unresolvable (0)** | **PASS** |
+| the erasure executor reads nothing by either route (§8.18·Q2) | **PASS** |
+| `anon` denied on the map | **PASS** |
+
+The severance pair is `A12` rulings 1 and 2 demonstrated end to end: **the ledger is retained and the
+frozen rows are never touched, yet the subject can no longer be resolved.**
+
+### 78.3 What genuinely remains — two, and neither is invented around
+
+1. **`A13` sub-ruling 5's recording has no implementable form.** Audit reads are audit-worthy and are
+   to be recorded *"at the application/access layer"* — but **A2's fourteen categories contain no slot
+   for an audit-read record**, and no ruling places the recording in the database rather than the
+   access layer. `audit_read_events()` therefore implements the reader rules and **does not** emit a
+   read record, and says so in its own comment rather than claiming compliance.
+2. **The A2 recursion on anonymisation is still open, and the record says so twice.** §8.7: *"The A2
+   recursion is unresolved by A12"* — export/deletion events are IN, so the act of anonymising is
+   itself auditable and *"produces a **new** Event naming the subject"*, which would re-identify what
+   was just severed. §8.8 confirms sub-ruling 5 *"does **not** resolve the separate A2 recursion on
+   anonymisation events."* **`audit_sever_identity()` emits no audit row**, and its comment records
+   why rather than choosing a side.
+
+**Both are recorded as gaps, not filled.** Neither blocks the other four populations.
+
+**QA at frontier 141. Production not contacted.**
+
