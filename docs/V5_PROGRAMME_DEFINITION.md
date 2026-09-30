@@ -10624,3 +10624,122 @@ branch head is verified; the only loss is §97's own run record. **Recorded beca
 then broke, unrecorded, would be worse than not having adopted it** — and this is the third instance of
 the §96.2 class, after the local-vs-CI collision (§95) and the first supersede (§96.2). The rule needs an
 actual check at the moment of pushing, not at the start of a work block.
+
+---
+
+## 99 · DASHBOARD SCOPE RULED REQUIRED · THE 14-AREA DATA CONTRACT · `CONF-D8` REASSESSED
+
+**Owner ruling, 2026-09-30, fourth of the day.** All 14 Dashboard areas are **REQUIRED to remain on the
+Dashboard homescreen**; *"the fact that some metrics currently lack backend aggregates is an
+**implementation/data-contract gap, not permission to alter the approved Dashboard scope**."*
+
+**Accepted without qualification.** §98.2 recorded the absent data paths **as** an implementation gap and
+proposed no scope change; the ruling makes explicit what §98.2 left implicit, and adds the obligation:
+determine **definition · source of truth · calculation · authorization · data contract** for each area
+*before* implementation, using existing authority where it exists and **naming owner decisions rather than
+inventing definitions**.
+
+**Deliverable: `docs/V5_ADMIN_DASHBOARD_DATA_CONTRACT.md`** — all 14 areas plus the three the owner's list
+did not itemise but the approved screen contains. Each row classified **A · DETERMINED** (record,
+database, **or the approved design itself**, which is design authority since `CONF-D4` closed) · **B ·
+OWNER DECISION** · **C · ARCHITECTURE** · **D · EXTERNAL**.
+
+### 99.1 The method rule that did most of the work
+
+**Where an approved screen states its own arithmetic, that is authority. Where it states only a number,
+that is not a definition.** Applied strictly, this is the difference between class A and class B
+throughout, and it settled more than expected:
+
+- **Active coaches** is *determined*: *"of 164 · **23 with no client this month**"*, and 164 − 23 = 141.
+  **An active coach is a coach with at least one client this month** — read off the approved design, not
+  invented.
+- **Total users** is *determined* as the sum of role populations: *"4,390 clients · 164 coaches / 246
+  partners · 12 admins"* sums exactly to **4,812**.
+- **Revenue** is *not* determined by its number, but its **decomposition and period are**: monthly, in £,
+  *"£121k subscriptions · £48k coaching · £15k partners"*.
+
+### 99.2 Six findings that change what P5 costs
+
+1. **Revenue has no local amount to read.** `subscriptions` (`022:14`) has **no amount and no currency
+   column** — only `stripe_price_id`. **The money lives in Stripe.** The schema's only monetary columns
+   are `payments.amount_cents`/`currency`, whose `kind` defaults to `'event_ticket'`. **Two of the three
+   required revenue streams have no local amount at all.**
+2. **A currency conflict with the approved design.** The schema's single `currency` column defaults to
+   **`'usd'`** and `022`'s comments price membership at **"$29/mo"/"$59/mo"**; the approved Dashboard
+   displays **£**. Display currency, conversion and FX source are **owner decisions** — and an FX source
+   may implicate **`PD-A24 = C`**.
+3. **The attention queue's severities conflict with shipped code.** Approved UI: **`CRITICAL · HIGH ·
+   MEDIUM · LOW`**. Shipped `audit_incidents_severity_check` (`143:70`): **`Critical · High · Warning ·
+   Informational`**. **`MEDIUM`/`LOW` are not in the enum.** Either the queue is not sourced from
+   `audit_incidents`, or a vocabulary changes — **and altering that CHECK would modify a `D4`/`A11`
+   population, which is not proposed here.**
+4. **Wearables collides with a standing deferral.** The Dashboard requires a Wearables area; **`P3` is
+   deferred under `PD-G01`**, and **no device/wearable table exists at all**. A tile summarising ingestion
+   cannot precede the ingestion. **Only the owner can rule; `PD-G01` is not treated as overridden.**
+5. **AI Guardian gives the Dashboard a data dependency on `P7`** — not a UI dependency, since a summary
+   card plus *"Open Guardian →"* is not the Guardian surface, and §19.2's *"AI Guardian … is NOT inside
+   Trust"* is untouched. **No phase is resequenced.**
+6. **`D12` does not supply the Health tiles.** Its `component` vocabulary is `structured_log` · `metric` ·
+   `trace` · `observability_audit` (`145:49`) — **telemetry kinds, not subsystems.** The six tiles have no
+   source, and *"Degraded"* is a **policy**, six times over.
+
+**Also recorded:** the approved Impressions panel declares a **third-party runtime dependency** —
+*"Flags load from **flagcdn.com**"* — i.e. egress from an authenticated admin surface to an outside host.
+Raised because it would otherwise be implemented silently. *(Natural Earth geometry is public domain and
+can be bundled.)*
+
+### 99.3 `CONF-D8` reassessed over the complete requirement
+
+`CONF-D8`: *"Admin needs broad cross-user reads"*, to be resolved as **caller-RLS + new admin policies**
+**or** **curated bypassing views**. Class **ARCHITECTURE**; §90.4 places it *"plausibly inside §19's
+delegation once their inputs exist"*, §90.5 has `CONF-D7` gating it.
+
+**What the complete requirement changes — three things:**
+
+1. **`CONF-D8` now has a measured scope instead of a described one.** *"Broad cross-user reads"* is, in
+   fact: **all 14 areas**, every one an aggregate over member-derived data, **none of which a caller-RLS
+   path can produce for a role that is not permitted the underlying rows**.
+2. **The precedent already in the tree is option (b), and it is explicit about why.**
+   `019_admin_dashboard.sql` states: *"**Rather than loosen per-table RLS**, we expose two
+   `SECURITY DEFINER` functions **guarded by an admin-role check**, so an admin can read aggregates
+   **without any client/coach gaining cross-tenant read**."* That is *"curated bypassing views"*, shipped,
+   and live- and CI-verified. **This is precedent, not a resolution** — it settles two functions, not a
+   model — **and I am not converting it into one.**
+3. **A dimension the `CONF-D8` row does not contain.** Six of the fourteen have **no source of truth at
+   all**, and two are **external**. So `CONF-D8` as written — *how* Admin reads data it is not otherwise
+   permitted — **does not cover data the platform does not produce.** Installs and Impressions are not an
+   authorization question; they are an **ingestion** question, and a caller-RLS-versus-views ruling would
+   not decide them.
+
+**Verdict: `CONF-D8` remains OPEN and is NOT resolved here.** It stays gated behind `CONF-D7` per §90.5 —
+and the reassessment strengthens that ordering rather than weakening it, because **half the Dashboard's
+authorization surface is the `CONF-D7` matrix itself** (who may see Revenue, Security, the queue's
+member-identifying items). **Migration 135 is still not evidence that the model is resolved.**
+
+> **One `A12` interaction, recorded because it will be met early.** The attention queue's items reference
+> member-identifying facts (*"38 failed sign-ins on one coach account"*). The Event population carries a
+> **pseudonym**, not a subject id (`A12`), so **rendering a human-readable subject in this queue is
+> precisely the re-identification `A12` governs** — `audit_identity_map` with RLS and **zero policies**,
+> reachable only through the definer path. **This is a `CONF-D8`-shaped question the row does not mention,
+> and it is not designed here.**
+
+### 99.4 What was NOT done
+
+**No business definition was invented.** Every undetermined item is stated as a question. **No aggregate,
+migration, view or application file was written.** **No Dashboard area was removed, deferred or
+collapsed** — the document exists to make all fourteen buildable, not to trim them. **`PD-G01`, `PD-A24`
+and `P10`'s installation constraint are not released.** **No production contact. QA at 152.**
+
+### 99.5 Frontier
+
+The gates of §97.4 are unchanged — **`CONF-D6`** · **`CONF-D7`** · **Trust's IA** · **nine domain
+placements** — and the Dashboard ruling adds a fifth workstream that is now **specified but undecided**:
+
+**The Dashboard business definitions.** Consolidated in the data-contract document; the heaviest are
+**"active"** (users, coaches, clients, partners — four different questions), **revenue** (currency,
+commission, recognition, churn), **degradation policy** for six subsystems, the **attention-queue severity
+vocabulary** against shipped code, and **whether Wearables and Installs/Impressions are in scope before
+`P3` and against `PD-A24`**.
+
+**No ranking is offered.** `CONF-D8` stays behind `CONF-D7`; the definitions are independent of both and
+could be answered in any order.
