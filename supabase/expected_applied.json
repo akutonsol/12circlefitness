@@ -45,6 +45,14 @@
         "143": {
           "reason": "P2 · the D4 audit Incident population (A1 §8.4 population 2): audit_incidents carrying the eleven fields quoted at V5_DECISION_RESOLUTION:114 with the specified Critical/High/Warning/Informational severity enum, plus audit_incident_transitions — NOT a fourth population, but the retention mechanism A11 §8.6 mandates for this one (\"each state transition is retained as an immutable historical event\"). Mutable by ruling: A1 sub-ruling 1 states the Incident population \"may carry an UPDATE path, which its mutable investigation state requires\". DELETE refused per A1 sub-ruling 2 / A12 ruling 1. Readers are A13's four for Incident, which unlike Event include the actor. Traceability: V5 §77.",
           "gate": "NOT AUTHORIZED TO APPLY — same boundary as 142. QA_CLOSURE_STANDARD §82 rule 7: \"Apply the migration to QA only when the wave authorizes it, and never before\", and MASTER_REMEDIATION_WAVES names no wave for P2. Released by an explicit owner authorization to apply. Validated locally: all 144 migrations replay clean from a FRESH database against bare postgres:17 + shim + ext-stubs, and the behavioural assertions of V5 §77.2 pass."
+        },
+        "144": {
+          "reason": "P2 · the D4 Control evidence population (A1 §8.4 population 3): the seven SA-03 fields quoted at V5_IMPACT_ANALYSIS:191, keyed (requirement, date_version) so a requirement accumulates VERSIONS rather than being overwritten. A1's exclusions are implemented as exclusions — no actor, no subject, no occurrence time. A11 §8.6 gives this population NO RUNTIME WRITE PATH, so UPDATE and DELETE are refused outright and no runtime role holds INSERT, not even service_role.",
+          "gate": "NOT AUTHORIZED TO APPLY — same boundary as 142/143. QA_CLOSURE_STANDARD §82 rule 7; no wave covers P2. Validated locally: full fresh replay 000–145 clean, and the §77.2 assertions pass."
+        },
+        "145": {
+          "reason": "P2 · the D12 observability population — the fourth population, NOT one of A1's three (§8.14; A1 sub-ruling 3: \"their schemas and semantics must not be merged\"). In-database per D12·Q7 (V5 §74.2). Carries NO subject identifier by ruling (D12·Q5), only the correlation identifier. Retention bound to component per §8.16·Q2 (observability audit 6 years, everything else 90 days), enforced by CHECK in both directions. §8.16·Q1 freeze: identity and occurrence immutable, payload write-once. Readers admin + Trust operator, role-class only (§8.16·Q3) — no relationship arm, because D12·Q5 guarantees there is no subject to anchor one on.",
+          "gate": "NOT AUTHORIZED TO APPLY — same boundary as 142/143/144. QA_CLOSURE_STANDARD §82 rule 7; no wave covers P2. Validated locally: full fresh replay 000–145 clean, and the §77.2 assertions pass."
         }
       }
     }
