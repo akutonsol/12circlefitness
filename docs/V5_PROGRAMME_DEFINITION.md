@@ -10525,3 +10525,90 @@ production remain standing constraints this agent cannot release.
 
 **No migration, no application file, no production contact. QA at 152, green at 484/484 locally and in
 CI.**
+
+---
+
+## 98 · TWO READINESS FINDINGS AT THE BOUNDARY — `CONF-D7` IS PARTLY PRE-DETERMINED, AND THE APPROVED DASHBOARD ASKS FOR DATA THAT DOES NOT EXIST
+
+**Neither of these decides anything, and neither is a design artefact.** §97 reached the boundary; these
+are two facts about it that were not in the record and that bear directly on the two owner decisions.
+**No option is recommended, ranked, scored or selected**, and no gate moves.
+
+### 98.1 `CONF-D7` is not a blank grid — nine cells are already fixed by shipped, CI-verified code
+
+`CONF-D7` is recorded as *"brief: **no role matrix**"* and the ***"largest security specification gap."***
+That is true of the *specification*. It is **not** true of the *system*: migrations 019 and 142–152 already
+**enforce** authorization at nine sites, each verified live and in CI at 484/484. **A role matrix that
+contradicted any of these would contradict shipped code**, so the owner is deciding fewer cells than the
+gap statement implies.
+
+| # | privileged action | enforced authorization | site |
+|---|---|---|---|
+| 1 | `admin_platform_stats()` | `is_admin()` | `019:24` |
+| 2 | `admin_recent_users()` | `is_admin()` | `019:60` |
+| 3 | `admin_set_user_role()` | `is_admin()` (null-`uid` = internal/service path) | `147:42` |
+| 4 | **read** `audit_events` | `is_admin()` **AND NOT** (own `admin_action` row) **OR** `is_trust_operator()` | `142:306` |
+| 5 | **read** control evidence | `is_admin() OR is_trust_operator()` | `144:71` |
+| 6 | **read** D12 observability | `is_admin() OR is_trust_operator()` | `145:138` |
+| 7 | **read** incidents (+ transitions) | `is_admin() OR is_trust_operator() OR actor_identity = auth.uid() OR is_active_coach_of(actor_identity)` | `143:219`, `143:231` |
+| 8 | **open** an incident | `is_admin() OR is_trust_operator()` — **owner decision B1**, `RAISE` on anything else | `151:94` |
+| 9 | **sever** an identity | `is_erasure_executor()` **only** | `146:118`, `152:183` |
+| — | mint a pseudonym | **`service_role` only** — `GRANT EXECUTE … TO service_role`, no `authenticated` grant | `146:106` |
+
+**What this determines.** For the three *placed* domains — **Security, Incidents and Audit, inside Trust
+by `D11`** — the reader and actor sets are already decided in code. Two properties are worth naming
+because a matrix drafted from the screens alone would likely breach them:
+
+- **`admin` is not a superset of `trust_operator`.** Row 4 excludes an admin from reading **their own**
+  `admin_action` records; `trust_operator` has no such exclusion. **An admin is deliberately less
+  privileged than Trust on exactly one axis**, which is the point of `A13·1`.
+- **`erasure_executor` is not a lesser admin.** It holds severance **exclusively** — `is_admin()` does
+  **not** satisfy row 9.
+
+**What remains genuinely open for `CONF-D7`:** the **nine unplaced domains** (Health · Users · Roles ·
+Payments · Analytics · Database · Releases · AI · Wearables), `content_manager` — still *"unserved"*, as
+its row said when the repo had 5 roles — and `client`/`coach`/`vendor` as *subjects* of Admin surfaces
+rather than actors in them. **Those cells are undetermined by code and are the owner's.**
+
+### 98.2 The approved Dashboard requires platform data that does not currently exist
+
+Source-level finding, from the migration set — **stated as source-level, not catalog-verified**, since it
+is a statement about what is *absent* and a targeted grep is weaker evidence than a dump.
+
+The approved Dashboard's six KPI cards against `admin_platform_stats()` (`019:19`), which returns 13
+aggregates:
+
+| approved KPI card | served? | by |
+|---|---|---|
+| **Total users** — 4,812 | ✅ | `total_users` |
+| **Active coaches** — 141 | ⚠ **partly** | `coaches` counts `role='coach'`; **"active" is not defined anywhere** |
+| **Active clients** — 3,610 | ⚠ **partly** | `clients`, same gap |
+| **Wellness partners** — 218 | ✅ | `vendors` — and `B7` records *"Wellness Partner"* as the brief's term for `vendor`, so the label maps |
+| **Active users · 1,906 DAU** | ⛔ **NOT SERVED** | **no DAU or daily-active measure exists.** `108:75`'s `last_active_at` is a per-workout-session expression inside one view, not a platform activity measure |
+| **Revenue · £184.2k** | ⛔ **NOT SERVED** | **no platform revenue aggregate exists.** `subscriptions` exists (`022_payments:14`) so revenue is *derivable*, but nothing computes it |
+
+**Also unserved by any existing path:** the six platform-health tiles (API · Database · Authentication ·
+Background jobs · Integrations · Infrastructure), the AI Guardian autonomy scale, Wearable intelligence,
+QA & release, the *Needs your attention* queue, and the Installs / Age range / Impressions analytics.
+
+**Why this belongs in the record now, before the gates are satisfied.** The screens are approved **design**
+and they are honest about themselves — *"All figures are sample design-state data."* But an approved design
+whose data path does not exist means **P5 is larger than "build the approved screens"**: two KPI cards and
+most panels need a **server-side aggregate that does not exist yet**, and every such aggregate is a
+**cross-user read**, which is exactly `CONF-D8`'s subject — *"Admin needs broad cross-user reads"*, to be
+resolved as *"caller-RLS + new admin policies, **or** curated bypassing views."*
+
+**So `CONF-D8` is not merely sequenced behind `CONF-D7` in the abstract — it is load-bearing for most of
+the approved Dashboard.** Recorded; **not designed, not decided, and not claimed resolved.** It remains an
+architecture follow-on that becomes available to the §19 delegation once `CONF-D7` exists (§90.4, §90.5).
+
+**Nothing in this section is a recommendation about scope, sequencing or what P5 should include.**
+
+### 98.3 Frontier — unchanged from §97.8
+
+The boundary is the same and these findings do not move it: **`CONF-D6`** and **`CONF-D7`** (owner),
+**Trust's information architecture** and the **nine domain placements** (design). `CONF-D8` sequenced
+behind `CONF-D7`. `PD-G01`, P10's installation constraint and production standing.
+
+**No migration, no application file, no production contact. No Admin UI implemented, begun or scaffolded.
+QA at 152.**
