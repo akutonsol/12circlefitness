@@ -10,8 +10,13 @@
 // file against QA BEFORE migration 138 is applied and again after. No policy is
 // reverted and no exposure is manufactured to obtain evidence.
 //
-// Every assertion below states the SECURE expectation. Before 138 this suite is
-// EXPECTED TO FAIL on the attack assertions; that failure IS the evidence.
+// Every assertion below states the SECURE expectation.  Before 138 this suite
+// WAS expected to fail on the attack assertions, and that failure WAS the
+// evidence: the real pre-fix run scored **2/8** and is recorded in V5 §32.4.
+//
+// CORRECTED 2026-09-30 (V5 §65) — past tense, deliberately.  138 and 139 are
+// applied and this suite passes **9/9**.  A FAILURE HERE IS NOW A REGRESSION,
+// not the pre-fix reading.
 // ═══════════════════════════════════════════════════════════════════════════
 //
 //   node supabase/tests/security/d11-event-registration-integrity.mjs

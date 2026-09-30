@@ -10,13 +10,16 @@
 //   I-PAY-01  one session-credit grant per payment
 //
 // ═══════════════════════════════════════════════════════════════════════════
-// THIS SUITE CANNOT PASS UNTIL MIGRATION 131 IS APPLIED TO QA.
+// STATUS — CORRECTED 2026-09-30 (V5 §64/§65).  MIGRATION 131 IS APPLIED.
 //
-// Migration 131 is authored and DELIBERATELY NOT APPLIED — application is a
-// separate authorization gate with its own pre-application state check, exactly
-// as migration 130's was.  Run this only after that gate.  Before it, every
-// assertion below fails by design, which is the correct pre-fix reading and not
-// a defect in the suite.
+// This block used to read "DELIBERATELY NOT APPLIED … every assertion below
+// fails by design".  That was true when written and is now FALSE, and it was
+// the dangerous direction to be wrong in: it told a reader that a RED run here
+// was EXPECTED, which would have masked a real regression.
+//
+// 131 is applied — verified against the LIVE QA catalog, not source: all four
+// unique indexes and both functions are present, and the frontier is 141.
+// This suite passes 24/24.  A FAILURE HERE IS A REGRESSION.
 // ═══════════════════════════════════════════════════════════════════════════
 //
 // I-PAY-01 IS ONLY PARTLY REACHABLE HERE, and the suite says so rather than

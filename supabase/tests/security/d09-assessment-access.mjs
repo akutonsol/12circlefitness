@@ -21,14 +21,14 @@
 // base-table exposure separately so the residual finding stays visible rather
 // than being masked by the new RPC.
 //
-// ── STATUS ──────────────────────────────────────────────────────────────────
-// Every assertion below requires the proposed migration in
-// docs/proposed/N07_assessment_access.sql, which is authored and NOT applied —
-// `docs/MASTER_REMEDIATION_WAVES.md` §0.2 assigns migration numbers 132+ at
-// wave entry, never before. Until it is numbered, applied and registered in
-// run.mjs, this suite fails by design. That is the pre-fix reading, not a
-// defect — the same convention d08 records for migration 131. Do not delete it
-// to make the runner green.
+// ── STATUS — CORRECTED 2026-09-30 (V5 §65).  THE MIGRATION IS APPLIED. ──────
+// This block used to read "authored and NOT applied … this suite fails by
+// design".  `docs/proposed/N07_assessment_access.sql` was numbered, landed and
+// applied as migration **140**, with **141** correcting `sleep_hours` to `text`
+// (140 declared it `numeric`, which raised 42804 on every call).  The suite is
+// registered in run.mjs under owner decision OD-56 = A and passes **18/18**.
+//
+// A FAILURE HERE IS A REGRESSION, not the pre-fix reading.
 import { URL_, rest, rpc, svc, mutate, blocked, signIn,
          check, section, summary, n, loadIds } from './lib.mjs';
 

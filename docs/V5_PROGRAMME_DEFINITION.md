@@ -7515,3 +7515,52 @@ verification, and says plainly that **a `3A-11` failure is now a REGRESSION**.
 
 **No migration, no policy, no registry. QA unchanged at frontier 141.**
 
+
+## 65 · THE SWEEP — §64 WAS NOT AN ISOLATED COMMENT. IT WAS FOUR.
+
+§64 corrected one stale expected-failure claim in `run.mjs`. Treating it as a one-off would have been
+the shallow reading, so the class was swept: every *"not applied · fails by design · expected to
+fail"* construction in executable files (`supabase/tests/`, `supabase/functions/`,
+`.github/workflows/`, `apps/mobile/test/`).
+
+**Three more, all stale, all in the security suites:**
+
+| file | claimed | actual |
+|---|---|---|
+| `d08-identity-constraints.mjs:13-19` | *"THIS SUITE CANNOT PASS UNTIL MIGRATION 131 IS APPLIED … every assertion below fails by design"* | **131 applied**; suite passes **24/24** |
+| `d09-assessment-access.mjs:24-31` | *"requires … `docs/proposed/N07_assessment_access.sql`, which is authored and NOT applied … this suite fails by design"* | landed as **140**, corrected by **141**; registered under `OD-56 = A`; passes **18/18** |
+| `d11-event-registration-integrity.mjs:13-14` | *"Before 138 this suite **is** EXPECTED TO FAIL on the attack assertions"* | **138/139 applied**; passes **9/9** |
+
+Each now states the post-fix status and says plainly that **a failure is a REGRESSION**. `d11`'s is
+converted to the **past tense** rather than deleted, because its pre-fix run was real evidence — the
+genuine **2/8** recorded in §32.4 — and erasing it would destroy the §5.2 red half.
+
+### 65.1 The programme had already written the rule, in a suite that obeyed it
+
+`supabase/tests/ai/lib.mjs:120`, part of the AI harness:
+
+> *"Nothing here is ever marked "expected to fail". A red test nobody can act on is noise; a
+> characterization that flips is a signal."*
+
+**The AI suite learned this and the security suite did not.** The convention that produced the four
+stale headers is visible in `d09`'s own text — *"the same convention d08 records for migration 131"* —
+so the pattern propagated by citation, each new suite copying the last. **Four files, one habit.**
+
+### 65.2 Why this class is worse than ordinary staleness
+
+Ordinary stale prose misinforms. This class **inverts a control**. Each header instructed the reader
+that RED IS CORRECT for that suite, and three of the four added an explicit warning against acting on
+it (*"Do not delete it to make the runner green"*). A real regression in identity constraints,
+assessment access or registration integrity would have been read as the documented pre-fix state —
+in CI, where nobody re-derives the claim.
+
+**The correct convention is the AI harness's:** a suite is either registered and expected to pass, or
+it is not registered. *"Registered but expected to fail"* is a state with no safe reading, and the
+programme should not create another one.
+
+### 65.3 Verification
+
+Full live suite re-run after the edits: **414/414 across 11 suites, unchanged.** `node --check` passes
+on all four files. **Comments only — no suite added, removed, reordered or re-scored; no assertion,
+migration, policy or registry touched. QA at frontier 141.**
+
