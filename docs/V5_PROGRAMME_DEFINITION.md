@@ -6270,6 +6270,77 @@ supabase secrets set ANTHROPIC_API_KEY=<valid value> --project-ref eyqtldjqpgplj
 ```
 
 
+---
+
+## 51 · RETIREMENT DEPENDENCY AUDIT — PREPARED, NOT EXECUTED
+
+Read-only. **Nothing was deleted.** The lead's step 3 requires proving every remaining `apps/api`
+dependency is accounted for *before* removing anything; this is that proof, completed while the
+credential boundary of §50 holds so it adds no delay later.
+
+### 51.1 The decisive result — `apiUri()` has no caller left
+
+```
+grep -rn "apiUri(" apps/mobile/lib   →   only its own definition in app_env.dart
+```
+
+Repointing the client at the Edge Function (§47.2) removed the **only** runtime consumer of the
+`API_BASE_URL` cluster. Three symbols are now dead in `lib/`:
+
+| Symbol | Consumers |
+|---|---|
+| `EnvConfig.apiUri()` | **none** |
+| `AppConstants.apiBaseUrl` (`app_constants.dart:18`) | **none** |
+| `EnvConfig.hasApiBaseUrl` | **none in `lib/`** |
+
+### 51.2 What removal would touch
+
+| Location | What |
+|---|---|
+| `app_env.dart` | the `apiBaseUrl` field, `hasApiBaseUrl`, `apiUri()`, `kApiBaseUrlDefine`, the `resolveEnvConfig` parameter, dev's `http://localhost:3000` default, qa/prod `''` defaults, the `missingSettings()` entry, the `toString()` mention |
+| `app_constants.dart:18` | the dead getter |
+| `env_config_test.dart` | ~14 assertions |
+| `qa_environment_isolation_test.dart` | 3 |
+| `ai_nutrition_client_test.dart` | fixtures only — `apiBaseUrl: ''` in `EnvConfig` literals |
+| `apps/api/` | the whole workspace |
+
+### 51.3 ⚠ CI needs **no** change — §47.5 over-estimated the blast radius
+
+`grep -rn "API_BASE_URL" .github/` returns **nothing**. CI never passes
+`--dart-define=API_BASE_URL`, so no workflow, build step or secret is involved. §47.5 said "the CI
+web builds pass it by `--dart-define`" — **that was wrong**, and checking rather than repeating it
+removes the largest piece of the estimated risk.
+
+### 51.4 Removing it FIXES a live false signal
+
+`app_env.dart:110`:
+
+```dart
+List<String> missingSettings() => [
+      if (supabaseUrl.isEmpty)     'SUPABASE_URL',
+      if (supabaseAnonKey.isEmpty) 'SUPABASE_ANON_KEY',
+      if (apiBaseUrl.isEmpty)      'API_BASE_URL',
+    ];
+```
+
+`apiBaseUrl` defaults to **`''` in both qa and prod**, so **every QA and production build reports
+`API_BASE_URL` as a missing setting today** — for an API that was never deployed and is now
+replaced. This is not merely dead code: removing the entry stops a build being described as
+misconfigured for a dependency it no longer has.
+
+### 51.5 Nothing needs preserving elsewhere
+
+Dev's `http://localhost:3000` default exists solely for the retired API and has no other consumer.
+No other feature, service, guard or workflow reads any member of the cluster.
+
+### 51.6 Still gated
+
+Per the lead: retirement waits on the Anthropic round trip, response parsing, the image path,
+regression and CI. **`apps/api` stands and not one line of the cluster was removed.** The audit is
+recorded so that, once the evidence lands, retirement is a single reviewed change rather than an
+investigation.
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
