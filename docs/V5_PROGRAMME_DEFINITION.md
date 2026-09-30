@@ -7692,3 +7692,161 @@ be obtained by doing the thing you are reporting you did *not* do has no honest 
 
 **No job added, removed, reordered or gated differently. QA at frontier 141.**
 
+
+## 68 · `D12·Q2` — THE SIGNING-AUTHORITY BOUNDARY IS **BREACHED**. ALL SIX CAPABILITIES DEMONSTRATED.
+
+**Owner instruction:** *"Do not equate project/JWT isolation with signing-authority isolation. The
+critical property is whether the compromised primary service-role tier can obtain or exercise
+arbitrary signing authority."*
+
+**§61 proved the wrong thing.** It proved **custody** — project A's `service_role` is not a
+privileged principal in project B — and that result stands, 6/6 live. It is **not** the property that
+matters, and this section is the one that tests the property that does.
+
+**Result: the adversary holds all six capabilities. The boundary does not exist.**
+
+### 68.1 Adversary model, stated so it cannot be softened
+
+A compromised primary-project Edge Function holding `service_role`/`BYPASSRLS`. It therefore holds
+**the signer's invoke credential**, because **the legitimate minting path runs inside the compromised
+tier**. Denying it that credential would be modelling a different adversary than the one D12 names.
+
+### 68.2 Empirical result — `d12-signing-authority-lab.mjs`
+
+Disposable, in-process, Ed25519 keypair generated per run and never written to disk. No network, no
+credentials, nothing contacted.
+
+| # | capability | verdict | evidence |
+|---|---|---|---|
+| **C-1** | reach the signer | **CAN** | endpoint answered an unauthenticated probe; Edge outbound HTTPS is unrestricted — the live `ai-nutrition` function calls `api.anthropic.com` |
+| **C-2** | authenticate to it | **CAN** | wrong token → **401**; the invoke credential the mint path holds → **200** |
+| **C-3** | obtain a signature Trust verifies | **CAN** | HTTP 200, Trust verified the returned triple |
+| **C-4** | choose `correlation_id` + payload | **CAN** | asked for `00000000-dead-beef-…`, got exactly it, with an attacker-chosen `actor`; Trust accepts |
+| **C-5** | replay / reuse | **CAN** | the earlier triple still verifies afterwards, and the signer re-issued for the same id — the invoke credential is durable and nothing expires it |
+| **C-6** | fabricated cross-population correlation Trust accepts | **CAN** | one signer-issued triple stamped on two invented rows in two populations, binding `victim-A` to `victim-B`; **Trust honours both** |
+
+**C-6 is the one that matters, and it survived every hardening tried:**
+
+| design | signer behaviour | C-4 | C-6 |
+|---|---|---|---|
+| **D1** | signs the payload it is given | CAN | **CAN** |
+| **D2** | signer **mints** the id; caller may not choose | CANNOT | **CAN** |
+| **D3** | D2 + bound to a verified user assertion | CANNOT | **CAN** |
+| **D4** | D3 + anti-replay, refuses to sign an id twice | CANNOT | **CAN** |
+| **D5** | signs the **complete row**, content included | — | **CAN** |
+
+**D2–D4 fail identically**: the adversary does not need to *choose* an identifier, only to *obtain a
+valid one*, and it stamps that fresh, genuine triple onto two rows it invented. **D5 — the last
+candidate defence — fails for the deeper reason**: binding the content does not help when the
+adversary **composes the content it asks the signer to bind.** The signer has no independent
+knowledge of what is true.
+
+> **A correction, recorded because the first run was wrong.** The initial C-6 test verified the
+> signature against the **whole row** and reported CANNOT. That was an artefact of the test, not a
+> property of the design: it showed only that fields the signer never saw are uncovered by its
+> signature — which **is the defect, not a defence**. Trust was re-modelled to verify the **triple a
+> row carries**, which is all the signature ever covered, and C-6 became CAN.
+
+### 68.3 Actor-binding is dead — measured, not argued (`d12-actor-binding-lab.mjs`)
+
+D3 assumes a user assertion proves *which subject acted*. Tested on a **disposable local Supabase
+stack**, torn down after (0 containers remaining). An adversary holding **only** `service_role` — no
+password, no session — obtained a genuine access token for a subject it does not own, by **two
+independent paths**:
+
+```
+PATH 1  POST /auth/v1/admin/generate_link {type: magiclink}  -> hashed_token issued
+        POST /auth/v1/verify {token_hash, type}              -> HTTP 200, ACCESS TOKEN
+        sub matches victim: true
+PATH 2  PUT  /auth/v1/admin/users/{id} {password}            -> HTTP 200
+        POST /auth/v1/token?grant_type=password              -> HTTP 200
+        sub matches victim: true   role=authenticated
+```
+
+> A first attempt returned **403 `otp_expired`** and I had already printed a conclusion the evidence
+> did not support. The cause was my own parameter name — `token` instead of `token_hash` — **not a
+> security control**. Corrected, and recorded because the wrong version was emitted.
+
+The assertion a D3 signer would verify against the primary project's JWKS is **indistinguishable from
+a real user login, because it is one.**
+
+### 68.4 The boundary, stated exactly
+
+**What the second Supabase project DOES deliver** — and it is real: `service_role` **leaked and used
+directly against PostgREST or the pooler** holds no invoke credential, so every row it fabricates is
+unverifiable and **non-correlatable**. Against that adversary the design works, and §61's custody
+proof is what makes it work.
+
+**What it does NOT deliver:** any defence against the adversary `D12` actually names. **The signer is
+an oracle to whoever holds its invoke credential, and the minting path is inside the compromised
+tier.** No choice of signer instance changes this — a cloud KMS, self-hosted custody and a second
+Supabase project are identical in this respect.
+
+**The irreducible limit is OBSERVATION, not custody.** Signing grounds an identifier only as far as
+the signer independently observes what it signs. The signer observes nothing except what the
+compromised tier tells it. Pull-based observation moves the channel without moving the limit: an
+adversary with `BYPASSRLS` can write a fabricated event *into the stream the signer reads*, and the
+signer would faithfully sign a genuine observation of a fabricated fact.
+
+**§63 reached the same wall from the opposite side**: `enforce_profile_privilege()` returns early when
+`auth.uid() IS NULL`, so `service_role` is trusted at the **trigger** layer exactly as `BYPASSRLS`
+trusts it at the **RLS** layer. Three independent arguments — policy, trigger, signature — converge on
+one conclusion: **`service_role` is the trust root, and nothing downstream of it can constrain it.**
+
+### 68.5 What survives, and what it is worth
+
+**Detection, not prevention.** The signer's **issuance log lives in project B, outside the adversary's
+reach.** It cannot stop a fabricated correlation, but issuance volume, and issuance without a matching
+legitimate operation, are visible **in a place the adversary cannot edit**. That is a real control and
+it is the only one this architecture supports against the function-tier adversary.
+
+### 68.6 STOP — this is the genuine architectural boundary
+
+Per the owner's instruction: *"If the adversary can obtain arbitrary valid signatures, stop at that
+genuine architectural boundary."* **It can. Nothing was implemented** — no signer, no verifier, no
+migration, no application integration. `D12·Q5` stands, now with an empirical answer to the half that
+was previously reasoned, and is **restated in §70** as the decision the owner must take.
+
+**QA unchanged at frontier 141. Production not contacted. Local stack destroyed.**
+
+
+## 69 · `QAX-SEC-09` / `hosts_event_for()` — LIVE VERIFICATION COMPLETED AT **BOTH** LEVELS
+
+§62.1 refuted §16.3's *"Profile PHI remains exposed through `hosts_event_for()`"* at the **catalog**
+level and flagged, per §63.4, that catalog-level is **not** `VERIFIED LIVE` under
+`QA_CLOSURE_STANDARD` §5.2, which requires a real request to be refused. The request-level half is now
+run and recorded.
+
+**`d10` already carried it, and has been re-proving it on every run.** Executed standalone against QA
+today — **16/16 in that section**:
+
+```
+PASS  the event host can NO LONGER read the attendee user_profiles row   status=200 rows=0
+PASS  PHI columns are unreachable through user_profiles for the host     status=200 rows=0
+PASS  the host DOES still read the attendee through event_attendee_profiles  rows=1
+PASS  the view exposes exactly id, first_name, last_name, email, avatar_url
+PASS  the view carries no parq_answers / weight_kg / goal_weight_kg /
+      membership_tier / transformation_photo_urls / stripe_details_submitted
+PASS  selecting a PHI column THROUGH the view is rejected                status=400
+PASS  a user who hosts no event for the client reads nothing             rows=0
+PASS  a write THROUGH the view is refused with 403 — the GRANT, not any error
+PASS  and the underlying profile was NOT modified
+```
+
+**Both halves now hold**: catalog (§62.1 — `hosts_event_for` in **no** live policy) and request
+(**`rows=0`** on the base table, **403** on a write through the view).
+
+### 69.1 Reconciled as stale documentation, NOT as a regression
+
+Per the owner's instruction — *"If `QAX-SEC-09` remains fixed, reconcile the stale documentation with
+the existing verified evidence rather than treating it as a new regression."*
+
+**It remains fixed.** `§16.3`'s sentence is **stale prose**, superseded by §62.1 and §69, and
+reconciled there rather than re-investigated. No new finding is raised, no ID allocated, no migration
+written, **no registry edited** — `QAX-SEC-09` stays whatever `MASTER_REMEDIATION_REGISTRY.md` says it
+is, and that file is owner-controlled and untouched. Remediated-and-verified is **not** closed; only
+the owner closes.
+
+**This was the third instance of §67.3's rule** and the one with the longest life: a true sentence,
+never re-checked, that had come to describe live PHI exposure that migration 135 removed.
+
