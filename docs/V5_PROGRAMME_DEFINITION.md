@@ -8595,3 +8595,90 @@ categories, that is an **additive ruling**, not a defect in this policy.
 frontier **141**. Applying it is a separate authorization that has not been given — see §77.
 Production not contacted.
 
+
+## 77 · P2 BUILT — ALL FOUR POPULATIONS AUTHORED AND LOCALLY VERIFIED
+
+Migrations **142–145** implement every population `D4` and `D12` authorize. **Nothing new was
+designed**: each object cites its ruling, §75 is the specification and §76 the Event population's
+matrix. **None is applied to QA** — see §77.4.
+
+| migration | population | authority | shape |
+|---|---|---|---|
+| **142** | Event | A1 §8.4 pop. 1 | append-only; frozen outright |
+| **143** | Incident | A1 §8.4 pop. 2 | **mutable case record** + immutable transition history |
+| **144** | Control evidence | A1 §8.4 pop. 3 | authored, versioned; **no runtime write path** |
+| **145** | Observability | §8.14 · §19.3 | separate population; no subject identifier |
+
+### 77.1 The two rulings that shaped 143–145 most
+
+**A1 sub-ruling 1 makes Incident deliberately unlike the others** — *"the Incident population may
+carry an UPDATE path, which its mutable investigation state requires"*, and 128's write-deny rule
+*"is NOT a standing D4 rule"*. A11 then constrains **how**: APPEND-STATE-TRANSITIONS, *"each state
+transition is retained as an immutable historical event."*
+
+> `audit_incident_transitions` **is not a fourth population.** A1 enumerates three and `D12` adds one;
+> this is the retention mechanism A11 mandates for population 2. **The alternative was considered and
+> is recorded**: emitting each transition into the Event population as `category='incident'` (A2 lists
+> `incident` as IN). Rejected because the Event row's shape cannot express *"approval_status moved
+> from pending to approved"* without stuffing field, old value and new value into free text — losing
+> exactly the fidelity A11 asks to retain.
+
+**`D12·Q5` is a prohibition, not just a definition** — *"the observability population carries NO
+SUBJECT IDENTIFIER — only the correlation identifier."* 145 therefore has no `subject_id` column, and
+**that absence is why §8.16·Q3's reader model has no relationship arm**: *"observability records carry
+no subject relationship to anchor on."* The two rulings are load-bearing on each other.
+
+### 77.2 Evidence
+
+**Full fresh replay, CI `negative-control` conditions** — bare `postgres:17`, `shim.sql`,
+committed `ext-stubs`, database dropped and recreated: **all 146 migrations replayed clean (000–145)**.
+
+| assertion | result |
+|---|---|
+| Incident: occurrence facts produce transitions | **PASS** — `occurred_at`, `actor_identity` retained |
+| Incident: transitions frozen as superuser | **PASS** — UPDATE and DELETE both `42501` |
+| Incident: case undeletable; identity columns immutable | **PASS** |
+| Incident RLS: uninvolved **0/0** · actor **1/4** · trust_operator **1/4** | **PASS** |
+| Control evidence: 7 SA-03 fields, **0** of A1's excluded columns | **PASS** |
+| Control evidence: two versions accepted, duplicate refused | **PASS** |
+| Control evidence: UPDATE/DELETE refused as superuser | **PASS** |
+| Control evidence: INSERT denied to `authenticated` **and** `service_role` | **PASS** |
+| Observability: **0** subject columns | **PASS** |
+| Observability: both retention/component mismatches rejected | **PASS** |
+| Observability: payload **write-once**; identity/occurrence immutable; DELETE refused | **PASS** |
+| Observability RLS: plain **0/0** · trust_operator **3/2** | **PASS** |
+| `anon` holds nothing on any population | **PASS** |
+
+**A gap in my own first revision of 143, caught locally.** `occurred_at` and `actor_identity` were
+**silently mutable and untracked** — the one combination A11 forbids outright. They are now **tracked
+rather than frozen**: A1 calls this a case record carrying *mutable investigation state*, so an
+investigation that corrects who acted or when is doing its job; what A11 forbids is the **silent**
+correction.
+
+**A shim fidelity bug, fixed — and the migrations were not changed to accommodate it.**
+`supabase/tests/local/shim.sql`'s `auth.uid()`, `auth.role()` and `auth.email()` cast
+`request.jwt.claims` to `jsonb` **before** guarding it, so an empty-string GUC raised *"invalid input
+syntax for type json"* instead of returning NULL — while the shim's own `auth.jwt()` on the next line
+guards correctly, as does hosted Supabase. The empty string is reachable in ordinary use: a
+transaction-local `set_config` reverts to `''`, not to unset. **It made a correct migration look
+broken.** Diagnosed as an invalid local reproduction, and the scaffolding was corrected.
+
+### 77.3 Gaps carried, not filled
+
+| # | gap | why it is not guessed |
+|---|---|---|
+| 1 | **`approval_status` has no ruled vocabulary.** | Severity **is** enumerated (`Critical · High · Warning · Informational`, V5_DECISION_RESOLUTION:117); approval status is not, anywhere. Left unconstrained. |
+| 2 | **Control evidence's writer.** A3 §8.5 says *"authored migration + application"*; A11 §8.6 says *"NO RUNTIME WRITE PATH"*. | A runtime application write is exactly what A11 excludes. The narrow reading is implemented; admitting an application writer is an **additive ruling**. |
+| 3 | **`D12·Q3` is scoped to the Event row only** — *"a correlation identifier column on the audit Event row"*. Whether **Incident** and **Control evidence** carry it is unruled. | `A14` permits cross-population correlation *only* through that identifier, so populations without it are uncorrelatable. Adding the column where no ruling puts it would extend `D12`. **Flagged; 143/144 omit it.** |
+| 4 | **No retention-purge path exists.** A12 ruling 4 sets windows (6 years; financial/tax 7; observability 90 days) but no ruling defines how a row leaves. | DELETE is refused on **all four** populations rather than left open. A purge must be built as a ruling. |
+| 5 | **A13's Event reader list omits the subject** while sub-ruling 1 presupposes some self-read (§76.3). | Enumeration implemented; narrower reading taken under hierarchy 1 and 11. |
+
+### 77.4 Status
+
+**142–145 are FIXED IN CODE, locally verified, and declared `pending` in `expected_applied.json`**
+with their authorization gate recorded. `check-migration-manifest.mjs` passes.
+
+**None is applied to QA, and none may be.** `QA_CLOSURE_STANDARD` §82 rule 7: *"Apply the migration
+to QA only when the wave authorizes it, and never before."* `MASTER_REMEDIATION_WAVES` names **no wave
+for P2**. **QA remains at frontier 141. Production not contacted.**
+
