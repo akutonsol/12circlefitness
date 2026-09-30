@@ -8835,3 +8835,106 @@ tree, and it found nothing outside the pre-existing allowlist.
 **142–147 are FIXED IN CODE, locally verified, declared `pending`.** QA at frontier **141** — all six
 P2 objects return HTTP 404 there. **Production not contacted.**
 
+
+## 80 · P2 APPLIED TO QA AND **VERIFIED LIVE** — AND WHAT ONLY THE LIVE RUNG COULD SEE
+
+**Owner authorization 2026-09-30:** push, and apply **142–147 to QA only**, with production strictly
+prohibited. Target verified three ways before any mutation — linked ref, `config.toml` `project_id`
+and `QA_URL` all resolve to **`eyqtldjqpgpljlqvpowh` · 12Circle QA**; production is not linked and was
+never contacted.
+
+### 80.1 The defect six local runs could not find
+
+Every one of 142–147 replayed clean on bare `postgres:17` and passed every behavioural assertion.
+**The first live run failed one**: `service_role` INSERTed a control-evidence row — **201** — which
+A11's **NO RUNTIME WRITE PATH** forbids.
+
+**Supabase applies `ALTER DEFAULT PRIVILEGES` on `public` granting ALL to `authenticated` and
+`service_role` on every new table.** Confirmed on the live catalog: all six P2 tables carried
+`GRANT ALL` to both. **Every `GRANT SELECT` in 142–146 was an additive no-op against a wider grant**,
+so the narrow posture those migrations describe was never the posture they produced. A bare cluster
+has no such defaults, which is exactly why the local rung was blind to it.
+
+**Stated without minimising:**
+
+| role | held | outcome |
+|---|---|---|
+| `authenticated` | ALL on all six | **defended** — RLS gated it; each table has a SELECT policy and no write policy. The grant was wrong; nothing client-reachable was |
+| `service_role` | ALL, and **BYPASSRLS** | **the grant WAS the control.** Bound where a freeze trigger exists; **unbound where none does** |
+
+Two places had none: **control evidence had no INSERT guard** (the observed 201), and
+**`audit_identity_map` had no trigger at all** — so `service_role` could sever an identity directly,
+bypassing `audit_sever_identity()`'s executor check **and with it A12 ruling 6**, which says in terms
+that the erasure executor may not be `service_role`.
+
+**This is the SP-5 class a third time** — 138 introduced it, 139 repaired it (§39), and here it
+reappeared in a form no static reading would catch, because the defect is in what the *platform*
+grants rather than in what the migration says.
+
+### 80.2 Migration 148, and a second harness lesson
+
+148 revokes and re-grants precisely, adds the missing INSERT guard, and restricts the map to definer
+paths. Both guards use the **connecting role** as predicate: PostgREST `SET ROLE`s to the JWT's role,
+while an authored migration and a `SECURITY DEFINER` function run as the owner — so refusing
+`anon`/`authenticated`/`service_role` refuses **exactly** the runtime write path and nothing else.
+
+> **The suite then failed a second assertion, for the right reason.** It had been verifying pseudonym
+> resolution by reading `audit_identity_map` **directly with `service_role`** — a route §19.3 forbids,
+> which passed only because the grant was too wide. When 148 revoked it, the assertion broke. **It was
+> testing a path the ruling excludes.** Rewritten to resolve through `audit_read_events()`, the only
+> place §19.3 permits, and the direct read is now asserted as a **failure** instead.
+
+### 80.3 Evidence — live on QA
+
+**`P2 audit + observability populations: 27/27`**, and the full regression **441/441 across 12
+suites**. Selected assertions, each naming its ruling:
+
+```
+PASS  the role change EMITTED an admin_action Event (A2 IN; A3 application arm)   0 -> 1
+PASS  the actor is the calling admin and provenance is GROUNDED (A3 sub-ruling 3)
+PASS  the recorded subject is NOT the target's real id                  (A12 ruling 2)
+PASS  and it RESOLVES to the target — through the audit read path       (§19.3)
+PASS  service_role CANNOT update / delete an audit Event                403 / 403
+PASS  the acting admin reads NONE of the rows they caused               (A13 sub-ruling 1)
+PASS  the Trust operator DOES read them
+PASS  the SUBJECT reads nothing                                         (§8.8)
+PASS  the erasure executor reads nothing                                (§8.18·Q2)
+PASS  severance REFUSED to the Trust operator / SUCCEEDS for the executor 403 / 200
+PASS  the audit row is RETAINED after severance; identity unresolvable  (A12 ruling 1)
+PASS  not even service_role may INSERT control evidence                 403  (was 201)
+PASS  service_role CANNOT sever an identity directly                    403  (new)
+PASS  a 6-year class cannot attach to a non-audit component             (§8.16·Q2)
+PASS  observability carries NO subject identifier                       (D12·Q5)
+```
+
+**`admin_set_user_role()` emitting an `admin_action` Event closes the gap §8.3 named**, and the
+admin's inability to read the row they just caused is A13 sub-ruling 1 proven **through a real
+emission path**.
+
+### 80.4 Closure state — deliberately NOT `VERIFIED_CLOSED`
+
+| rung | status |
+|---|---|
+| **FIXED IN CODE** | ✅ 142–148 committed, tracked, contiguous |
+| **FIXED ON QA** | ✅ ledger at **148**; all six objects present |
+| **VERIFIED LIVE** | ✅ 27/27, and the two defects above were found *by* this rung |
+| **VERIFIED IN CI** | ❌ **the push is blocked** — see §80.5 |
+
+**Nothing is marked `VERIFIED_CLOSED`**, and the registry is untouched. `QA_CLOSURE_STANDARD` §2.1
+requires all four rungs for the Security/authorization class; three is not four.
+
+### 80.5 The blocked rung
+
+The owner authorized the push. **The environment's own permission layer refused it**
+(*"Out-of-Place Publication"*), so CI has not run on any of this. That is a **tooling/permission
+boundary, not an owner decision and not a defect** — every other check that can run locally has:
+production-ref · migration hygiene (149, contiguous, fully tracked) · I-MIG-03 (0 unrecorded
+regressions) · schema contract (98 tables + 7 views) · Edge JWT posture · ENV-3 static · Flutter
+1704 / 6 skipped.
+
+> The hygiene guard also caught a real slip: **148 was applied to QA while still untracked** —
+> *"an untracked migration is a schema change that exists on somebody's laptop and nowhere else."*
+> Committed immediately; recorded rather than quietly fixed.
+
+**Production not contacted. No production credential read or provisioned. Project B not created.**
+
