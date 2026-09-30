@@ -3283,8 +3283,8 @@ Plus previously answered: `CONF-01` · `D4·A1/A2/A3/A6/A11/A12/A13` · `D12` sc
 | **P2** | `D4`, `D12` | ~~⛔ **`D4` COMPLETE** (§19.2); **`D12` INCOMPLETE** — `Q7`/`Q8`/`Q10`/`Q11` await `PD-A24`/`PD-A17`~~ → ✅ **SATISFIED, AND P2 IS COMPLETE ON ALL FOUR RUNGS** — the four questions were answered at **§74**, `D12` completed, and P2 closed at **§85**. *Updated §93.* |
 | **P3** | `D-V1`, `D-V2`, `D-V3` | ⛔ deferred under `PD-G01` |
 | **P4** | P3 | ⛔ downstream |
-| **P5** | P2, `D5`–`D7` | ⛔ decisions answered (§19.4); ~~blocked on P2 and~~ **P2 COMPLETE (§85)** — **sole remaining blocker: `CONF-08` artefacts**, 0 of which exist. *Updated §87.* |
-| **P6** | P2, P5, `D11`, `D-D1` | ⛔ decisions answered; **P2 COMPLETE (§85)** — blocked on **P5** alone. *Updated §87.* |
+| **P5** | P2, `D5`–`D7` | ⛔ decisions answered (§19.4); **P2 COMPLETE (§85)**; ~~sole remaining blocker: `CONF-08` artefacts, 0 of which exist~~ → **`CONF-08` SATISFIED IN PART (§97.2)** — approved screens exist for Dashboard + Ecosystem/analytics, **none for Trust**. **Now blocked on four gates: `CONF-D6` · `CONF-D7` · Trust IA · nine domain placements (§97.4).** P5 authorized in principle, not startable. *Updated §97.* |
+| **P6** | P2, P5, `D11`, `D-D1` | ⛔ decisions answered; **P2 COMPLETE (§85)** — blocked on **P5** alone. *Updated §87.* **Note §97.2: P6 is Trust, superseded as a distinct phase (§91.10) but still the surface with NO approved design** — Trust IA is §90.4's second external-design item. |
 | **P7** | P2, P6, `D-V5` | ⛔ `D-V5` answered; **P2 COMPLETE (§85)** — blocked on **P6**. *Updated §87.* |
 | **P8** | P4, `D6`, designs | ⛔ `D6` answered; blocked on P4 and `CONF-08` |
 | **P9** | P3–P8, `CONF-06` | ⛔ `CONF-06` answered; blocked upstream |
@@ -9975,6 +9975,11 @@ no empty, loading, error or denied frame.
 
 **`CONF-08` is NOT satisfied. P5 is NOT authorized. No Admin UI was built, begun or scaffolded.**
 
+> **SUPERSEDED BY §97.** The owner has since designated these four screens as the approved design
+> authority, closing `CONF-D4`. The first clause above was correct when written and is now wrong;
+> the second remains correct for different reasons (§97.4). **Retained, not rewritten** — and §97.1
+> names the over-reach in its reasoning.
+
 ### 92.7 The dependency chain — one more input discharged
 
 | # | input | state |
@@ -10387,3 +10392,136 @@ items — fixture isolation between concurrent runners (§95.5) and the untracke
 
 **Nothing became executable. No migration, no application file, no production contact. QA at 152 —
 now green at 484/484 both locally and in CI, uncontended, at that frontier.**
+
+---
+
+## 97 · OWNER DECISION — `CONF-D4` CLOSED · `CONF-08` SATISFIED IN PART · FOUR GATES SURVIVE
+
+**Owner clarification, 2026-09-30, third of the day.** §92.6 recorded `CONF-08` as NOT satisfied because
+*"four dashboard renderings are not the approved screen package."* **The owner has now designated them as
+exactly that**, and set the test by which any remaining gate must be judged:
+
+> *"Treat the screenshots themselves as the approved design authority for the Admin UI. Do not require a
+> separate external design package, Figma file, or additional design-authority artifact **unless an
+> existing V5 rule specifically requires information that these approved screens genuinely do not
+> contain**."*
+
+**That test is the right one and it is the one applied below, gate by gate, in the commission's §10.**
+Four gates pass it. One is sequenced behind another. One is an input gap rather than a blocker.
+
+### 97.1 `CONF-D4` — CLOSED, and §92.6 is superseded
+
+`CONF-D4`'s authority column reads **OWNER**. Its resolution — *"a brief cannot serve as design
+authority"* — **still holds and is not worked around**: this commission is still not design. What was
+missing was an **approved design artefact**, and one now exists and has been designated by the authority
+the row names. **The same mechanism that closed `CONF-D1`, `CONF-D2` and `CONF-D5`.**
+
+**§92.6 is superseded, not amended.** It concluded *"`CONF-08` is NOT satisfied. P5 is NOT authorized."*
+The first clause was correct when written **and is now wrong**; the second was correct and **remains
+correct for a different reason**. §92.6's text stands with this pointer rather than being rewritten —
+it was an accurate reading of the record at the time, and the record changed.
+
+**I was also wrong in one specific respect and it should be named.** §92.6 argued *"by the same standard
+four dashboard renderings are not the approved screen package."* That inference was mine; `CONF-D4`
+never said what form the package must take, and its authority was always the owner's. **Applying a
+resolution's reasoning to decide a question reserved to the owner is over-reach**, even when the
+conclusion was the conservative one. The conservative error is still an error.
+
+### 97.2 `CONF-08` — SATISFIED IN PART
+
+§20.2 blocks P5 on *"`CONF-08` artefacts"*. An artefact now exists, is tracked, and is approved.
+
+**It covers the screens supplied: Dashboard and the Ecosystem/analytics views. It does not cover Trust.**
+So `CONF-08` is **satisfied for the Admin screens shown** and **not satisfied for Trust** — which is not a
+quibble, because §90.4 classifies Trust's information architecture as a **separate** external-design-
+authority item, and `B2`'s component (d) states it independently as *"no Trust artifact."*
+
+### 97.3 `B2 Design authority` — 2 of 4 discharged
+
+| # | component (quoted, `:352`) | state |
+|---|---|---|
+| a | *"approved package **NOT SUPPLIED**"* | ✅ owner decision, §97.1 |
+| b | *"Fitonist **MISSING**"* | ✅ §92.3 |
+| c | *"brand **NOT LOCKED**"* | ⛔ `CONF-D6` |
+| d | *"**no Trust artifact**"* | ⛔ Trust IA |
+
+**`B2` remains OPEN.** First movement on it since it was opened.
+
+### 97.4 The four surviving gates — verdicts only; the tests are in commission §10.3
+
+| gate | authority | why it survives the owner's own test |
+|---|---|---|
+| **`CONF-D6`** identity package | **OWNER** | rule blocks *"token values, chart identity"*; a raster image contains pixels, not a token contract — and colour-picking it into literals would breach **semantic-tokens-only** while appearing to satisfy the rule |
+| **`CONF-D7`** role matrix | **OWNER** | screens show **one** identity; the rule is *"every privileged action lacks a stated permission"*, rated the ***largest security specification gap***. Now **7** roles, not the row's 5 |
+| **Trust's IA** | **EXTERNAL DESIGN** | §90.4's **second** external-design item. **No supplied screen is a Trust surface** — Trust appears as a collapsed nav item, a Dashboard card and a link. §6.4: *"no ruling gives their navigation, hierarchy or entry points"* |
+| **Nine domain placements** | OWNER / design | the owner reaffirmed the six-item IA **and** the twelve domains; **reaffirming both does not map one onto the other**, and every dropdown is closed in all four screens |
+
+**Sequenced, not surviving as an owner gate:** `CONF-D8`, class **ARCHITECTURE** — §90.4 *"plausibly
+inside §19's delegation **once their inputs exist**"*, §90.5 *"`CONF-D7` … gates … the `CONF-D8` model."*
+**It becomes mine to decide when `CONF-D7` exists, and not before.** Not claimed resolved, and not by
+migration 135.
+
+**An input gap, not a blocker:** the **11 Admin states**. `:204` — *"ENUMERATED, NOT DESIGNED … no
+frames"*; the four screens are populated views only. But `:337` lists state frames in Admin's
+**stated-inputs** column, **not** among its named blockers. **Recorded at its real weight.**
+
+### 97.5 What is now authorized, stated exactly
+
+The owner's message contains both halves and neither may be dropped:
+
+> *"I am explicitly authorizing engineering to implement the screens shown in those screenshots"* … *"Do
+> not begin P5 until the remaining actual gates are satisfied."*
+
+**P5 is authorized in principle. P5 is not startable.** Gate 1 and gate 2 are owner decisions; gate 3 is
+a design artefact for a surface never supplied; gate 4 is an owner/design mapping. **No Admin UI has been
+implemented, begun or scaffolded, and none will be until those are satisfied.**
+
+The Dashboard is the one screen whose **design** is now fully specified. It is still not buildable,
+because building it means writing components, and components need the token contract gate 1 withholds.
+
+### 97.6 Owner reaffirmations — consistent, nothing to change
+
+The message reaffirms the six-item IA (`Dashboard · People · Ecosystem · Trust · Operations · Settings`)
+and the twelve domains with **no thirteenth**. Both were already applied at §91 and commission §9.2/§9.3,
+and both are **unchanged** by this section. The provenance is recorded as instructed and was already so
+recorded at §92.2: **Fitonist-derived, modified for 12Circle+; Fitonist is the design reference/source,
+not the branding authority.**
+
+### 97.7 Dependency chain — input 1 discharged
+
+| # | input | state |
+|---|---|---|
+| **1** | **approved Admin screen package** | ✅ **DISCHARGED** — owner decision §97.1, for the screens shown |
+| 2 | `CONF-D5` — visual reference | ✅ discharged §92.3 |
+| **3** | **`CONF-D6` — identity package** | ⛔ **OPEN — OWNER** |
+| 4 | `D-D1` — Trust container + Admin IA | ✅ discharged §91 |
+| **5** | **`CONF-D7` — role matrix** | ⛔ **OPEN — OWNER** |
+| 6 · 7 · 8 | `CONF-01` · `D1` · `D4`/`A2`/`A12`/`A13` | discharged earlier |
+| 9 | `D-V1`/`D-V2`/`D-V4` · `D2` | deferred under `PD-G01` |
+| **+** | **Trust's information architecture** | ⛔ **OPEN — EXTERNAL DESIGN** (§90.4's second item) |
+| **+** | **nine domain placements** | ⛔ **OPEN** |
+
+**Seven of nine discharged.** The two remaining numbered inputs are **both owner decisions**, plus two
+unnumbered design items.
+
+### 97.8 Frontier — the genuine boundary
+
+**Two owner decisions**, and the record's own dependency order puts `CONF-D6` before `CONF-D7`:
+
+1. **`CONF-D6`** — lock the identity package, **or** instruct that the theme be derived from these
+   approved screens. The second would close it; **the owner's message does not say it**, and it cannot be
+   inferred from a message that explicitly separates *"design reference/source"* from *"branding
+   authority"* while naming no branding authority.
+2. **`CONF-D7`** — the Admin role matrix across the seven roles that now exist. Rated the **largest
+   security specification gap**, and it additionally unblocks `CONF-D8` for the architecture delegation.
+
+**Two design items**, of which one is genuinely absent rather than undecided:
+
+3. **Trust's information architecture** — no Trust screen was supplied.
+4. **The nine domain placements.**
+
+**No ranking offered beyond the record's own order.** `PD-G01`, P10's installation constraint and
+production remain standing constraints this agent cannot release.
+
+**No migration, no application file, no production contact. QA at 152, green at 484/484 locally and in
+CI.**
