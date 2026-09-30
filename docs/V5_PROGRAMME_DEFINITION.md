@@ -7389,3 +7389,73 @@ verified 6/6 live** (§61) — while **`D12·Q5` is newly raised** and now gates
 
 **QA frontier 141. CI green. Nothing implemented for D12. Production not contacted by me.**
 Registry untouched. The only document changed is this one.
+
+
+## 63 · FIRST SCHEMA-WIDE AUDIT AGAINST **LIVE QA** — SIX CHECKS, ALL CLEAN
+
+Every prior posture claim in this programme was reasoned from the **migration source**. This is the
+first audit of the **live catalog**: `supabase db dump --linked`, 414 KB, 92 tables, 7 views, 170
+policies, 136 functions. Source and live can disagree — migration **138** proved it by regressing a
+grant that only CI caught (§39) — so a source-derived posture claim is a *prediction*, and this is
+the measurement.
+
+### 63.1 Results
+
+| # | check | live result |
+|---|---|---|
+| 1 | tables in `public` **without** RLS enabled | **0 of 92** |
+| 2 | tables with RLS enabled but **zero policies** (silent deny-all) | **0** |
+| 3 | `SECURITY DEFINER` functions **without** `SET search_path` | **0 of 109** |
+| 4 | `SECURITY DEFINER` functions retaining **default `PUBLIC EXECUTE`** | **0 of 109** — all 109 carry an explicit `REVOKE` |
+| 5 | functions granting `EXECUTE` to **`anon`** | **0** |
+| 6 | tables granting anything to **`anon`** | **0** |
+
+Checks 3 and 4 are the two halves of the **SP-5 class** — the regression migration 138 introduced and
+139 repaired. **Both halves are clean across the whole live schema**, not just on the function 139
+fixed. Check 4 is the sharper one: `pg_dump` emits `REVOKE … FROM PUBLIC` only when the ACL is
+**non-default**, so a function with the default grant emits nothing and would have appeared in that
+row. None did.
+
+### 63.2 Role escalation, verified live
+
+`trg_profile_privilege` (BEFORE INSERT OR UPDATE) → `enforce_profile_privilege()` exists on QA and is
+complete: `role` non-self-assignable, `membership_tier`, `marketplace_commission_rate`, the five
+Stripe Connect columns and `is_demo` all raise `42501` on change; `id`, `email`, `created_at`,
+`rating_avg`, `review_count`, `ai_client_summary`, `assigned_coach_id` silently pinned to `OLD`.
+
+**A prior working note recorded that two of the three P0 fixes were "later regressed by 115/119".
+That is NOT observable on live QA** — the guard is present and complete, and checks 1–6 are clean.
+Migration 119 touches `program_workouts` prescription shape and creates functions; it is a plausible
+SP-5 vector, and check 4 shows it did not realise as one. **The note's "prod unpatched" half is
+neither confirmed nor refuted here: production was not contacted and must not be.**
+
+### 63.3 The one structural observation — and it is §61's adversary again
+
+`enforce_profile_privilege()` opens with:
+
+```sql
+IF v_uid IS NULL THEN
+  RETURN NEW;                                   -- internal / service-role path
+END IF;
+```
+
+`auth.uid()` is NULL for `service_role`, so **`service_role` bypasses the entire guard** — every
+`42501` above, and every pinned column. This is deliberate and commented, and it is not a new
+finding. It is worth naming because it is **the same adversary §61 could not defeat**: the
+compromised function tier holds `service_role`, and `service_role` is trusted by construction at
+*both* the RLS layer (`BYPASSRLS`) and the trigger layer (this early return).
+
+**That is the concrete, in-tree reason D12's grounding cannot be enforced at write time** — §60.2
+reached the same conclusion from the policy side and placed integrity at **verification**. This
+audit shows the trigger side agrees. The two independent arguments converge.
+
+### 63.4 What this audit is NOT
+
+**It is catalog-level, and catalog-level is not `VERIFIED LIVE`.** `QA_CLOSURE_STANDARD` §5.2
+requires that *a real request against QA reproduces the secure behaviour*. Six clean catalog checks
+show the objects are **shaped** correctly; they do not show a request is **refused**. This section
+therefore **closes nothing, changes no finding status, and is supplemental evidence only** — the
+same standing §23.2 recorded for the catalog half of `QAX-SEC-09`.
+
+**Registry untouched. QA unchanged at frontier 141. Production not contacted.**
+
