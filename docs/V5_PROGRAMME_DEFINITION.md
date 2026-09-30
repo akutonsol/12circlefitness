@@ -217,13 +217,20 @@ client-side intent, not of a database constraint.
 
 ### 5.2 Phases — dependency-derived, no dates
 
+> **PRECEDENCE MARKER — the ENTRY CONDITIONS below are current; the STATUS column is not.**
+> The third column records each phase's dependencies and is unchanged. The fourth records
+> state **as at document creation** and is superseded by **§20.2**, which recomputed every
+> phase after §19, and by **§85** for P2. In particular `D5`–`D7` appear as P5's entry
+> condition and **all three are ANSWERED (§19.4)** — their presence here is a dependency
+> list, **not** a list of open decisions. See §87.
+
 V5 defines no dates, durations or story points, and none are assigned here.
 
 | Phase | Contents | Entry condition | State at this entry point |
 |---|---|---|---|
 | **P0 · GOVERNANCE** | Resolve CONF-01/02; confirm protected baseline; assign migration numbers 132+ | **`CONF-02` OPEN** (`CONF-01` ANSWERED, §8.2) | **partially consumed** — 132/133/134 assigned and applied; **protected baseline confirmed = the 91 registered routes**; `CONF-02` unresolved |
 | **P1 · FOUNDATION / SECURITY** | `coach_team_members` `WITH CHECK`; corrected `SEC_PHI_1`; status predicates | **`D1(i)/(ii)/(iii)` ANSWERED** (do not block) · **`D1(iv)` ANSWERED §8.22 — DEFER TO WAVE 2** (no longer an open blocker; the deferral is now a decision, not a gap) · **`D3` OPEN** · **`D17` OPEN** — **P1's remaining blockers are `D3` and `D17` alone** | **partially executed** — Wave 1 closed the P0's write path and F-03b's team arm; **QAX-SEC-08 not closed** (§7) |
-| **P2 · DATA (AUDIT + OBSERVABILITY)** | Audit event schema + RLS; incidents; observability store | **D4, D12** | not started |
+| **P2 · DATA (AUDIT + OBSERVABILITY)** | Audit event schema + RLS; incidents; observability store | **D4, D12** | ~~not started~~ **COMPLETE — §85** |
 | **P3 · BACKEND** | Wearable boundary; ingestion/normalization; canonical contracts | **D-V1, D-V2, D-V3** | not started |
 | **P4 · CORE PRODUCT** | Intelligence layer; provenance + calculation versioning | P3 | not started |
 | **P5 · ADMIN** | Control Center over the 13 domains | P2, D5–D7 | not started |
@@ -385,7 +392,7 @@ self-allocation.
 corrected §72.*) ·
 `D12` (observability — **scope answered §8.10**, content still OPEN; `SQ-10` is now a **P2 entry
 condition** and `PD-A24` sits inside it) ·
-`D5`–`D7` (Admin) · `D11` (Trust) · **`D-D1`** (Trust container — see below) ·
+**`D5`–`D7`** (Admin — **ALL THREE ANSWERED §19.4**: `D5` direct Supabase + RLS for Admin AND Trust · `D6` separate surface as a Flutter web target · `D7` column-limited views over `user_profiles`. *This entry previously listed them as carried-forward open decisions; corrected §87.*) · `D11` (Trust — **ANSWERED §19.2**, as the `D4` entry three lines above already states) · **`D-D1`** (Trust container — **ANSWERED §8.17**, see below) ·
 `D15` (derive guard population from the live catalog) ·
 `D17` · `D-V1`/`D-V2`/`D-V3` (wearable boundary, store, contract) · `D-V4` · `D-V5` ·
 `D-V6` (SBOM tooling) · `CONF-06` (tenancy) · `CONF-08` (missing Admin/Trust designs).
@@ -2121,8 +2128,8 @@ Deferred by prior authorization, carried forward unchanged and **not** started:
 | **Wave 2** | Invite hardening; acceptance/consent flow; invite → membership conversion. `coach_team_invites` is still `FOR ALL` with no `WITH CHECK` |
 | **D15** | Derive guard population from the live catalog — proposed, not applied |
 | **V6 / CHAIN-G1 widening** | Not started |
-| **Admin Control Center** | 13 domains; blocked on D4, D5–D7, and missing designs (CONF-08) |
-| **Trust** | Security · Incidents · Audit Logs; blocked on D4, D11, CONF-08 |
+| **Admin Control Center** | 13 domains. `D4` **COMPLETE** (§19.2) and `D5`–`D7` **ANSWERED** (§19.4); **P2 complete**. **Sole remaining blocker: `CONF-08` artefacts** — §19.4 ruled the answer COMMISSION and **0 exist**. *Corrected §87.* |
+| **Trust** | Security · Incidents · Audit Logs. `D4` **COMPLETE** (§19.2), `D11` **ANSWERED** (§19.2), `D-D1` **ANSWERED** (§8.17); the four audit populations it reads now **exist** (§85). **Blocked on P5**, which is blocked on `CONF-08`. *Corrected §87.* |
 | **AI Guardian** | 8 domains, autonomy L0–L3; blocked on audit + observability |
 | **Wearable Intelligence** | Blocked on D-V1/D-V2/D-V3 |
 | **Security Center** | Not started |
@@ -2325,6 +2332,13 @@ choice is inferred.** Admission records *what was asked*; it answers nothing.
 >    as that report's OWN section labels** — *"D5 · SEC-G1 baseline"* and *"D6 · Findings"*. They
 >    are unrelated to the Admin decisions. **A naive tracked-tree grep for `D5` hits these first.**
 > 3. **`D-5` ≠ `D5`.** `D-5` is another ID for `PD-A24` (§8.21).
+
+> **PRECEDENCE MARKER — the three analyses below are PRE-DECISION and are PRESERVED, not corrected.**
+> They record what each source said about `D5`, `D6` and `D7` **before** any of them was answered —
+> including quoted wordings such as *"UNRESOLVED (D5)"* and *"D6 open"*, which are **quotations of
+> other documents**, not this document's current status. **All three were ANSWERED at §19.4.** The
+> analysis is retained because §19.4 relied on it: `D6` was answered in two steps precisely because
+> two of its four wordings presuppose the answer, which is a finding recorded here. *Marked §87.*
 
 #### `D5` — ADMITTED. **Two wordings, and they disagree on scope**
 
@@ -2964,7 +2978,7 @@ anonymisation · `Q6` retention window *(vendor option only, blocked)* · `Q9` s
 |---|---|---|
 | **Another owner's gate** | `D12` `Q7`, `Q8`, `Q10`, `Q11` | blocked on **`PD-A24`** / **`PD-A17`** — **TRACKED, OPEN, owner *Julia*. Not yours to answer; a scheduling matter.** |
 | **Finding ledger** | `EC-01` `Q2`–`Q5` | **blocks no phase.** `Q3`'s facts are settled — `G-14`'s audit-log conjunct has **no requirement row**, so it can never be *met*; what is open is whether "evaluable" means *assessable* or *meetable*. |
-| **P5 / P6 / P8** | `D5`, `D6`, `D7`, `CONF-08` | downstream of P2. **`D6`'s four wordings are not one question — two presuppose the web answer.** **`CONF-08`'s form is itself an owner call** (imperative vs interrogative). |
+| **P5 / P6 / P8** | `D5`, `D6`, `D7`, `CONF-08` | ~~downstream of P2~~ — **SUPERSEDED: all four were ANSWERED at §19.4**, so this exclusion never needed the P2-completion argument. Preserved because the reasons it records were true when written: **`D6`'s four wordings are not one question — two presuppose the web answer** (§19.4 answered it in two steps for exactly that reason), and **`CONF-08`'s form is itself an owner call** (§19.4 ruled the object is the imperative). *Marked §87.* |
 | **P3 / P7** | `D-V1`, `D-V2`, `D-V4`, `D-V5` | the wearable stack **does not exist in any form**. **`D-V4` is the item most at risk of a fabricated resolution.** |
 | **P9 / SEC-AI-1** | `CONF-06`, `D10` | downstream; `D10` gates a finding, not a phase. |
 
@@ -3264,9 +3278,9 @@ Plus previously answered: `CONF-01` · `D4·A1/A2/A3/A6/A11/A12/A13` · `D12` sc
 | **P2** | `D4`, `D12` | ⛔ **`D4` COMPLETE** (§19.2); **`D12` INCOMPLETE** — `Q7`/`Q8`/`Q10`/`Q11` await `PD-A24`/`PD-A17` |
 | **P3** | `D-V1`, `D-V2`, `D-V3` | ⛔ deferred under `PD-G01` |
 | **P4** | P3 | ⛔ downstream |
-| **P5** | P2, `D5`–`D7` | ⛔ decisions answered; **blocked on P2 and on `CONF-08` artefacts** |
-| **P6** | P2, P5, `D11`, `D-D1` | ⛔ decisions answered; blocked on P2/P5 |
-| **P7** | P2, P6, `D-V5` | ⛔ `D-V5` answered; blocked on P2/P6 |
+| **P5** | P2, `D5`–`D7` | ⛔ decisions answered (§19.4); ~~blocked on P2 and~~ **P2 COMPLETE (§85)** — **sole remaining blocker: `CONF-08` artefacts**, 0 of which exist. *Updated §87.* |
+| **P6** | P2, P5, `D11`, `D-D1` | ⛔ decisions answered; **P2 COMPLETE (§85)** — blocked on **P5** alone. *Updated §87.* |
+| **P7** | P2, P6, `D-V5` | ⛔ `D-V5` answered; **P2 COMPLETE (§85)** — blocked on **P6**. *Updated §87.* |
 | **P8** | P4, `D6`, designs | ⛔ `D6` answered; blocked on P4 and `CONF-08` |
 | **P9** | P3–P8, `CONF-06` | ⛔ `CONF-06` answered; blocked upstream |
 | **P10** | `D-V6`, CI secrets, egress | ⛔ `D-V6` answered; **operational "installation forbidden" constraint unresolved** |
@@ -9393,4 +9407,76 @@ S-2  severance emitted exactly ONE export_deletion: 1 -> 2
 
 **Production not contacted. Project B not created. P3 not begun. `apps/api/.env` untouched. D12·Q5,
 PD-A24 = C and B1–B4 all preserved unchanged.**
+
+
+## 87 · STALE `D5`/`D6`/`D7` STATUS RECONCILED — §19.4 IS AUTHORITATIVE
+
+**Owner authorization 2026-09-30.** `D5`, `D6` and `D7` are **NOT open**. §19.4 answered all three
+under the same delegated authority as §19.1–§19.3, and this section reconciles the programme text
+that still read otherwise.
+
+> **This began as my error.** I reported all three OPEN in the reassessment passes preceding this one,
+> having read `V5_DECISION_RESOLUTION_2026-09-27.md` — which **predates §19** — without checking for
+> supersession. That is the same stale-status failure §62, §65, §66, §67 and §72 each corrected
+> elsewhere, committed by the agent that had been correcting it. **The claims were in my replies, not
+> in this document** — verified: §74–§86 contain no `D5`/`D6`/`D7` assertion at all.
+
+### 87.1 The authoritative answers, quoted from §19.4
+
+> **`D5` — (a) DIRECT SUPABASE + RLS, for Admin AND Trust.**
+> **`D6` — SEPARATE SURFACE, AS A FLUTTER WEB TARGET — option (b).** *Answered in two steps so the
+> presupposition is not imported:* in-app vs separate → **SEPARATE**; new app vs added target →
+> **ADDED TARGET**.
+> **`D7` — COLUMN-LIMITED VIEWS over `user_profiles`, not distinct modules.**
+
+**`D7`'s coherence condition is met.** §19.4 made it *"depend on `D17`'s fix landing"*; `D17` was
+answered fix-first at §19.1, §20.2 records **P1 ✅ SATISFIED** with `D17` among its conditions, and
+migration **135** — the corrected `SEC_PHI_1` view — is applied to QA and verified live.
+
+### 87.2 Corrections made
+
+| location | was | now |
+|---|---|---|
+| §5.2 phase table | status column read *"not started"* throughout, and `D5`–`D7` appeared as P5's entry condition | **precedence marker** added: the entry conditions are current, the status column is superseded by §20.2 and §85. P2's row marked **COMPLETE**. Rows otherwise untouched |
+| §8.1 carried-forward list | *"`D5`–`D7` (Admin) · `D11` (Trust) · `D-D1`"* listed as carried-forward open | all four marked **ANSWERED** with their sections. `D11` was already declared answered **three lines above** in the same list — an internal contradiction, now resolved |
+| §11 · deferred scope — Admin Control Center | *"blocked on D4, D5–D7, and missing designs"* | `D4` complete, `D5`–`D7` answered, **P2 complete** → **sole blocker `CONF-08`** |
+| §11 · deferred scope — Trust | *"blocked on D4, D11, CONF-08"* | `D4`/`D11`/`D-D1` answered and its four audit populations now **exist** (§85) → **blocked on P5** |
+| §20.2 P5 / P6 / P7 rows | *"blocked on P2…"* | **P2 COMPLETE (§85)**; P5 → `CONF-08` alone, P6 → P5 alone, P7 → P6 |
+
+### 87.3 Preserved deliberately, not corrected
+
+**§18.2's exclusion row** keeps its original reasons — *"`D6`'s four wordings are not one question"*
+and *"`CONF-08`'s form is itself an owner call"* — because **§19.4 relied on them**: `D6` was answered
+in two steps *precisely* to avoid importing the presupposition those wordings carry. Only the
+*"downstream of P2"* clause is struck, and it is struck as **moot**, not wrong.
+
+**§18's per-decision admission analysis** is preserved whole under a precedence marker. It contains
+strings like `UNRESOLVED (D5)` and *"D6 open"* which are **quotations of other documents**, not this
+document's status. Rewriting them would destroy the record of what each source said before the
+decisions existed.
+
+> **A naming hazard, re-flagged.** §68's signer designs are labelled **D1–D5**, and its `D5` — *"signs
+> the complete row"* — is **unrelated** to the Admin decision. §18 already warns that `CONF-D5` and
+> another report's own `## D5 ·` headers collide the same way. **Four distinct `D5`s now exist in the
+> tracked tree.** Nothing in §68 was touched.
+
+### 87.4 Consistency check — read-only
+
+§19.4's three answers intact and unmodified · §20.2's P5 row reconciled · `CONF-08` still
+*"commissioning required — 0 exist"* · no stale open status for `D5`/`D6`/`D7` remains outside the
+two marked historical blocks · §74–§86 clean.
+
+### 87.5 P5 readiness, and the boundary
+
+**P5's decision gates are all answered and P2 is complete.** Its **sole remaining blocker is
+`CONF-08`** — and that is **not a decision**: §19.4 already ruled *"the answer is COMMISSION… with
+zero artefacts only commissioning is available."* The Admin/Trust designs **do not exist** — **0**
+mentions across the design documents, re-verified.
+
+**Commissioning is an owner action, and the artefacts cannot be substituted by implementation.**
+Building an Admin Control Center against no design would be inventing the product surface, which
+`CONF-08`'s ruling exists to prevent.
+
+**No implementation code or migration was touched in this pass. QA at 152. P5 not begun, Project B
+not created, P3 not begun, production not contacted.**
 
