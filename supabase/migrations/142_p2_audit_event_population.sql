@@ -114,7 +114,29 @@ CREATE TABLE IF NOT EXISTS public.audit_events (
   -- is not asserted, because the audit ledger must outlive the subject (A12 ruling
   -- 1, ANONYMISE-AND-RETAIN) and must accept actors that were never users.
   actor_id      uuid,
-  subject_id    uuid,
+
+  -- A PSEUDONYM, NOT THE SUBJECT'S REAL IDENTIFIER, and the distinction is
+  -- load-bearing rather than stylistic. A12 ruling 1 is ANONYMISE-AND-RETAIN and
+  -- ruling 2 answers whether the A11 Event freeze gets an exception for erasure:
+  -- "NO exception -- USE AN EXTERNAL MAPPING. The frozen row is never mutated."
+  -- §8.7 glosses it: "an external PSEUDONYMOUS mapping -- severed to anonymise,
+  -- leaving the frozen Event row untouched."
+  --
+  -- An earlier revision of this migration stored the real auth.users id here.
+  -- That makes A12's erasure model INOPERABLE: severing a mapping anonymises
+  -- nothing if the row already carries the identifier the mapping was meant to
+  -- resolve, and the only remaining way to erase would be to mutate the frozen
+  -- row, which ruling 2 forbids in the same sentence. Corrected; V5 §78.
+  --
+  -- SCOPE. Ruling 2 is titled "A11 EVENT FREEZE" and this is the only population
+  -- that needs it: Incident is mutable by A1 sub-ruling 1 and can be anonymised
+  -- in place, Control evidence carries no subject by A1, and the observability
+  -- population carries none by D12·Q5.
+  --
+  -- The resolving map, who may sever it and who may resolve through it are
+  -- migration 146 (§8.20·Q1, §19.3). Until it exists a pseudonym resolves to
+  -- nothing, which is the safe direction to be incomplete in.
+  subject_pseudonym uuid,
   action        text NOT NULL,
   occurred_at   timestamptz NOT NULL DEFAULT now(),
   outcome       text NOT NULL,
@@ -205,7 +227,7 @@ COMMENT ON COLUMN public.audit_events.correlation_signature IS
   'NULL until project B is provisioned; a NULL signature is NOT correlatable.';
 
 CREATE INDEX IF NOT EXISTS audit_events_subject_occurred_idx
-  ON public.audit_events (subject_id, occurred_at DESC);
+  ON public.audit_events (subject_pseudonym, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS audit_events_correlation_idx
   ON public.audit_events (correlation_id) WHERE correlation_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS audit_events_category_occurred_idx
@@ -269,13 +291,34 @@ ALTER TABLE public.audit_events ENABLE ROW LEVEL SECURITY;
 -- the narrower reading is taken deliberately under hierarchy 1 (least privilege)
 -- and 11 (never silently broaden). If the owner intended subject self-read for
 -- non-admin categories, that is an ADDITIVE ruling, not a defect in this policy.
+-- A13 SUB-RULING 1 IS ENFORCED HERE, and an earlier revision of this policy did
+-- not enforce it. "May the audited party read its own audit? NOT FOR ADMIN
+-- ACTIONS." §8.8's own consequence names the mechanism that was missing:
+-- "excluding an admin from their own admin-action records means a predicate
+-- distinguishing ACTOR-IDENTITY from READER-IDENTITY within one population. No
+-- policy in the repository does this." This one does.
+--
+-- The exclusion is narrow and deliberate: it removes ONLY the reader's own
+-- admin_action rows from the admin arm. The Trust operator arm is untouched, so
+-- those rows remain readable by Trust -- which is the point of sub-ruling 1.
+-- Self-audit is not oversight; oversight is someone else reading it.
 CREATE POLICY "audit events read: active coach, admin, trust operator"
   ON public.audit_events FOR SELECT TO authenticated
   USING (
-    public.is_admin()
+    (public.is_admin()
+      AND NOT (category = 'admin_action' AND actor_id = (SELECT auth.uid())))
     OR public.is_trust_operator()
-    OR public.is_active_coach_of(subject_id)
   );
+
+-- WHY THE ACTIVE-COACH ARM IS NOT HERE. A13 §8.8 names three Event readers --
+-- active coach, admin, Trust operator -- and the first cannot be expressed as a
+-- table policy once the subject is a pseudonym: deciding `is_active_coach_of`
+-- requires RESOLVING the pseudonym, and §19.3 rules that "NO STANDING PARTY" may
+-- do that and that "resolution occurs INSIDE THE AUDIT READ PATH, gated by A13's
+-- per-population reader rules". A policy is a standing resolver by definition.
+-- The coach reader is therefore served by the SECURITY DEFINER read path in
+-- migration 146, not removed. A13's list is honoured across the two objects;
+-- this table alone implements the two ROLE-CLASS arms, which need no resolution.
 
 -- NO INSERT, UPDATE or DELETE policy exists, and none may be added. RLS denies
 -- what it does not permit, so `authenticated` cannot write this table by any path;
@@ -307,7 +350,7 @@ CREATE OR REPLACE FUNCTION public.audit_record_event(
   p_action           text,
   p_category         text,
   p_outcome          text,
-  p_subject_id       uuid   DEFAULT NULL,
+  p_subject_pseudonym uuid  DEFAULT NULL,
   p_actor_id         uuid   DEFAULT NULL,
   p_actor_provenance text   DEFAULT NULL,
   p_correlation_id   uuid   DEFAULT NULL
@@ -342,9 +385,9 @@ BEGIN
   END IF;
 
   INSERT INTO public.audit_events
-    (actor_id, subject_id, action, outcome, actor_provenance, category, correlation_id)
+    (actor_id, subject_pseudonym, action, outcome, actor_provenance, category, correlation_id)
   VALUES
-    (v_actor, p_subject_id, p_action, p_outcome, v_provenance, p_category, p_correlation_id);
+    (v_actor, p_subject_pseudonym, p_action, p_outcome, v_provenance, p_category, p_correlation_id);
 
   RETURN true;
 EXCEPTION WHEN OTHERS THEN

@@ -53,6 +53,10 @@
         "145": {
           "reason": "P2 · the D12 observability population — the fourth population, NOT one of A1's three (§8.14; A1 sub-ruling 3: \"their schemas and semantics must not be merged\"). In-database per D12·Q7 (V5 §74.2). Carries NO subject identifier by ruling (D12·Q5), only the correlation identifier. Retention bound to component per §8.16·Q2 (observability audit 6 years, everything else 90 days), enforced by CHECK in both directions. §8.16·Q1 freeze: identity and occurrence immutable, payload write-once. Readers admin + Trust operator, role-class only (§8.16·Q3) — no relationship arm, because D12·Q5 guarantees there is no subject to anchor one on.",
           "gate": "NOT AUTHORIZED TO APPLY — same boundary as 142/143/144. QA_CLOSURE_STANDARD §82 rule 7; no wave covers P2. Validated locally: full fresh replay 000–145 clean, and the §77.2 assertions pass."
+        },
+        "146": {
+          "reason": "P2 · A12's external identity mapping, the erasure executor, severance, and A13's audit read path. §8.20 recorded these as PREPARED, NOT ANSWERED; §19.3 answered every one of them (§8.20·Q1 a table in public with RLS and NO policy granting any client role; §8.20·Q2/Q3 and §8.18·Q3 as one — no standing party may resolve, resolution occurs inside the audit read path, the erasure executor severs; §8.20·Q4 DML-deep severance). Anonymising means severing the mapping, leaving the frozen Event row untouched (A12 rulings 1 and 2).",
+          "gate": "NOT AUTHORIZED TO APPLY — same boundary as 142–145. QA_CLOSURE_STANDARD §82 rule 7; no wave covers P2. Validated locally: full fresh replay 000–146 clean, and the §78.2 assertions pass, including severance retaining the audit rows while identity becomes unresolvable."
         }
       }
     }
