@@ -8938,3 +8938,76 @@ regressions) · schema contract (98 tables + 7 views) · Edge JWT posture · ENV
 
 **Production not contacted. No production credential read or provisioned. Project B not created.**
 
+
+## 81 · POLICY TRUNCATION RULED HARMLESS · INCIDENT WRITE PATH IS UNRULED · A2 EMITTERS ARE THE OWNER'S
+
+### 81.1 The migration-143 truncation — **no corrective migration is warranted**
+
+PostgreSQL truncated one policy name to the 63-character identifier limit. Verified against the live
+QA catalog rather than reasoned about:
+
+| question | evidence |
+|---|---|
+| exact stored identifier | `audit incidents read: actor, active coach, admin, trust operato` — **63 chars** |
+| unique on its table? | **yes** — the table's only other policy is 53 chars and unrelated |
+| any same-table collision after truncation? | **none**, across all **175** policies in the database |
+| referenced anywhere by name? | **no** — the only occurrence in the tree is its own `CREATE POLICY` |
+| security behaviour changed? | **no** — the `USING` clause is stored intact; only the label was shortened |
+
+> Three policy names **are** duplicated database-wide — `own ai data`, `read exercise child`,
+> `write exercise child` — but each is on a **different table** (5, 9 and 9 tables respectively).
+> Policy names need only be unique per table, so these are legal, pre-existing, and not this
+> section's business.
+
+**The NOTICE was normal PostgreSQL behaviour and is recorded as such.** Renaming would mean editing a
+migration already applied to QA, which §8:219 forbids, or spending a migration on a cosmetic label.
+Neither is justified by the evidence.
+
+### 81.2 A gap the truncation check uncovered — the Incident population has **no write path**
+
+Verifying the policy's *behaviour* required creating an incident, and nothing can: migration 148
+revoked `service_role`'s INSERT, and **no RPC exists**.
+
+A3 §8.5 gives the Incident population the write path *"RPC + application"*. **No ruling determines who
+may open an incident.** The record specifies the eleven fields (`V5_DECISION_RESOLUTION:114`), the
+readers (A13), the mutation semantics (A11 APPEND-STATE-TRANSITIONS), the retention (A12 ruling 4) and
+the write-path **mechanism** — and never the **creating authority**. §19.2 says Trust *"introduces no
+tables of its own"* and is a **review** surface, which points away from Trust but does not name anyone.
+
+**Building the RPC would mean inventing an authorization boundary**, so it is not built. The
+population is correctly write-closed and **three live assertions now hold it closed** so the gap
+cannot be filled by accident:
+
+```
+PASS  service_role CANNOT create an incident — no write path is ruled yet
+PASS  nor may the Trust operator — Trust reviews, it does not author
+PASS  nor may anyone forge a retained transition directly
+```
+
+### 81.3 The three remaining A2 emitters — **GENUINE OWNER DECISION**
+
+A2 puts `relationship_change`, `billing_entitlement` and `phi_correction` **IN**. Searched for any
+tracked source naming a specific operation for any of them: **none exists.**
+
+**A2 names exactly one operation anywhere** — `admin_set_user_role()`, in §8.3's consequences — and
+that one is implemented and verified live (§80). Its criterion is a **principle**, not a list:
+
+> *"Audit-worthy does not mean 'log everything.' It means durably record events that establish
+> who/what performed a security, privacy, administrative, financial, authorization, or material
+> state-changing action."*
+
+Turning that into *"this UPDATE on this table emits"* is a **materiality judgment**. It is exactly the
+class of decision A2 reserved by naming one operation explicitly and leaving the rest to the
+principle. **Not taken here.**
+
+### 81.4 Closure ladder — unchanged at three rungs of four
+
+| rung | P2 (142–148) |
+|---|---|
+| FIXED IN CODE | ✅ |
+| FIXED ON QA | ✅ ledger **148** |
+| VERIFIED LIVE | ✅ **30/30**; full regression **445/445 across 12 suites** |
+| VERIFIED IN CI | ❌ the push remains refused by the environment's permission layer |
+
+**Nothing is `VERIFIED_CLOSED`. The registry is untouched. Production was not contacted.**
+

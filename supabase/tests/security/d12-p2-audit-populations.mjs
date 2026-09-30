@@ -186,6 +186,36 @@ check('service_role CANNOT write the identity map directly (§8.20·Q1)',
   mapIns.status >= 400, `status=${mapIns.status}`);
 
 // ─────────────────────────────────────────────────────────────────────────────
+section('A1 pop. 2 · the Incident population is WRITE-CLOSED — its RPC is unbuilt');
+
+// A3 §8.5 gives the Incident population the write path "RPC + application". No
+// RPC exists, because NO RULING DETERMINES WHO MAY OPEN AN INCIDENT: the record
+// specifies the eleven fields (V5_DECISION_RESOLUTION:114), the readers (A13),
+// the mutation semantics (A11 APPEND-STATE-TRANSITIONS), the retention (A12
+// ruling 4) and the write-path MECHANISM — but not the creating authority.
+// Building an RPC would mean inventing that boundary. Until it is ruled the
+// population is correctly write-closed, and these assertions hold it closed so
+// the gap cannot be filled by accident. See V5 §81.
+const incIns = await fetch(`${URL_}/rest/v1/audit_incidents`, {
+  method: 'POST', headers: SH,
+  body: JSON.stringify({ summary: RUN, occurred_at: new Date().toISOString(),
+                         severity: 'High', actor_provenance: 'system' }),
+});
+check('service_role CANNOT create an incident — no write path is ruled yet (A3 §8.5)',
+  incIns.status >= 400, `status=${incIns.status}`);
+
+const incInsAuth = await mutate(trustTok, 'audit_incidents', 'POST',
+  { summary: RUN, occurred_at: new Date().toISOString(), severity: 'High', actor_provenance: 'system' });
+check('nor may the Trust operator — Trust reviews, it does not author (§19.2)',
+  incInsAuth.status >= 400, `status=${incInsAuth.status}`);
+
+const trIns = await fetch(`${URL_}/rest/v1/audit_incident_transitions`, {
+  method: 'POST', headers: SH,
+  body: JSON.stringify({ incident_id: subj.id, changed_field: 'x', changed_by_provenance: 'system' }),
+});
+check('nor may anyone forge a retained transition directly (A11 §8.6)',
+  trIns.status >= 400, `status=${trIns.status}`);
+
 section('D12 · the observability population carries no subject, and retention is bound');
 
 const obsCols = await fetch(`${URL_}/rest/v1/observability_events?select=*&limit=1`, { headers: SH });
