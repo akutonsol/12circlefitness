@@ -1,7 +1,9 @@
 # V5 — ADMIN / TRUST DESIGN COMMISSION (`CONF-08`)
 
 **Authoritative input to the design phase. No screen is designed here.**
-Baseline: migration frontier 152, QA ledger 152, `V5_PROGRAMME_DEFINITION.md` §87.
+Baseline: migration frontier 152, QA ledger 152, `V5_PROGRAMME_DEFINITION.md` §92.
+Owner decisions applied at §9 (`CONF-D2`, `CONF-D1`, Admin scope) and §9.6 (`CONF-D5`).
+**`CONF-D6` and `CONF-D7` remain open, and `CONF-08` remains NOT satisfied — see §9.6.4.**
 
 This document is the artefact `CONF-08`'s ruling calls for. §19.4:
 
@@ -114,21 +116,27 @@ Trust · Security · Incidents · Audit Logs · AI Guardian**.
 > the same document, record both as missing. Reading a "stated inputs" row as an inventory is the same
 > mistake this programme has corrected repeatedly. See V5 §89.
 
+> **UPDATED 2026-09-30 (second owner input).** Row 1 changed state: the owner supplied the visual
+> reference and it is now committed at `docs/design/admin-control-center/`. The other three rows are
+> **unchanged** — see §9.6. A reference existing does not make a token package exist, state frames
+> exist, or a screen package approved.
+
 | input | state | authority |
 |---|---|---|
-| Fitonist reference | **ABSENT** — *"disk: **not found**; unidentified dashboard imagery on Desktop … the stated visual foundation is absent · visual system unspecifiable"* | `CONF-D5` |
+| ~~Fitonist reference~~ **12Circle+ Admin visual reference** | **PRESENT** — four owner-supplied screens, committed and identified at `docs/design/admin-control-center/` | `CONF-D5`, resolved §9.6 |
 | Brand tokens / identity package | **NOT FINAL** — *"no locked package · brand not final · token values, chart identity **blocked**"* | `CONF-D6` |
 | 11 Admin states | **ENUMERATED, NOT DESIGNED** — *"11 states listed (§14); **no frames**"* | `CONF-D5` §5 `:204` |
 | **Approved screen package** | **ABSENT** | `:337` |
 
-**So ALL FOUR design inputs are absent, unlocked or undesigned.** §89 corrected two of these rows and
-left this one wrong, concluding a designer had *"the 11 state frames and nothing else"*. **There are no
-frames** — §5 `:204` records the 11 states as *"ENUMERATED, NOT DESIGNED"*. **Third correction to the
-same table; recorded at §91.2 rather than quietly amended.**
+**One of the four design inputs is now present; three remain absent, unlocked or undesigned.** §89
+corrected two of these rows and left one wrong, concluding a designer had *"the 11 state frames and
+nothing else"*. **There are no frames** — §5 `:204` records the 11 states as *"ENUMERATED, NOT
+DESIGNED"*, and the four supplied screens are populated dashboard/analytics views, not state frames.
+**That was the third correction to this table; recorded at §91.2 rather than quietly amended.**
 
 What a designer actually has: the **logo** (`apps/mobile/assets/images/12circle-logo.png`, verified), a
 **mobile/consumer theme** (`app_theme.dart`, `twelve_circle_theme.dart`, with no shared design-system
-dependency), and — pending §9 — the owner's supplied visual reference.
+dependency), and the owner's supplied visual reference (§9.6).
 
 The member-side precedent is a design **board** (`12Circle Fitness - Complete Board.dc.html`, 110
 `.phone` frames) regenerated into reference images by `capture-references.mjs`. **No Admin or Trust
@@ -167,6 +175,10 @@ unspecifiable."* `CONF-D6`: there is **no locked identity package**, so *"token 
 identity are blocked."* **Both are recorded OWNER decisions.** Design cannot begin on a visual system
 that has no reference and no locked tokens.
 
+> **STATUS 2026-09-30: `CONF-D5` RESOLVED · `CONF-D6` STILL OPEN, narrowed.** The owner supplied the
+> reference, so the first half of this paragraph no longer describes the state — see §9.6. The second
+> half stands: a rendering is not a token package. **§6.3b is half-closed, not closed.**
+
 ### 6.4 Trust's information architecture
 `D11` gives three areas; **no ruling gives their navigation, hierarchy or entry points.**
 
@@ -204,7 +216,8 @@ source, sufficient to satisfy §20.2's *"`CONF-08` artefacts"*.
 
 ## 9 · OWNER DECISIONS APPLIED — 2026-09-30
 
-Three of the five §6 items are **resolved by owner decision**. Two are **not yet resolvable** — see §9.5.
+Three of the five §6 items are **resolved by owner decision**. Two were **not yet resolvable** at the
+time of writing (§9.5); **one of those two was resolved by a second owner input the same day — §9.6.**
 
 ### 9.1 `CONF-D2` — RESOLVED: Trust is a top-level area WITHIN the Admin Control Center
 
@@ -253,7 +266,11 @@ Mapped **only** where the authoritative record establishes it.
 > invent domain behaviour to populate navigation. `Dashboard`, `People`, `Ecosystem`, `Operations` and
 > `Settings` have **no authoritative domain assignment at all**.
 
-### 9.5 `CONF-D5` and `CONF-D6` — NOT YET RESOLVABLE
+### 9.5 `CONF-D5` and `CONF-D6` — NOT YET RESOLVABLE *(superseded in part by §9.6)*
+
+> **This subsection is the record as it stood before the screenshots arrived. It is retained, not
+> rewritten** — the programme's rule is that a superseded finding keeps its own text and gains a
+> pointer. `CONF-D5` is now resolved (§9.6); `CONF-D6` is not.
 
 The owner's decisions on both rest on *"the supplied screenshots"*. **No screenshots were received.**
 They are therefore **not applied**, and nothing has been substituted for them — §5's lead imagery is
@@ -265,3 +282,73 @@ intends, so they can be recorded as the 12Circle+ visual reference (`CONF-D5`) a
 system direction (`CONF-D6`) — **not** as the unmodified Fitonist product, and **not** as the 12Circle+
 identity being the Fitonist identity.
 
+
+### 9.6 SCREENSHOTS RECEIVED — `CONF-D5` RESOLVED, `CONF-D6` NOT — 2026-09-30
+
+**The screenshots §9.5 was waiting for were supplied, and they are accessible.** Verified before any
+claim was made about them: four images read and described, then committed to
+`docs/design/admin-control-center/` with a provenance `README.md`, because `CONF-D5`'s recorded defect
+was *"disk: **not found**"* — an artefact held only in ephemeral session storage would leave that defect
+live.
+
+Recorded as the owner stated them: **the 12Circle+ Admin design — Fitonist-DERIVED, MODIFIED for
+12Circle+.** Not the unmodified Fitonist product, and **the visual system is not Fitonist branding.**
+The screens carry their own *"All figures are sample design-state data"* disclaimer.
+
+#### 9.6.1 `CONF-D5` — RESOLVED
+
+`CONF-D5`'s defect was specific and it is now cured: the reference **exists**, is **identified** (no
+longer *"unidentified dashboard imagery"*), and is **tracked in the repository**. The visual system is
+no longer *"unspecifiable"*.
+
+**What the reference establishes.**
+
+1. **The six-item Admin IA, confirmed visually** — `Dashboard · People ▾ · Ecosystem ▾ · Trust ●▾ ·
+   Operations ●▾ · Settings`, matching §9.2's `CONF-D1` decision item-for-item, with status dots on
+   Trust and Operations.
+2. **A visual system direction** — dark surface; violet primary accent with an amber secondary; green
+   operational / red critical; large light-weight numeric readouts; a card grid with generous radii;
+   pill segmented time-range controls (Today / 7 / 30 / 90 days).
+3. **Product framing that constrains the design** — a staging banner (*"Staging environment — changes
+   here do not affect members"*), a `Staging` environment pill, a `D. Mac · Platform admin` identity,
+   and a *Needs your attention* drawer whose footer reads *"Actions open the item. **Nothing is changed
+   from this screen.**"* That footer is a **read-then-act** discipline consistent with §3's Trust-as-a-
+   review-surface scope; it is observed in the reference, not adopted as a ruling here.
+
+#### 9.6.2 `CONF-D6` — STILL OPEN
+
+`CONF-D6`'s defect is a different defect and the screenshots do not cure it. It requires a **locked
+identity package**; four renderings give **direction, not values**. There are no hex values, no type
+scale, no spacing scale, no chart identity specification. **`CONF-D6` remains an owner/design-input
+boundary**, now narrowed from *"there is no reference at all"* to *"the reference is not yet reduced to
+locked tokens"*.
+
+#### 9.6.3 What the reference does NOT establish — stated so it is not over-read
+
+| still open | why the screenshots do not close it |
+|---|---|
+| **`CONF-D6`** token values / chart identity | a rendering is not a token package (§9.6.2) |
+| **The nine open domain placements** (§9.4) | **every dropdown — `People`, `Ecosystem`, `Trust`, `Operations` — is closed in all four screens.** No sub-navigation is visible anywhere, so the reference adds nothing to §9.4. The three placements that hold still hold on `D11` alone |
+| **The 11 Admin states** | *"ENUMERATED, NOT DESIGNED … no frames"*. These four screens are **populated** states; empty, loading, error, denied and the rest are not among them |
+| **`CONF-D7`** the role matrix | the reference shows one identity, `Platform admin`. It says nothing about `coach` · `vendor` · `content_manager` · `trust_operator` · `erasure_executor` |
+| **`CONF-D8`** the data-access model | the tiles show figures, not the columns a surface is permitted to read |
+| **§6.2** the surface set | four screens are not a surface enumeration, and none of the four is a Trust, Audit or Incident surface |
+| **Responsive behaviour, component specs, iconography** | not derivable from four fixed-width captures |
+| **§6.5** incident authoring placement | no incident-authoring affordance appears in any screen |
+
+#### 9.6.4 `CONF-08` is NOT satisfied
+
+**Stated explicitly, because the arrival of design imagery is exactly the point at which this gate gets
+skipped.** `CONF-D4` holds that *"a brief cannot serve as design authority"*, and by the same standard
+**four dashboard renderings are not the approved screen package** §8 commissions. §5's fourth row —
+**Approved screen package: ABSENT** — is unchanged.
+
+**`CONF-08` therefore remains NOT SATISFIED, and P5 remains unauthorized.** What the screenshots did was
+resolve one of the *inputs* `CONF-08` depends on. The sequence is unchanged and only its first step is
+complete:
+
+> screenshots accessible **✓** → reconcile `CONF-D5`/`CONF-D6` **✓ (D5 resolved, D6 open)** → reassess
+> `CONF-08` **✓ NOT satisfied** → formal approved design package **✗ OUTSTANDING** → P5 when authorized
+> **✗ NOT AUTHORIZED**
+
+**No Admin UI implementation follows from this reconciliation.**

@@ -9882,3 +9882,125 @@ distinct phase**; Trust is an Admin area. **P7 — gated on P5.** No implementat
 
 **No migration, no application file, no production contact. QA at 152.**
 
+
+---
+
+## 92 · DESIGN REFERENCE RECEIVED — `CONF-D5` RESOLVED, `CONF-D6` STILL OPEN, `CONF-08` STILL NOT SATISFIED
+
+**Owner input, 2026-09-30, second of the day.** §91.5 recorded two inputs as *"BLOCKED on artefact
+delivery"*. **One artefact was delivered.** This section records exactly what that changes — and, at
+greater length, what it does not.
+
+### 92.1 Accessibility verified BEFORE anything was claimed about the images
+
+The instruction was to verify accessibility first. Done, in that order: the four images were read and
+their contents described — nav items, banner text, tile labels, KPI figures, the drawer's footer
+sentence — before any reconciliation was drafted. **They are accessible, not merely attached.**
+
+### 92.2 The artefacts are now on disk, because that was the defect
+
+`CONF-D5`'s recorded defect was *"disk: **not found**; unidentified dashboard imagery on Desktop"*. The
+supplied files lived in **ephemeral session storage** (`/private/tmp/.../images/`), which would have
+left the defect live the moment this session ended. They are therefore committed:
+
+```
+docs/design/admin-control-center/
+  README.md                                  ← provenance, what they establish, what they do not
+  01-dashboard-needs-your-attention.webp
+  02-dashboard-full.webp
+  03-ecosystem-activity-installs.webp
+  04-demographics-impressions.webp
+```
+
+Checked first: `docs/design/` already exists and is tracked, no `.gitignore` rule excludes the path, and
+`docs/` previously held **zero** image assets — so this is the first design artefact tracked in the
+repository, not a duplicate of an existing store.
+
+**Recorded as the owner characterised them:** the **12Circle+** Admin design, **Fitonist-derived,
+modified for 12Circle+**. Not the unmodified Fitonist product; **the visual system is not treated as
+Fitonist branding.** The screens' own disclaimer — *"All figures are sample design-state data"* — means
+the 4,812 users and £184.2k revenue are design-state figures and are **not** cited anywhere as product
+data.
+
+### 92.3 `CONF-D5` — RESOLVED
+
+The reference **exists, is identified, and is tracked.** *"The visual system is unspecifiable"* is no
+longer true. What it establishes:
+
+- **The six-item Admin IA, visually confirmed** — `Dashboard · People ▾ · Ecosystem ▾ · Trust ●▾ ·
+  Operations ●▾ · Settings`. This matches §91's `CONF-D1` decision **item-for-item**, which is worth
+  recording: the decision and the artefact were supplied separately and they agree.
+- **A visual direction** — dark surface, violet primary with amber secondary, green operational / red
+  critical, large light-weight numerals, card grid, pill time-range controls.
+- **Product framing** — a staging banner, a `Staging` pill, a `Platform admin` identity, and the *Needs
+  your attention* drawer footer: *"Actions open the item. **Nothing is changed from this screen.**"*
+  That read-then-act discipline is **consistent with** `D11`'s Trust-as-review scope. **Consistent with
+  is not the same as ruled** — it is observed in an artefact, and no decision is derived from it here.
+
+### 92.4 `CONF-D6` — STILL OPEN, narrowed
+
+`CONF-D6` requires a **locked identity package**: *"token values, chart identity blocked."* Four
+renderings supply **direction, not values** — no hex, no type scale, no spacing scale, no chart identity
+spec. **`CONF-D6` is not resolved.** Its blocker narrows from *"no reference at all"* to *"the reference
+is not yet reduced to locked tokens"*, which is a real change of state and not a closure.
+
+This matters beyond Admin: the global directive holds that **components consume only semantic tokens,
+never raw hex**. Eyedropping four screenshots into literals would violate that directive while appearing
+to satisfy `CONF-D6`. **Not done.**
+
+### 92.5 The nine unplaced domains are UNCHANGED — and here is the specific reason
+
+**Every navigation dropdown is closed in all four screenshots.** `People ▾`, `Ecosystem ▾`, `Trust ●▾`
+and `Operations ●▾` each render collapsed; **no sub-navigation is visible anywhere in the reference.**
+
+So the domain → IA mapping is exactly as §91 left it: **three placed** (`Security`, `Incidents`, `Audit`
+→ Trust, on `D11` alone), **nine open**. The reference contributes **nothing** to this question. Recorded
+because a set of dashboard screenshots is easy to mistake for an IA specification, and the tile labels
+visible on the Dashboard (`Security`, `AI Guardian`, `Wearable intelligence`, `QA & release`) are
+**dashboard summary cards, not navigation placements** — reading them as placements would invent the very
+mapping §91 declined to invent.
+
+### 92.6 `CONF-08` — STILL NOT SATISFIED
+
+Stated plainly because this is precisely where the gate gets skipped. `CONF-D4`: *"a brief cannot serve
+as design authority."* By the same standard **four dashboard renderings are not the approved screen
+package** §20.2 requires. §5's *Approved screen package: **ABSENT*** is unchanged. Also unchanged: the
+**11 Admin states remain ENUMERATED, NOT DESIGNED** — the four screens are populated views, and contain
+no empty, loading, error or denied frame.
+
+**`CONF-08` is NOT satisfied. P5 is NOT authorized. No Admin UI was built, begun or scaffolded.**
+
+### 92.7 The dependency chain — one more input discharged
+
+| # | input | state |
+|---|---|---|
+| 1 | approved Admin screen package | **OUTSTANDING** — `CONF-D4`, external design authority |
+| **2** | **`CONF-D5` — Admin visual reference** | ✅ **DISCHARGED** (§92.3) |
+| 3 | `CONF-D6` — brand identity package | **OPEN, narrowed** (§92.4) |
+| 4 | `D-D1` — Trust container + Admin IA | discharged at §91 |
+| 5 | `CONF-D7` — Admin role matrix | **OUTSTANDING** |
+| 6 · 7 · 8 | `CONF-01` · `D1` · `D4`/`A2`/`A12`/`A13` | discharged earlier |
+| 9 | `D-V1`/`D-V2`/`D-V4` · `D2` | deferred under `PD-G01` |
+
+**Live: 1, 3, 5.** Six of nine discharged. Input 2 fell to an owner artefact; 1 and 5 cannot.
+
+### 92.8 Frontier
+
+**P5 — BLOCKED** on inputs 1, 3 and 5, and on the nine unplaced domains. The blocking set shrank by one
+and **did not empty**.
+
+The next genuine boundary is unchanged in kind and now clearer in content:
+
+1. **Input 1 — the formal approved Admin screen package.** An **external design-authority** boundary. It
+   cannot be produced by this agent without inventing the product requirements §6 forbids inventing, and
+   the owner's own instruction is that it must be *obtained or produced and approved* before P5.
+2. **Input 5 — `CONF-D7`, the Admin role matrix.** An **owner-decision** boundary: which of
+   `client` · `coach` · `vendor` · `admin` · `content_manager` · `trust_operator` · `erasure_executor`
+   sees which surface. Migrations 142 and 147 created the last two; no record assigns them a surface.
+3. **Input 3 — `CONF-D6`.** Either an owner decision to lock tokens, or a design deliverable.
+
+**No recommendation is offered on which to take first; the recorded dependency order is 1 → 3 → 5 and
+this agent does not rank them.**
+
+**No migration, no application file, no production contact. QA at 152. Nothing in this section changes
+behaviour — it changes only the record and adds four tracked design artefacts.**
