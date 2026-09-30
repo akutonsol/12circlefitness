@@ -9389,7 +9389,7 @@ S-2  severance emitted exactly ONE export_deletion: 1 -> 2
 | FIXED IN CODE | ✅ migration 152 |
 | FIXED ON QA | ✅ ledger **152** |
 | VERIFIED LIVE | ✅ P2 **70/70**, regression **484/484** |
-| VERIFIED IN CI | pending the run for this commit |
+| VERIFIED IN CI | ✅ run `36754113027` **SUCCESS** 6/6 — and non-vacuous: `P2 70/70` and `484/484 across 12 suites` **in CI** |
 
 **Production not contacted. Project B not created. P3 not begun. `apps/api/.env` untouched. D12·Q5,
 PD-A24 = C and B1–B4 all preserved unchanged.**
