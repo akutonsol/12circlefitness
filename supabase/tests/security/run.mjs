@@ -16,10 +16,19 @@ const SUITES = [
   ['1E    intelligence substrate',     './d05-intelligence-substrate.mjs'],
   ['1F    sweep posture',              './d06-sweep-posture.mjs'],
   ['3A-10 chat-media storage',         './d07-chat-media-storage.mjs'],
-  // 3A-11. Every assertion in this suite requires migration 131, which is
-  // authored and NOT applied — application is a separate authorization gate.
-  // Until it runs, this suite fails by design; that is the pre-fix reading,
-  // not a defect. Do not remove it to make the runner green.
+  // 3A-11. CORRECTED 2026-09-30 (V5 §64). This comment used to read "migration
+  // 131 is authored and NOT applied … this suite fails by design". That is no
+  // longer true and had become the more dangerous of the two errors: it told a
+  // reader that a 3A-11 FAILURE was EXPECTED, which would have masked a real
+  // regression in the one instrument meant to catch them.
+  //
+  // Migration 131 IS applied. Verified against the live QA catalog, not source:
+  // all six of its objects are present — the four unique indexes
+  // (client_nutrition_plans_one_active_per_client, cycle_logs_one_period_per_start,
+  // conversations_unique_participant_pair, client_session_credits_unique_payment)
+  // and both functions (assign_nutrition_plan, get_or_create_conversation).
+  // The suite passes 24/24 and a failure here is a REGRESSION, not the pre-fix
+  // reading.
   ['3A-11 identity constraints',       './d08-identity-constraints.mjs'],
   // N-07. Registered under owner decision OD-56 = A, now that migration 140 is
   // applied and `get_client_assessment()` / `assessment_access_log` exist. It was

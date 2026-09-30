@@ -7459,3 +7459,59 @@ same standing §23.2 recorded for the catalog half of `QAX-SEC-09`.
 
 **Registry untouched. QA unchanged at frontier 141. Production not contacted.**
 
+
+## 64 · THE RUNNER DOCUMENTED A **FAILURE AS EXPECTED** — AND THE MIGRATION HAD LANDED
+
+Full live suite, run after §63: **414/414 assertions across 11 suites, zero aborts.**
+
+```
+PASS  D-01  coach_client_relationships   43/43     PASS  3A-10 chat-media storage        42/42
+PASS  D-02  role escalation / PAR-Q      39/39     PASS  3A-11 identity constraints      24/24
+PASS  D-03  weekly_checkins              27/27     PASS  N-07  assessment access         18/18
+PASS  1D    RPC execution security       66/66     PASS  P1    profile + status          37/37
+PASS  1E    intelligence substrate       75/75     PASS  K-04  event registration         9/9
+PASS  1F    sweep posture                34/34
+```
+
+**`1E` passed 75/75.** §31 attributed its intermittent single failure to network aborts rather than a
+defect; this run is consistent with that and adds a clean data point.
+
+### 64.1 The finding — `run.mjs` contradicted its own result
+
+`3A-11` passed **24/24**, while the comment registering it read:
+
+> *"Every assertion in this suite requires migration 131, which is authored and **NOT applied** …
+> Until it runs, **this suite fails by design**; that is the pre-fix reading, not a defect.
+> Do not remove it to make the runner green."*
+
+**Migration 131 is applied.** Verified against the live catalog rather than source — all six objects
+present: the four unique indexes (`client_nutrition_plans_one_active_per_client`,
+`cycle_logs_one_period_per_start`, `conversations_unique_participant_pair`,
+`client_session_credits_unique_payment`) and both functions (`assign_nutrition_plan`,
+`get_or_create_conversation`). It was necessarily applied the moment the frontier passed 131, and the
+frontier is **141**.
+
+### 64.2 Why this was worth stopping for
+
+A stale comment is normally cosmetic. **This one inverted the meaning of a failure in the only
+instrument built to detect failures.** It instructed a future reader — or a future me — that a red
+`3A-11` is *expected* and explicitly warned against acting on it. A genuine regression in identity
+constraints would have been read as the documented pre-fix state and dismissed.
+
+**It is the §62.1 pattern in executable form.** There, a finding held open for *registry* reasons was
+later misread as held open for *technical* reasons. Here, a suite red for *"not yet applied"* reasons
+would be misread the same way — except the misreading lands in CI, where nobody re-derives it.
+
+> **The general rule this programme keeps rediscovering: a status written as permanent prose outlives
+> the condition that made it true.** §56 corrected three such claims, §62 four more, this one is the
+> first to sit in **executable** rather than documentary context. Status belongs where it is checked,
+> not where it is narrated.
+
+### 64.3 What changed
+
+`supabase/tests/security/run.mjs` — the comment only. **No suite added, removed, reordered or
+re-scored; `node --check` passes.** The corrected text states that 131 is applied, cites the live
+verification, and says plainly that **a `3A-11` failure is now a REGRESSION**.
+
+**No migration, no policy, no registry. QA unchanged at frontier 141.**
+
