@@ -7270,6 +7270,15 @@ govern D12:**
 
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
+> **PRECEDENCE MARKER — §16 IS NOT THE CURRENT STATE. See §62.**
+> This section is titled *"final state"* and sits **physically last**, but every section from §17 to
+> §61 was appended **before** it. It therefore records the state **as at document creation**, and a
+> reader arriving at the end of the file gets the **oldest** picture in the document. Four of its
+> claims are now stale and one is **refuted by live QA schema**. §62 reconciles it item by item and
+> **takes precedence** wherever the two disagree. §16's text is preserved unaltered below, per the
+> programme's correct-forward discipline.
+
+
 ### 16.1 What remains owner-controlled
 
 | # | Decision | Blocks |
@@ -7302,3 +7311,81 @@ options. None of it may assert implementation readiness, close a finding, or all
 - It does not imply that `QAX-SEC-09` is resolved. **Profile PHI remains exposed through
   `hosts_event_for()`.**
 - It does not represent CI run 36368081140 as evidence of a pre-fix negative control.
+
+## 62 · §16 RECONCILED — ONE CLAIM REFUTED ON LIVE QA, THREE SUPERSEDED, THE REST STANDING
+
+§56 reconciled the frontier and corrected three stale claims. It did not reach **§16**, because §16
+is not part of the frontier narrative — it is the document's **tail**, and the append-before-§16
+convention that kept §17–§61 in order had the side effect of leaving the **oldest** section in the
+**last** position. This section closes that gap. **Placed AFTER §16 deliberately**, breaking the
+append convention for the first time, because a correction that a reader reaches *before* the thing
+it corrects is not a correction.
+
+### 62.1 §16.3 — *"Profile PHI remains exposed through `hosts_event_for()`"* — **REFUTED**
+
+Verified against the **live QA schema** (`supabase db dump --linked`, 414 KB, 170 policies), not
+against source and not against my own earlier record:
+
+```sql
+CREATE POLICY "own profile or active coach reads profile" ON "public"."user_profiles"
+  FOR SELECT TO "authenticated"
+  USING ((("id" = "auth"."uid"()) OR "public"."is_active_coach_of"("id")));
+```
+
+**Two arms. Neither is `hosts_event_for`.** Across the entire live dump, `hosts_event_for` appears in
+**no policy at all** — only in the replacement view, which exposes exactly five columns:
+
+```sql
+CREATE OR REPLACE VIEW "public"."event_attendee_profiles"
+  WITH ("security_invoker"='off', "security_barrier"='true') AS
+ SELECT "id", "first_name", "last_name", "email", "avatar_url"
+   FROM "public"."user_profiles" "p"
+  WHERE (("id" = "auth"."uid"()) OR "public"."hosts_event_for"("id"));
+```
+
+No PAR-Q, no PHI. Migration **135** removed the arm; §23 verified it live (host reads the attendee
+`user_profiles` row: **rows=0**). The live policy comment records the lineage itself: *"Wave 1 (132)
+removed the `is_team_lead_of` arm; P1 (135) removes the `hosts_event_for` arm."*
+
+**The exposure §16.3 describes does not exist on QA.** What remains true — and is a different
+statement — is that **`QAX-SEC-09` is not `VERIFIED_CLOSED`**, because `MASTER_REMEDIATION_REGISTRY.md`
+is owner-controlled and has deliberately not been edited (§23, §28). *Remediated and verified* is not
+*closed*, and §16.3 conflated the registry's silence with a live exposure.
+
+> **This is the second time this distinction has bitten.** §56 corrected three stale claims of the
+> same shape. The pattern is specific and worth naming: **a finding held OPEN for registry reasons
+> reads, later, as a finding held OPEN for technical reasons.** Any future status line should say
+> *which*.
+
+### 62.2 §16.1 — `CONF-02` listed as owner-controlled — **SUPERSEDED**
+
+`CONF-02` was **RESOLVED from existing authority** in §57.1: the canonical designation is `V5`,
+defined as the cumulative additive state. §16.1's row describing it as blocking *"the V5 document's
+canonical name/version, and therefore P0"* no longer holds.
+
+### 62.3 §16.3 — the five "does not do" disclaimers — **THREE SUPERSEDED, TWO STANDING**
+
+| §16.3 claim | now |
+|---|---|
+| *"closes no finding"* | **SUPERSEDED** — `SEC-PHI-AUDIT` (§45.3) and `BIL-3`/`K-04` are `VERIFIED_CLOSED`; `EC-01` closed 2026-08-27 (§44.2) |
+| *"modifies no migration, test, or CI configuration"* | **SUPERSEDED** — migrations **138–141** applied to QA; suites `d09`/`d11` written, executed, shown non-vacuous and registered; CI's `api` job deleted with `apps/api` (§55) |
+| *"does not assert V5 implementation readiness"* | **SUPERSEDED in part** — P1 work shipped and was verified live; the disclaimer was written before any of it |
+| *"`QAX-SEC-08` remains OPEN / PARTIALLY VERIFIED"* | **STANDS** — 3 of 4 rungs; the fourth is blocked on `D-1` and on nothing else |
+| *"allocates no finding ID, creates no `NEW-W1-03`"* | **STANDS** |
+
+### 62.4 §16.1 — what is genuinely still owner-controlled
+
+`D-1`, `D-2`, `D-3` and the Findings A/B ID allocation **stand unchanged**. `D4` stands. `D-V1`,
+`D-V2`, `D-V3` stand and still block the whole wearable stack; `D-V6` (P10) is open. The registry
+status vocabulary question stands — and §62.1 is now a **second argument for it**: the vocabulary
+lacks any way to say *"remediated, verified live, awaiting registry"*, which is exactly the state
+three findings are in and exactly the state that keeps being misread.
+
+`D12` stands as open, but its row is now **finer than §16.1 records**: `D12·Q2` is **ruled** (§58),
+option (a) **disproven** (§59), custody **decided** (§60) and the signer **selected with custody
+verified 6/6 live** (§61) — while **`D12·Q5` is newly raised** and now gates implementation.
+
+### 62.5 State of record
+
+**QA frontier 141. CI green. Nothing implemented for D12. Production not contacted by me.**
+Registry untouched. The only document changed is this one.
