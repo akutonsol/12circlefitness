@@ -10086,3 +10086,94 @@ Plus the standing ones, none of which this agent may release: **P3** deferred un
 operational installation constraint · **production**, unauthorized throughout.
 
 **No migration, no application file, no production contact. QA at 152.**
+
+---
+
+## 94 · FULL LIVE SUITE RE-RUN AT THE 152 FRONTIER — 484/484 · AND A STALE PASS COUNT CORRECTED BY MEASURING IT
+
+§93.4 named a hazard class — a comment that tells a reader what to expect, left behind by the work that
+changed it. **Having named it, the next step was to check the instrument that catches regressions for
+the same defect.** It had it.
+
+### 94.1 The measurement
+
+Full registered live suite, run against QA at the 152 frontier, **Node 20 to match CI's
+`NODE_VERSION: '20'`** rather than whatever the shell defaults to:
+
+```
+PASS  D-01  coach_client_relationships      43/43
+PASS  D-02  role escalation / PAR-Q         39/39
+PASS  D-03  weekly_checkins                 27/27
+PASS  1D    RPC execution security          66/66
+PASS  1E    intelligence substrate          75/75
+PASS  1F    sweep posture                   34/34
+PASS  3A-10 chat-media storage              42/42
+PASS  3A-11 identity constraints            24/24
+PASS  N-07  assessment access               18/18
+PASS  P1    profile + status boundaries     37/37
+PASS  K-04  event registration integrity     9/9
+PASS  P2    audit + observability populations  70/70
+
+484/484 assertions passed across 12 suites          (exit 0, zero aborts)
+```
+
+**Reconciles exactly against §85's CI run.** That run recorded `P2 … 55/55` and `469/469 across 12
+suites`. Today: **P2 70, total 484.** Both moved by **+15**, so **every added assertion is in the P2
+suite** and the other eleven are unchanged in count — which is what migration **152** (`audit_read` +
+severance events) predicts, and is the arithmetic check that the difference is growth rather than drift.
+
+### 94.2 The stale count, corrected by measurement rather than recollection
+
+`run.mjs`'s P2 entry claimed ***"It now passes 27/27"*** and ***"migrations 142-148"*.** Both were true
+at registration and neither was updated as 149–152 added coverage. **Measured: 70/70, migrations
+142–152.** Corrected in place with the correction stated in the comment, not silently.
+
+**Same class as the `3A-11` comment** that used to read *"this suite fails by design"* (corrected at
+§64) — and both fail in the direction §93.4 identified: they tell a reader what result to expect, so a
+wrong one either masks a regression or invents one. **A pass count in a comment must be measured, not
+remembered.** The `3A-11` comment's own *"passes 24/24"* was checked against this run: **accurate.**
+
+### 94.3 Two observations from running it, neither a regression
+
+**1. `§28.9`'s ABORT naming worked, on the first attempt — which failed.** The shell's default Node is
+**v16.20.2**, which has no global `fetch`. Every suite threw, and the summary rendered:
+
+> `ABORT  D-01 … 0 ran, DID NOT FINISH` ×12 · `Assertion-level failures in this run: 0`
+
+**Exactly what §28.9 built that state for.** Before it, twelve environment aborts would have printed as
+twelve failures and read as a mass security regression. **A control built earlier in this programme was
+exercised by accident and held.** The `⚠` footer named the condition and told the reader to re-run.
+
+**2. `3A-10` aborted once, then passed 42/42.** The first Node-20 attempt died in fixture setup —
+`409 23505 duplicate key … conversations_unique_participant_pair` — and the immediately following run
+passed the whole suite. So **the `3A-10` fixture path is sensitive to leftover state from a prior run**:
+migration 131's uniqueness constraint (working correctly) collides with a conversation a previous run
+left behind. **This is a test-hygiene defect in the suite, not a product defect, and not a regression** —
+the constraint doing its job is the thing that surfaced it. **Recorded, not fixed**: fixing it means
+changing a fixture's teardown, which is outside anything currently authorized, and the suite passes on
+re-run. Flagged because an intermittent ABORT in the regression instrument is precisely what §28.9 warns
+gets misread.
+
+### 94.4 QA side effects, as documented
+
+The P2 suite **cannot clean up after itself** — `audit_events` is append-only by `A11` and its freeze
+refuses `DELETE` to every caller including `service_role`. This run therefore left further permanent
+rows on QA, carrying their run-unique marker. **That is the population behaving as ruled**, documented at
+registration, and not a new condition.
+
+### 94.5 What this does and does not establish
+
+**Does:** the whole registered live suite is green against QA at the 152 frontier, measured today —
+fresh `VERIFIED LIVE` evidence for every closed item the suite covers, and the arithmetic reconciliation
+in §94.1 shows it is the same instrument that ran in CI, grown by exactly the 152 additions.
+
+**Does not:** move any phase, gate or decision. **484 green assertions are not an approved Admin screen
+package**, a token lock, or a role matrix. §20.3's gate tally is untouched — *"a decision is not
+evidence"*, and equally, evidence for closed items is not progress on open ones.
+
+### 94.6 Frontier — unchanged
+
+Identical to §93.5. The three live inputs (approved screen package · `CONF-D6` · `CONF-D7`) are owner or
+external-design boundaries; `PD-G01`, P10's installation constraint and production are standing ones.
+
+**No migration authored, no application file changed, no production contact. QA at 152.**

@@ -49,11 +49,19 @@ const SUITES = [
   // CI actually runs it, K-04 is REMEDIATED and not VERIFIED_CLOSED.
   ['K-04  event registration integrity', './d11-event-registration-integrity.mjs'],
   // P2 · the four D4/D12 populations, the A12 identity mapping, severance and the
-  // A13 read path (migrations 142-148). Registered only after it was executed
-  // against QA and shown non-vacuous: its first live run FAILED one assertion
-  // (service_role INSERTed control evidence, 201) and its second failed another
-  // for the right reason after 148 revoked a grant the suite had been relying on.
-  // Both are recorded in V5 §80. It now passes 27/27.
+  // A13 read path (migrations 142-152 -- this comment said "142-148" until V5 §94;
+  // 149's observability writer-of-record, 150's A6 delta, 151's B1-B4 emitters and
+  // 152's audit_read + severance events are all covered here too). Registered only
+  // after it was executed against QA and shown non-vacuous: its first live run
+  // FAILED one assertion (service_role INSERTed control evidence, 201) and its
+  // second failed another for the right reason after 148 revoked a grant the suite
+  // had been relying on. Both are recorded in V5 §80.
+  //
+  // COUNT CORRECTED, V5 §94. This comment read "It now passes 27/27" -- the 27 was
+  // true at registration and was never updated as 149-152 added assertions. Measured
+  // live on QA 2026-09-30 at the 152 frontier: 70/70. A stale pass count is the same
+  // hazard class as the "3A-11 fails by design" comment above -- it tells a reader
+  // what to expect, so it must be measured, not remembered.
   //
   // NOTE: this suite CANNOT clean up after itself. audit_events is append-only by
   // A11 and its freeze refuses DELETE to every caller including service_role, so
