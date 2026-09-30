@@ -6733,6 +6733,140 @@ signing secret) and `PORT`, both dead, but it is 4 KB and deleting a file contai
 irreversible. Flagged for the owner rather than destroyed.
 
 
+---
+
+## 57 · `CONF-02` RESOLVED · `D12` DEPENDENCIES DISCHARGED · `D-V3`/`D-V6` QUESTIONS FORMULATED
+
+Under the lead's authorization of 2026-09-30. Each resolution below is **derived from cited
+programme authority**, not preference. Where authority does not reach, that is stated instead of
+filled in.
+
+### 57.1 ✅ `CONF-02` — RESOLVED FROM EXISTING AUTHORITY
+
+**The question** (`V5_IMPACT_ANALYSIS:571`): *"Is this document 'V5' or 'V1 Master Version
+2+amendments'?"* **Options:** *(a) "V1 Master V2+V3+V4+V5"  (b) rename to V5.*
+**Class:** `CONFIRMATION ONLY` · downgraded non-blocking (`V5_DECISION_RESOLUTION:74`,
+`V5_IMPLEMENTATION_READINESS_GATE:114`).
+
+**Three pieces of authority decide it, and they do not conflict:**
+
+| authority | what it establishes |
+|---|---|
+| *"additive model explicit (V3 §14, V4 §9, V5 §11)"* (`V5_DECISION_RESOLUTION:74`) | each version **amends**, it does not replace. So the **content** is cumulative — option (a)'s claim is true |
+| `SA-01`/`SA-12` require **version-qualified** traceability | the **label** must carry a version. "V1 Master V2+V3+V4+V5" is a description, not an identifier |
+| repository practice | **11 documents named `V5_*`, ZERO named `V1_`/`V2_`/`V3_`/`V4_*`** — the designation is already in unanimous use |
+
+**RESOLUTION — the canonical designation is `V5`, defined as the cumulative additive state
+`V1 Master + V2 + V3 + V4 + V5`.**
+
+This is not a choice between (a) and (b); it is the observation that they answer **different
+questions**. (a) is the correct statement of *what the programme contains*; (b) is the correct
+*identifier* for it. `SA-01`/`SA-12` need an identifier, the additive model supplies the definition,
+and the repository has already adopted exactly this. **Nothing is renamed and no file moves** — the
+11 `V5_*` artefacts were already correct.
+
+**P0's gate is therefore satisfied on evidence.** §20.2's P0 row was right by accident and wrong in
+reasoning; §56.3's withdrawal of it stands, and this section supplies the actual basis.
+
+### 57.2 ✅ `D12`'s DEPENDENCIES ARE NOW ALL DISCHARGED — and what that leaves
+
+§C.5 maps D12's content precisely: **§8.13, Q1–Q3 and Q5–Q12 — eleven questions**, with three
+already unblocked by evidence and the rest waiting on three named decisions:
+
+| D12 question | was blocked on | status now |
+|---|---|---|
+| `Q1` (SQ-10 components), `Q2` (identifier minting), `Q5` (survives anonymisation) | — unblocked by evidence | open to resolution |
+| `Q6(d)`, `Q7`, `Q9(b)`, `Q10`, and `Q11` via `Q7` | **`PD-A24`** | ✅ **answered — `C`, sink only / defer vendor** |
+| `Q8` | **`PD-A17`** | ✅ **answered — `A`, resolved as A2 (§46–§55)** |
+| `Q3`'s delivery, `Q12`'s remaining half | **`D11`** | ✅ **answered (§19.2)** |
+| `Q4` | — | ✅ answered §8.14 |
+| `Q6`, `Q12` (the §8.16 halves) | — | ✅ answered §19.3 |
+
+**Every external dependency of D12's content is discharged.** The A1/A2 contradiction that §8.13
+flagged as deciding *"roughly half of D12's remaining content"* is **also settled** — §8.14 ruled
+**`A2` CONTROLS**, so the observability-audit category stays audit-worthy and becomes a separate D12
+population inheriting `A11`'s immutability, `A12`'s retention and `A13`'s reader model. §19.3 then
+ruled those inheritances concretely: freeze-identity-columns, per-component windows (6-year audit /
+90-day operational), and the mixed admin-plus-Trust role-class reader model.
+
+**`PD-A24 = C` is NOT treated as answering D12**, per the lead's instruction and §8.13's superset
+statement: PD-A24 covers **vendor · cost · data-residency** only. Its `C` answer discharges the
+*dependency* — it does not supply D12's content.
+
+### 57.3 ⚠ `D12·Q2` — THE ONE PART AUTHORITY CANNOT DECIDE
+
+Ten of the eleven questions are now answerable from discharged dependencies and existing rulings.
+**`Q2` — minting the correlation identifier — is not**, and §8.13 says why in terms no later ruling
+touches:
+
+1. **There is no channel for it to arrive on.** Verified across `supabase/migrations/` and
+   `supabase/functions/`: `request.jwt.claims` is *"the **only**"* request-scoped channel;
+   `request.headers`, caller `set_config` and `SET LOCAL` are **zero occurrences each**. An audit
+   row written by one of the **33 `CREATE TRIGGER` statements** can see *"**no caller-supplied value
+   whatsoever** beyond `NEW`/`OLD` and `auth.uid()`"* — and `auth.uid()` is **NULL on every internal
+   path**.
+2. **It is forgeable by construction.** `A11` sub-ruling 1's named adversary is the **compromised
+   Edge Function**, which holds `service_role` and is `BYPASSRLS`. It can *"write the identifier into
+   the audit row and write or withhold the matching observability record — **both sides of the very
+   join the identifier exists to make**."*
+3. **`A3` sub-ruling 3 forbids papering over that**: asserted and cryptographically grounded
+   attribution *"must not be equated"* — and §8.13 records that **nothing tracked addresses it for
+   this dimension.**
+
+And `D4`/`A14` (§19.2) makes this load-bearing rather than cosmetic: *"Cross-population correlation
+is permitted **ONLY** through the D12 correlation identifier, **never by joining on subject
+identity**."* So Trust's entire cross-population capability rests on an identifier that, at HEAD,
+has no delivery channel and no integrity story.
+
+**This is an architectural decision, not a gap I can close by derivation.** Choosing between — for
+example — accepting an asserted identifier with its forgeability documented, introducing a signed
+carrier, or narrowing Trust's cross-population capability to match what can actually be trusted, is
+a **trust-model commitment with product consequences**. Deriving one from the existing corpus would
+be inventing authority that §8.13 states does not exist.
+
+### 57.4 `D-V3` and `D-V6` — QUESTIONS FORMULATED
+
+§18.3 records both as **UNRECOVERABLE**: *"No question text exists in any source… **the owner must
+SUPPLY A QUESTION, not choose an answer.**"* Formulated below from surrounding context, with the
+§18.3 prohibition observed — **`CONF-03`'s wording is NOT borrowed for `D-V6`**, which lists
+`CONF-03` as a *dependency*, never an equivalent.
+
+**`D-V3` — canonical observation + provenance contract (gates P3, alongside `D-V1`/`D-V2`)**
+
+> *For wearable-derived observations: what is the canonical record — its identity, units,
+> timestamp authority and provenance fields — and which party is authoritative when two sources
+> report the same measurement for the same subject and interval?*
+>
+> Context it must answer against: `P3`'s remit is *"Wearable boundary; ingestion/normalization;
+> canonical contracts"*; the wearable stack *"does not exist in any form"* (§18.2); and `D12`'s
+> retention split (6-year audit / 90-day operational) already binds anything ruled audit-worthy.
+
+**`D-V6` — SBOM toolchain (gates P10)**
+
+> *Which SBOM format and generating toolchain is authoritative for this repository, at which point
+> in the release pipeline is it produced, and what is the pass/fail policy for the vulnerabilities
+> it reports?*
+>
+> Context it must answer against: `§181`'s chain *"SBOM tooling (D-V6) ──► CI stage ──►
+> release-integrity chain (SA-11)"*; `§2120`'s *"Blocked on D-V6; **0 security-scan steps in CI**"*;
+> and `D-V6` lists **`CONF-03` as a dependency**, so `CONF-03` must be settled first or concurrently.
+
+**These are now answerable — they are not answered.** Formulating a question makes it decidable by
+its owner; it does not transfer the decision. Both remain **owner decisions**, and P3 and P10 stay
+blocked until they are answered.
+
+### 57.5 Frontier after this section
+
+| Phase | Blocked on | Change |
+|---|---|---|
+| **P0** | — | ✅ **`CONF-02` resolved (§57.1)** |
+| **P1** | — | ✅ complete |
+| **P2** | **`D12·Q2`** — the correlation identifier's channel and integrity | narrowed from eleven questions to **one architectural decision** |
+| **P3** | `D-V1`, `D-V2`, `D-V3` | `D-V3` now **answerable** (§57.4); still unanswered |
+| **P4–P9** | upstream of P2/P3 | unchanged |
+| **P10** | `D-V6` | now **answerable** (§57.4); infrastructure already satisfied (§56.4) |
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
