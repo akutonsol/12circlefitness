@@ -35,34 +35,9 @@
     "qa": {
       "ref": "eyqtldjqpgpljlqvpowh",
       "name": "12Circle QA",
-      "applied_through": "141",
+      "applied_through": "148",
       "excluded": [],
-      "pending": {
-        "142": {
-          "reason": "P2 · the D4 audit Event population (A1 §8.4 population 1): audit_events with A1's five fields plus A2's category, A3 sub-ruling 3's actor_provenance and D12·Q3's correlation_id; a BEFORE UPDATE/DELETE freeze implementing A11's FREEZE-IDENTITY-COLUMNS via the migration 120 precedent (the only mechanism §8.5 names as binding service_role); RLS with A13's exact Event reader enumeration and no write policy; audit_record_event() as A3's RPC arm; and the two roles of §8.18·Q1. Specification and traceability: V5 §75 and §76.",
-          "gate": "NOT AUTHORIZED TO APPLY. QA_CLOSURE_STANDARD §82 rule 7: \"Apply the migration to QA only when the wave authorizes it, and never before.\" MASTER_REMEDIATION_WAVES.md names no wave for P2 — it covers the remediation programme (waves 1–5, migrations 123–141) and contains no P2, no audit schema and no migration 142+. P2's ENTRY conditions are satisfied (§5.2: D4 complete §19.2, D12 content complete §74, SQ-10 answered §19.3·Q1), which authorizes AUTHORING, not QA mutation. Released by an explicit owner authorization to apply, of the same form given for migration 138. Validated locally in the meantime: all 143 migrations replay clean against a bare postgres:17 with shim.sql and ext-stubs — the CI negative-control conditions — and nine behavioural assertions pass (V5 §76.2)."
-        },
-        "143": {
-          "reason": "P2 · the D4 audit Incident population (A1 §8.4 population 2): audit_incidents carrying the eleven fields quoted at V5_DECISION_RESOLUTION:114 with the specified Critical/High/Warning/Informational severity enum, plus audit_incident_transitions — NOT a fourth population, but the retention mechanism A11 §8.6 mandates for this one (\"each state transition is retained as an immutable historical event\"). Mutable by ruling: A1 sub-ruling 1 states the Incident population \"may carry an UPDATE path, which its mutable investigation state requires\". DELETE refused per A1 sub-ruling 2 / A12 ruling 1. Readers are A13's four for Incident, which unlike Event include the actor. Traceability: V5 §77.",
-          "gate": "NOT AUTHORIZED TO APPLY — same boundary as 142. QA_CLOSURE_STANDARD §82 rule 7: \"Apply the migration to QA only when the wave authorizes it, and never before\", and MASTER_REMEDIATION_WAVES names no wave for P2. Released by an explicit owner authorization to apply. Validated locally: all 144 migrations replay clean from a FRESH database against bare postgres:17 + shim + ext-stubs, and the behavioural assertions of V5 §77.2 pass."
-        },
-        "144": {
-          "reason": "P2 · the D4 Control evidence population (A1 §8.4 population 3): the seven SA-03 fields quoted at V5_IMPACT_ANALYSIS:191, keyed (requirement, date_version) so a requirement accumulates VERSIONS rather than being overwritten. A1's exclusions are implemented as exclusions — no actor, no subject, no occurrence time. A11 §8.6 gives this population NO RUNTIME WRITE PATH, so UPDATE and DELETE are refused outright and no runtime role holds INSERT, not even service_role.",
-          "gate": "NOT AUTHORIZED TO APPLY — same boundary as 142/143. QA_CLOSURE_STANDARD §82 rule 7; no wave covers P2. Validated locally: full fresh replay 000–145 clean, and the §77.2 assertions pass."
-        },
-        "145": {
-          "reason": "P2 · the D12 observability population — the fourth population, NOT one of A1's three (§8.14; A1 sub-ruling 3: \"their schemas and semantics must not be merged\"). In-database per D12·Q7 (V5 §74.2). Carries NO subject identifier by ruling (D12·Q5), only the correlation identifier. Retention bound to component per §8.16·Q2 (observability audit 6 years, everything else 90 days), enforced by CHECK in both directions. §8.16·Q1 freeze: identity and occurrence immutable, payload write-once. Readers admin + Trust operator, role-class only (§8.16·Q3) — no relationship arm, because D12·Q5 guarantees there is no subject to anchor one on.",
-          "gate": "NOT AUTHORIZED TO APPLY — same boundary as 142/143/144. QA_CLOSURE_STANDARD §82 rule 7; no wave covers P2. Validated locally: full fresh replay 000–145 clean, and the §77.2 assertions pass."
-        },
-        "146": {
-          "reason": "P2 · A12's external identity mapping, the erasure executor, severance, and A13's audit read path. §8.20 recorded these as PREPARED, NOT ANSWERED; §19.3 answered every one of them (§8.20·Q1 a table in public with RLS and NO policy granting any client role; §8.20·Q2/Q3 and §8.18·Q3 as one — no standing party may resolve, resolution occurs inside the audit read path, the erasure executor severs; §8.20·Q4 DML-deep severance). Anonymising means severing the mapping, leaving the frozen Event row untouched (A12 rulings 1 and 2).",
-          "gate": "NOT AUTHORIZED TO APPLY — same boundary as 142–145. QA_CLOSURE_STANDARD §82 rule 7; no wave covers P2. Validated locally: full fresh replay 000–146 clean, and the §78.2 assertions pass, including severance retaining the audit rows while identity becomes unresolvable."
-        },
-        "147": {
-          "reason": "P2 · closes A2's named audit gap and an integration defect 142 introduced. §8.3's consequences name admin_set_user_role() specifically: it \"writes NO AUDIT ROW; its only record is one RAISE LOG ... under A2 that is not an audit record.\" It now emits an admin_action Event (A3's application arm calling the RPC), best-effort per A3 sub-ruling 4 and sequenced after the role change. Separately, 142 added trust_operator and erasure_executor to user_profiles_role_check but not to this function's own vocabulary, so the only sanctioned assignment path refused them (22023) and the two roles were unassignable; the vocabulary now matches. SECURITY DEFINER, the pinned search_path, the is_admin() wrapper and the privileged_role_write envelope are all preserved — I-MIG-03 confirms no strip.",
-          "gate": "NOT AUTHORIZED TO APPLY — same boundary as 142–146. QA_CLOSURE_STANDARD §82 rule 7; no wave covers P2. Validated locally: fresh replay 000–147 clean; both new roles assignable; unknown role still refused; two admin_action rows emitted with a pseudonymous subject that resolves through the map; actor grounded; non-admin still refused; and the acting admin reads 0 of the rows they caused (A13 sub-ruling 1)."
-        }
-      }
+      "pending": {}
     }
   }
 }

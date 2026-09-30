@@ -48,6 +48,18 @@ const SUITES = [
   // VERIFIED IN CI rung the Security/authorization class demands (§2.1); until
   // CI actually runs it, K-04 is REMEDIATED and not VERIFIED_CLOSED.
   ['K-04  event registration integrity', './d11-event-registration-integrity.mjs'],
+  // P2 · the four D4/D12 populations, the A12 identity mapping, severance and the
+  // A13 read path (migrations 142-148). Registered only after it was executed
+  // against QA and shown non-vacuous: its first live run FAILED one assertion
+  // (service_role INSERTed control evidence, 201) and its second failed another
+  // for the right reason after 148 revoked a grant the suite had been relying on.
+  // Both are recorded in V5 §80. It now passes 27/27.
+  //
+  // NOTE: this suite CANNOT clean up after itself. audit_events is append-only by
+  // A11 and its freeze refuses DELETE to every caller including service_role, so
+  // each run leaves permanent rows on QA. That is the population behaving as
+  // ruled. Rows carry a run-unique marker so they stay attributable.
+  ['P2    audit + observability populations', './d12-p2-audit-populations.mjs'],
 ];
 
 let totalFailures = 0;
