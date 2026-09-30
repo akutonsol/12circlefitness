@@ -6479,6 +6479,77 @@ curl -s -o /dev/null -w '%{http_code}\n' https://api.anthropic.com/v1/messages \
   console.anthropic.com, and that it belongs to the **same organization** that was funded.
 
 
+---
+
+## 54 · THE KEY IS VALID BUT THE STORED VALUE IS NOT — THE ERROR MESSAGE MOVED
+
+The lead confirmed a **direct `curl` to Anthropic returns `200`** with the new key, and re-set the QA
+secret from the exact shell value with `printf %s`. The secret **did** update on QA
+(`updated 2026-09-30T02:00:19Z`, before the probe), and the function was redeployed after it.
+
+The round trip still fails — **but the upstream message changed**, and that is the finding:
+
+| When | Anthropic message |
+|---|---|
+| §50 / §52 / §53 | `"API key is invalid."` |
+| **after the `printf %s` reset** | **`"invalid x-api-key"`** |
+
+### 54.1 What the change in message establishes
+
+The value in the secret store **is different from before** — so the reset landed and propagated. But
+it is **still not the value that works from the lead's shell**, where the identical key returns `200`.
+
+The two messages are not interchangeable. `"API key is invalid."` is Anthropic's response to a
+well-formed key it does not recognise. `"invalid x-api-key"` is its response to a header value it
+cannot accept as a key at all — the shape of a *malformed* value, not an unknown one.
+
+**Conclusion: the key is good; what reaches Anthropic from the Edge runtime is not the key.** The
+corruption is happening between the lead's shell and `Deno.env.get('ANTHROPIC_API_KEY')`, not in the
+key and not in this function's request construction — whose headers are byte-identical to the five
+sibling functions.
+
+### 54.2 Excluded, cumulatively
+
+Stale isolate · request shape · model literal · secret not reaching the runtime · insufficient credit
+(§53) · **the key itself** (direct `200`) · **the secret not updating** (timestamp moved and the
+message changed).
+
+What remains is **the transport of the value into the secret store**.
+
+### 54.3 Why I cannot close this myself
+
+The one diagnostic that would identify the corruption — reporting the stored value's length, whether
+`trim()` alters it, whether it is quote-wrapped — was refused as **`Credential Materialization`**
+(§52.2). That refusal is correct and I did not route around it. Without it I can observe only that
+Anthropic rejects the value, never how it differs.
+
+### 54.4 The remedy that removes shell quoting from the path entirely
+
+Both attempts so far went through shell argument parsing. `supabase secrets set` accepts a file
+instead, which never passes the value through a shell:
+
+```
+printf 'ANTHROPIC_API_KEY=%s\n' "$KEY" > /tmp/qa.env
+supabase secrets set --env-file /tmp/qa.env --project-ref eyqtldjqpgpljlqvpowh
+rm -f /tmp/qa.env
+```
+
+Or paste it into the **Supabase dashboard** → Edge Functions → Secrets, which involves no shell at
+all. That is the step neither previous attempt took, and it is the one most likely to end this.
+
+### 54.5 Instrumentation hygiene
+
+The upstream diagnostic was reverted **and redeployed in the same step**. Verified after: QA returns
+only `{"error":"AI is temporarily unavailable"}`, and `supabase functions download` shows the
+deployed source **identical to the committed file** (0 diff).
+
+### 54.6 Unchanged
+
+`7/12` live; CI green, all 7 jobs, `414/414` across 11 suites, `N-07 18/18`, `AI-005` present.
+**`apps/api` stands.** The §51 retirement audit is complete and executes in one change the moment the
+round trip verifies.
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled
