@@ -10177,3 +10177,118 @@ Identical to §93.5. The three live inputs (approved screen package · `CONF-D6`
 external-design boundaries; `PD-G01`, P10's installation constraint and production are standing ones.
 
 **No migration authored, no application file changed, no production contact. QA at 152.**
+
+---
+
+## 95 · I CAUSED A CI FAILURE, AND IT LOOKED LIKE AN AUTHORIZATION HOLE — TWO RUNNERS, ONE QA PROJECT
+
+**§93's commit is documentation only — three markdown edits — and its CI run came out RED.** A docs-only
+commit cannot break an authorization boundary, so the red was either a coincidence or something about how
+it was produced. **It was something about how it was produced, and the producer was me.**
+
+### 95.1 What CI reported
+
+```
+FAIL  D-01  coach_client_relationships      41/43
+FAIL  P1    profile + status boundaries     35/37
+480/484 assertions passed across 12 suites          (exit 1)
+```
+
+The four failures, in the order the log prints them:
+
+| # | assertion | result |
+|---|---|---|
+| 1 | coach can set a per-client price | `status=204` |
+| 2 | client can cancel their own coaching relationship | `status=204 affected=0` |
+| 3 | **fixture:** the relationship is actually at status `'cancelled'` | **`insert=409 readback=active`** |
+| 4 | relationship `'cancelled'` → coach is **DENIED** the client photo | **`status=200 objects=1`** |
+
+**Minutes earlier, the same suite on the same commit ran 484/484 locally** (§94.1).
+
+### 95.2 The cause — established by timestamp, not inferred from plausibility
+
+| run | window (UTC) |
+|---|---|
+| CI's `Live security suite` step, run `36768772518` | **19:54:40 → 19:56:16** |
+| my local full run (captured log mtime; ~2–3 min duration) | finished **19:58:07**, so began ≈ **19:55:30** |
+| my local *first* attempt, which died in `3A-10` fixture setup on `409 23505 duplicate key … conversations_unique_participant_pair` | immediately before that, ≈ **19:53–19:55** |
+
+**They overlapped.** And `run.mjs`'s own header says why that is fatal: *"The suites share fixtures and
+run sequentially on purpose — they arrange and tear down the **same four identities and the same
+relationship rows**."* **"Sequentially" is a guarantee about the suites inside one process. It is not a
+lock.** Two runners against one QA project arrange the same rows against each other.
+
+The two sides show the **mirror-image symptom**, which is the part that makes this conclusive rather than
+merely consistent: CI's arrange got `insert=409` (*the row already exists*) with `readback=active` (*the
+other runner is holding it active*), while my first local attempt got `409 duplicate key` on **its**
+fixture creation. Neither symptom appears in a run that has the project to itself.
+
+### 95.3 Failure 4 reads exactly like an authorization hole and is NOT one
+
+> `relationship 'cancelled' → coach is DENIED the client photo — status=200 objects=1`
+
+Read cold, that is a coach retrieving a former client's photo after the relationship ended — a live PHI
+disclosure, and by severity the most alarming line this suite has ever printed.
+
+**It is a precondition cascade.** The assertion **immediately above it** is the arrange step that failed:
+the relationship never reached `'cancelled'` (`readback=active`). So at the moment assertion 4 ran the
+relationship was **active**, and a coach reading an active client's photo is the control **working**.
+Failures 1 and 2 are the same cascade one step earlier — `affected=0` because the row the PATCH targeted
+was not in the state the suite had arranged.
+
+**All four failures descend from one corrupted arrange step. Zero of them are authorization findings.**
+This is stated at length because the cheap reading — *"CI went red on a security suite, we have a PHI
+leak"* — is wrong, and the expensive reading — *"CI goes red sometimes, ignore it"* — is worse.
+
+### 95.4 What I did wrong
+
+**I ran the live suite locally without checking whether CI was already running it.** §94 was careful about
+the things it measured and careless about the environment it measured them in. The §94 record stands as
+written — 484/484 locally is what happened — but it was produced by a run that **degraded a concurrent CI
+run**, and that belongs in the record next to it.
+
+Also: **my local run's own first attempt aborted on this same contention and I attributed it to leftover
+state from a prior run** (§94.3, observation 2). That attribution is **wrong**, and this is the
+correction: it was not a stale row from an earlier run, it was **CI holding the row at that moment**. The
+observation's classification — test hygiene, not product defect, not a regression — survives; its
+mechanism does not. §94.3 is corrected here rather than edited, and the *"recorded, not fixed"*
+disposition now has a **known** cause instead of a guessed one.
+
+### 95.5 What changed, and what deliberately did not
+
+**Changed — documentation only.** `run.mjs`'s header now carries a **⚠ ONE RUNNER AT A TIME, PER QA
+PROJECT** warning: that "sequentially" is not a lock, what the collision looks like from both sides, that
+failure 4 reads like a hole and is not one, and to check `gh run list` before running locally.
+
+**NOT changed — no mechanism.** A real fix is an actual mutual-exclusion mechanism: per-runner fixture
+identities, a QA advisory lock, or a CI concurrency group covering local runners. **Every one of those is
+test-infrastructure design, and two of them change how CI gates the branch.** That is an owner/
+architectural decision, not a comment. **Recorded as an open item; not designed, not implemented.**
+
+**Also not changed:** no migration, no policy, no application file. **No authorization boundary was
+touched, and none was found to be defective.**
+
+### 95.6 Verification
+
+**The proposition to test is that the assertions are sound and only the environment was not.** Evidence,
+in the order it was obtained:
+
+1. **484/484 locally on the same commit** (§94.1) — the four assertions pass when the suite has the
+   project to itself.
+2. **The arrange step names the collision** — `insert=409 readback=active` is a report of another writer,
+   not of a broken assertion.
+3. **The mirror symptom on the other side** — the local attempt's own fixture `409`.
+
+**Outstanding and required before this section can be called closed: one CI run of the live suite with no
+local run overlapping it.** The push carrying this section is that run. If it returns 484/484, the
+diagnosis holds; if it returns 480/484 again with the same four, the diagnosis is wrong and there is a
+real finding in D-01/P1 to chase. **Recorded before the result is known, so the prediction cannot be
+written to fit it.**
+
+### 95.7 Frontier
+
+**Unchanged** — §93.5's three owner/design inputs, plus one **new open non-blocking item**: fixture
+isolation between concurrent runners (§95.5). It blocks nothing; it makes the regression instrument
+misleading when two runners overlap.
+
+**No migration, no application file, no production contact. QA at 152.**

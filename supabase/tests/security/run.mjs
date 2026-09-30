@@ -6,6 +6,25 @@
 //
 // The suites share fixtures and run sequentially on purpose — they arrange and
 // tear down the same four identities and the same relationship rows.
+//
+// ⚠ ONE RUNNER AT A TIME, PER QA PROJECT. "Sequentially" covers the suites inside
+// one process; NOTHING here prevents two runners from colliding. Because every
+// suite arranges the SAME four identities and the SAME relationship rows against
+// the SAME QA project, a local run overlapping a CI run corrupts both.
+//
+// Observed, V5 §95: a local run at 19:55-19:58Z overlapped CI's live-security step
+// at 19:54:40-19:56:16Z. CI came out 480/484 with D-01 41/43 and P1 35/37, while
+// the local run of the same commit was 484/484. All four CI failures cascaded from
+// ONE arrange step -- `insert=409 readback=active`, i.e. the relationship row
+// already existed and the other runner held it 'active' -- and one of them,
+// "relationship 'cancelled' -> coach is DENIED the client photo (status=200)",
+// READS EXACTLY LIKE AN AUTHORIZATION HOLE AND IS NOT ONE: its precondition never
+// held, so the relationship was active and the coach was legitimately permitted.
+//
+// So: before running this locally, check that no CI run is in flight
+// (`gh run list --branch <branch> --limit 1`). A red result from a collision is
+// indistinguishable at a glance from a real regression, which is the whole reason
+// this warning is here rather than in a commit message.
 import { results, beginSuite } from './lib.mjs';
 
 const SUITES = [
