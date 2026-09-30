@@ -10612,3 +10612,15 @@ behind `CONF-D7`. `PD-G01`, P10's installation constraint and production standin
 
 **No migration, no application file, no production contact. No Admin UI implemented, begun or scaffolded.
 QA at 152.**
+
+### 98.4 I broke §96.2's rule one section after adopting it
+
+§96.2 adopted: *"before pushing, confirm no run is in flight."* **§97's CI run shows `cancelled`** — I
+pushed §98 over it. I checked CI before starting the §97 work and then did not check again before the
+push, which is not what the rule says.
+
+**Consequence: none to the evidence.** §98's own run is **6/6 green** including `Live QA suites`, so the
+branch head is verified; the only loss is §97's own run record. **Recorded because a rule I adopted and
+then broke, unrecorded, would be worse than not having adopted it** — and this is the third instance of
+the §96.2 class, after the local-vs-CI collision (§95) and the first supersede (§96.2). The rule needs an
+actual check at the moment of pushing, not at the start of a work block.
