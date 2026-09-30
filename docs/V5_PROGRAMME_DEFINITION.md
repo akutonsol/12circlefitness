@@ -6099,6 +6099,74 @@ route was unreachable in every build. The Edge path is strictly better than what
 unconfigured — it returns honest `400`s and `401`s where the old path returned nothing at all.
 
 
+---
+
+## 49 · CREDENTIAL BOUNDARY — THE AUTHORIZATION WAS GIVEN, THE SECRET WAS NOT
+
+The lead authorized provisioning `ANTHROPIC_API_KEY` into QA's function secrets. **The
+authorization is not the blocker; the secret value is.** I do not hold it and cannot obtain it.
+
+### 49.1 Checked, presence only, never values
+
+| Source | Result |
+|---|---|
+| `ANTHROPIC_API_KEY` in this environment | **unset** |
+| `QA_ANTHROPIC_API_KEY`, `CLAUDE_API_KEY` | **unset** |
+| `.env`, `.env.local`, `apps/api/.env` | all three exist; **none** contains an `ANTHROPIC_API_KEY` line |
+| `apps/api/.env.local` | absent |
+| `sk-ant-` occurrences in tracked source | **all test fixtures** in `ai-nutrition.service.spec.ts`, `ai.controller.spec.ts`, `api-config.spec.ts` — constants whose purpose is asserting the key is never leaked |
+
+**No credential value was printed, echoed, committed or placed in any report.** The fixture matches
+above were redacted before display.
+
+### 49.2 Why this is a boundary and not something to route around
+
+Three paths exist and all three are closed:
+
+- **Invent a key** — it would fail against Anthropic, and a fabricated credential in a shared
+  environment's secret store is worse than an absent one.
+- **Read it from shell configuration** — a standing constraint in this programme forbids scraping
+  credentials from shell config, and it was denied earlier in this session.
+- **Copy a production credential** — explicitly forbidden by this authorization, and none is held.
+
+So the provisioning step cannot be executed by me. Everything downstream of it — the live
+happy path, the image path, the response-contract round trip, retry behaviour against a real
+upstream, and therefore Phase 5's retirement — waits on it.
+
+### 49.3 What the missing key does and does not block
+
+**Already verified and unaffected:** authentication (live `401` for absent and malformed tokens),
+every validation case (live `400` with exact messages), the client-side contract (12 untouched
+tests), the server-side contract (`AI-005`, shown non-vacuous), and CI.
+
+**Blocked:** the Claude round trip, and with it the one piece of logic no other evidence reaches —
+**response parsing**: joining text blocks, trimming, and the empty-response → `503` arm. That is
+the honest residual gap, and it is why `apps/api` still stands.
+
+### 49.4 Reachable work completed while blocked
+
+`d09` §7 was still titled *"RESIDUAL FINDING — the base-table path is still wider than N-07"*, with
+a comment reading *"EXPECTED TO FAIL until the owner rules on the base-table policy"*. **That ruling
+was made and implemented while the file sat unregistered** — migration 132 removed the team-leader
+arm, 135 removed the event-host arm (§21.2, §43.3). The assertion now **passes**.
+
+Reconciled: the section is retitled, the stale expectation replaced with what actually happened, and
+**the assertion is kept rather than deleted — it is now a ratchet.** If either arm is ever added
+back, `S-N07-a` is what fails. Re-verified against QA: **18/18**.
+
+### 49.5 The exact ask
+
+One command, run by someone who holds the key:
+
+```
+supabase secrets set ANTHROPIC_API_KEY=<value> --project-ref eyqtldjqpgpljlqvpowh
+```
+
+It also fixes the **five other AI Edge Functions** that are unconfigured on QA today for the same
+reason — `ai-coach`, `ai-coaching-engine`, `ai-generate-workout`, `analyze-food-image`,
+`enrich-exercise` — which is worth knowing independently of this workstream.
+
+
 ## 16 · FINAL STATE AND NEXT DECISION BOUNDARY
 
 ### 16.1 What remains owner-controlled

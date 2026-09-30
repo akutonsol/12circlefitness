@@ -233,15 +233,26 @@ section('6. Access is actually logged, and the log is honest (QA-8)');
 }
 
 // ═══ 7. the residual base-table exposure ═══════════════════════════════════
-section('7. RESIDUAL FINDING — the base-table path is still wider than N-07');
+section('7. The base-table path — was a residual finding, now CLOSED');
 {
-  // Recorded as an assertion so the exposure cannot be quietly forgotten once
-  // the narrow RPC exists. These are EXPECTED TO FAIL until the owner rules on
-  // the base-table policy; the RPC does not fix them and never claimed to.
+  // This was written as a KNOWN-FAILING assertion: when d09 was authored, migration
+  // 102's SELECT policy still carried `is_team_lead_of(id)` and `hosts_event_for(id)`,
+  // so a team lead received the whole row including the clinical columns. The comment
+  // here used to read "EXPECTED TO FAIL until the owner rules on the base-table
+  // policy".
+  //
+  // That ruling was made and implemented while this file sat unregistered:
+  // migration 132 removed the team-lead arm and 135 removed the event-host arm
+  // (V5 §21.2, §43.3). The live QA policy is now
+  // `USING ((id = auth.uid()) OR is_active_coach_of(id))`, and this assertion
+  // PASSES — first observed 2026-09-29 at 18/18.
+  //
+  // It is kept, not deleted: it is now a ratchet. If either arm is ever added back,
+  // this is the assertion that fails.
   const lead = await rest(adminJwt, `user_profiles?id=eq.${ids.victim}&select=${MED}`);
   check('S-N07-a  a team lead cannot read a member\'s medical columns',
         lead.status >= 400 || n(lead.body) === 0,
-        `status=${lead.status} rows=${n(lead.body)} — is_team_lead_of() grants the whole row`);
+        `status=${lead.status} rows=${n(lead.body)} — migrations 132/135 removed the team-lead and event-host arms`);
 }
 
 await reset();
