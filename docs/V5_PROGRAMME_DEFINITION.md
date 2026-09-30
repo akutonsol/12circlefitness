@@ -8135,3 +8135,72 @@ terms. **Nothing about them is undecided. They have simply never been built.**
 **Nothing implemented. No migration, no schema, no provisioning. QA at frontier 141. Registry
 untouched. Production not contacted.**
 
+
+## 73 · FRONTIER REASSESSED — THE `D12` GATE MOVED, AND ONE CLASSIFICATION QUESTION IS NOW THE BOUNDARY
+
+§72 established `D4` is complete. Reassessing what that leaves, against the **authoritative ledger at
+§20.1 — 42 decisions accounted for**: 35 resolved under §19's delegation, 3 deferred under `PD-G01`,
+**4 EXTERNAL OWNER DEPENDENCY — `D12` `Q7`, `Q8`, `Q10`, `Q11`**.
+
+### 73.1 The four external dependencies were blocked on two decisions that have since been made
+
+§20.1 classified `Q7`/`Q8`/`Q10`/`Q11` as *"not this delegation's to make"*, and §18's table gives the
+reason in full:
+
+> *"**Another owner's gate** — `D12` `Q7`, `Q8`, `Q10`, `Q11` — blocked on **`PD-A24`** / **`PD-A17`**
+> — TRACKED, OPEN, owner *Julia*. **Not yours to answer; a scheduling matter.**"*
+
+**Both gates have since closed.** `PD-A24 = C` (sink only, defer vendor) and `PD-A17 = A`, resolved as
+**A2** — the nutrition capability runs as an Edge Function and `apps/api` is retired (§55). §57.2
+records the consequence directly:
+
+> *"**Ten of the eleven questions are now answerable from discharged dependencies and existing
+> rulings.** `Q2` — minting the correlation identifier — is not."*
+
+And `Q2` is precisely what §58–§71 worked through: cryptographic grounding → option (b) → custody
+verified (§61) → **signing authority breached** (§68) → `Q5` → **Option A** (§71).
+
+### 73.2 What this does NOT mean
+
+**`PD-A24 = C` does not answer `D12`.** §56.1 corrected exactly that error of mine once already, and
+§57.2 restates it: *"`PD-A24` covers **vendor · cost · data-residency** only. Its `C` answer discharges
+the **dependency** — it does not supply `D12`'s content."* `PD-A24` is a **subset** of `D12`
+(§8.10), and *"`D12` must not fork it."* **Discharged is not answered, and answerable is not
+answered.** The ten questions remain open; only their blockers are gone.
+
+### 73.3 The boundary — a classification question I must not answer
+
+§20.1 excluded `Q7`/`Q8`/`Q10`/`Q11` from the §19 delegation. **Whether that exclusion was about the
+SUBJECT MATTER or about the BLOCKING is genuinely ambiguous, and it decides who answers them:**
+
+- If it was **about the blocking** — the wording *"a scheduling matter"* points this way — then the
+  gates have closed and the four questions now fall **inside** §19's delegation, alongside the other
+  six, and can be taken under the same 13-point hierarchy.
+- If it was **about the subject matter** — observability store location, `/health` and `/metrics`
+  exposure, release-sink destination and alerting are platform and cost commitments — then they stay
+  **outside** the delegation regardless of `PD-A24`/`PD-A17`, and remain the owner's.
+
+**This is not mine to resolve.** §19's hierarchy ranks **11 · never silently broaden** a trust
+boundary or scope, and reading an expired blocker as a grant of authority over four platform
+decisions would do exactly that. **Recorded as the boundary, not decided.**
+
+### 73.4 Frontier, current
+
+| item | status |
+|---|---|
+| `D4` (all of `A1`–`A14`) · `D11` | **COMPLETE** — §8.3–8.9, §19.2 |
+| `CONF-02` · `D3` · `D17` · `D15` · `D-D1` · `EC-01` | **RESOLVED** — §19.1, §19.4, §20.1 |
+| `PD-A24` · `PD-A17` | **RESOLVED** — `C`; `A` as **A2**, implemented |
+| `D12 · Q2` / `Q5` | **RULED** — Option A (§71); signing authority breached (§68) |
+| `D12` — six unblocked questions | **OPEN**, answerable, inside the delegation |
+| `D12` — `Q7`/`Q8`/`Q10`/`Q11` | **OPEN** — blockers discharged; **classification question §73.3** |
+| `D-V1`/`D-V2`/`D-V4` (+`D-V3`) | **DEFERRED** under `PD-G01` — implementation NOT authorized |
+| Project B provisioning | **OPEN** — owner / account action |
+| Audit + observability populations | **decided down to DML; NEVER BUILT** — build authorization is the owner's (§72.5) |
+
+**`P2` remains blocked**, and for a narrower reason than §20 recorded: not `D4`, which is complete,
+but `D12`'s outstanding content plus the two non-decision blockers above.
+
+**Nothing implemented. No migration, no schema, no provisioning. QA at frontier 141. Registry
+untouched. Production not contacted.**
+
