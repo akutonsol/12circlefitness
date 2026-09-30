@@ -15,5 +15,4 @@ class AppConstants {
   static String get supabaseAnonKey => AppEnv.current.supabaseAnonKey;
 
   /// Base URL of the 12 Circle NestJS API (AI endpoints live behind it).
-  static String get apiBaseUrl => AppEnv.current.apiBaseUrl;
 }

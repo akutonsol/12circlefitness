@@ -33,7 +33,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { deriveSchema, deriveForeignKeys, VIEWS, STORAGE_BUCKETS } from './schema.mjs';
 
-const ROOTS = ['apps/mobile/lib', 'apps/api/src', 'supabase/functions'];
+// apps/api/src was a third root until the NestJS retirement (V5 §55).
+const ROOTS = ['apps/mobile/lib', 'supabase/functions'];
 const known = JSON.parse(readFileSync('supabase/tests/contract/known-violations.json', 'utf8'));
 
 function sources(dir, acc = []) {

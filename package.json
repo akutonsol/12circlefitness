@@ -4,13 +4,10 @@
   "description": "12 Circle Fitness - Complete Fitness & Wellness Platform",
   "private": true,
   "workspaces": [
-    "apps/api",
     "packages/*"
   ],
   "scripts": {
-    "api": "cd apps/api && npm run start:dev",
-    "test": "npm run test:api && npm run test:mobile",
-    "test:api": "npm test --workspace apps/api && npm run test:e2e --workspace apps/api",
+    "test": "npm run test:mobile",
     "test:mobile": "cd apps/mobile && flutter test",
     "test:security": "node supabase/tests/security/run.mjs",
     "test:ai": "node supabase/tests/ai/run.mjs",

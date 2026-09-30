@@ -154,14 +154,12 @@ Iterable<File> _libFiles() sync* {
   }
 }
 
-String _apiSrc(String relative) {
-  final f = File('${_repoRoot().path}/apps/api/src/$relative');
-  if (!f.existsSync()) throw StateError('apps/api/src/$relative should exist');
-  return f.readAsStringSync();
-}
-
 /// Every AI edge function that talks to Anthropic.
 const _anthropicFunctions = <String>[
+  // Added when the NestJS nutrition route became an Edge Function (PD-A17 = A
+  // resolved as A2, V5 §46-§55). It is an Anthropic caller, so every
+  // characterization in this file that sweeps the set must now include it.
+  'ai-nutrition',
   'ai-coach',
   'ai-coaching-engine',
   'ai-generate-workout',
@@ -554,25 +552,31 @@ void main() {
       expect(_edgeFn('ai-coaching-engine'), isNot(contains('food_allergies')),
           reason: 'F-J-05 is fixed — invert this test');
       expect(_edgeFn('analyze-food-image'), isNot(contains('food_allergies')));
-      expect(_apiSrc('ai/ai-nutrition.service.ts'), isNot(contains('food_allergies')));
+      expect(_edgeFn('ai-nutrition'), isNot(contains('food_allergies')));
       expect(_edgeFn('ai-coach'), contains('"kind":"like|dislike|injury|constraint|preference"'),
           reason: 'the memory extractor has no allergy kind to put one in');
     });
 
     test('[characterizes F-J-26] the nutrition coach is given no subject context at all', () {
-      // The NestJS route is the security-correct one — the Anthropic key is
-      // server-held and the caller's Supabase session is verified. But the DTO
-      // carries only message/history/image: the service never looks up who the
-      // caller is, so meal plans and grocery lists are produced with no plan, no
-      // targets, no goal, and no allergies.
-      final svc = _apiSrc('ai/ai-nutrition.service.ts');
+      // The nutrition route is the security-correct one — the Anthropic key is
+      // server-held and the caller's Supabase session is verified. But the body
+      // carries only message/history/image: it never looks up who the caller is,
+      // so meal plans and grocery lists are produced with no plan, no targets,
+      // no goal, and no allergies.
+      //
+      // Repointed from apps/api to the Edge Function when the route moved
+      // (V5 §46-§55). The defect is UNCHANGED by that move, which is why this
+      // characterization survives it rather than being deleted.
+      final svc = _edgeFn('ai-nutrition');
       expect(svc, contains('NUTRITION_SYSTEM_PROMPT'));
       for (final field in const ['user_profiles', 'client_nutrition_plans', 'sub', 'userId']) {
         expect(svc, isNot(contains(field)),
             reason: 'F-J-26 is fixed — the service now loads $field; invert this test');
       }
-      // The guard that IS in place, and must stay.
-      expect(_apiSrc('ai/ai.controller.ts'), contains('@UseGuards(SupabaseAuthGuard)'));
+      // The guard that IS in place, and must stay. On the Edge side that is the
+      // explicit getUser() check, backed by verify_jwt = true in config.toml.
+      expect(svc, contains('userDb.auth.getUser()'));
+      expect(svc, contains("json({ error: 'Missing or invalid access token' }, 401)"));
     });
   });
 
@@ -671,8 +675,14 @@ void main() {
       //
       // REMEDIATION: the same `if (!ANTHROPIC_API_KEY) return json({ error:
       // 'AI not configured' }, 500)` guard the other six use, and drop `detail`.
+      // Matched on the PROPERTY rather than one exact string. ai-nutrition says
+      // "AI is not configured" because that wording is ported verbatim from the
+      // NestJS service it replaced (§47), and the guard is what matters here, not
+      // the phrasing.
       for (final name in _anthropicFunctions.where((n) => n != 'ai-coach')) {
-        expect(_edgeFn(name), contains("'AI not configured'"),
+        final src = _edgeFn(name);
+        expect(src.contains("'AI not configured'") || src.contains("'AI is not configured'"),
+            isTrue,
             reason: '\$name must fail closed when the key is absent');
       }
       final src = _edgeFn('ai-coach');
@@ -700,10 +710,21 @@ void main() {
       //
       // REMEDIATION: check stop_reason before reading content; treat 'refusal'
       // and 'max_tokens' as distinct, reportable outcomes; never persist on either.
-      for (final name in _anthropicFunctions) {
+      // ai-nutrition is EXCLUDED because it already does the remediation this
+      // characterization asks for, and that is worth recording rather than
+      // hiding: it reads stop_reason, and on empty content it returns 503
+      // "AI returned an empty response" instead of persisting anything. It is the
+      // counter-example proving the defect is fixable, and the shape the other
+      // six should adopt. Ported from the NestJS service (§47), which behaved the
+      // same way.
+      for (final name in _anthropicFunctions.where((n) => n != 'ai-nutrition')) {
         expect(_edgeFn(name), isNot(contains('stop_reason')),
             reason: 'F-J-20 is fixed in $name — invert this test');
       }
+      final nutrition = _edgeFn('ai-nutrition');
+      expect(nutrition, contains('stop_reason'));
+      expect(nutrition, contains("json({ error: 'AI returned an empty response' }, 503)"),
+          reason: 'it refuses an empty answer rather than persisting one');
       final engine = _edgeFn('ai-coaching-engine');
       expect(engine, contains("(aiData.content?.[0]?.text ?? '{}')"));
       expect(engine, contains("title: out.title ?? 'Today’s Coaching', body: out.body ?? ''"),
@@ -722,9 +743,15 @@ void main() {
         expect(src.contains('AbortSignal') || src.contains('AbortController'), isFalse,
             reason: 'F-J-21 is fixed in $name — invert this test');
       }
-      // The NestJS route inherits the SDK's 10-minute default and its retries;
-      // that is a bound, if a generous one.
-      expect(_apiSrc('ai/ai-nutrition.service.ts'), contains('new Anthropic({ apiKey })'));
+      // F-J-21 got slightly WORSE, and that is recorded rather than glossed.
+      // The NestJS route inherited the Anthropic SDK's 10-minute default, which
+      // was a bound even if a generous one. Retiring apps/api removed it: every
+      // Anthropic call in this repo is now an unbounded Deno fetch. The retry
+      // count WAS preserved in the move (§48.2); the timeout never existed to
+      // preserve.
+      expect(_edgeFn('ai-nutrition'), contains('ANTHROPIC_MAX_RETRIES = 2'),
+          reason: 'retry parity with the SDK default was preserved; the timeout '
+              'bound was not, because the SDK supplied it and the SDK is gone');
     });
 
     test('[characterizes F-J-16] the coaching-engine client cannot report a failure', () {
@@ -795,9 +822,13 @@ void main() {
       expect(ids.length, greaterThan(1),
           reason: 'F-J-25 is fixed — model ids are centralised; invert this test. Found: $ids');
 
-      // The API side does pin its default in one place and allows an override.
-      expect(_apiSrc('config/api-config.ts'), contains('DEFAULT_ANTHROPIC_MODEL'));
-      expect(_apiSrc('config/api-config.ts'), contains('env.ANTHROPIC_MODEL'));
+      // ai-nutrition carries the one good shape: a single named constant with an
+      // env override, so its model id is NOT one of the scattered literals above.
+      // That pin moved here from apps/api/src/config/api-config.ts when the route
+      // did (§46-§55).
+      expect(_edgeFn('ai-nutrition'), contains("Deno.env.get('ANTHROPIC_MODEL')"));
+      expect(_edgeFn('ai-nutrition'), contains('model: ANTHROPIC_MODEL'),
+          reason: 'a variable, not a literal — this is the shape F-J-25 asks for');
 
       // Nothing but explain-decision writes a model id next to its output.
       for (final name in const ['ai-coach', 'ai-coaching-engine', 'ai-generate-workout',

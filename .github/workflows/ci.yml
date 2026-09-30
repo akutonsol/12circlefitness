@@ -245,19 +245,6 @@ jobs:
           fi
           echo "OK — the QA artifact names only the QA project (${QA_REF})."
 
-  api:
-    name: API — unit + e2e
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npm run test:api
-
   # ── The live suites. EB-1 provisions the scoped QA service-role key that this
   #    job needs; until then it SKIPS rather than fails, so ENV-6's always-on
   #    half lands now instead of waiting on a credential.

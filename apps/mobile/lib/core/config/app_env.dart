@@ -11,7 +11,6 @@
 ///               --dart-define=SUPABASE_URL=https://YOUR_QA_REF.supabase.co \
 ///               --dart-define=SUPABASE_ANON_KEY=YOUR_QA_PUBLISHABLE_KEY \
 ///               --dart-define=STRIPE_PK=pk_test_... \
-///               --dart-define=API_BASE_URL=https://qa-api.example.com
 ///
 /// SECURITY: only client-safe values belong in this file. The Supabase
 /// publishable/anon key and the Stripe *publishable* key are designed to be
@@ -70,15 +69,11 @@ class EnvConfig {
   /// Stripe *publishable* key — client-safe. Never the secret key.
   final String stripePublishableKey;
 
-  /// Base URL of the 12 Circle NestJS API (hosts the AI endpoints).
-  final String apiBaseUrl;
-
   const EnvConfig({
     required this.environment,
     required this.supabaseUrl,
     required this.supabaseAnonKey,
     required this.stripePublishableKey,
-    required this.apiBaseUrl,
   });
 
   bool get isProduction => environment == AppEnvironment.prod;
@@ -90,24 +85,11 @@ class EnvConfig {
   /// it did before environments were introduced.
   bool get hasStripeKey => stripePublishableKey.isNotEmpty;
 
-  /// True when the AI endpoints on the NestJS API are reachable.
-  bool get hasApiBaseUrl => apiBaseUrl.isNotEmpty;
-
-  /// Joins [path] onto [apiBaseUrl] without doubling or dropping the slash.
-  String apiUri(String path) {
-    final base = apiBaseUrl.endsWith('/')
-        ? apiBaseUrl.substring(0, apiBaseUrl.length - 1)
-        : apiBaseUrl;
-    final suffix = path.startsWith('/') ? path : '/$path';
-    return '$base$suffix';
-  }
-
   /// Human-readable list of anything a build of this environment is missing.
   /// Empty means the build is fully configured.
   List<String> missingSettings() => [
         if (supabaseUrl.isEmpty) 'SUPABASE_URL',
         if (supabaseAnonKey.isEmpty) 'SUPABASE_ANON_KEY',
-        if (apiBaseUrl.isEmpty) 'API_BASE_URL',
       ];
 
   /// Supabase can be initialised (Stripe/API are checked at point of use).
@@ -117,7 +99,6 @@ class EnvConfig {
   @override
   String toString() =>
       'EnvConfig(${environment.label}, supabaseUrl: $supabaseUrl, '
-      'api: ${apiBaseUrl.isEmpty ? '<unset>' : apiBaseUrl}, '
       'stripe: ${hasStripeKey ? 'configured' : '<unset>'})';
 }
 
@@ -131,8 +112,6 @@ class EnvConfig {
 // cannot connect to, and `main()` refuses to start rather than falling through
 // to real user data.
 //
-// The one non-empty default left is dev's `API_BASE_URL`, which points at
-// localhost — a value that is inert unless a developer is running the API.
 
 /// Per-environment defaults, overridable by the matching `--dart-define`.
 const Map<AppEnvironment, EnvConfig> kEnvironmentDefaults = {
@@ -141,21 +120,18 @@ const Map<AppEnvironment, EnvConfig> kEnvironmentDefaults = {
     supabaseUrl: '',
     supabaseAnonKey: '',
     stripePublishableKey: '',
-    apiBaseUrl: 'http://localhost:3000',
   ),
   AppEnvironment.qa: EnvConfig(
     environment: AppEnvironment.qa,
     supabaseUrl: '',
     supabaseAnonKey: '',
     stripePublishableKey: '',
-    apiBaseUrl: '',
   ),
   AppEnvironment.prod: EnvConfig(
     environment: AppEnvironment.prod,
     supabaseUrl: '',
     supabaseAnonKey: '',
     stripePublishableKey: '',
-    apiBaseUrl: '',
   ),
 };
 
@@ -169,7 +145,6 @@ const String kSupabaseUrlDefine = String.fromEnvironment('SUPABASE_URL');
 const String kSupabaseAnonKeyDefine =
     String.fromEnvironment('SUPABASE_ANON_KEY');
 const String kStripePkDefine = String.fromEnvironment('STRIPE_PK');
-const String kApiBaseUrlDefine = String.fromEnvironment('API_BASE_URL');
 
 /// The environment an absent `APP_ENV` resolves to.
 ///
@@ -196,7 +171,6 @@ EnvConfig resolveEnvConfig({
   String supabaseUrl = kSupabaseUrlDefine,
   String supabaseAnonKey = kSupabaseAnonKeyDefine,
   String stripePublishableKey = kStripePkDefine,
-  String apiBaseUrl = kApiBaseUrlDefine,
   bool isReleaseBuild = kReleaseMode,
 }) {
   final AppEnvironment environment;
@@ -231,7 +205,6 @@ EnvConfig resolveEnvConfig({
     supabaseAnonKey: pick(supabaseAnonKey, defaults.supabaseAnonKey),
     stripePublishableKey:
         pick(stripePublishableKey, defaults.stripePublishableKey),
-    apiBaseUrl: pick(apiBaseUrl, defaults.apiBaseUrl),
   );
 }
 

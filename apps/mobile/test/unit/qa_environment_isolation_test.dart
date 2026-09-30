@@ -107,7 +107,6 @@ void main() {
         supabaseUrl: d['SUPABASE_URL']!,
         supabaseAnonKey: d['SUPABASE_ANON_KEY']!,
         stripePublishableKey: d['STRIPE_PK']!,
-        apiBaseUrl: d['API_BASE_URL']!,
       );
 
       expect(config.environment, AppEnvironment.qa);
@@ -160,7 +159,6 @@ void main() {
         supabaseUrl: '',
         supabaseAnonKey: '',
         stripePublishableKey: '',
-        apiBaseUrl: '',
         isReleaseBuild: false,
       );
 
@@ -183,8 +181,7 @@ void main() {
           supabaseUrl: '',
           supabaseAnonKey: '',
           stripePublishableKey: '',
-          apiBaseUrl: '',
-          isReleaseBuild: true,
+            isReleaseBuild: true,
         ),
         throwsA(isA<StateError>()),
         reason: 'a shipping binary must name its environment explicitly',

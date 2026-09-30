@@ -18,7 +18,7 @@
 //          has a CREATE in supabase/, except the two known-missing ones
 //   EC-G3  the two in-tree reference implementations of "a zero-row PostgREST
 //          write is a refusal, not a success" keep their verification
-//   EC-G4  apps/api keeps the outcome distinctions that make it the reference
+//   EC-G4  the nutrition Edge Function keeps the outcome distinctions that make
 //          layer (misconfigured != unauthorized; empty AI answer != success)
 //   EC-G5  a ratchet: the repo-wide count of error-to-empty-value sites does
 //          not grow past the recorded Workstream B baseline
@@ -250,37 +250,48 @@ void main() {
     });
   });
 
-  // ── EC-G4 · apps/api keeps the outcome distinctions ───────────────────────
+  // ── EC-G4 · the nutrition endpoint keeps the outcome distinctions ─────────
   //
-  // The NestJS layer is the only place in the repo that already implements the
-  // contract in full: a misconfigured server is not a rejected credential, an
-  // empty upstream answer is not a successful answer, and upstream detail is
-  // logged rather than returned. It is the reference for the Dart and Edge
-  // layers, so its distinctions are pinned.
-  group('EC-G4 the API layer keeps its failure taxonomy', () {
-    test('an unconfigured auth secret is 503, not 401', () {
-      final src = _read('apps/api/src/auth/supabase/supabase-token.service.ts');
-      expect(src, contains('ServiceUnavailableException'));
-      expect(src, contains('Supabase authentication is not configured'));
-      expect(src, contains('UnauthorizedException'));
-      expect(src, contains('Invalid or expired access token'));
+  // This group used to read apps/api, whose NestJS layer was "the only place in
+  // the repo that already implements the contract in full". That layer was
+  // retired when PD-A17 = A resolved as A2 (V5 §46-§55) and the route became a
+  // Supabase Edge Function. **The reference moved; it was not lost.** Each
+  // distinction below is the same one, asserted against the implementation that
+  // now serves the traffic:
+  //
+  //   * a misconfigured server is not a rejected credential  — 503, not 401
+  //   * an empty upstream answer is not a successful answer  — 503, not ""
+  //   * upstream detail is logged rather than returned       — generic body
+  group('EC-G4 the nutrition endpoint keeps its failure taxonomy', () {
+    test('a misconfigured server is 503, not a rejected credential', () {
+      final src = _read('supabase/functions/ai-nutrition/index.ts');
+      // Absent key -> 503. Absent/!invalid token -> 401. The two are distinct.
+      expect(src, contains("json({ error: 'AI is not configured' }, 503)"));
+      expect(src, contains("json({ error: 'Missing or invalid access token' }, 401)"));
       // The comment states the rule; keeping it is part of keeping the rule.
-      expect(src,
-          contains('A misconfigured server must not look like a rejected credential'));
+      expect(src, contains('must not be reported as a rejected credential'));
     });
 
     test('an empty AI answer is refused, not returned as success', () {
-      final src = _read('apps/api/src/ai/ai-nutrition.service.ts');
-      expect(src, contains("throw new ServiceUnavailableException('AI returned an empty response')"),
+      final src = _read('supabase/functions/ai-nutrition/index.ts');
+      expect(src, contains("json({ error: 'AI returned an empty response' }, 503)"),
           reason: 'returning "" as a successful reply is the RC-C shape: a '
               'failure rendered as a valid empty domain value');
-      expect(src, contains('toClientSafeError'),
+      expect(src, contains("json({ error: 'AI is temporarily unavailable' }, 503)"),
           reason: 'upstream detail is logged, not returned');
+      // And the detail must never travel: the upstream status is logged only.
+      expect(src, contains('console.error(`Anthropic API error'));
     });
 
-    test('an unconfigured AI key is refused before the request is built', () {
-      final src = _read('apps/api/src/ai/ai-nutrition.service.ts');
-      expect(src, contains("ServiceUnavailableException('AI is not configured')"));
+    test('validation precedes the configuration check', () {
+      // The ordering a live QA probe caught (§47.3): checking the key first turns
+      // every malformed body into a 503 on an unconfigured environment. Nest ran
+      // guard -> ValidationPipe -> service, and that order is part of the taxonomy.
+      final src = _read('supabase/functions/ai-nutrition/index.ts');
+      final validateAt = src.indexOf('const invalid = validate(body)');
+      final configAt = src.indexOf("if (!ANTHROPIC_API_KEY) return json");
+      expect(validateAt, greaterThan(-1));
+      expect(configAt, greaterThan(validateAt));
     });
   });
 
@@ -312,7 +323,8 @@ void main() {
       final targets = <(String, String)>[
         ('apps/mobile/lib', '.dart'),
         ('apps/mobile/tool', '.dart'),
-        ('apps/api/src', '.ts'),
+        // apps/api/src was removed with the NestJS retirement (V5 §55). The
+        // ratchet is allowed to FALL — it may not rise.
         ('supabase/functions', '.ts'),
       ];
       for (final (dir, ext) in targets) {
@@ -359,7 +371,7 @@ void main() {
       for (final (dir, ext) in [
         ('apps/mobile/lib', '.dart'),
         ('apps/mobile/tool', '.dart'),
-        ('apps/api/src', '.ts'),
+        // apps/api/src removed with the NestJS retirement (V5 §55).
         ('supabase/functions', '.ts'),
       ]) {
         for (final f in _filesUnder(dir, ext)) {

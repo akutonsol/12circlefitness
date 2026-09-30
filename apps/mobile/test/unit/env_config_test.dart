@@ -19,7 +19,6 @@ EnvConfig resolveDefaults(String appEnv, {bool isReleaseBuild = false}) =>
       supabaseUrl: '',
       supabaseAnonKey: '',
       stripePublishableKey: '',
-      apiBaseUrl: '',
       // Pinned rather than inherited: the release rule is a behaviour under
       // test below, not an ambient property of whoever ran the suite.
       isReleaseBuild: isReleaseBuild,
@@ -110,14 +109,12 @@ void main() {
         supabaseUrl: 'https://qa-ref.supabase.co',
         supabaseAnonKey: 'qa-anon-key',
         stripePublishableKey: 'pk_test_qa',
-        apiBaseUrl: 'https://qa-api.12circle.test',
       );
 
       expect(config.environment, AppEnvironment.qa);
       expect(config.supabaseUrl, 'https://qa-ref.supabase.co');
       expect(config.supabaseAnonKey, 'qa-anon-key');
       expect(config.stripePublishableKey, 'pk_test_qa');
-      expect(config.apiBaseUrl, 'https://qa-api.12circle.test');
       expect(config.missingSettings(), isEmpty);
     });
 
@@ -127,7 +124,6 @@ void main() {
         supabaseUrl: 'https://override.supabase.co',
         supabaseAnonKey: '',
         stripePublishableKey: '',
-        apiBaseUrl: '',
       );
       expect(config.supabaseUrl, 'https://override.supabase.co');
       // Untouched settings still come from the prod defaults.
@@ -211,15 +207,14 @@ void main() {
     test('an unconfigured build reports exactly what is missing', () {
       expect(
         resolveDefaults('qa').missingSettings(),
-        containsAll(['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'API_BASE_URL']),
+        containsAll(['SUPABASE_URL', 'SUPABASE_ANON_KEY']),
       );
       expect(
         resolveEnvConfig(
           appEnv: 'qa',
           supabaseUrl: 'https://qa-ref.supabase.co',
           supabaseAnonKey: 'qa-anon-key',
-          apiBaseUrl: 'https://qa-api.12circle.test',
-        ).missingSettings(),
+          ).missingSettings(),
         isEmpty,
       );
     });
@@ -251,7 +246,6 @@ void main() {
         supabaseUrl: d['SUPABASE_URL']!,
         supabaseAnonKey: d['SUPABASE_ANON_KEY']!,
         stripePublishableKey: d['STRIPE_PK']!,
-        apiBaseUrl: d['API_BASE_URL']!,
         isReleaseBuild: true,
       );
       expect(prod.environment, AppEnvironment.prod);
@@ -299,34 +293,9 @@ void main() {
     });
   });
 
-  // ENV-005 — API base URL handling
-  group('ENV-005 API base URL', () {
-    test('dev defaults to the local API', () {
-      final dev = resolveDefaults('dev');
-      expect(dev.apiBaseUrl, 'http://localhost:3000');
-      expect(dev.hasApiBaseUrl, isTrue);
-    });
-
-    test('apiUri joins without doubling or dropping the slash', () {
-      final withSlash =
-          resolveEnvConfig(appEnv: 'qa', apiBaseUrl: 'https://api.test/');
-      final withoutSlash =
-          resolveEnvConfig(appEnv: 'qa', apiBaseUrl: 'https://api.test');
-
-      expect(withSlash.apiUri('/ai/nutrition/message'),
-          'https://api.test/ai/nutrition/message');
-      expect(withoutSlash.apiUri('/ai/nutrition/message'),
-          'https://api.test/ai/nutrition/message');
-      expect(withoutSlash.apiUri('ai/nutrition/message'),
-          'https://api.test/ai/nutrition/message');
-    });
-
-    test('an unset API base URL is reported rather than guessed', () {
-      final qa = resolveDefaults('qa');
-      expect(qa.hasApiBaseUrl, isFalse);
-      expect(qa.missingSettings(), contains('API_BASE_URL'));
-    });
-  });
+  // ENV-005 (API base URL) was REMOVED with apps/api: PD-A17 = A resolved as A2
+  // (V5 §46-§55). The AI nutrition capability is a Supabase Edge Function, so there
+  // is no second base URL to configure and nothing for this group to assert.
 
   // ENV-006 — the config surface carries no server secret
   group('ENV-006 no server secrets in client config', () {
@@ -338,7 +307,6 @@ void main() {
           config.supabaseUrl,
           config.supabaseAnonKey,
           config.stripePublishableKey,
-          config.apiBaseUrl,
         ]) {
           expect(value, isNot(contains('sk-ant')));
           expect(value, isNot(contains('anthropic')));

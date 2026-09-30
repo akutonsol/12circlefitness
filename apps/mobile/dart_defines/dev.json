@@ -2,6 +2,5 @@
   "APP_ENV": "dev",
   "SUPABASE_URL": "",
   "SUPABASE_ANON_KEY": "",
-  "STRIPE_PK": "",
-  "API_BASE_URL": "http://localhost:3000"
+  "STRIPE_PK": ""
 }

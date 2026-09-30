@@ -49,7 +49,6 @@ const _qaConfig = EnvConfig(
   supabaseUrl: 'https://qa-ref.supabase.co',
   supabaseAnonKey: 'qa-anon-key',
   stripePublishableKey: 'pk_test_qa',
-  apiBaseUrl: 'https://qa-api.12circle.test',
 );
 
 /// Resolves an environment ignoring this build's `--dart-define` values, so the
@@ -59,7 +58,6 @@ EnvConfig resolveDefaults(String appEnv) => resolveEnvConfig(
       supabaseUrl: '',
       supabaseAnonKey: '',
       stripePublishableKey: '',
-      apiBaseUrl: '',
     );
 
 AiNutritionService serviceWith(
@@ -101,8 +99,7 @@ void main() {
         supabaseUrl: 'https://dev-ref.supabase.co/',
         supabaseAnonKey: 'dev-anon-key',
         stripePublishableKey: 'pk_test_dev',
-        apiBaseUrl: '',
-      );
+        );
       await serviceWith(adapter, env: other)
           .sendMessage(message: 'hi', history: []);
 
