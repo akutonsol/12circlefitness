@@ -10990,3 +10990,164 @@ five owner decisions and `PD-C03`, and now §101.3's scope question.
 **Validated: the committed DOCX is unchanged and byte-identical; no application, migration or schema file
 touched; no production contact; no P5 implementation; no approved capability removed, deferred or
 replaced; the six-item Admin IA remains authoritative. QA at 152.**
+
+---
+
+## 102 · STANDING RULE — DESIGN → ARCHITECTURE · AN APPROVED CAPABILITY IS NEVER DELETED TO FIT THE CURRENT SYSTEM
+
+**Owner engineering rule, 2026-09-30. Mandatory, standing, and binding on all later V5 work — Admin AND
+Mobile.** Recorded here because a rule that lives only in a conversation is not a rule.
+
+### 102.1 The rule
+
+> **An owner-approved design is authoritative evidence of intended product capability.** A feature does not
+> become invalid because it is absent from `MASTER_PRODUCT_DECISIONS.md`, from `A1`–`A14`, from the
+> product bible, or from the architecture documentation — nor because there is no table, API, service,
+> migration or backend for it.
+>
+> **DO NOT delete · hide · collapse · replace with something simpler · remove from the design · or
+> redesign around the limitation.**
+>
+> ```
+> APPROVED PRODUCT DESIGN → REQUIRED CAPABILITY → ARCHITECTURE GAP
+>   → ARCHITECTURE EXTENSION → IMPLEMENTATION → VERIFICATION
+> ```
+>
+> The inverse — *current architecture → remove any design feature it cannot support* — is **prohibited**.
+>
+> **DOCUMENTATION GAP ≠ PRODUCT GAP.** Never conclude *"not in the docs, therefore not required."*
+> **ARCHITECTURE GAP ≠ DESIGN ERROR.** The architecture may simply be incomplete.
+>
+> **The one exception is governance:** where a design feature genuinely conflicts with an immutable V5
+> governance, security, privacy, authorization or production-safety requirement — **preserve the
+> requirement, name the conflict and the governing authority, and stop at the boundary.** A governance
+> conflict is a reason to stop. **A missing implementation is not.**
+>
+> An approved capability changes only when **(1)** an authorized owner decision changes the product, or
+> **(2)** an authoritative V5 governance/security decision establishes it cannot be implemented as
+> designed.
+
+**`CURRENT SYSTEM ≠ COMPLETE PRODUCT DEFINITION.`**
+
+### 102.2 Self-audit — did prior V5 work violate this rule?
+
+**On the substantive test, no.** No Dashboard area, screen or capability was removed, collapsed, deferred
+or replaced in §§98–101; each section states so explicitly, and §97.4 refused to let four green CI runs or
+an absent data path shrink the approved scope. §99.2's conclusion was *"P5 is larger than 'build the
+approved screens'"* — the architecture-must-grow direction, not the reverse.
+
+**On framing and completeness, two errors, both of the shape this rule exists to prevent.**
+
+**(a) I classified a capability as undefined after grepping, when the schema already had it.** The data
+contract's §9 said of the Ecosystem snapshot's *"86 pods"*: *"**'pods' is not a term the schema uses**"*,
+and marked it **B · OWNER DECISION**. **Wrong.** `accountability_pods` and `accountability_pod_members`
+exist — `002_ecosystem_additions.sql:90,107`. The capability is **supported**, not undecided. This is
+precisely *"not in the docs, therefore not required"* in miniature: a failed search became a product
+conclusion. **Corrected additively in the data contract; the original line is retained.**
+
+**(b) I framed two approved capabilities as "does this survive?" when the rule's default is "it stands."**
+§101.3 surfaced `A3`'s **Notifications** group and **Platform Health composition** as a *"scope question"*
+between two authorities. Under this rule the default is **preserved**, and removal requires an explicit
+owner decision — which is a materially different posture from an open contest. **Re-framed at §102.4.**
+
+**And the rule's own third example turned out to be in the approved specification**, unrecorded by me:
+§3 ¶28 — *"Community: Active communities, posts, engagement, **reports/moderation queue**"*. It appears in
+**no** prior V5 data-contract row. Full record below.
+
+### 102.3 Newly surfaced capabilities — the required reconciliation record
+
+#### CAP-1 · Community reports / moderation queue
+
+| field | finding |
+|---|---|
+| **Design capability** | A community **reports/moderation queue** |
+| **Exact design source** | Build Spec **§3 ¶28** — *"Community: Active communities, posts, events, engagement, **reports/moderation queue**"*, within `A3`'s 12 Overview groups |
+| **Documentation search** | `V5_DESIGN_AUTHORITY_RECONCILIATION:390` lists *"moderation queue"* among data the design assumes and the system lacks. **No decision record governs it**; it appears in no `PD-` row and in no prior data-contract row |
+| **Existing architecture support** | **Partial, and for a different domain.** `community_posts`, `post_reactions`, `post_comments`, `community_groups`, `accountability_pods` exist (`001`, `002`, `016`). `050_admin_exercise_moderation.sql` is **Global Exercise Library** moderation (`EL-005`) — a different object with its own `submission_status` queue |
+| **Missing capability** | **Reporting and moderation of community content.** `grep` for a report/flag/moderation-queue table returns **0 matches** |
+| **Required architecture extension** | a report/flag domain object over posts and comments · moderator **state machine** (open → triaged → actioned/dismissed) · queue read model · moderator action audit |
+| **Security / RLS** | a reporter must not read others' reports; a moderator needs cross-user read that RLS denies — **this is `CONF-D8` territory**, and the `019` definer pattern is the precedent |
+| **Data** | new tables; no existing column carries report state |
+| **Migration** | yes — new, **additive**. No existing population is altered; `A11`/`D4` populations untouched |
+| **Authorization** | **a new `CONF-D7` cell.** Moderation is a privileged action, so under `A10` it **must emit an audit record** — *"every high-impact administrative action is auditable"* |
+| **Owner decision required?** | **NO for existence** — `A3` already requires it. **YES, narrowly, for policy**: what is reportable, and what moderator outcomes exist. That is a business process the record does not define |
+| **Implementation authorized?** | **NO.** Gated behind `CONF-D7` and the `CONF-D9` architecture track |
+| **Next boundary** | `CONF-D7` |
+
+#### CAP-2 · Notification delivery telemetry
+
+| field | finding |
+|---|---|
+| **Design capability** | *"Notifications: **Sent, delivered, failed, pending, important delivery failures**"* |
+| **Exact design source** | Build Spec **§3 ¶32** (an `A3` group) and **§3 ¶23**, where *notifications* is also a Platform Health subsystem |
+| **Documentation search** | `:390` lists *"delivery failures"* among assumed-but-absent data. No `PD-` row governs it |
+| **Existing architecture support** | **The `notifications` table exists** (`004:7`) — `recipient_id · type · title · body · read · data · created_at`. **It records authorship and read-state only.** |
+| **Missing capability** | **delivery state.** There is no `sent`/`delivered`/`failed`/`pending` column, no attempt log, no failure reason. `read` is engagement, not delivery |
+| **Required architecture extension** | delivery-state column or an attempt/outcome child table · a transport outcome hook · an aggregate for the Overview group and the health subsystem |
+| **Security / RLS** | aggregates are cross-user → `CONF-D8`. Delivery failures can leak **recipient identity**; under `A12` an Admin surface should prefer counts or pseudonyms over named recipients |
+| **Data** | additive columns/table on an existing table |
+| **Migration** | yes — additive. `notifications` already carries RLS from `118` (the `WITH CHECK (true)` INSERT hole was closed there); **any change must preserve that posture** |
+| **Authorization** | `is_admin()` read via the `019` pattern; no new write path for Admin |
+| **Owner decision required?** | **NO.** `A3` defines the capability and the five states are enumerated in the artifact. This is **`CONF-D9` architecture** |
+| **Implementation authorized?** | **NO** — `CONF-D9` track, behind `CONF-D7` for the authorization half |
+| **Next boundary** | none of its own; it rides the `CONF-D9`/`CONF-D7` sequence |
+
+### 102.4 Re-framed under the rule — Notifications group and Platform Health composition
+
+§101.3 presented these as an open contest between `A3` and the approved screens. **Under this rule the
+posture is not symmetric:**
+
+- **`A3`'s Notifications group STANDS as an approved product capability.** Its absence from the four
+  supplied screens is **not** a deletion of it — those screens are design authority **for the screens they
+  show**, and `CONF-D4`'s closure was scoped that way (§97.1). **Removal would require an explicit owner
+  decision, which has not been given.** Architecture record at **CAP-2**.
+- **Platform Health composition:** `A3` ¶23 names seven subsystems including **notifications** and
+  **uptime**; the approved tiles show six including **Infrastructure**. **Union, not intersection** —
+  nothing is dropped. *uptime* sits inside **`PD-A24`** (answered `C`: vendor-free), *notifications* is
+  **CAP-2**, and *Infrastructure* is a tile the approved design adds and `A3` did not name — **itself an
+  approved capability that the documentation lacks**, and therefore preserved on exactly the same
+  principle.
+
+### 102.5 Governance exception — one genuine case, surfaced and stopped
+
+**The rule's one exception applies to exactly one capability found so far.**
+
+| field | finding |
+|---|---|
+| **Design capability** | The attention queue naming member-identifying facts — *"38 failed sign-ins on **one coach account** from 3 countries"* |
+| **Design source** | approved screenshot `01-dashboard-needs-your-attention.webp`; `A3` ¶34 *"alerts with severity and **ownership**"* |
+| **The conflict** | **`A12`.** The Event population carries a **pseudonym, not a subject identifier** (migration 142). `audit_identity_map` has RLS with **zero policies** and is reachable only through a definer path; re-identification is confined to `audit_read_events()` and severance to `is_erasure_executor()` alone |
+| **Governing authority** | `D4`/`A12`/`A13`·1 — immutable V5 decisions, shipped and CI-verified at 484/484 |
+| **Nature** | *"ownership"* in an operational queue implies naming a subject. **Doing that naively would re-identify a pseudonymised subject outside the governed path** |
+| **Disposition** | **The capability is PRESERVED. It is NOT implemented, and NOT deleted.** Per the rule: preserve · name the conflict · name the authority · stop |
+| **Required decision** | how an operational queue references a subject without defeating `A12` — e.g. a pseudonym-scoped reference resolved only through the definer path, or an explicit `CONF-D7` role permitted to re-identify. **An architecture + authorization question, not a product one** |
+| **Implementation authorized?** | **NO. This is a stop.** |
+
+### 102.6 Architecture-extension register — the previously recorded gaps, under the rule
+
+No capability below is removed. Fields the data contract's §11 did not carry are added here; §11 is not
+duplicated.
+
+| capability | required extension | security / RLS | migration | owner decision? |
+|---|---|---|---|---|
+| **Wearable ingestion health** *(the rule's own example 1)* | `WI-13` observability — ingestion attempt/outcome telemetry, lag and error counters over `user_integrations` | PHI-class under `WI-14`; aggregates only on Admin | additive, **not authorized** — `PD-G01` | **NO** — `WI-13`/`WI-15` approved; release timing is `PD-G01`'s |
+| **Revenue decomposition** *(example 2)* | persist monetary amounts locally (`subscriptions` has none) + MRR/churn per the monetization roadmap's named metrics | financial data; `is_admin()` only | additive | **YES** — gross vs commission; **`PD-C03`** currency |
+| **Platform health store** | probe + status store, **vendor-free** per `PD-A24` = `C` | none member-facing | additive | **NO** |
+| **DAU / engagement rollup** | daily distinct-user rollup keyed on Session (`product-bible` §5) | member-derived; aggregates only | additive | narrow — does a sign-in with no Session count |
+| **AI Guardian state** | state store for `A5`'s 10 elements | `A10` — Guardian must not hold admin authority; **emergency disablement is production-changing**, so policy gate + audit | additive, P7 | **NO** for the read-only card |
+| **Partner approval state** | approval status + transitions on `vendor` | `CONF-D7` cell; audit under `A10` | additive | **YES** — the state machine |
+| **Installs / Impressions** | scheduled pull into a local rollup | credentials = **account boundary** | additive | **YES** — `PD-A24` scope; which "impressions" |
+| **QA & release** | ingest CI conclusions + gate ledger | `P10` installation constraint **not released** | additive | narrow — CI vs V5 gate ledger |
+
+### 102.7 Effect on the record
+
+**No owner decision is created by this rule**, and none is removed. The five of §100.5 plus `PD-C03` stand;
+**CAP-1 adds one narrow policy question** (what is reportable, what outcomes exist) that `A3` does not
+settle. **CAP-2 adds none.** The §102.5 governance case is a **stop**, not a new product decision.
+
+**Frontier:** unchanged in kind — **`CONF-D6` · `CONF-D7` · Trust's IA · nine domain placements**, plus
+§100.5's five, `PD-C03`, `CAP-1`'s policy question, and the **`A12` re-identification boundary** at §102.5.
+`CONF-D9` remains the architecture home and remains gated behind `CONF-D7`.
+
+**No capability deleted, hidden, collapsed, replaced or redesigned around. No migration authored, no
+application file changed, no production contact. QA at 152.**

@@ -275,7 +275,7 @@ Present on the approved Dashboard and therefore in scope, though not itemised in
 
 | area | classification |
 |---|---|
-| **Ecosystem snapshot** (*"How each domain feeds the next · last 30 days"*) | **Mostly A.** People (`164 coaches → 3,610 clients`), Training & wellness (`28,410 sessions · 9,120 check-ins` → `workout_sessions`, `weekly_checkins`), Partners & events (`218 partners · 64 events` → `events`), Data & AI (`1,288 devices` → **blocked on §5**; `880 AI plans` → `subscriptions.kind='ai_guided'`), Business (`£184.2k · 2.1% churn` → **blocked on §1.6**). **Community — `86 pods · 1,940 posts` — B · OWNER:** *"pods"* is not a term the schema uses. |
+| **Ecosystem snapshot** (*"How each domain feeds the next · last 30 days"*) | **Mostly A.** People (`164 coaches → 3,610 clients`), Training & wellness (`28,410 sessions · 9,120 check-ins` → `workout_sessions`, `weekly_checkins`), Partners & events (`218 partners · 64 events` → `events`), Data & AI (`1,288 devices` → **blocked on §5**; `880 AI plans` → `subscriptions.kind='ai_guided'`), Business (`£184.2k · 2.1% churn` → **blocked on §1.6**). **Community — `86 pods · 1,940 posts` — ~~B · OWNER~~ → A · DETERMINED, corrected V5 §102.2(a):** `accountability_pods` and `accountability_pod_members` **exist** (`002_ecosystem_additions.sql:90,107`), as do `community_posts`/`post_comments` (`001:292,313`). The original line read *"'pods' is not a term the schema uses"* — **a failed grep turned into a product conclusion**, which is the error V5 §102 exists to prevent. |
 | **Events & community** (`12 upcoming · 38 active classes · 74% attendance`) | **A (source) / B (definitions).** `events`, `classes` and `event_registrations` exist; **"attendance"** — registered, checked-in, or completed? — is undefined. `K-04` already governs registration integrity and is CI-verified. |
 | **Recent admin activity** + *"Audit log"* link | **A · DETERMINED.** This is the `audit_events` read path with `A13·1`'s policy (`142:306`) already enforced, and the sample rows match its categories (*Permission change · System · Admin login · Release*). **The best-served area on the Dashboard.** |
 
@@ -408,6 +408,15 @@ queue's **severity conflict** (12) · store-console ingestion under `PD-A24` (16
 
 **Four areas are fully determined and need no decision at all:** Total users · Recent admin activity ·
 Security · AI Guardian (as a read-only card).
+
+> **ADDITIVE — V5 §102.3. Two approved capabilities this document did not carry.** Applying the owner's
+> design→architecture rule surfaced two `A3` Overview capabilities absent from every row above:
+> **community reports/moderation queue** (Build Spec §3 ¶28 — **0** report/moderation tables exist for
+> community content; `050` moderates the *exercise library*, a different object) and **notification
+> delivery telemetry** (§3 ¶32 — `notifications` (`004:7`) records `read`, i.e. engagement, and **no**
+> sent/delivered/failed/pending state). **Both are preserved as required capabilities**; full 13-field
+> records at V5 §102.3 as `CAP-1` and `CAP-2`. **Neither is added to the 18-row table above**, which
+> enumerates the owner's 14 named areas — they are Overview capabilities from the specification.
 
 **Nothing is removed, collapsed, deferred or replaced.** Wearable intelligence is the case the owner
 singled out, and the resolution honours both constraints: **the capability is approved** (`WI-13`/`WI-15`,
