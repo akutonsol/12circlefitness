@@ -393,7 +393,15 @@ per-role matrix remaining `CONF-D7`.
 
 **Genuine:** partner approval state machine (5) · coaching revenue gross-vs-commission (6) · the attention
 queue's **severity conflict** (12) · store-console ingestion under `PD-A24` (16) · which *"impressions"*
-(18). **Pre-existing and already registered: `PD-C03`** currency (6).
+(18).
+
+> **ADDITIVE NOTE — V5 §101.4.** The committed Build Spec's §3 ¶34 reads *"System Alerts: **Critical,
+> high, warning, informational** alerts with severity and ownership"* — **the same vocabulary as the
+> shipped `143:70` CHECK.** So row 12's conflict is **narrowed**: the product specification and the
+> implementation agree, and only the approved rendering shows `MEDIUM`/`LOW`. **Still the owner's to
+> rule; still not ruled.** Row 12 is unchanged above.
+
+**Pre-existing and already registered: `PD-C03`** currency (6).
 
 **Everything else is `CONF-D9` architecture** — class `Architecture`, *"plausibly inside §19's delegation"*
 — **or was already determined** and should not have been raised.

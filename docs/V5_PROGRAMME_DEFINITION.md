@@ -10839,3 +10839,154 @@ inside §19's delegation"* — gated, as ever, behind **`CONF-D7`** for the auth
 
 **No Dashboard area removed, collapsed, deferred or replaced. `PD-G01`, `PD-A24` and `P10` not released.
 No migration, no application file, no production contact. QA at 152.**
+
+---
+
+## 101 · COMMITTED BUILD SPEC RECONCILED AGAINST `A1`–`A14` — NO NEW REQUIREMENT; ONE DECISION NARROWED
+
+Evidence reconciliation of the artifact committed at §100.6 —
+`docs/design/admin-dashboard/12CIRCLE_ADMIN_CONTROL_CENTER_DASHBOARD_BUILD_SPEC_V1.docx` — against the
+`A1`–`A14` product requirements recorded at `V5_FINAL_DESIGN_AUTHORITY_RECONCILIATION_2026-09-27:24-36`.
+**No implementation. Nothing in the artifact was edited.** Paragraph numbers below are of the extracted
+document text; section numbers are the document's own.
+
+### 101.1 Executive result
+
+**The newer specification does NOT materially change the established `A1`–`A14` authority.** Every
+structural count the record attributes to it reproduces **exactly** from the committed file, verified
+mechanically rather than by eye:
+
+| `A#` | recorded count | committed artifact | |
+|---|---|---|---|
+| `A2` | 8 nav items | §2 — 8 | ✅ |
+| `A3` | 12 data groups | §3 — 12 | ✅ |
+| `A5` | 10 Guardian elements | §5 — 10 | ✅ |
+| `A6` | 5 operational layers | §6 — 5 | ✅ |
+| `A9` | 15 Admin data domains | §11 — 15 | ✅ |
+| `A10` | 7 governance principles | §12 — 7 | ✅ |
+| `A11` | 11 required screen states | §14 — 11 | ✅ |
+| — | 15-step build sequence | §13 — 15 | ✅ |
+| — | 13 handoff requirements | §16 — 13 | ✅ |
+| — | 11 reference elements | §8 — 11 | ✅ |
+
+**Ten independent counts, ten matches.** The §100.6 caution — that this is a different file from the
+41,291-byte original and no identity claim was made — is now **evidentially resolved for `A1`–`A14`**:
+whatever else differs, **the product-requirement structure is the same specification.**
+
+**Classification outcome: 11 MATCH · 2 MATCH + CLARIFICATION/EXPANSION · 1 EXPANSION · 1 SUPERSEDED ·
+0 CONFLICT · 0 NEW REQUIREMENT** — *against `A1`–`A14`*. The genuine tensions are **not** between the
+artifact and `A1`–`A14`; they are between the artifact and the **later approved screenshots** (§101.3).
+
+### 101.2 `A2` — superseded, and more cleanly than expected
+
+§2 ¶12 reads ***"Recommended top-level navigation:"*** followed by the eight items. **The artifact
+proposes; it does not fix.** `CONF-D1`/§91's **six-item IA** — `Dashboard · People · Ecosystem · Trust ·
+Operations · Settings` — is a **later owner decision over a recommendation**, which is supersession
+without conflict. **The six-item IA remains authoritative. The artifact is not edited to conform, and this
+is not an owner decision.**
+
+Note for anyone reading the artifact cold: §13 step 5 and §6 still name *"finance, ecosystem, and
+operations views"* and `Finance`/`Analytics` as areas. Those are **domains**, and §91's twelve-domain
+ruling plus the nine-unplaced-placements question (§97.4) govern where they live — **not** §2's nav list.
+
+### 101.3 Two divergences from the APPROVED SCREENS — surfaced, not resolved
+
+**Both are `A3` content with no counterpart in the owner's 14 required areas or the approved screenshots.
+Neither is a new requirement; both are scope reconciliations between two owner-sourced authorities.**
+
+**(a) Notifications.** §3 ¶32 — ***"Notifications: Sent, delivered, failed, pending, important delivery
+failures"*** — is one of `A3`'s twelve Overview groups. It appears in **no** approved screen and in **none**
+of the owner's 14 required areas. Eleven of the twelve groups map to the approved Dashboard; **this one
+does not.**
+
+**(b) Platform Health composition.** §3 ¶23 lists seven subsystems — *"API health, database health,
+authentication, background jobs, **notifications**, integrations, **uptime**"*. The approved screens show
+six tiles — API · Database · Authentication · Background jobs · Integrations · **Infrastructure**. So
+*notifications* and *uptime* are absent from the approved tiles and *Infrastructure* is absent from `A3`.
+
+**Standing instruction applied:** *"must not delete, collapse, defer, replace, or regress approved product
+capabilities."* **Neither is removed here.** `A3` remains an approved product requirement; the approved
+screens remain design authority for the screens shown. **The relationship between them is the open item.**
+
+### 101.4 The severity question is materially NARROWED — the most useful finding
+
+§100.5 listed *"the attention queue severity conflict"* as one of five genuine owner decisions, framed as
+**two authorities in conflict**. The committed artifact changes that framing.
+
+§3 ¶34: ***"System Alerts: Critical, high, warning, informational alerts with severity and ownership."***
+
+| authority | vocabulary |
+|---|---|
+| **Build Spec `A3` §3 ¶34** (product requirement) | **Critical · High · Warning · Informational** |
+| **`V5_DECISION_RESOLUTION:114` → migration `143:70`** (shipped, CI-verified) | **Critical · High · Warning · Informational** |
+| **Approved screenshots** (design authority, `CONF-D4`) | **CRITICAL · HIGH · MEDIUM · LOW** |
+
+**Two independent authorities agree, and they are the product specification and the shipped
+implementation. Only the rendering diverges.** So this is not a standoff between equals: it is a
+**design-state rendering that differs from the specified and implemented vocabulary**, on screens whose
+own disclaimer is *"All figures are sample design-state data"* — which `A13` requires to be *"deterministic,
+clearly marked"*.
+
+**It is still the owner's to rule and it is NOT ruled here.** But the question has changed shape: not
+*"which of two vocabularies wins"* but *"do the approved screens' severity labels restate the specified
+enum, or change it?"* **No migration is proposed**; altering `143`'s CHECK would modify a `D4`/`A11`
+population.
+
+### 101.5 `A14` — the one EXPANSION
+
+Recorded `A14` ends *"… incidents and ecosystem activity without navigating the consumer application."*
+The committed §17 ¶164 reads *"… operational incidents, ecosystem activity, **and areas requiring
+attention**, without navigating through the consumer application."*
+
+**The artifact states the Attention Queue as part of the success criterion; the record's `A14` summary does
+not.** Whether the 41,291-byte original contained the phrase **cannot be determined** — that file is no
+longer on disk. **Classified EXPANSION and left unresolved as to origin**, per the instruction to classify
+rather than invent. It **strengthens** the Attention Queue's standing as a product requirement; it changes
+no decision.
+
+### 101.6 `A8` / data realism — restated plus implementation detail, no new requirement
+
+§10 ¶92 *"No hard-coded KPI values in production."* · ¶94 *"Every metric should have a defined **source,
+calculation, freshness expectation, and authorization boundary**."* · ¶93 *"QA environment should use
+deterministic, clearly marked relational data."* — **verbatim `A8` and `A13`.**
+
+**The clarification is ¶88–91**, which `A8`'s summary omits — a four-layer sourcing model:
+
+> *"Supabase/Postgres → authoritative records. Application services/providers → domain logic and
+> authorization. Admin dashboard → live operational views. **AI Guardian → telemetry, security signals,
+> integrity signals, and operational evidence.**"*
+
+**This is architectural direction, not a new decision**, and it is consistent with `A10`'s *"dashboard data
+must respect the same authorization boundaries as the underlying system"* and with the `019` precedent
+(§99.3). The fourth line matters: it positions the Guardian as a **data source** for the Dashboard, which
+is the same read-only relationship §100.4 determined for the Guardian card — **and still not authorization
+to implement P7.**
+
+**`CONF-D9` remains the right home for the gaps** (§100.2). Nothing here converts an architecture gap into
+an owner decision, and **no displayed metric is removed for want of a source.**
+
+### 101.7 `PD-G01` · `PD-A24` · Guardian — unchanged
+
+The artifact's Wearables (§3 ¶33 — *"Connected devices, synchronization health, ingestion issues"*) is
+**verbatim `WI-13`/`WI-15`** and is the basis §100.4 already reconciled. **Dashboard visibility is not
+release authorization.** `PD-G01` stands; `PD-A24` stands; §19.2 keeps the Guardian out of Trust. §4 ¶37's
+example strip cites ***"API 99.99%"*** — an **uptime** figure, squarely inside `PD-A24`'s scope
+(*"uptime monitoring"*), answered **`C` — no third-party vendor**. **A gap to build vendor-free, not a new
+decision.**
+
+### 101.8 Owner decisions after this pass
+
+**No genuinely new owner/product decision was identified in the artifact.** The five of §100.5 plus
+`PD-C03` stand, with one **narrowed** (§101.4 severity) and one **strengthened** (§101.5 attention queue as
+a success criterion). The reconciliation **surfaces one scope question** — §101.3's Notifications group and
+Platform Health composition — which arises from comparing `A3` to the later approved scope, **not from new
+content in the artifact.**
+
+### 101.9 Frontier — unchanged
+
+§97.4's four gates stand: **`CONF-D6` · `CONF-D7` · Trust's IA · nine domain placements.** Plus §100.5's
+five owner decisions and `PD-C03`, and now §101.3's scope question.
+
+**Validated: the committed DOCX is unchanged and byte-identical; no application, migration or schema file
+touched; no production contact; no P5 implementation; no approved capability removed, deferred or
+replaced; the six-item Admin IA remains authoritative. QA at 152.**
