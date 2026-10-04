@@ -11377,3 +11377,112 @@ token/component extensions (§2.4).
 **`PD-G01`, `PD-A24`, `P10` not released. Nocturne remains a design-runtime dependency, not Helix — not
 renamed, not substituted. No migration, no application file, no schema change, no production contact.
 QA at 152.**
+
+---
+
+## 105 · POLICY REGISTRY SPECIFIED · `CONF-D7` NOW BLOCKS IT · A SECOND `A12` SURFACE
+
+Continuation from §104. **Full specification: Part III of
+`docs/V5_ADMIN_DESIGN_HELIX_RECONCILIATION.md`.** Specification and reconciliation only — nothing
+implemented, **no naming mapping asserted**, and the seven enforced database roles and their security
+properties left untouched.
+
+### 105.1 The policy registry — seven entities, every field traceable to an artifact
+
+The approved Trust Authorization and Guardian surfaces require a **named, versioned policy registry**. Its
+minimum model, taken from the artifacts and not invented:
+
+**`policy`** (code `DA-07`/`RB-01` · category · scope · owner · Active/Draft/Retired) · **`policy_version`**
+(monotonic `v1…v11` · `effective_from` with time · retired_by — *an individual **or a body**, "Security
+review board"* · a readable change note, *"limit lowered from 200 to 50"*) · **`policy_rule`** (rules are
+first-class — the UI shows *"Rules 2"*) · **`policy_set`** (**versioned independently — `v3.14 · 28 active
+policies`** · last full evaluation) · **`principal`** (human role **or AI agent** + workflow; *"agents
+without a policy: 0"* **requires completeness to be computable**) · **`resource`** (typed — `Client
+records`, `Billing plans`, `Agent credential`) · **`policy_evaluation`** (decision Allowed/**Blocked**/
+Escalated/Failed · risk · quantified detail *"1,240 records requested"* · optional incident link
+`INC-2041`).
+
+**Two incident identifier schemes appear — `INC-2041` and `AIN-118` — unreconciled by the artifacts.
+Recorded, not resolved.**
+
+### 105.2 Reconciliation — three findings that constrain any build
+
+**(a) The registry must NOT become the enforcement point.** Authorization today is **RLS plus SQL
+predicates — 202 `CREATE POLICY` statements** and the nine sites of §98.1, all CI-verified at 484/484.
+The registry *names and versions* what is implicit in those predicates, which is a real auditability gain.
+**But relocating enforcement out of RLS would regress the control the entire `D-01`/`D-02`/`D-03`
+remediation history rests on. RLS remains the enforcement floor; the registry may describe and audit, not
+replace.** Any design that made it authoritative reaches a **security boundary**.
+
+**(b) A fourth naming collision, and the most dangerous.** *"Policy"* already means a Postgres RLS policy
+here — **202 of them**. The design means a governance policy — **28**. §7 of the commission lists three
+collisions (`D5`, `D6`, `A14`); this is a fourth, and misreading *"28 active policies"* against *"202"*
+invites exactly the wrong conclusion. **Distinct vocabulary is a design-system/architecture decision, not
+one taken here.**
+
+**(c) The audit-population question is the crux.** `policy_evaluation` is event-shaped and high-volume
+(*31,440 AI requests / 24 h*). **`D4 · A1` fixed FOUR audit populations and the standing instruction is
+not to invent more.** Two admissible directions only: extend `audit_events` — but `A11` freezes it against
+UPDATE/DELETE for every caller and `A2`'s 15 categories are fixed by `R-1`, so a 16th is a `D4` change —
+**or** a separate operational store with the audit arm emitting only on material events. **Direction 2
+preserves `A11`/`A2` untouched and is the lower-risk reading. It is NOT chosen here.**
+
+### 105.3 `CONF-D7` now blocks the policy registry
+
+`RB-01 · admin`, `RB-06 · **support read**`, `RB-09 · trust manage` reference **roles** — and `RB-06` cites
+**`Support`**, a designed Admin role with **no database equivalent**.
+
+> **The registry is strictly downstream of `CONF-D7`'s one question. Building it first would settle the
+> five-versus-seven vocabulary by implementation default** — precisely what the standing instruction
+> forbids. **`Trust lead`→`trust_operator` and `Content editor`→`content_manager` remain UNMADE; no
+> equivalents are invented for `Operations lead`, `Support`, `Viewer` or `erasure_executor`; the seven
+> enforced roles stand unchanged.**
+
+**Consequence worth stating: deferring `CONF-D7` now costs more than it did at §104** — it gates the
+registry, which in turn gates `#sec-authz`, the Guardian policy surfaces and `A7`'s recordability.
+
+### 105.4 A second, larger `A12` surface
+
+§102.5 recorded the attention queue as the `A12` re-identification boundary. **The evaluation stream is a
+bigger one.** Evaluations name resources — *"Client records"*, *"Member profile"* — and quantify access
+(*"1,240 records requested"*). **A policy-evaluation log recording subject identities in the clear would
+create exactly the re-identification path `A12` closes**, at far higher volume than the queue.
+
+**Five further controls that must not be weakened to supply the registry:** `A11`'s freeze · `A2`'s 15
+categories · `A6`'s delta exclusions · RLS as the floor · and **`A10`'s *"security controls remain
+independent of the AI Guardian"*** — which makes *"are `RB-` and `DA-` one registry or two?"* an **`A10`
+question**, not a schema preference.
+
+### 105.5 Risk ≠ Severity — §100.5 decision 3 narrows again
+
+The design carries a **`Risk` axis — `High · Medium · Low`** — on authorization events **and** AI
+incidents, **alongside** `Status` (Investigating/Open/Resolved). **So `Risk` and `Severity` are distinct
+dimensions in the approved design**, and part of what read as a severity conflict may be a risk axis the
+shipped enum was never meant to carry. **Still the owner's; still not resolved.**
+
+### 105.6 Canonical Helix — dated, not decided
+
+| artifact | last change |
+|---|---|
+| `helix/src/themes/12circle.ts` (lime) | **2026-07-09**, the initial *"Helix v0.1"* commit — never updated; self-declared *"FIRST PASS"* |
+| `apps/mobile/lib/core/helix/` (violet) | **2026-09-22** — ***"Phase 4a — adopt the authoritative design tokens in Helix Tier 1-3"*** |
+| link between them | **none** — no `@helix/design-system` dependency anywhere in this repository |
+
+**A coherent chronology: an authoritative token set existed by 2026-09-22, the app adopted it, and the
+Admin package (2026-10-04) expresses the same set — hence 11/11.** **This dates the artifacts; it does not
+decide which is canonical, nor whether the standalone repo is updated, retired or re-pointed.
+Design-system authority. Not resolved by inference.**
+
+### 105.7 Frontier
+
+**OWNER:** **`CONF-D7`'s one question — now blocking the policy registry too** · AI Guardian in Trust ·
+`CONF-D6`'s identity lock · the five of §100.5 (3 narrowed twice) · `PD-C03` · `CAP-1`.
+**DESIGN-SYSTEM AUTHORITY:** canonical Helix · Admin token location · governance-policy naming.
+**SECURITY:** the `A12` boundary with its **second, larger surface** · **whether the registry may ever be
+authoritative over RLS**.
+**ARCHITECTURE (`CONF-D9`, behind `CONF-D7`):** the seven-entity registry · the audit-population direction
+· the ten absent tables · Helix token/component extensions.
+
+**No capability removed, simplified, hidden, relocated or redesigned. `PD-G01`, `PD-A24`, `P10` not
+released. Nocturne unchanged — a design-runtime dependency, not Helix. No migration, no application file,
+no schema change, no production contact. QA at 152.**

@@ -534,3 +534,230 @@ runtime**. No new evidence in this pass alters §7.1.
 (self-declared *"FIRST PASS"*) versus the enforced in-repo violet theme is recorded as a **design-system
 authority boundary**. The Admin design's 11/11 conformance to the in-repo theme is *evidence*, not a
 ruling.
+
+---
+
+# PART III — POLICY REGISTRY SPECIFICATION AND EVIDENCE AUDIT (V5 §105)
+
+**Specification and reconciliation only. Nothing implemented. §102 governs. The seven enforced database
+roles and their security properties are preserved untouched, and no naming mapping is asserted.**
+
+## 16 · The policy registry — full architecture requirement
+
+Two approved surfaces require it independently (§10.3). This section specifies the **minimum authoritative
+model** they imply, taken from the artifacts, **not invented**.
+
+### 16.1 What the approved surfaces actually show
+
+**Trust › AI Guardian › Policies** — a table with columns `Policy · Category · Scope · Status · Version ·
+Updated · Last evaluated · Violations`:
+
+| policy | category | scope | status | version | violations |
+|---|---|---|---|---|---|
+| Export scope limits | Data access | All agents | Active | **v7** | 9 |
+| Bulk messaging approval | Human approval | Outreach | Active | v3 | 2 |
+| Health data minimisation | Privacy | — | Active | v5 | 0 |
+| Model allow-list | Model usage | — | Active | v11 | — |
+| Moderation escalation | Safety | Moderator | **Draft** | v2 | — |
+
+**Policy detail** — `Export scope limits · v7` · **Effective** `3 Sep 2026 · 09:00` · **Owner**
+`Priya Raman · Trust` · **Rules** `2 — record count ≤ 50 · roster match` · **Violations 30 d** `9, all
+blocked` · actions `View rules · **Compare versions** · Edit draft`.
+
+**Evaluation and audit history** — three event kinds, verbatim:
+
+- `Blocked · Report builder · 1,240 records requested — 14:19 today · **INC-2041**` *(an evaluation,
+  linked to an incident)*
+- `v7 took effect — limit lowered from 200 to 50 — 3 Sep 09:00 · Priya Raman` *(a version transition with
+  a readable delta and an actor)*
+- `v6 retired after review — 29 Aug · **Security review board**` *(retirement, by a body not an individual)*
+
+**Trust › Authorization** — `Who · Role · Resource · Did what · Result · **Under policy** · When · Risk`,
+policies cited as **`RB-01 · admin`**, **`RB-04 · roster only`**, **`RB-06 · support read`**,
+**`RB-09 · trust manage`**.
+
+**Trust › AI incident detail** — `AIN-118` · AI action `Export client records · CSV` · **Policy result
+`Blocked` · `DA-07 v7`** · Affected resource.
+
+**Guardian health** — **`policy set v3.14 · 28 active policies`**, `median decision time 41 ms`,
+**`agents without a policy: 0`**, `last full evaluation 4 min ago`.
+
+### 16.2 An identifier scheme the artifacts are internally consistent with — READING, not ruling
+
+`DA-07 v7` appears as the policy result for an **export** block; `Export scope limits` is category **Data
+access** at **v7** with violations *"all blocked"*. **On this evidence the coded and named forms are the
+same policy**, implying one registry with category-prefixed codes — `DA-` data access, `RB-` role-based,
+and presumably others for Human approval, Privacy, Model usage, Safety.
+
+**This is a reading of the artifacts' internal consistency, offered as a reading. It is NOT asserted as
+the model, and no code-to-category mapping is invented.** Confirmation belongs to design authority.
+
+### 16.3 Minimum authoritative model
+
+Seven entities. **Every field below is traceable to an artifact above; nothing is added for completeness.**
+
+| # | entity | fields the design requires |
+|---|---|---|
+| **1** | **`policy`** | stable id · **code** (`DA-07`, `RB-01`) · name · **category** (Data access · Human approval · Privacy · Model usage · Safety · Role-based) · **scope/applicability** (All agents · Outreach · Moderator · a role) · **owner** (principal + area) · lifecycle status (**Active · Draft · Retired**) · current version pointer |
+| **2** | **`policy_version`** | policy · **monotonic version** (v1…v11) · **effective_from** (date **and** time) · authored_by · **retired_at / retired_by** (an individual **or a body** — *"Security review board"*) · a **human-readable change note** (*"limit lowered from 200 to 50"*) |
+| **3** | **`policy_rule`** | version · ordinal · predicate (*"record count ≤ 50"*, *"roster match"*). **Count is displayed (`Rules 2`), so rules are first-class rows, not an opaque blob** |
+| **4** | **`policy_set`** | **set version (`v3.14`)** · membership of policy_versions · active count · **last full evaluation** · median decision time. **A policy set is versioned independently of its policies** — the design shows both |
+| **5** | **`principal`** | the subject a policy binds: a human (role + identity) **or an AI agent** (`Report builder`, `Outreach worker`, `Content moderator`) with a **workflow** and an **agent/system registry** (6 systems · 14 agents · 22 workflows). *"Agents without a policy: 0"* **requires completeness to be computable** |
+| **6** | **`resource`** | the object acted upon — `Client records` · `Billing plans` · `Agent credential` · `Member profile` · `Email campaign`. A **typed resource reference**, not free text, since it is filtered and reported on |
+| **7** | **`policy_evaluation`** | policy_version · principal · resource · action · **decision** (Allowed · **Blocked** · Escalated · Failed) · **risk** (High · Medium · Low) · quantified detail (*"1,240 records requested"*) · occurred_at · **optional incident link** (`INC-2041`) |
+
+**Two identifier schemes for incidents are visible — `INC-2041` and `AIN-118` — and they are not
+reconciled by the artifacts. Recorded, not resolved.**
+
+### 16.4 Reconciliation against the five existing V5 models
+
+#### (a) Authorization model — **the registry must NOT become the enforcement point**
+
+Today authorization is enforced by SQL: `is_admin()` · `is_trust_operator()` · `is_erasure_executor()`
+and **202 `CREATE POLICY` statements**, across the nine sites of §98.1 — all live- and CI-verified at
+484/484.
+
+**The registry names and versions what is currently implicit in function bodies and RLS predicates.**
+That is a genuine gain in auditability. **But moving enforcement out of RLS into an application-layer
+registry would be a security regression** — it would relocate the control that §63's catalog audit, the
+484 assertions and the whole `D-01`/`D-02`/`D-03` remediation history rest on.
+
+> **Constraint, stated so it cannot be lost: RLS remains the enforcement floor. The registry is the
+> DECLARED model plus the EVALUATION LOG. It may describe and audit; it must not replace.** Any design
+> that made the registry authoritative over RLS reaches a **security boundary** and requires an explicit
+> decision.
+
+#### (b) RLS model — a fourth naming collision
+
+**"Policy" already has a precise, load-bearing meaning here: a Postgres RLS policy, 202 of them.** The
+approved design uses "policy" for an authorization/governance policy. §7 of the commission lists three
+such collisions (`D5`, `D6`, `A14`); **this is a fourth and the most dangerous**, because a careless
+reading of *"28 active policies"* against *"202 policies"* invites exactly the wrong conclusion.
+**Recommend distinct vocabulary at the point of implementation — e.g. `governance_policy` — decided by
+design-system/architecture authority, not here.**
+
+#### (c) Audit model — **the crux, and it touches a standing constraint**
+
+`audit_events` (142 + 150) supplies `actor_id · action · **outcome** · occurred_at · category ·
+correlation_id · delta`. It **lacks resource, policy and risk** (§10.3).
+
+`policy_evaluation` is event-shaped, high-volume (*"31,440 AI requests / 14,206 AI actions"* per 24 h) and
+operational. **`D4 · A1` fixed FOUR audit populations, and the standing instruction is: do not invent
+audit populations.** So there are exactly two admissible directions, and **choosing between them is an
+architecture decision inside `CONF-D9`, not a liberty**:
+
+1. **Extend `audit_events`** with resource / policy / risk. But `A11` makes it **append-only with a freeze
+   that refuses UPDATE and DELETE to every caller including `service_role`**, and `A2`'s category list is
+   fixed at 15 by `R-1`. Adding a 16th category is a `D4` change.
+2. **A separate operational store** outside the audit populations, with the audit arm emitting only on
+   material events (a block, an escalation, a version transition).
+
+**Direction (2) preserves `A11`/`A2` untouched and is the lower-risk reading — but it is NOT chosen here.**
+
+#### (d) Guardian model — supplies the missing half of `A5`/`A7`
+
+`A5` requires *"recent detections with evidence and confidence"*, *"completed autonomous actions with
+audit trail"*; `A7` requires the distinction between **observation · recommendation · autonomous action ·
+human-approved action**. **The registry is what makes `A7` recordable** — *"under which policy"* is the
+field that distinguishes an autonomous action from a policy-governed one. **Gated behind the §104.6
+AI-Guardian-in-Trust authority conflict; the capability stays preserved.**
+
+#### (e) Role model — **the registry cannot be built before `CONF-D7`**
+
+`RB-01 · admin`, `RB-06 · support read`, `RB-09 · trust manage` reference **roles**. `RB-06` cites
+**`Support`** — a *designed* Admin role with **no database equivalent** (§10.2).
+
+> **Therefore the policy registry is strictly downstream of `CONF-D7`'s one question.** Building it first
+> would force the five-versus-seven vocabulary decision by implementation default — precisely what the
+> standing instruction forbids. **No mapping is asserted: `Trust lead`→`trust_operator` and
+> `Content editor`→`content_manager` remain UNMADE, and `Operations lead`, `Support`, `Viewer` and
+> `erasure_executor` are given no invented equivalents.**
+
+### 16.5 Supported versus additive
+
+| element | status |
+|---|---|
+| who · action · outcome · when | ✅ `audit_events` |
+| incident record, severity, evidence, approval, resolution | ✅ `audit_incidents` (143) |
+| before/after delta | ✅ migration 150 — **with `A6`'s exclusions intact** |
+| **resource · policy reference · risk** | ⛔ additive |
+| **policy · policy_version · policy_rule · policy_set** | ⛔ additive — nothing exists |
+| **agent / workflow registry** | ⛔ additive — no `ai_agents` table |
+| **human-readable incident references** (`INC-`, `AIN-`) | ⛔ additive — `audit_incidents.id` is a uuid |
+| **reviewer assignment** (`Unassigned`) | ⛔ additive — `actor_identity` is the actor, not a reviewer |
+| **policy evaluation stream** | ⛔ additive, **and constrained by (c)** |
+
+### 16.6 Controls that must not be weakened to supply this
+
+1. **`A11` append-only + freeze** — no UPDATE/DELETE path may be opened to carry evaluation state.
+2. **`A2`'s 15 categories** — fixed by `R-1`; a 16th is a `D4` change, not an implementation detail.
+3. **`A12` pseudonymisation** — evaluations name resources like *"Client records"* and *"Member profile"*.
+   **A policy-evaluation stream that recorded subject identities in the clear would create exactly the
+   re-identification path `A12` closes** (§102.5). **This is the sharpest privacy risk in the registry.**
+4. **`A6`'s delta exclusions** — `phi_correction` and the five occurrence categories (§104.7).
+5. **RLS as the enforcement floor** — (a) above.
+6. **`A10`** — *"security controls remain independent of the AI Guardian"*. **A registry that governed both
+   Guardian policy and human authorization would couple them.** `RB-` and `DA-` families being one
+   registry (§16.2) is therefore not a neutral detail — **it is an `A10` question.**
+
+## 17 · Risk ≠ Severity — new evidence bearing on §100.5 decision 3
+
+The attention-queue severity conflict was framed as `CRITICAL/HIGH/MEDIUM/LOW` (screens) against
+`Critical/High/Warning/Informational` (spec + shipped `143:70`).
+
+**New evidence: the design uses a separate `Risk` axis with values `High · Medium · Low`** — on
+authorization events and on AI incidents (`AIN-118` High · `AIN-117` Medium · `AIN-112` Low) — **alongside
+`Status` (Investigating · Open · Resolved)**.
+
+**So `Risk` and `Severity` are distinct dimensions in the approved design.** This **narrows** decision 3
+again: part of what looked like a severity-vocabulary conflict may be a *risk* axis that the shipped enum
+was never meant to carry. **Not resolved — the attention queue's own labels remain unreconciled, and this
+is the owner's decision.**
+
+## 18 · Evidence audit of the standing boundaries
+
+| boundary | new evidence this pass | status |
+|---|---|---|
+| **`CONF-D7`** one question | the registry is **strictly downstream** of it (§16.4e) — raising the cost of deferring | **OPEN — owner.** No mapping asserted |
+| **`CONF-D6`** identity lock | none. §104.1 stands: extraction validated 97.7%, logo package still incomplete | **OPEN — owner** |
+| **Canonical Helix** | **dating, below** | **OPEN — design-system authority** |
+| **Admin token location** | `BOUNDARIES.md` G unchanged — *"Both documented, no merge"* | **OPEN — design-system authority** |
+| **AI Guardian in Trust** | the Guardian surface is the **policy registry's other consumer**, deepening the dependency | **OPEN — owner. Preserved, not relocated** |
+| **§100.5 five** | decision 3 narrowed by §17; others unchanged | **OPEN — owner** |
+| **`PD-C03`** | none | **OPEN — pre-existing** |
+| **`CAP-1`** | none beyond §103.5's corroboration | **OPEN — narrow policy question** |
+| **`A12` re-identification** | **materially sharpened** — §16.6(3): the evaluation stream is a second, larger re-identification surface | **OPEN — security boundary** |
+
+### 18.1 Canonical Helix — dated, not decided
+
+| artifact | last change | note |
+|---|---|---|
+| `helix/src/themes/12circle.ts` (lime `#9EF01A`) | **2026-07-09** — the initial *"Helix Design System v0.1"* commit; repo HEAD 2026-07-19 | never updated since scaffolding; self-declared *"FIRST PASS"* |
+| `apps/mobile/lib/core/helix/` + `twelve_circle_theme.dart` (violet) | **2026-09-22** — ***"Phase 4a — adopt the authoritative design tokens in Helix Tier 1-3"*** | 2½ months newer; **its own commit says it adopted the authoritative tokens**; CI-conformance-tested |
+| dependency link between them | **none** — no `@helix/design-system` declaration anywhere in this repository | the Dart tiers are a **parallel implementation**, not a consumer |
+
+**A coherent chronology on the evidence:** one authoritative 12Circle token set existed by 2026-09-22;
+the mobile app adopted it; the Admin design package (2026-10-04) expresses the same set — which is why the
+match is 11/11. The standalone lime theme predates all of it.
+
+> **This dates the artifacts. It does not decide which is canonical going forward, nor whether the
+> standalone repo is updated, retired or re-pointed. That is design-system authority. Not resolved by
+> inference.**
+
+## 19 · Frontier
+
+**No boundary was crossed and none was resolved by inference.**
+
+**OWNER:** `CONF-D7`'s one question — *separate layer or replacement vocabulary* — now **blocking the
+policy registry as well** · **AI Guardian in Trust** · `CONF-D6`'s identity lock · the five of §100.5
+(3 narrowed twice) · `PD-C03` · `CAP-1`'s policy question.
+**DESIGN-SYSTEM AUTHORITY:** canonical Helix · Admin token location · **governance-policy naming**
+(§16.4b).
+**SECURITY:** the `A12` boundary, now with a **second and larger surface** — the policy-evaluation stream
+(§16.6.3) · and **whether the registry may ever be authoritative over RLS** (§16.4a).
+**ARCHITECTURE (`CONF-D9`, behind `CONF-D7`):** the seven-entity registry · the audit-population direction
+(§16.4c) · the ten absent tables · Helix token/component extensions.
+
+**No capability removed, simplified, hidden, relocated or redesigned. The seven enforced database roles
+and their security properties are untouched. `PD-G01`, `PD-A24`, `P10` not released. Nocturne unchanged.
+No migration, no application file, no schema change, no production contact.**
