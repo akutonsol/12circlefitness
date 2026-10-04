@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-042b8c43-38a6-4d0d-ac7e-0c98f29520e9/styles.css">
+<script src="_ds/nocturne-042b8c43-38a6-4d0d-ac7e-0c98f29520e9/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&display=swap">
+<style>
+body { margin: 0; background: #16161a; font-family: "Schibsted Grotesk", system-ui, sans-serif; }
+a { color: #a78bfa; text-decoration: none; }
+a:hover { color: #c4b1fc; }
+button:focus-visible { outline: 2px solid #a78bfa; outline-offset: 2px; }
+@media (max-width: 1260px) { [data-row] > section:last-child { grid-column: 1 / -1; } }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; padding: 36px clamp(16px, 3vw, 40px); background: #16161a; color: #f4f3f6; font-family: 'Schibsted Grotesk', system-ui, sans-serif;">
+<div style="max-width: 1440px; margin: 0 auto; padding: 28px; border-radius: 32px; background: #0a0a0b; box-shadow: 0 0 0 1px rgba(255,255,255,0.07), 0 30px 80px rgba(0,0,0,0.5);">
+
+  <!-- header -->
+  <header style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+    <span style="display: flex; align-items: center; gap: 10px; min-width: 180px;">
+      <svg width="28" height="28" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="none" stroke="#7c3aed" stroke-width="1.6" stroke-dasharray="2.4 6.9"></circle><circle cx="20" cy="20" r="5" fill="#7c3aed"></circle></svg>
+      <span style="font-size: 22px; font-weight: 500; letter-spacing: -0.5px;">12Circle</span>
+      <span style="font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: #8b8595;">Studio</span>
+    </span>
+    <nav aria-label="Primary" style="display: flex; flex-wrap: wrap; gap: 4px; margin: 0 auto; padding: 5px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);">
+      <button type="button" aria-current="page" style="min-height: 44px; padding: 0 24px; border: 0; border-radius: 999px; background: #f4f3f6; color: #0a0a0b; font: inherit; font-size: 15px; font-weight: 500; cursor: pointer;">Overview</button>
+      <button type="button" style="min-height: 44px; padding: 0 22px; border: 0; border-radius: 999px; background: none; color: #9b96a3; font: inherit; font-size: 15px; cursor: pointer;">Clients</button>
+      <button type="button" style="min-height: 44px; padding: 0 22px; border: 0; border-radius: 999px; background: none; color: #9b96a3; font: inherit; font-size: 15px; cursor: pointer;">Programmes</button>
+      <button type="button" style="min-height: 44px; padding: 0 22px; border: 0; border-radius: 999px; background: none; color: #9b96a3; font: inherit; font-size: 15px; cursor: pointer;">Revenue</button>
+    </nav>
+    <span style="display: flex; align-items: center; gap: 10px;">
+      <button type="button" aria-label="Search" style="display: grid; place-items: center; width: 48px; height: 48px; border: 0; border-radius: 50%; background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); color: #f4f3f6; cursor: pointer;"><i class="ph ph-magnifying-glass" aria-hidden="true" style="font-size: 19px;"></i></button>
+      <button type="button" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 4px 16px 4px 4px; border: 0; border-radius: 999px; background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); color: #f4f3f6; font: inherit; text-align: left; cursor: pointer;">
+        <span aria-hidden="true" style="display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: rgba(124,58,237,0.22); color: #c4b1fc; font-size: 14px; font-weight: 500;">NR</span>
+        <span><span style="display: block; font-size: 14px; font-weight: 500;">Nadia Rahman</span><span style="display: block; font-size: 12px; color: #8b8595;">Head coach</span></span>
+        <i class="ph ph-caret-down" aria-hidden="true" style="margin-left: 6px; font-size: 13px; color: #8b8595;"></i>
+      </button>
+    </span>
+  </header>
+
+  <!-- row 1 -->
+  <div data-row style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px; margin-top: 28px;">
+
+    <!-- revenue -->
+    <section style="padding: 22px 22px 16px; border-radius: 24px; background: #121215; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07);">
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2 style="margin: 0; font-family: inherit; font-size: 19px; font-weight: 500;">Revenue</h2>
+        <span style="flex: 1;"></span>
+        <div role="tablist" aria-label="Revenue period" style="display: flex; gap: 2px; padding: 4px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);">
+          <button type="button" role="tab" aria-selected="false" style="min-height: 44px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: #9b96a3; font: inherit; font-size: 13.5px; cursor: pointer;">Today</button>
+          <button type="button" role="tab" aria-selected="false" style="min-height: 44px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: #9b96a3; font: inherit; font-size: 13.5px; cursor: pointer;">Week</button>
+          <button type="button" role="tab" aria-selected="true" style="min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: #f4f3f6; color: #0a0a0b; font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer;">Month</button>
+          <button type="button" role="tab" aria-selected="false" style="min-height: 44px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: #9b96a3; font: inherit; font-size: 13.5px; cursor: pointer;">Range</button>
+        </div>
+      </div>
+      <div style="display: flex; gap: clamp(28px, 6vw, 90px); margin-top: 26px; flex-wrap: wrap;">
+        <div><p style="margin: 0; display: flex; align-items: center; gap: 12px;"><span style="font-size: 46px; letter-spacing: -1.4px; font-variant-numeric: tabular-nums;">£18,420</span><span style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 999px; background: rgba(47,191,135,0.16); color: #2fbf87; font-size: 13px; font-weight: 500;"><i class="ph ph-arrow-up-right" aria-hidden="true"></i>6.2%</span></p><p style="margin: 4px 0 0; font-size: 14px; color: #9b96a3;">This month</p></div>
+        <div><p style="margin: 0; display: flex; align-items: center; gap: 12px;"><span style="font-size: 46px; letter-spacing: -1.4px; font-variant-numeric: tabular-nums;">233</span><span style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 999px; background: rgba(47,191,135,0.16); color: #2fbf87; font-size: 13px; font-weight: 500;"><i class="ph ph-arrow-up-right" aria-hidden="true"></i>3.1%</span></p><p style="margin: 4px 0 0; font-size: 14px; color: #9b96a3;">Active subscriptions</p></div>
+      </div>
+      <div style="position: relative; margin-top: 18px;">
+        <svg viewBox="0 0 700 250" preserveAspectRatio="none" style="display: block; width: 100%; height: 250px;" role="img" aria-label="Revenue and new subscriptions across September. Revenue peaks on the 20th at £894.">
+          <defs>
+            <linearGradient id="rv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7c3aed" stop-opacity="0.34"></stop><stop offset="1" stop-color="#7c3aed" stop-opacity="0"></stop></linearGradient>
+            <pattern id="stripe" width="5" height="250" patternUnits="userSpaceOnUse"><rect width="1" height="250" fill="#a78bfa" opacity="0.28"></rect></pattern>
+            <clipPath id="rvclip"><path d="M24,150 C60,150 72,80 110,78 C150,76 150,150 190,148 C230,146 230,120 262,112 C300,102 320,104 350,96 C380,88 400,82 430,90 C460,98 460,150 490,150 C530,150 560,108 600,96 C630,88 660,84 690,82 L690,226 L24,226 Z"></path></clipPath>
+          </defs>
+          <g stroke="rgba(255,255,255,0.05)" stroke-width="1"><line x1="24" y1="30" x2="690" y2="30"></line><line x1="24" y1="95" x2="690" y2="95"></line><line x1="24" y1="160" x2="690" y2="160"></line><line x1="24" y1="226" x2="690" y2="226"></line></g>
+          <g clip-path="url(#rvclip)"><rect x="24" y="0" width="666" height="226" fill="url(#rv)"></rect><rect x="24" y="0" width="666" height="226" fill="url(#stripe)"></rect></g>
+          <path d="M24,150 C60,150 72,80 110,78 C150,76 150,150 190,148 C230,146 230,120 262,112 C300,102 320,104 350,96 C380,88 400,82 430,90 C460,98 460,150 490,150 C530,150 560,108 600,96 C630,88 660,84 690,82" fill="none" stroke="#a78bfa" stroke-width="2.4"></path>
+          <path d="M24,132 C60,132 70,100 110,112 C150,124 160,176 200,172 C240,168 240,130 280,126 C320,122 330,140 360,134 C400,126 400,116 430,120 C470,126 470,110 500,118 C540,128 560,130 600,110 C640,90 660,74 690,72" fill="none" stroke="#e0a030" stroke-width="2.2"></path>
+          <line x1="398" y1="20" x2="398" y2="226" stroke="rgba(255,255,255,0.35)" stroke-width="1" stroke-dasharray="4 4"></line>
+          <circle cx="398" cy="84" r="6" fill="#0a0a0b" stroke="#c4b1fc" stroke-width="2.4"></circle>
+        </svg>
+        <div style="position: absolute; top: 2px; left: calc(57% - 118px); display: flex; gap: 8px;">
+          <span style="display: flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 999px; background: #1b1b20; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); font-size: 13px;"><span aria-hidden="true" style="width: 6px; height: 6px; border-radius: 50%; background: #a78bfa;"></span>£894</span>
+          <span style="display: flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 999px; background: #1b1b20; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); font-size: 13px;"><span aria-hidden="true" style="width: 6px; height: 6px; border-radius: 50%; background: #e0a030;"></span>11 new</span>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 8px 4px 0; font-size: 12.5px; color: #8b8595; font-variant-numeric: tabular-nums;"><span>1</span><span>5</span><span>9</span><span>13</span><span>17</span><span style="padding: 2px 10px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14); color: #f4f3f6;">20</span><span>24</span><span>28</span><span>30</span></div>
+      <div style="display: flex; gap: 18px; margin-top: 12px; font-size: 12.5px; color: #9b96a3;"><span style="display: flex; align-items: center; gap: 7px;"><span aria-hidden="true" style="width: 14px; height: 2px; background: #a78bfa;"></span>Revenue</span><span style="display: flex; align-items: center; gap: 7px;"><span aria-hidden="true" style="width: 14px; height: 2px; background: #e0a030;"></span>New subscriptions</span></div>
+    </section>
+
+    <!-- calendar -->
+    <section style="display: flex; flex-direction: column; padding: 22px; border-radius: 24px; background: #121215; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07);">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <button type="button" style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); color: #f4f3f6; font: inherit; font-size: 14.5px; cursor: pointer;">September 2026<i class="ph ph-caret-down" aria-hidden="true" style="font-size: 12px; color: #8b8595;"></i></button>
+        <span style="flex: 1;"></span>
+        <button type="button" aria-label="Open schedule" style="display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); color: #f4f3f6; cursor: pointer;"><i class="ph ph-arrow-up-right" aria-hidden="true" style="font-size: 17px;"></i></button>
+      </div>
+      <div data-cal role="grid" aria-label="September sessions" style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 22px;"></div>
+      <span style="flex: 1; min-height: 16px;"></span>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-radius: 18px; background: #1b1b20; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07);">
+        <span style="min-width: 0;"><span style="display: block; font-size: 12px; color: #8b8595;">Booked this week</span><span style="display: block; margin-top: 4px; font-size: 32px; letter-spacing: -1px; font-variant-numeric: tabular-nums;">£3,240</span></span>
+        <span style="flex: 1;"></span>
+        <button type="button" aria-label="See bookings breakdown" style="display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); color: #f4f3f6; cursor: pointer;"><i class="ph ph-chart-bar" aria-hidden="true" style="font-size: 18px;"></i></button>
+      </div>
+    </section>
+
+    <!-- sessions -->
+    <section style="display: flex; flex-direction: column; padding: 22px; border-radius: 24px; background: #121215; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07);">
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h2 style="margin: 0; font-family: inherit; font-size: 19px; font-weight: 500;">Sessions logged</h2>
+        <span style="flex: 1;"></span>
+        <div role="tablist" aria-label="Sessions period" style="display: flex; gap: 2px; padding: 4px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);">
+          <button type="button" role="tab" aria-selected="true" style="min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: #f4f3f6; color: #0a0a0b; font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer;">Week</button>
+          <button type="button" role="tab" aria-selected="false" style="min-height: 44px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: #9b96a3; font: inherit; font-size: 13.5px; cursor: pointer;">Month</button>
+        </div>
+      </div>
+      <div style="display: flex; align-items: flex-start; gap: 10px; margin-top: 24px; flex-wrap: wrap;">
+        <div style="margin-right: auto;"><p style="margin: 0; font-size: 46px; letter-spacing: -1.4px; font-variant-numeric: tabular-nums;">1,184</p><p style="margin: 4px 0 0; font-size: 14px; color: #9b96a3;">This week</p></div>
+        <div style="min-width: 108px; padding: 12px 14px; border-radius: 16px; background: #1b1b20; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07);"><i class="ph ph-user" aria-hidden="true" style="font-size: 17px; color: #a78bfa;"></i><p style="margin: 8px 0 0; font-size: 22px; text-align: right; font-variant-numeric: tabular-nums;">812</p><p style="margin: 2px 0 0; font-size: 11.5px; text-align: right; color: #8b8595;">Coach-led</p></div>
+        <div style="min-width: 108px; padding: 12px 14px; border-radius: 16px; background: #1b1b20; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07);"><i class="ph ph-sparkle" aria-hidden="true" style="font-size: 17px; color: #e0a030;"></i><p style="margin: 8px 0 0; font-size: 22px; text-align: right; font-variant-numeric: tabular-nums;">372</p><p style="margin: 2px 0 0; font-size: 11.5px; text-align: right; color: #8b8595;">AI-guided</p></div>
+      </div>
+      <span style="flex: 1; min-height: 12px;"></span>
+      <div data-bars style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; align-items: end; height: 250px; margin-top: 16px;" role="img" aria-label="Sessions per day this week. Friday is highest: 118 coach-led and 64 AI-guided."></div>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-top: 10px; font-size: 12.5px; text-align: center; color: #8b8595;"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span style="color: #f4f3f6;">Fri</span><span>Sat</span><span>Sun</span></div>
+    </section>
+  </div>
+
+  <!-- row 2 -->
+  <div data-row style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px; margin-top: 14px;">
+
+    <!-- popular -->
+    <section style="padding: 22px; border-radius: 24px; background: #121215; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07);">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <h2 style="margin: 0; font-family: inherit; font-size: 19px; font-weight: 500;">Most-logged exercises</h2>
+        <span style="flex: 1;"></span>
+        <button type="button" style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 0; border-radius: 999px; background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); color: #f4f3f6; font: inherit; font-size: 13.5px; cursor: pointer;">All clients<i class="ph ph-caret-down" aria-hidden="true" style="font-size: 12px; color: #8b8595;"></i></button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 18px;">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 18px; background: #1b1b20; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);"><img src="img/exercise-deadlift.jpg" alt="" style="width: 64px; height: 64px; border-radius: 12px; object-fit: cover; flex: none;"><span style="min-width: 0; flex: 1;"><span style="display: block; font-size: 15px;">Romanian deadlift</span><span style="display: flex; align-items: center; gap: 8px; margin-top: 6px;"><span style="padding: 3px 9px; border-radius: 6px; background: rgba(224,160,48,0.2); color: #f0c060; font-size: 11.5px; font-weight: 500;">Hamstrings</span><span style="font-size: 12px; color: #8b8595;">8 reps</span></span></span><span style="display: grid; place-items: center; min-width: 58px; height: 58px; border-radius: 14px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); font-size: 20px; font-variant-numeric: tabular-nums;">412</span></div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 18px; background: #1b1b20; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);"><span aria-hidden="true" style="display: grid; place-items: center; width: 64px; height: 64px; border-radius: 12px; background: rgba(124,58,237,0.16); flex: none;"><i class="ph ph-barbell" style="font-size: 24px; color: #a78bfa;"></i></span><span style="min-width: 0; flex: 1;"><span style="display: block; font-size: 15px;">Back squat</span><span style="display: flex; align-items: center; gap: 8px; margin-top: 6px;"><span style="padding: 3px 9px; border-radius: 6px; background: rgba(47,191,135,0.18); color: #5fd6a4; font-size: 11.5px; font-weight: 500;">Quads</span><span style="font-size: 12px; color: #8b8595;">6 reps</span></span></span><span style="display: grid; place-items: center; min-width: 58px; height: 58px; border-radius: 14px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); font-size: 20px; font-variant-numeric: tabular-nums;">368</span></div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 18px; background: #1b1b20; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);"><span aria-hidden="true" style="display: grid; place-items: center; width: 64px; height: 64px; border-radius: 12px; background: rgba(124,58,237,0.16); flex: none;"><i class="ph ph-person-simple-run" style="font-size: 24px; color: #a78bfa;"></i></span><span style="min-width: 0; flex: 1;"><span style="display: block; font-size: 15px;">Hip thrust</span><span style="display: flex; align-items: center; gap: 8px; margin-top: 6px;"><span style="padding: 3px 9px; border-radius: 6px; background: rgba(124,58,237,0.24); color: #c4b1fc; font-size: 11.5px; font-weight: 500;">Glutes</span><span style="font-size: 12px; color: #8b8595;">12 reps</span></span></span><span style="display: grid; place-items: center; min-width: 58px; height: 58px; border-radius: 14px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); font-size: 20px; font-variant-numeric: tabular-nums;">301</span></div>
+      </div>
+    </section>
+
+    <!-- age -->
+    <section style="padding: 22px; border-radius: 24px; background: #121215; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07);">
+      <div style="display: flex; align-items: center;">
+        <h2 style="margin: 0; font-family: inherit; font-size: 19px; font-weight: 500;">Client age</h2>
+        <span style="flex: 1;"></span>
+        <button type="button" aria-label="Show as a table" style="display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); color: #f4f3f6; cursor: pointer;"><i class="ph ph-chart-pie-slice" aria-hidden="true" style="font-size: 18px;"></i></button>
+      </div>
+      <div role="img" aria-label="Client age: 44% aged 25 to 34, 31% aged 35 to 44, 19% aged 45 to 54, 6% aged 55 and over" style="position: relative; height: 290px; margin-top: 8px;">
+        <span style="position: absolute; left: 4%; top: 58px; display: grid; place-items: center; align-content: center; width: 190px; height: 190px; border-radius: 50%; background: #a78bfa; color: #0a0a0b; text-align: center;"><span style="font-size: 44px; letter-spacing: -1.4px;">44%</span><span style="font-size: 13px;">25–34</span></span>
+        <span style="position: absolute; left: 44%; top: 150px; display: grid; place-items: center; align-content: center; width: 150px; height: 150px; border-radius: 50%; background: repeating-linear-gradient(135deg, #e0a030 0 10px, #e8b24a 10px 13px); color: #0a0a0b; text-align: center; box-shadow: 0 0 0 5px #121215;"><span style="font-size: 34px; letter-spacing: -1px;">31%</span><span style="font-size: 12.5px;">35–44</span></span>
+        <span style="position: absolute; left: 38%; top: 10px; display: grid; place-items: center; align-content: center; width: 112px; height: 112px; border-radius: 50%; background: #2fbf87; color: #0a0a0b; text-align: center; box-shadow: 0 0 0 5px #121215;"><span style="font-size: 26px; letter-spacing: -0.6px;">19%</span><span style="font-size: 11px;">45–54</span></span>
+        <span style="position: absolute; right: 6%; top: 60px; display: grid; place-items: center; align-content: center; width: 58px; height: 58px; border-radius: 50%; background: #f4f3f6; color: #0a0a0b; text-align: center;"><span style="font-size: 15px;">6%</span><span style="font-size: 9.5px;">55+</span></span>
+      </div>
+    </section>
+
+    <!-- where -->
+    <section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; padding: 22px; border-radius: 24px; background: #121215; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07);">
+      <div style="min-width: 0;">
+        <h2 style="margin: 0; font-family: inherit; font-size: 19px; font-weight: 500;">Where clients train</h2>
+        <p style="margin: 6px 0 0; font-size: 13px; color: #8b8595;">By city, active clients</p>
+        <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 24px;">
+          <div><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>London</span><span style="font-variant-numeric: tabular-nums;">96</span></div><span aria-hidden="true" style="display: block; height: 6px; margin-top: 8px; border-radius: 999px; background: #1b1b20;"><span style="display: block; width: 100%; height: 6px; border-radius: 999px; background: #a78bfa;"></span></span></div>
+          <div><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Manchester</span><span style="font-variant-numeric: tabular-nums;">41</span></div><span aria-hidden="true" style="display: block; height: 6px; margin-top: 8px; border-radius: 999px; background: #1b1b20;"><span style="display: block; width: 43%; height: 6px; border-radius: 999px; background: #a78bfa;"></span></span></div>
+          <div><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Bristol</span><span style="font-variant-numeric: tabular-nums;">28</span></div><span aria-hidden="true" style="display: block; height: 6px; margin-top: 8px; border-radius: 999px; background: #1b1b20;"><span style="display: block; width: 29%; height: 6px; border-radius: 999px; background: #a78bfa;"></span></span></div>
+          <div><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Edinburgh</span><span style="font-variant-numeric: tabular-nums;">19</span></div><span aria-hidden="true" style="display: block; height: 6px; margin-top: 8px; border-radius: 999px; background: #1b1b20;"><span style="display: block; width: 20%; height: 6px; border-radius: 999px; background: #a78bfa;"></span></span></div>
+          <div><div style="display: flex; justify-content: space-between; font-size: 14px; color: #9b96a3;"><span>Online only</span><span style="font-variant-numeric: tabular-nums;">49</span></div><span aria-hidden="true" style="display: block; height: 6px; margin-top: 8px; border-radius: 999px; background: #1b1b20;"><span style="display: block; width: 51%; height: 6px; border-radius: 999px; background: #e0a030;"></span></span></div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; padding: 18px; border-radius: 18px; background: #1b1b20; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07);">
+        <div style="display: flex; align-items: flex-start;"><span style="font-size: 44px; letter-spacing: -1.4px; font-variant-numeric: tabular-nums;">233</span><span style="flex: 1;"></span><button type="button" aria-label="Open all clients" style="display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); color: #f4f3f6; cursor: pointer;"><i class="ph ph-arrow-up-right" aria-hidden="true" style="font-size: 17px;"></i></button></div>
+        <p style="margin: 2px 0 0; font-size: 14px; color: #9b96a3;">Active clients</p>
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 18px;">
+          <div style="display: flex; justify-content: space-between; padding: 12px 14px; border-radius: 12px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); font-size: 14px;"><span>Coach-guided</span><span style="font-variant-numeric: tabular-nums;">141</span></div>
+          <div style="display: flex; justify-content: space-between; padding: 12px 14px; border-radius: 12px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); font-size: 14px;"><span>AI-guided</span><span style="font-variant-numeric: tabular-nums;">58</span></div>
+          <div style="display: flex; justify-content: space-between; padding: 12px 14px; border-radius: 12px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); font-size: 14px;"><span>Self-guided</span><span style="font-variant-numeric: tabular-nums;">34</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <p style="margin: 22px 4px 0; font-size: 12px; color: #6a6572;">Sample data for layout.</p>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  componentDidMount() {
+    const cal = document.querySelector('[data-cal]');
+    if (cal && !cal.children.length) {
+      const booked = [1, 5, 10, 25, 28, 30];
+      for (let d = 1; d <= 35; d++) {
+        const day = d <= 30 ? d : d - 30;
+        const out = d > 30;
+        const sel = d >= 14 && d <= 19;
+        const today = d === 20;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.setAttribute('aria-label', out ? 'October ' + day : 'September ' + day + (sel ? ', selected' : '') + (booked.includes(d) ? ', sessions booked' : ''));
+        b.style.cssText = 'position: relative; min-height: 48px; border: 0; border-radius: 14px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; cursor: pointer;' +
+          (sel ? 'background: #a78bfa; color: #0a0a0b; font-weight: 500;' : out ? 'background: none; color: #4a4652;' : 'background: #1b1b20; color: #f4f3f6;') +
+          (today ? 'box-shadow: inset 0 0 0 1.5px #a78bfa;' : '');
+        b.textContent = String(day);
+        if (booked.includes(d) && !sel) {
+          const dot = document.createElement('span');
+          dot.setAttribute('aria-hidden', 'true');
+          dot.style.cssText = 'position: absolute; left: 50%; bottom: 7px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: #e0a030;';
+          b.appendChild(dot);
+        }
+        cal.appendChild(b);
+      }
+    }
+    const bars = document.querySelector('[data-bars]');
+    if (bars && !bars.children.length) {
+      const data = [[72, 34], [66, 40], [48, 22], [80, 36], [118, 64], [58, 44], [62, 50]];
+      const max = 190;
+      data.forEach(([c, a], i) => {
+        const col = document.createElement('div');
+        col.style.cssText = 'display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; height: 100%;';
+        const peak = i === 4;
+        const top = document.createElement('span');
+        top.style.cssText = 'position: relative; display: block; height: ' + (c / max * 100) + '%; border-radius: 14px;' + (peak ? 'background: #a78bfa;' : 'background: #1b1b20; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);');
+        const bot = document.createElement('span');
+        bot.style.cssText = 'position: relative; display: block; height: ' + (a / max * 100) + '%; border-radius: 14px;' + (peak ? 'background: #e0a030;' : 'background: repeating-linear-gradient(135deg, #1b1b20 0 6px, #26262c 6px 8px);');
+        if (peak) {
+          top.innerHTML = '<span style="position: absolute; top: 8px; left: 50%; transform: translateX(-50%); padding: 3px 9px; border-radius: 999px; background: #fff; color: #0a0a0b; font-size: 12.5px; font-weight: 500;">118</span>';
+          bot.innerHTML = '<span style="position: absolute; top: 8px; left: 50%; transform: translateX(-50%); padding: 3px 9px; border-radius: 999px; background: #fff; color: #0a0a0b; font-size: 12.5px; font-weight: 500;">64</span>';
+        } else {
+          top.innerHTML = '<span aria-hidden="true" style="position: absolute; top: 9px; left: 50%; width: 16px; height: 2px; margin-left: -8px; border-radius: 2px; background: rgba(255,255,255,0.3);"></span>';
+        }
+        col.appendChild(top); col.appendChild(bot);
+        bars.appendChild(col);
+      });
+    }
+  }
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
