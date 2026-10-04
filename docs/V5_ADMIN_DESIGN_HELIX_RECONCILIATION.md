@@ -332,3 +332,205 @@ fidelity; **it is not a product runtime and must not be shipped.**
 **Nothing in this reconciliation removes, simplifies, hides or redesigns any approved capability.
 `PD-G01`, `PD-A24` and `P10` are not released. No migration, application file, schema change or
 production contact.**
+
+---
+
+# PART II — CLOSURE PASS (V5 §104)
+
+**Every evidence-supported closure step worked through. Analysis only; §102 governs. No capability removed,
+simplified, hidden or redesigned.**
+
+## 9 · `CONF-D6` — the engineering half CLOSES, the authority half does NOT
+
+§103 said validating the token extraction was the first task. **Done, quantitatively.**
+
+### 9.1 The extraction is faithful — measured, not asserted
+
+| check | result |
+|---|---|
+| hex tokens in `admin.tokens.json` found in the approved pages | **22 / 22** |
+| rgba tokens found | **11 / 11** — `line.hairline` alone appears **2,364** times, `line.default` **1,068** |
+| distinct hex values used across the six pages | 39 |
+| **total hex occurrences covered by the token set** | **6,057 / 6,200 = 97.7%** |
+| the 12 most-used values | **all 12 tokenised** |
+
+**Residue, named rather than glossed:** two untokenised values above 20 uses — `#f08a9b` (×52, a near
+neighbour of `status.dangerText #f07a8c`) and `#b8b3c0` (×35, between `text.secondary` and `text.muted`) —
+plus 17 low-use distinct values totalling ~2.3%.
+
+**Conclusion: `PROVENANCE.md`'s claim — *"Extracted … by counting values actually used · Derived, not
+invented"* — is TRUE and now verified.** The token set is a trustworthy basis for implementation, and the
+2.3% residue is a bounded tidy-up, not a defect.
+
+### 9.2 What this closes, and what it explicitly does not
+
+**CLOSES (engineering):** the tokens are accurate, complete to 97.7%, and **conform 11/11 to the enforced
+Helix theme** (§2.2). Nothing further is needed to *trust* them.
+
+**DOES NOT CLOSE (authority):** `CONF-D6` requires a ***locked identity package***. Still outstanding, from
+`brand/README.md` and the handoff report:
+
+- logo **light-ground** variant · **one-colour** variant · **icon-only / app-icon** crop · **clear-space**
+  rule · **minimum size** · transparency check — *"none are invented here"*;
+- and the owner's designation that **these derived tokens ARE the locked package**.
+
+> **A derived extraction is evidence of what the design does. It is not an owner lock on what the brand
+> is.** That distinction is the whole of `CONF-D6`'s remainder and is **not** collapsed here.
+
+## 10 · `CONF-D7` — a real matrix exists; the remaining requirement is now exact
+
+**The approved Settings › Roles & permissions page contains an actual role matrix.** This is the single
+largest movement on `CONF-D7` since it was raised.
+
+### 10.1 What the design establishes
+
+**Five Admin roles**, with description, user count, level and status:
+
+| role | description | level |
+|---|---|---|
+| **Trust lead** | *"Security, AI oversight and audit"* | Full |
+| **Operations lead** | *"QA, releases, integrations, system"* | — |
+| **Support** | *"Members and bookings, read-mostly"* | Limited |
+| **Content editor** | *"Community and training content"* | — |
+| **Viewer** | *"Read-only across the admin"* | Read-only |
+
+**Five permission verbs:** `View · Create · Update · Manage · Approve`.
+
+**Fourteen permission areas, grouped by the IA** — Ecosystem (Community · Events · Training ·
+Monetization · Wearable intelligence) · Trust (AI Guardian · Security · Incidents · Audit logs) ·
+Operations (QA · Releases · Integrations · System).
+
+**So the shape of `CONF-D7` is answered: roles × areas × verbs, with a level summary.**
+
+### 10.2 The precise remaining requirement — a vocabulary that does not match the database
+
+**The designed Admin roles are NOT the enforced database roles.** `user_profiles_role_check` (147:49)
+enforces seven: `client · coach · vendor · admin · content_manager · trust_operator · erasure_executor`.
+
+| design role | database role | relationship |
+|---|---|---|
+| Trust lead | `trust_operator` | plausible, **not stated** |
+| Content editor | `content_manager` | plausible, **not stated** |
+| Operations lead · Support · Viewer | — | **no database equivalent** |
+| — | **`erasure_executor`** | **no design equivalent** — yet it exclusively holds severance (`146:118`, `152:183`) |
+| — | `client` · `coach` · `vendor` | appear in the design as **subjects**, not Admin actors |
+
+**What remains to close `CONF-D7`, stated exactly:**
+
+1. **Are the five design roles a SEPARATE Admin role layer above the seven database roles, or a
+   replacement vocabulary for them?** Everything else depends on this and it is **not inferable**.
+2. **Where does `erasure_executor` appear?** It holds the most destructive capability in the system and
+   has no designed surface.
+3. **The matrix cells.** The design renders the grid; the per-cell grants were not extractable from the
+   static markup and are **not invented here**.
+4. **Reconciliation with the nine enforced sites** (§98.1) — e.g. `A13·1` excludes an admin from reading
+   their **own** `admin_action` rows; no design role expresses that.
+
+**`CONF-D7` remains OPEN — but it is no longer *"no role matrix"*. It is a vocabulary-reconciliation
+decision with a designed matrix on one side and shipped enforcement on the other. Owner.**
+
+### 10.3 A second, larger finding — Trust › Authorization implies a policy registry
+
+The approved `#sec-authz` surface logs: `Who · Role · Resource · Did what · Result · **Under policy** ·
+When · **Risk**`, with **named policies — `RB-01 · admin`, `RB-04 · roster only`, `RB-06 · support read`,
+`RB-09 · trust manage`** — and principals including **`Outreach worker · AI agent`**.
+
+Against the shipped `audit_events` (142 + 150):
+
+| design column | support |
+|---|---|
+| Who · Did what · Result · When | ✅ `actor_id` · `action` · **`outcome`** · `occurred_at` |
+| **Resource** | ⛔ no column |
+| **Under policy (`RB-nn`)** | ⛔ **no policy registry exists anywhere in the record** |
+| **Risk** | ⛔ no column |
+| **AI agent as principal** | ⚠ partially — `actor_provenance` has `system`, but no agent identity |
+
+**This is a substantial additive requirement and it is `CONF-D7`-adjacent**: a named, versioned policy
+registry is precisely what makes a role matrix enforceable and auditable. **Recorded; not designed.**
+
+## 11 · Domain placement — CLOSED at 12 / 12
+
+§103.3 left **`Database`** as the one unplaced domain. **It is placed: Operations › System.**
+
+> Operations › System — *"The infrastructure 12Circle+ runs on"* — lists **Application · Uptime 30d
+> 99.97% · API p95 212 ms · Database 41% capacity · 118 connections · Jobs 18 running / 42 queued / 2
+> failed · Workers 6/6 · Storage 62%**, with the Control Center carrying a `Database · Operational`
+> health tile.
+
+**All twelve §91 domains are now placed by approved design. `Database` was never removed while its
+placement was unresolved** — §102 held, and the evidence then resolved it.
+
+## 12 · Wearables — RESOLVED, and the design package's own note is the thing that was wrong
+
+§103 flagged a tension: the package's *"Requires architectural verification"* panel says **wearables are
+Android-first**, while the approved tile shows **Apple HealthKit** and **Apple Watch**.
+
+**The approved roadmap settles it, repeatedly and explicitly:**
+
+> `ROADMAP_WEARABLE_INTELLIGENCE.md:7` — ***"First platform: Apple Watch / Apple HealthKit"***
+> `:95` **W1 — HealthKit Foundation** · `:99` *"a secure, explicit connection between 12Circle and Apple
+> HealthKit"* · `:378` **W8 — Apple Watch Companion Experience** · `:443` ***"Apple Watch/HealthKit is the
+> first implementation."*** `:452` shows the provider abstraction — *Apple/HealthKit · Health Connect ·
+> Other*.
+
+**So the approved Admin design is CORRECT and consistent with `WI-01`/`WI-08`. The package's
+"Android-first" note is mistaken** — and it is a **design-time annotation, not design authority**, so
+correcting it changes no approved capability.
+
+**Corroborating:** `apps/mobile/pubspec.yaml` has **no** health, wearable, fitness or sensor dependency —
+there is no wearable integration on either platform yet, exactly as `PD-G01` (approved, implementation not
+authorized) requires.
+
+**Neither capability is removed.** HealthKit and Apple Watch stand as approved design; the ingestion-health
+half still waits on `WI-13` under `PD-G01` (§102.6). **This closes the §103 wearable question.**
+
+## 13 · AI Guardian inside Trust — full §102 characterization
+
+| field | finding |
+|---|---|
+| **Design capability** | A full Trust › AI Guardian area — *"Oversight of AI agents, workflows and the policies that govern them"*: Policy center · Overview · AI activity · **Policies · Policy detail** · AI incidents · Incident detail · Guardian health · Evaluation engine. Metrics: policy set **v3.14 · 28 active policies**, median decision time 41 ms, **agents without a policy: 0**, 6 AI systems monitored, 14 active agents, 22 workflows, 31,440 AI requests / 14,206 AI actions per 24 h, decisions blocked 38 / escalated 2 / failed 4 |
+| **Design source** | `12Circle Admin Pages - Trust.dc.html` `#ai-guardian`; cross-linked from Settings |
+| **Governing authority** | `D11` / §19.2 — *"Trust's scope = Security · Incidents · Audit Logs. **AI Guardian remains P7 and is NOT inside Trust.**"* |
+| **Nature of the conflict** | **Scope / phase, not security.** Both readings are legible and **neither is adopted here**: (a) the Trust area is *governance oversight of AI*, which is a Trust function, and P7 is the Guardian *product capability* — compatible; (b) §19.2's exclusion is explicit and names AI Guardian directly — incompatible. **The record does not disambiguate, so this is not inferable.** |
+| **Governance pull toward the design** | *"Agents without a policy: 0"* and a versioned policy set directly operationalize `A10` — *"AI agents do not inherit unrestricted admin authority"* and *"security controls remain independent of the AI Guardian"*. **Observed, not adopted as an argument.** |
+| **Architecture support** | **None.** No `policies`, `ai_agents` or agent-registry table exists. The policy registry is also what `#sec-authz` needs (§10.3) — **one additive capability serving two approved surfaces** |
+| **Security / RLS** | Guardian oversight reads across all members ⇒ `CONF-D8`. Any Guardian *control* (emergency disablement, `A5`) is a privileged write ⇒ `CONF-D7` cell + `A10` audit emitter |
+| **Disposition** | **PRESERVED. Not implemented, not deleted, not relocated, not redesigned.** |
+| **Decision required** | Does the approved design supersede §19.2's exclusion, or does Guardian oversight render elsewhere? **Owner. This is a stop.** |
+
+## 14 · Remaining approved Admin capabilities — governance / security audit
+
+| surface | status | note |
+|---|---|---|
+| Trust › Security · Incidents · Audit explorer | **SUPPORTED** | `audit_events`, `audit_incidents`, `delta` (150) shipped + CI-verified. ⚠ `delta` **excludes** `phi_correction` and the five occurrence categories — a diff view must honour that exclusion |
+| Trust › Authorization `#sec-authz` | **ADDITIVE** | needs resource · policy registry · risk (§10.3) |
+| Operations › System | **ADDITIVE** | no `system_events`, `background_jobs`; health per `PD-A24 = C`, vendor-free |
+| Operations › Releases · Integrations | **ADDITIVE** | no `releases`/`integrations` tables; CI ingestion under the **`P10`** constraint |
+| People › Users | **SUPPORTED** | `user_profiles`, `admin_recent_users()` |
+| People › Coaches · Clients | **PARTIAL** | `coach_client_relationships` exists; **no coach-verification state** |
+| People › Partners | **ADDITIVE** | no approval state — §100.5 owner decision |
+| Ecosystem › Community | **ADDITIVE** | `community_posts`/`comments`/`groups`/`accountability_pods` exist; **no reports/moderation queue** — `CAP-1` |
+| Ecosystem › Events · Training | **SUPPORTED** | `events`, `event_registrations` (`K-04` CI-verified), `workout_*` |
+| Ecosystem › Monetization | **ADDITIVE** | no local amounts (§99.2) |
+| Ecosystem › Wearables | **PARTIAL** | connections via `user_integrations`; ingestion health = `WI-13` under `PD-G01` |
+| Settings (11 sections) | **ADDITIVE** | only `platform_settings` exists, one key. **No `organizations` table.** Every write is a `CONF-D7` cell + `A10` emitter |
+| Global search | **ADDITIVE** | cross-domain, must respect `A10` |
+
+**Confirmed absent:** `organizations`, `coach_verification`, `partner_approval`, `integrations`,
+`releases`, `policies`, `ai_agents`, `system_events`, `background_jobs`, `moderation_reports`.
+**Every one is an approved capability and none is removed — §102's union, not the intersection.**
+
+**A design-side governance signal worth adopting:** the Wearables page states its own rule —
+***"System health first. Member-level data only where your role permits it."*** The approved design is
+already written in `A10`'s terms.
+
+## 15 · Nocturne and the canonical-Helix question — unchanged, restated
+
+**Nocturne remains a design-runtime dependency, not Helix.** Not renamed, not substituted, not assumed.
+It is required only to render the `.dc.html` artifacts at full fidelity and **must not ship as a product
+runtime**. No new evidence in this pass alters §7.1.
+
+**The canonical-Helix question is NOT resolved by inference.** The standalone repo's lime `12circle.ts`
+(self-declared *"FIRST PASS"*) versus the enforced in-repo violet theme is recorded as a **design-system
+authority boundary**. The Admin design's 11/11 conformance to the in-repo theme is *evidence*, not a
+ruling.

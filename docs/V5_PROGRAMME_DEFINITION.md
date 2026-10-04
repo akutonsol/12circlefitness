@@ -11255,3 +11255,125 @@ live** (design-system authority).
 
 **No capability removed, simplified, hidden or redesigned. `PD-G01`, `PD-A24`, `P10` not released. No
 migration, no application file, no schema change, no production contact. QA at 152.**
+
+---
+
+## 104 · CLOSURE PASS — TOKENS VALIDATED · DOMAINS 12/12 · WEARABLES RESOLVED · `CONF-D7` NARROWED TO ONE QUESTION
+
+Continuation from §103 through every evidence-supported closure step. **Full detail: Part II of
+`docs/V5_ADMIN_DESIGN_HELIX_RECONCILIATION.md`.** Analysis only; §102 applied throughout; **no capability
+removed, simplified, hidden or redesigned.**
+
+### 104.1 `CONF-D6` — engineering half CLOSES, authority half does NOT
+
+§103 named validating the token extraction as the first task. **Measured:**
+
+- **22/22** hex tokens and **11/11** rgba tokens found in the approved pages
+- **6,057 of 6,200 hex occurrences covered — 97.7%**; the **12 most-used values are all tokenised**
+- residue named: `#f08a9b` (×52) and `#b8b3c0` (×35), plus 17 low-use values ≈ 2.3%
+
+**`PROVENANCE.md`'s *"Derived, not invented"* is verified true.** Combined with 11/11 Helix conformance,
+the tokens are a trustworthy implementation basis.
+
+**What does NOT close:** `CONF-D6` requires a **locked identity package**. Outstanding: logo light-ground,
+one-colour, icon-only crop, clear-space, minimum size, transparency check — and the owner's designation
+that these derived tokens *are* the lock. **A derived extraction is evidence of what the design does; it
+is not an owner lock on what the brand is.**
+
+### 104.2 `CONF-D7` — a real matrix exists; the remainder is now one question
+
+**The approved Settings › Roles & permissions page contains an actual matrix** — the largest movement
+since `CONF-D7` was raised:
+
+- **5 Admin roles:** `Trust lead` (Security, AI oversight and audit) · `Operations lead` (QA, releases,
+  integrations, system) · `Support` (members and bookings, read-mostly) · `Content editor` (community and
+  training content) · `Viewer` (read-only across the admin), with levels `Full / Limited / Read-only`
+- **5 verbs:** `View · Create · Update · Manage · Approve`
+- **14 areas** grouped by the IA (Ecosystem 5 · Trust 4 · Operations 4 …)
+
+**But the vocabulary does not match the database.** The enforced `user_profiles_role_check` has **seven**
+roles. `Trust lead`≈`trust_operator` and `Content editor`≈`content_manager` are **plausible but
+unstated**; `Operations lead`/`Support`/`Viewer` have **no database equivalent**; and **`erasure_executor`
+— which exclusively holds severance — has no designed surface at all.**
+
+> **The remaining `CONF-D7` question, exactly: are the five designed Admin roles a SEPARATE layer above
+> the seven database roles, or a replacement vocabulary for them?** Everything else — cell grants,
+> `erasure_executor`'s surface, reconciliation with `A13·1`'s own-admin-action exclusion — follows from
+> that and is not inferable. **Owner.**
+
+### 104.3 A policy registry is implied by two approved surfaces
+
+Trust › Authorization logs `Who · Role · Resource · Did what · Result · **Under policy** · When · **Risk**`
+with **named policies `RB-01 · admin`, `RB-04 · roster only`, `RB-06 · support read`, `RB-09 · trust
+manage`**, and principals including **`Outreach worker · AI agent`**.
+
+`audit_events` supplies who/action/**outcome**/when and **lacks resource, policy and risk**. The Guardian
+surface independently shows *"policy set **v3.14 · 28 active policies**"* and *"**agents without a policy:
+0**"*.
+
+**So a named, versioned policy registry is required by two separate approved surfaces — and it is exactly
+what makes a role matrix enforceable and auditable.** Recorded as additive architecture; **not designed.**
+
+### 104.4 Domain placement — CLOSED at 12 / 12
+
+**`Database` is placed: Operations › System** — *"The infrastructure 12Circle+ runs on"*: Application ·
+Uptime 99.97% · API p95 · **Database 41% capacity · 118 connections** · Jobs · Workers · Storage, plus the
+Control Center's `Database · Operational` tile.
+
+**It was never removed while unresolved — §102 held, and the evidence then resolved it.** This closes
+§97.4's fourth gate.
+
+### 104.5 Wearables — resolved, and the design package's own note was the error
+
+The package's architectural-verification panel says *"wearables are Android-first"*. **The approved
+roadmap says the opposite, repeatedly:** *"**First platform: Apple Watch / Apple HealthKit**"* (`:7`),
+**W1 — HealthKit Foundation** (`:95`), **W8 — Apple Watch Companion** (`:378`), *"**Apple Watch/HealthKit
+is the first implementation**"* (`:443`).
+
+**The approved Admin design is correct and consistent with `WI-01`/`WI-08`; the "Android-first" note is
+mistaken — and it is a design-time annotation, not design authority, so nothing approved changes.**
+Corroborating: `pubspec.yaml` has **no** health/wearable dependency at all, exactly as `PD-G01` requires.
+**Neither capability removed.**
+
+### 104.6 AI Guardian in Trust — characterized in full, still a stop
+
+Trust › AI Guardian is a complete oversight area (Policy center · AI activity · Policies · Policy detail ·
+AI incidents · Guardian health · Evaluation engine). **Both readings are legible and neither is adopted:**
+(a) governance oversight of AI is a Trust function and P7 is the Guardian *product*, so they are
+compatible; (b) §19.2 names AI Guardian and excludes it from Trust, so they are not. **The record does not
+disambiguate.**
+
+Noted but not argued: *"agents without a policy: 0"* and a versioned policy set operationalize `A10`
+directly. **Capability PRESERVED — not implemented, deleted, relocated or redesigned. Owner decision.**
+
+### 104.7 Capability audit — the union, not the intersection
+
+**Supported:** Trust Security/Incidents/Audit · People Users · Ecosystem Events/Training.
+**Partial:** People Coaches/Clients (no verification state) · Ecosystem Wearables (connections only).
+**Additive:** `#sec-authz` · Operations System/Releases/Integrations · People Partners · Ecosystem
+Community moderation (`CAP-1`) · Monetization · **all 11 Settings sections** · global search.
+
+**Confirmed absent:** `organizations` · `coach_verification` · `partner_approval` · `integrations` ·
+`releases` · `policies` · `ai_agents` · `system_events` · `background_jobs` · `moderation_reports`.
+**Every one is approved capability; none removed.**
+
+⚠ **One security constraint on an approved surface:** migration 150 deliberately **excludes**
+`phi_correction` and the five occurrence categories from `delta`. **A Trust before/after diff that
+rendered those would defeat `A6`.** Preserved, not designed, flagged.
+
+### 104.8 Frontier — the genuine boundaries after this pass
+
+**CLOSED this pass:** Trust IA (§103) · **domain placement 12/12** · **wearable platform question** ·
+**token-extraction validation**.
+
+**OWNER:** `CONF-D7`'s one question (§104.2) · **AI Guardian in Trust** (§104.6) · `CONF-D6`'s identity
+lock (§104.1) · the five of §100.5 · `PD-C03` · `CAP-1`'s policy question · the `A12` re-identification
+boundary (§102.5).
+**DESIGN-SYSTEM AUTHORITY:** which Helix is canonical · where Admin tokens live. **Not resolved by
+inference.**
+**ARCHITECTURE (`CONF-D9`, behind `CONF-D7`):** the policy registry · the ten absent tables · Helix
+token/component extensions (§2.4).
+
+**`PD-G01`, `PD-A24`, `P10` not released. Nocturne remains a design-runtime dependency, not Helix — not
+renamed, not substituted. No migration, no application file, no schema change, no production contact.
+QA at 152.**
