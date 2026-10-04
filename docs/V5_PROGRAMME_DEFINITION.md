@@ -11151,3 +11151,107 @@ settle. **CAP-2 adds none.** The §102.5 governance case is a **stop**, not a ne
 
 **No capability deleted, hidden, collapsed, replaced or redesigned around. No migration authored, no
 application file changed, no production contact. QA at 152.**
+
+---
+
+## 103 · DESIGN AUTHORITY INGESTED — HELIX CONFORMANCE IS 11/11 · TRUST IA CLOSED · ONE NEW CONFLICT
+
+Ingestion of `design/12circle-plus-admin-dashboard` (`931218b`), reconciled against V5 architecture,
+governance and Helix. **Full report: `docs/V5_ADMIN_DESIGN_HELIX_RECONCILIATION.md`.** Analysis only —
+nothing implemented, scaffolded or redesigned; **§102 applied throughout.**
+
+### 103.1 The result that was not expected — the Admin design IS the shipped Helix theme
+
+**Eleven of eleven shared colour roles match EXACTLY**, along with the typeface, both hairline strengths
+and the signature easing curve:
+
+| Admin token | value | Helix `TwelveCircleTheme` |
+|---|---|---|
+| `bg.canvas` · `bg.surface` · `bg.hover` | `#0a0a0b` · `#121215` · `#1b1b20` | `bg` · `surface` · `surfaceHigh` |
+| `text.primary` · `muted` · `subtle` | `#f4f3f6` · `#9b96a3` · `#8b8595` | `ink` · `grey` · `dim` |
+| `brand.violet` · `brand.accent` | `#7c3aed` · `#a78bfa` | `violet` · `violetText` |
+| `status.success` · `warning` · `danger` | `#2fbf87` · `#e0a030` · `#e8556d` | `green` · `amber` · `red` |
+
+Plus **Schibsted Grotesk**, hairlines `0.08`/`0.045` = `0x14FFFFFF`/`0x0BFFFFFF`, and
+`cubic-bezier(0.2,0,0,1)` = `Motion.emphasized`. **This is one design system, not two that happen to
+agree.**
+
+### 103.2 A correction about which Helix is authoritative
+
+**Two artefacts both claim to be the 12Circle Helix theme.** `/Users/dmac/Documents/projects/helix`'s
+`src/themes/12circle.ts` is **electric lime `#9EF01A`**, Hanken Grotesk / Clash Display, `easing.spring` —
+and its own header says ***"FIRST PASS — values are meant to be tuned by design."*** The **in-repo Dart
+implementation** (`apps/mobile/lib/core/helix/` + `core/theme/twelve_circle_theme.dart`) is violet,
+Schibsted Grotesk, and **conformance-tested in CI**.
+
+**The enforced in-repo theme is the live one; the standalone lime theme is a stale first pass.** Recorded
+because a future consumer binding to the wrong one would import a different brand. **Which is canonical is
+a design-system authority decision and is not made here.**
+
+### 103.3 Gate movement — two of §97.4's four gates move
+
+| gate | movement |
+|---|---|
+| **Trust's information architecture** | ✅ **CLOSED.** §90.4's *second* external-design item — the Trust page is designed: `#overview` `#ai-guardian` `#security` `#sec-authz` `#incidents` `#audit` `#trust-system` |
+| **Nine domain placements** | **11 of 12 now placed by approved design.** Users→People · Roles→Settings · Health & Releases→Operations · Wearables & Payments→Ecosystem (Payments also Settings `#billing`) · Analytics→Dashboard. **`Database` remains unplaced and is NOT removed** |
+| `CONF-D6` | **NARROWED, not closed.** Tokens now exist and match 11/11 — but they are **derived by extraction**, and the logo package still lacks light-ground, one-colour, icon-only, clear-space and minimum-size. **A derived extraction is not an owner lock.** |
+| `CONF-D7` | **unchanged**, and `#sec-authz` now has a surface waiting on it |
+
+### 103.4 §97.4 gate 6 is STALE — the states are designed
+
+The record said the 11 states were *"ENUMERATED, NOT DESIGNED … no frames."* **No longer true.** Ten state
+patterns are designed across all six pages — Loading · Empty · Error · Permission · Degraded ·
+Unavailable · Stale · Offline · Skeleton · Read-only — with dedicated *"State system"* panels.
+**Two of `A11`'s eleven are still undesigned: critical-incident and Guardian-approval-required.** The four
+states the design adds beyond `A11` are **preserved** under §102.
+
+### 103.5 `CAP-1` corroborated by the approved design
+
+§102.3 surfaced the **community moderation queue** from the Build Spec with no prior V5 row. The approved
+**Ecosystem** page independently requires *"community posts, **reports and moderation queue**"*. **Two
+independent authorities now require it.** Its architecture record stands.
+
+### 103.6 ONE new conflict — §102 governance exception
+
+**The approved Trust page contains `#ai-guardian`. `D11`/§19.2 rules: *"Trust's scope = Security ·
+Incidents · Audit Logs. AI Guardian remains P7 and is NOT inside Trust."***
+
+A **scope/phase** conflict, not a security one. Per §102: **capability PRESERVED — not implemented, not
+deleted, not relocated** — conflict and authority named, **stop.** Does the approved design supersede
+§19.2's exclusion, or does AI Guardian render elsewhere? **Owner.**
+
+### 103.7 Nocturne — identified, not assumed
+
+**Not Helix, not a predecessor: the design tool's baseline design-system runtime.** Zero occurrences in
+Helix, zero in this repository, nine in the design package. **The bundle was located on disk**
+(`~/Desktop/{community-portal,mobile-app}/_ds/nocturne-042b8c43-…/`) under the **same instance UUID shared
+by the Admin, Mobile and community-portal designs**. Its readme: *"a single accent **#9184d9**"*, Inter,
+8px radii — a token namespace **disjoint** from Helix's. `support.js` is *"GENERATED from dc-runtime"*.
+
+**Measured dependence on it is nil:** `#9184d9` appears **0** times in the approved pages and its class
+names **0** times. The pages carry **6,274 raw hex** and **22,109 raw px** values of their own — which is
+why `admin.tokens.*` is a **reverse-extraction** (`PROVENANCE.md`: *"Derived, not invented"*), and why
+**validating that extraction value-by-value is the first task of any implementation.**
+
+**It is not renamed, not substituted, not assumed to be Helix, and must not be shipped as a product
+runtime.**
+
+### 103.8 Additive Helix extensions required — none is a conflict
+
+4 colour roles (incl. **`status.info`**, which Helix lacks entirely) · status `*Text`/`*Tint`/`*Border`
+variants (required by the contrast rules, not decoration) · a 10-step **type scale** (Tier 2 carries
+families only) · density/size tokens · Admin's structural shadows (`menu/edge/divider/header`) alongside
+Helix's elevation ramp · a z-index scale · **≈30 components against Helix's three** · **Phosphor Icons
+v2.1.1**, 107 in use, where Helix specifies no icon system.
+
+### 103.9 Frontier
+
+**Gates:** ~~Trust IA~~ **CLOSED** · **`CONF-D6`** narrowed · **`CONF-D7`** open · **`Database`**
+placement.
+**New:** **§103.6 AI-Guardian-in-Trust** (owner) · **which Helix is canonical** and **where Admin tokens
+live** (design-system authority).
+**Carried:** §100.5's five · `PD-C03` · `CAP-1`'s policy question · the `A12` boundary (§102.5) ·
+`BOUNDARIES.md` A–G.
+
+**No capability removed, simplified, hidden or redesigned. `PD-G01`, `PD-A24`, `P10` not released. No
+migration, no application file, no schema change, no production contact. QA at 152.**
