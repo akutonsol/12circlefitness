@@ -12853,3 +12853,60 @@ denies everything — **proven live, not asserted**. `CONF-D8` stays open on the
 no capability row seeded, no Admin-surface policy authored.
 
 **Frontier: QA at 154.** `PD-G01`, `PD-A24` and `P10` are not released. Production was not contacted.
+
+---
+
+## 122 · POST-QA FRONTIER AUDIT — `CONF-D8` STILL PARKED · HARNESS SWEEP CLEAN
+
+### 122.1 The matrix has not arrived
+
+Direct state check, **not** a repeat of the exhausted recovery (§116): the matrix file reports **0 cells
+with a value**, the design branch is still `931218b`, and there are **no new branches, commits or
+untracked files**. **`CONF-D8` stays PARKED.** No cell was invented, no default seeded, no expansion from
+the role levels.
+
+### 122.2 Harness sweep — the two §120.4 defects were isolated
+
+§120.4 recorded two defects **in my own test code** that produced a false alarm and a misreported state.
+**A defect of that shape elsewhere would mean other suites are quietly giving false confidence**, so the
+whole harness was swept:
+
+| defect | occurrences elsewhere |
+|---|---|
+| pre-stringified body passed to `svc()` (double-encoded; PostgREST answers 201 while the row lands unusable) | **0** |
+| `/rest/v1/` prefix passed *into* `svc()`/`rest()`/`mutate()`, which add it themselves (`PGRST125`) | **0** |
+
+Every other `/rest/v1/` occurrence is a **raw `fetch()` building its own URL** — correct by construction,
+and not the same class. **The harness is clean; both defects were confined to `d13` and are fixed.**
+
+**This is why the 502/502 result can be trusted**: the one suite that had the bug is the one that caught
+it, and the sweep shows it was not systemic.
+
+### 122.3 Does QA closure unlock anything? — audited, and honestly, no
+
+| branch | status | why |
+|---|---|---|
+| Migrations 153/154 | **COMPLETE** — `VERIFIED_CLOSED`, all four rungs | — |
+| `CONF-D8` · capability seeding · Admin RLS | **BLOCKED** | the 85 cells — a missing design artifact |
+| Settings feature/availability registry | **BLOCKED** | its *structure* needs no cells, but its **authorization** does, and nothing defines which features exist. Building an empty table with no producer and no authorization would be **speculative infrastructure** (§19 hierarchy point 10) and manufactured work. **Deliberately not built, and recorded as the reason** |
+| `policy_evaluation` | **BLOCKED** | direction B authorizes the `observability_events` home, but **no evaluation producer exists** — there is no policy engine to emit. A store with no producer is the same speculation |
+| Guardian telemetry · agent registry | **BLOCKED** | `P7` |
+| `A12` surface question | **BLOCKED** | security authority |
+| `CAP-1` · `CONF-D6` · `PD-C03` · §100.5 | **BLOCKED** | owner |
+| Cross-product Helix | **BLOCKED** | external design-system authority |
+| `D12` component value | **BLOCKED** | moot until there is something to store |
+
+**Closing 153/154 unlocked nothing beyond itself** — every other branch was blocked on the matrix, an
+owner decision, `P7`, or external authority, **not on the migrations' QA state.** That is a real result,
+not a shrug: the audit was run per branch and the reasons are specific.
+
+### 122.4 Frontier
+
+**COMPLETE:** `CONF-D7` · graded mechanism (153) · governance registry (154) · **both `VERIFIED_CLOSED`** ·
+binary determination · Trust four-area · policy naming · Helix Admin extension · metric contracts ·
+85-cell recovery · QA packet · harness sweep.
+
+**One critical path: the 85-cell matrix.** Everything else is an owner, security, phase or external
+boundary.
+
+**QA at 154. `PD-G01`, `PD-A24`, `P10` not released. Production not contacted.**
