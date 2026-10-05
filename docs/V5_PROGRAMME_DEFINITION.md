@@ -12910,3 +12910,53 @@ binary determination · Trust four-area · policy naming · Helix Admin extensio
 boundary.
 
 **QA at 154. `PD-G01`, `PD-A24`, `P10` not released. Production not contacted.**
+
+---
+
+## 123 · MATRIX VALIDATOR BUILT — STEP 1 OF THE CLOSURE SEQUENCE IS NOW MECHANICAL
+
+The 85-cell request was re-issued with an owner-specified **nested** schema
+(`areas[] → verbs[] → grants{role}`), which differs from the flat shape my earlier request proposed.
+**The matrix itself has still not arrived** — 0 of 85 cells carry a value, design branch unchanged.
+
+### 123.1 What was built, and why it is not manufactured work
+
+**`supabase/scripts/validate-admin-capability-matrix.mjs`** — step 1 of the eight-step sequence the owner
+specified (*"engineering will mechanically: 1. validate all 85 cells…"*). It has a precise contract, so it
+could be written and **proved** before the data exists, and it converts arrival-to-seeding from a
+judgement call into a deterministic gate.
+
+It checks: the 17 areas **and their group membership** · the 5 verbs · 85 unique cells with none missing
+or duplicated · all five roles present per cell · grants strictly `true`/`false` · no unknown area, verb
+or role key · and that an **`authority` is named**, since an unattributed matrix is not design authority.
+
+### 123.2 The unresolved marker — encoding "do not guess"
+
+The request permits a cell to be *"intentionally unavailable or undecided"*. The validator accepts
+`{ "unresolved": true, "reason": "…" }`, **requires the reason**, and **excludes it from the seedable
+count**.
+
+> **An unresolved grant produces no capability row, and absent a row `admin_can()` denies.** So
+> "undecided" resolves to "denied" **at the data layer**, which is the safe direction — and the reason
+> travels with the record instead of being lost.
+
+### 123.3 Proved before it is needed — 12 cases
+
+| case | result |
+|---|---|
+| well-formed 85×5 | **VALID** — 85 cells, 425 values, 85 seedable |
+| missing cell · duplicate cell | **INVALID**, naming the exact cell |
+| unknown area · unknown verb · unknown role key · missing role | **INVALID**, each named |
+| non-binary grant (`"yes"`) | **INVALID** |
+| area declared in the wrong group | **INVALID**, naming the correct group |
+| no `authority` named | **INVALID** |
+| unresolved **without** a reason | **INVALID** |
+| unresolved **with** a reason | **VALID** — 1 unresolved, **84 seedable** |
+
+**The fixtures live in scratchpad only. Nothing was written to the matrix path and nothing was seeded.**
+
+### 123.4 Frontier
+
+Unchanged: **`CONF-D8` parked on the matrix.** What changed is that step 1 is now instant and
+deterministic — **a malformed response will be rejected with every defect named, rather than discovered
+during seeding.**

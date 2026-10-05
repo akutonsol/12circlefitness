@@ -169,19 +169,43 @@ Use `Y` for granted and `N` for not granted, or the tri-state vocabulary from §
 
 ---
 
-## 6 · Returning it
+## 6 · Returning it — schema, and the validator that will check it
 
-Either fill the table above, or return JSON of the shape:
+**Return `docs/design/admin-dashboard/ADMIN-CAPABILITY-MATRIX.json` in this shape** (the owner-specified
+schema; it replaces the flat shape an earlier draft of this request proposed):
 
 ```json
-{ "vocabulary": "binary",
-  "cells": [ { "area": "Community", "verb": "View",
-               "trust_lead": "Y", "operations_lead": "N",
-               "support": "Y", "content_editor": "Y", "viewer": "Y" } ] }
+{ "version": "1.0",
+  "authority": "<who designated this as the authoritative Admin authorization model>",
+  "areas": [
+    { "group": "Ecosystem", "area": "Community",
+      "verbs": [
+        { "verb": "View",
+          "grants": { "trust_lead": true, "operations_lead": false, "support": true,
+                      "content_editor": true, "viewer": true } }
+      ] }
+  ] }
 ```
 
-**Exactly 85 entries, using the area and verb spellings above verbatim.** Any area or verb not in this
-vocabulary, or any missing row, will be reported rather than interpreted.
+**17 areas × 5 verbs = 85 cells, each with all five roles = 425 explicit values.** Area, verb and role
+names exactly as in §3; a name outside that vocabulary is reported, never interpreted.
+
+**A cell may be left undecided rather than guessed.** Use
+`{ "unresolved": true, "reason": "…" }` in place of `true`/`false`. **An unresolved grant is NOT seeded**
+— absent a capability row `admin_can()` denies, which is the safe reading of "undecided", and the reason
+is carried into the record.
+
+**The response is checked mechanically before anything is seeded:**
+
+```
+node supabase/scripts/validate-admin-capability-matrix.mjs [path]
+```
+
+It verifies the 17 areas and their groups, the 5 verbs, 85 unique cells with none missing or duplicated,
+all five roles per cell, strictly binary grants (or a reasoned unresolved marker), no unknown
+area/verb/role, and that an `authority` is named. **It reports every defect with its exact cell and
+exits non-zero; nothing is seeded until it passes.** Validated against 12 cases including a well-formed
+85×5 matrix, each defect class, and both unresolved forms.
 
 ---
 
