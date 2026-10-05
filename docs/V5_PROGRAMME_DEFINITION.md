@@ -12499,3 +12499,52 @@ above), so they must come from the designer or from an authoring source not in t
 **Everything gated on it:** `admin_role_capabilities` seeding · every Admin-surface RLS policy consuming
 `admin_can` · `CONF-D8` · the Admin screens of P5 · the Settings feature registry's authorization ·
 `CAP-1`'s moderation authorization.
+
+---
+
+## 117 · GLOBAL STOP — THE DESIGN-AUTHORITY INPUT REQUEST IS PREPARED
+
+§116 proved the 85-cell recovery exhausted. **The search is closed; no further recovery is attempted and
+no value is invented, inferred, defaulted or seeded.**
+
+**Artifact: `docs/design/admin-dashboard/ADMIN-CAPABILITY-AUTHORITY-REQUEST.md`** — the smallest thing
+that unblocks the next phase. It states why engineering cannot derive the matrix, separates known from
+unknown, and carries all **85 rows ready to fill**.
+
+### 117.1 One arithmetic clarification the request makes explicit
+
+§115 and §116 counted **85 cells** = 17 areas × 5 verbs. **Migration 153's model is `admin_role_capabilities(admin_role, area, verb)`** — so each cell needs a value **per role**.
+
+> **85 rows × 5 Admin roles = 425 grant decisions.** The request's table carries one row per cell and a
+> column per role, so the authority answers all 425 in one pass without a second interpretation cycle.
+
+### 117.2 One model question raised rather than assumed
+
+The approved artifact uses **three** state icons (`check`, `minus-circle`, `dot-outline`), while migration
+153 models a grant as **binary** — a row means granted, its absence means denied.
+
+**The request asks whether the vocabulary is binary or tri-state, and what a third state would mean.**
+A conditional grant is **not expressible as a row's presence** and would require a schema change before
+seeding. **Engineering does not guess which, and the question is asked now rather than discovered during
+seeding.**
+
+### 117.3 Branch reassessment — nothing is independently actionable
+
+Checked against the stop criteria. **Every remaining branch requires the 85 cells, QA authorization, an
+owner decision, external design authority, `P7`, or a §100.5 decision:**
+
+`CONF-D8` · Admin RLS · capability seeding · Settings feature registry · `CAP-1` authorization — **the
+cells.** QA application of 153/154 — **authorization; none exists in the record** (searched: the prior
+packets cover 139 and 142–147 only). `policy_evaluation` — principal/resource + a `D12` component value.
+Guardian telemetry · agent registry — **`P7`**. `CONF-D6` — brand authority. `PD-C03` billing —
+monetization, which `COWORK` §8 forbids agents to invent. §100.5 remainder · cross-product Helix —
+owner / external authority.
+
+**No work is manufactured to avoid the stop.**
+
+### 117.4 Next unblock condition
+
+> **Authoritative 85-cell capability matrix supplied by design authority.**
+
+**No implementation occurs until that condition is satisfied.** `admin_can()` returns false for every
+caller meanwhile — **the safe state, not a broken one.**
