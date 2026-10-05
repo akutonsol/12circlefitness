@@ -1,0 +1,291 @@
+// D15 · ADMIN SURFACE ACCESS — migrations 156/157, live against QA.
+//
+// The owner's authorization for these surfaces says: "test the actual resulting
+// data access, not merely function return values." D13 proves admin_can() returns
+// the right booleans and D14 proves all 425 of them. NEITHER proves a row crosses
+// an RLS boundary. This suite reads rows.
+//
+// WHY MOST ASSERTIONS ARE COUNT COMPARISONS AGAINST SERVICE. A surface test that
+// says "the admin got HTTP 200" proves nothing: PostgREST answers 200 with `[]`
+// when RLS filters everything, which is exactly how the three coach surfaces in
+// SEC-G3 rendered a confident permanent zero. So every positive asserts the
+// assigned caller sees THE SAME COUNT the service role sees, and every negative
+// asserts an unassigned caller sees ZERO of the same query.
+//
+// WHY SEVEN OF THE SIXTEEN ARMS ARE ASSERTED AS REDUNDANT, NOT AS GRANTS. The
+// baseline measured before 156 (V5 §128.2) showed community_posts, post_comments,
+// post_reactions, community_groups, accountability_pods, events and classes are
+// ALREADY readable by any authenticated user through policies that predate this
+// work. The admin arm on those tables grants nothing that was not already granted.
+// Asserting "an admin can read community_posts" would therefore PASS WITHOUT 156
+// APPLIED AT ALL -- a vacuous test, and §5.2's "test the class, not the instance"
+// cuts against writing one. They are asserted for NON-REGRESSION only, and the
+// pre-existing broad posture is recorded as a finding rather than dressed up as a
+// result of this migration.
+import { URL_, SERVICE, IDENT, signIn, rest, mutate, svc, rpc,
+         check, section, summary, beginSuite, n } from './lib.mjs';
+
+const VIEWS = ['admin_audit_events', 'admin_training_overview', 'admin_integration_connections'];
+
+async function uidOf(key) {
+  const r = await svc(`user_profiles?select=id&email=eq.${encodeURIComponent(IDENT[key].email)}`);
+  return Array.isArray(r.body) && r.body[0] ? r.body[0].id : null;
+}
+async function assign(uid, role) {
+  await svc(`admin_role_assignments?user_id=eq.${uid}`, { method: 'DELETE' });
+  const r = await svc('admin_role_assignments', { method: 'POST', body: { user_id: uid, admin_role: role } });
+  return r.status < 300;
+}
+async function unassign(uid) {
+  if (uid) await svc(`admin_role_assignments?user_id=eq.${uid}`, { method: 'DELETE' });
+}
+
+async function run() {
+  beginSuite();
+
+  // ── 0 · are 156/157 applied? ──────────────────────────────────────────────
+  const probe = await svc('admin_audit_events?select=id&limit=1');
+  if (probe.status === 404 || (probe.body && /does not exist|schema cache/i.test(JSON.stringify(probe.body)))) {
+    check('migrations 156/157 are applied to QA', false,
+      'admin_audit_events not reachable — nothing below was asserted');
+    return summary('D15 admin surface access');
+  }
+  check('migrations 156/157 are applied to QA', true, 'all three curated views reachable');
+
+  const victim = await signIn('victim');
+  const admin  = await signIn('admin');
+  let vUid = null, aUid = null, seededIntegration = null, capRemoved = false;
+
+  try {
+    vUid = await uidOf('victim');
+    aUid = await uidOf('admin');
+    check('fixture identities resolved', !!vUid && !!aUid, `victim=${!!vUid} admin=${!!aUid}`);
+    if (!vUid) return summary('D15 admin surface access');
+
+    // ── 1 · the DECISIVE pairs — 0 without the role, all rows with it ───────
+    // These four tables deny an unassigned authenticated caller outright, so the
+    // before/after difference is attributable to 156 and to nothing else.
+    section('decisive surfaces · unassigned sees nothing, Viewer sees everything');
+    const DECISIVE = [
+      ['event_registrations', 'Events'],
+      ['class_bookings',      'Events'],
+      ['subscriptions',       'Monetization'],
+      ['observability_events','System'],
+    ];
+    await unassign(vUid);
+    const baseline = {};
+    for (const [t] of DECISIVE) {
+      const svcRows = await svc(`${t}?select=id`);
+      const mine    = await rest(victim, `${t}?select=id`);
+      baseline[t] = n(svcRows.body);
+      check(`${t}: an UNASSIGNED caller sees 0 of ${baseline[t]} rows`,
+        n(mine.body) === 0, `saw ${n(mine.body)} (status ${mine.status})`);
+    }
+
+    const arranged = await assign(vUid, 'viewer');
+    check('arranged: victim holds the Viewer Admin role', arranged, `assign ok=${arranged}`);
+
+    for (const [t, area] of DECISIVE) {
+      const mine = await rest(victim, `${t}?select=id`);
+      check(`${t}: a Viewer now sees all ${baseline[t]} rows via admin_can('${area}','view')`,
+        baseline[t] > 0 && n(mine.body) === baseline[t],
+        `saw ${n(mine.body)} of ${baseline[t]} (status ${mine.status})`);
+    }
+
+    // ── 2 · the seven redundant arms — non-regression only ──────────────────
+    section('pre-existing broad-read tables · arms are redundant, asserted for non-regression');
+    for (const t of ['community_posts','post_comments','post_reactions','community_groups',
+                     'accountability_pods','events','classes']) {
+      const svcRows = await svc(`${t}?select=id`);
+      const mine    = await rest(victim, `${t}?select=id`);
+      check(`${t}: readable (${n(mine.body)}/${n(svcRows.body)}) — ALREADY public to authenticated before 156`,
+        n(mine.body) === n(svcRows.body), `saw ${n(mine.body)} of ${n(svcRows.body)}`);
+    }
+
+    // ── 3 · Training — AGGREGATE ONLY, no row-level PHI path ────────────────
+    // The parked boundary is row-level training disclosure. This asserts the
+    // aggregate works AND that the projection cannot be turned into a row reader.
+    section('Training aggregate surface');
+    const tAgg = await rest(victim, 'admin_training_overview?select=*');
+    check('a Viewer reads the Training aggregate — exactly one row',
+      n(tAgg.body) === 1, `rows=${n(tAgg.body)} status=${tAgg.status}`);
+    check('the aggregate carries the four counts and nothing else',
+      n(tAgg.body) === 1 && ['programs_total','workouts_total','sessions_total','logs_total']
+        .every(k => k in tAgg.body[0]) && Object.keys(tAgg.body[0]).length === 4,
+      `keys=${n(tAgg.body) === 1 ? Object.keys(tAgg.body[0]).join(',') : 'n/a'}`);
+    for (const col of ['user_id','workout_id','notes']) {
+      const r = await rest(victim, `admin_training_overview?select=${col}`);
+      check(`the Training aggregate exposes no ${col} column — no row-level path`,
+        r.status >= 400, `status=${r.status}`);
+    }
+    // And the PARKED boundary must still hold: row-level training stays denied.
+    // ASSERTED ON workout_sessions, NOT workout_logs. The first draft of this
+    // check used workout_logs and FAILED -- not because the boundary leaked but
+    // because that table is EMPTY on QA, so "the Viewer saw 0" proved nothing. A
+    // deny assertion over an empty table is the vacuous pass this suite exists to
+    // avoid, and the `service > 0` clause is what caught it. workout_sessions
+    // carries real rows, so the denial is observable.
+    for (const t of ['workout_sessions', 'workout_logs']) {
+      const raw = await rest(victim, `${t}?select=id`);
+      const all = await svc(`${t}?select=id`);
+      if (n(all.body) === 0) {
+        check(`PARKED boundary: ${t} is EMPTY on QA — denial not assertable here`,
+          n(raw.body) === 0, `viewer=${n(raw.body)} service=0 (recorded, not claimed as proof)`);
+        continue;
+      }
+      check(`PARKED boundary intact: a Viewer reads 0 of ${n(all.body)} row-level ${t}`,
+        n(raw.body) === 0, `viewer=${n(raw.body)} service=${n(all.body)}`);
+    }
+
+    // ── 4 · Integrations — the column-limited view, and the STRICTER AND ────
+    section('Wearable / Integrations connection view (157)');
+    const coachUid = await uidOf('coach');
+    const ins = await svc('user_integrations', { method: 'POST', body: {
+      user_id: coachUid, provider: 'qa-d15-probe', connected: true,
+      access_token: 'QA-D15-SECRET-MUST-NEVER-BE-READABLE',
+      refresh_token: 'QA-D15-REFRESH-MUST-NEVER-BE-READABLE' } });
+    seededIntegration = ins.status < 300;
+    check('seeded a probe integration row carrying a token', seededIntegration, `status=${ins.status}`);
+
+    if (seededIntegration) {
+      const via = await rest(victim, 'admin_integration_connections?select=*&provider=eq.qa-d15-probe');
+      check('a Viewer reads the probe connection through the curated view',
+        n(via.body) === 1, `rows=${n(via.body)} status=${via.status}`);
+      check('the curated view exposes NO token column — the 156 defect is closed',
+        n(via.body) === 1 && !('access_token' in via.body[0]) && !('refresh_token' in via.body[0]),
+        `keys=${n(via.body) === 1 ? Object.keys(via.body[0]).join(',') : 'n/a'}`);
+      for (const col of ['access_token','refresh_token']) {
+        const r = await rest(victim, `admin_integration_connections?select=${col}`);
+        check(`${col} cannot be selected through the curated view`, r.status >= 400, `status=${r.status}`);
+      }
+      // The base table must STILL deny cross-user reads — 157 withdrew 156's arm.
+      const direct = await rest(victim, 'user_integrations?select=id,access_token');
+      check('the base table still denies a Viewer any other user\'s integration row',
+        n(direct.body) === 0, `rows=${n(direct.body)} status=${direct.status}`);
+
+      // STRICTER AUTHORIZATION, proved behaviourally. The owner directed the
+      // shared surface use "the stricter applicable authorization", implemented as
+      // AND over both areas. Today the matrix grants both to every role, so an AND
+      // and an OR are indistinguishable by observation -- unless one grant is
+      // withdrawn. This removes the Integrations grant ONLY, asserts the surface
+      // closes even though the Wearable grant remains, and restores it. The
+      // approved matrix FILE is not touched; the row is replaced and the 116-row
+      // total re-asserted before this block exits.
+      const del = await svc("admin_role_capabilities?admin_role=eq.viewer&area=eq.Integrations&verb=eq.view",
+                            { method: 'DELETE' });
+      capRemoved = del.status < 300;
+      check('withdrew only viewer/Integrations/view for the stricter-AND probe', capRemoved, `status=${del.status}`);
+      if (capRemoved) {
+        const stillWearable = await rpc(victim, 'admin_can', { p_area: 'Wearable intelligence', p_verb: 'view' });
+        check('the Wearable grant is still TRUE during the probe',
+          stillWearable.body === true, `got ${JSON.stringify(stillWearable.body)}`);
+        const closed = await rest(victim, 'admin_integration_connections?select=id&provider=eq.qa-d15-probe');
+        check('STRICTER: losing ONE of the two area grants closes the shared surface',
+          n(closed.body) === 0, `rows=${n(closed.body)} — an OR would still have returned 1`);
+        const re = await svc('admin_role_capabilities', { method: 'POST',
+          body: { admin_role: 'viewer', area: 'Integrations', verb: 'view' } });
+        capRemoved = !(re.status < 300);
+        const back = await rest(victim, 'admin_integration_connections?select=id&provider=eq.qa-d15-probe');
+        check('restored: the surface reopens and the grid is whole again',
+          !capRemoved && n(back.body) === 1, `restore=${re.status} rows=${n(back.body)}`);
+        const caps = await svc('admin_role_capabilities?select=admin_role');
+        check('the approved grid is back to exactly 116 rows',
+          n(caps.body) === 116, `rows=${n(caps.body)}`);
+      }
+    }
+
+    // ── 5 · the curated AUDIT projection — A13·1 and A12 ───────────────────
+    section('curated audit projection · A13·1 preserved, base table untouched');
+
+    // 5a · the base table protection the owner required proof of. The Viewer is
+    // NOT is_admin() and NOT is_trust_operator(), so 142's policy gives them
+    // nothing -- and 156 added no arm to it.
+    const svcAudit = await svc('audit_events?select=id&limit=1000');
+    const rawAudit = await rest(victim, 'audit_events?select=id&limit=1000');
+    check('BASE audit_events still denies a Viewer every row — A13·1 not bypassed',
+      n(rawAudit.body) === 0 && n(svcAudit.body) > 0,
+      `viewer=${n(rawAudit.body)} service=${n(svcAudit.body)}`);
+
+    // 5b · the curated surface DOES open to that same Viewer (Audit logs/View=true)
+    const curated = await rest(victim, 'admin_audit_events?select=id&limit=1000');
+    check('the CURATED view opens audit reads to a Viewer the base table refuses',
+      n(curated.body) > 0, `rows=${n(curated.body)} status=${curated.status}`);
+
+    // 5c · discrimination. support has Audit logs/View = FALSE in the approved
+    // matrix, so the same view must close for them. Without this, an always-open
+    // view would satisfy 5b too.
+    await assign(vUid, 'support');
+    const asSupport = await rest(victim, 'admin_audit_events?select=id&limit=1000');
+    check('the curated view CLOSES for Support — Audit logs/View is false in the matrix',
+      n(asSupport.body) === 0, `rows=${n(asSupport.body)}`);
+    await assign(vUid, 'viewer');
+
+    // 5d · A13·1 itself, on real rows. p1-admin authored admin_action rows, so
+    // assigning them an Admin-layer role makes the exclusion observable: their own
+    // rows must vanish from the view while everyone else's remain. Counts are read
+    // from service at run time, so this does not drift as the population grows.
+    const ownSvc   = await svc(`audit_events?select=id&category=eq.admin_action&actor_id=eq.${aUid}`);
+    const otherSvc = await svc(`audit_events?select=id&category=eq.admin_action&actor_id=neq.${aUid}&limit=1000`);
+    const assignedAdmin = await assign(aUid, 'viewer');
+    check('arranged: p1-admin holds an Admin-layer Viewer role', assignedAdmin, `ok=${assignedAdmin}`);
+    if (assignedAdmin && n(ownSvc.body) > 0) {
+      const ownViaView = await rest(admin,
+        `admin_audit_events?select=id&category=eq.admin_action&actor_id=eq.${aUid}`);
+      check(`A13·1: the reader's OWN ${n(ownSvc.body)} admin_action rows are EXCLUDED from the view`,
+        n(ownViaView.body) === 0, `saw ${n(ownViaView.body)} of ${n(ownSvc.body)}`);
+      const otherViaView = await rest(admin,
+        `admin_audit_events?select=id&category=eq.admin_action&actor_id=neq.${aUid}&limit=1000`);
+      check(`A13·1 is NARROW: the other ${n(otherSvc.body)} admin_action rows remain visible`,
+        n(otherSvc.body) > 0 && n(otherViaView.body) === n(otherSvc.body),
+        `saw ${n(otherViaView.body)} of ${n(otherSvc.body)}`);
+    } else {
+      check('A13·1 exclusion is observable on real rows', false,
+        `p1-admin authored ${n(ownSvc.body)} admin_action rows — cannot assert non-vacuously`);
+    }
+
+    // 5e · A12 — the view projects a pseudonym and opens no resolution path.
+    section('A12 · the curated view resolves nothing');
+    const shape = await rest(victim, 'admin_audit_events?select=*&limit=1');
+    check('the curated view projects subject_pseudonym',
+      n(shape.body) === 1 && 'subject_pseudonym' in shape.body[0],
+      `keys=${n(shape.body) === 1 ? Object.keys(shape.body[0]).join(',') : 'none'}`);
+    for (const col of ['subject_id','correlation_signature','correlation_key_id']) {
+      const r = await rest(victim, `admin_audit_events?select=${col}`);
+      check(`the curated view exposes no ${col}`, r.status >= 400, `status=${r.status}`);
+    }
+    const map = await rest(victim, 'audit_identity_map?select=*');
+    check('a Viewer still cannot read audit_identity_map', n(map.body) === 0, `status=${map.status}`);
+
+    // ── 6 · no write authority was created anywhere ─────────────────────────
+    section('read surfaces confer no write authority');
+    const wSub = await mutate(victim, 'subscriptions', 'POST', { user_id: vUid, kind: 'qa-d15', status: 'incomplete' });
+    check('a Viewer cannot INSERT a subscription despite Monetization/View',
+      wSub.status >= 400 || wSub.affected === 0, `status=${wSub.status}`);
+    const wRole = await mutate(victim, 'admin_role_assignments', 'POST', { user_id: vUid, admin_role: 'trust_lead' });
+    check('Roles READ confers no role-management authority (owner constraint)',
+      wRole.status >= 400 || wRole.affected === 0, `status=${wRole.status}`);
+
+    // ── 7 · anon reaches none of the three new surfaces ─────────────────────
+    section('anon posture on the new surfaces');
+    for (const v of VIEWS) {
+      const a = await fetch(`${URL_}/rest/v1/${v}?select=*`, { headers: { apikey: process.env.QA_ANON } });
+      const b = await a.json().catch(() => []);
+      check(`anon reaches nothing through ${v}`,
+        a.status >= 400 || (Array.isArray(b) && b.length === 0), `status=${a.status}`);
+    }
+  } finally {
+    // Restore the capability grid FIRST — leaving it short would make D14 fail
+    // for a reason that has nothing to do with D14.
+    if (capRemoved) {
+      await svc('admin_role_capabilities', { method: 'POST',
+        body: { admin_role: 'viewer', area: 'Integrations', verb: 'view' } });
+    }
+    if (seededIntegration) await svc("user_integrations?provider=eq.qa-d15-probe", { method: 'DELETE' });
+    await unassign(vUid);
+    await unassign(aUid);
+  }
+
+  return summary('D15 admin surface access');
+}
+
+export default await run();
