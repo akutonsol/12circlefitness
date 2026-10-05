@@ -13166,3 +13166,60 @@ binary determination · Trust four-area · policy naming · Helix Admin extensio
 question · `D12` component value.
 
 **QA at 155. Production untouched.**
+
+---
+
+## 127 · `CONF-D8` DATA-SURFACE RECONCILIATION — ALL 17 AREAS CLASSIFIED
+
+**Full report: `docs/V5_CONF_D8_DATA_SURFACE_RECONCILIATION.md`.** Analysis only — **nothing created,
+altered or authorized, and no mapping invented.**
+
+### 127.1 Result
+
+**7 EXISTING · 4 CURATED_VIEW_REQUIRED · 3 NO_BACKING_SURFACE**, with four areas carrying an additive
+extension alongside an existing surface.
+
+**Seven areas can take an additive `OR admin_can(area,'view')` arm today** — Community · Events · Training
+(aggregate) · Monetization (entities) · Wearable/Integrations (connections) · System · Roles (read) —
+because nothing in their policies is an *exclusion*, so an OR arm restores nothing.
+
+### 127.2 The curated-view approach works for `Audit logs`, and the pattern is already adopted
+
+Evaluated first, as directed. A view over `audit_events` that **carries `A13·1`'s exclusion in its own
+`WHERE`** preserves the control instead of bypassing it; the **view** is gated on `admin_can`, so the base
+table's policy never changes; and because `audit_events` stores `subject_pseudonym` and never a subject id,
+**`A12` is preserved by construction**.
+
+**This is not a new idea — `D7` already ruled *"column-limited views … enforce least privilege at the data
+layer"*, and five such views ship** (`public_profiles`, `conversation_participant_profiles`,
+`event_attendee_profiles`, `team_member_profiles`, `coach_client_workout_stats`), all
+`WITH (security_invoker = off)`. **The hardest case resolves to the house pattern.**
+
+### 127.3 `Users` was already decided, and it changes what `Support` needs
+
+**`D7` rules the Users area**: column-limited views over `user_profiles`, not an arm on the base table.
+Consequently **`Support`'s single non-View grant — `Users · Update` — must write through a constrained
+path that cannot reach the columns `enforce_profile_privilege()` protects** (`role`, `membership_tier`,
+`marketplace_commission_rate`, `stripe_charges_enabled`, `is_demo`). **That is the sharpest write-path
+question the approved matrix creates.**
+
+### 127.4 Three findings the survey surfaced
+
+- **`decision_traces` exists** (`089:17`) and is governed by **`PD-A05`**, an *answered* owner decision on
+  who may read a trace. **Any Guardian surface touching it inherits `PD-A05`, not the capability matrix.**
+- **`Wearable intelligence` and `Integrations` share one table** (`user_integrations`), so a single arm
+  serves two areas and must satisfy the stricter of the two.
+- **`platform_settings` is already world-readable to authenticated callers** — `FOR SELECT TO authenticated
+  USING (true)` (`039`). **Pre-existing, not introduced here**, and an `admin_can` arm would narrow
+  nothing. Recorded for the owner.
+
+### 127.5 Boundaries
+
+**Architecture/security:** the `Audit logs`/`Security` projection design · `Support`'s `Users · Update`
+write path · row-level Training reads (PHI) · `Incidents` evidence exposure to `Viewer`.
+**Owner:** `platform_settings` read posture · and the standing set — `CAP-1` · `CONF-D6` · `PD-C03` ·
+§100.5 · `P7` · `PD-G01` · `P10` · `PD-A05`.
+
+**`CONF-D8` remains OPEN.** Its mechanism half is `VERIFIED_CLOSED`; the surface half now has a complete,
+evidenced map — **seven areas implementable, four needing a view design, three needing architecture.**
+**QA at 155. Production untouched.**
