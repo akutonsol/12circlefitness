@@ -11601,3 +11601,103 @@ this agent does not hold.**
 **No capability removed, simplified, hidden, relocated or redesigned. Nocturne documented, not altered.
 Neither Helix system rewritten. `PD-G01`, `PD-A24`, `P10` not released. No migration, no application file,
 no schema change, no production contact. QA at 152.**
+
+---
+
+## 107 · `CONF-D7` CLOSED — OPTION 3 · DERIVED MAPPING · AND A SECURITY FINDING
+
+**OWNER DECISION, 2026-10-05 — `CONF-D7` = Option 3, PARTIAL REPLACEMENT.** The five approved Admin roles
+are the product/Admin-facing authorization vocabulary **for the four admin-class database roles**; the
+member vocabulary stands for member populations. **The seven database roles and their enforcement
+semantics are preserved** — no replacement, deletion, rename, weakening or collapse is authorized.
+**`erasure_executor` remains a distinct security role**, is **not** mapped into the five, and its absence
+from the Administrators surface is **intentional**. **`Platform admin` is a UI label** unless evidence
+establishes a distinct principal.
+
+**`CONF-D7` is CLOSED.** Full derivation: Part V of `docs/V5_ADMIN_DESIGN_HELIX_RECONCILIATION.md`.
+**No enforcement was changed.**
+
+### 107.1 `Platform admin` — the conditioned evidence test, run
+
+**Whole-repository search: 10 occurrences, every one in V5 documents recording the design observation.
+In `supabase/` and `apps/`: ZERO.** No `platform_admin` role value, claim, predicate or grant exists.
+**The evidence does not establish a distinct authorization principal, so the ruling's default stands:
+a UI identity/display label. Settled.**
+
+### 107.2 The derived mapping — documented, not applied
+
+Measured enforcement footprint: `admin` **14** inline RLS role-lists + `is_admin()` · `content_manager`
+**9** inline lists and **no dedicated predicate** · `trust_operator` 1 + predicate · `erasure_executor`
+1 + predicate, used **only** for severance (146, 152).
+
+| Admin role | enforcement counterpart today | basis |
+|---|---|---|
+| **Trust lead** | **`trust_operator`** | the three sites gated `is_admin() OR is_trust_operator()` — 144 control evidence, 145 observability, 151 incident open — are exactly its scope |
+| **Content editor** | **`content_manager`** | its nine inline grants are the content/intelligence/communication domains (089, 091, 095, 096) |
+| **Operations lead** · **Support** · **Viewer** | **NONE** | no predicate, no role |
+| *(`erasure_executor`)* | **mapped to nothing, as ruled** | — |
+
+**Derived under explicit owner authorization and documented. Not applied — no grant, predicate, policy or
+migration changed.**
+
+### 107.3 The security finding — the Access levels have no enforcement substrate
+
+**`is_admin()` is binary** — `role = 'admin'` — **and no graded authorization mechanism exists anywhere**:
+`read_only` **0**, `readonly` **0**, `limited` **0**, `access_level` **0**, `permission` **0** in any
+role sense.
+
+> **So three of the five Admin roles can today only be expressed by granting full `admin`, which would
+> make the approved design's `Limited` and `Read-only` levels UNENFORCEABLE and give a `Viewer` the same
+> database authority as a Trust lead. Implementing the Admin layer that way would be a privilege
+> escalation relative to the approved design's own intent. It must not be done.**
+
+**This is the real consequence of closing `CONF-D7`**, and it converts the register's blockers: eleven
+entries blocked by `D7` are now blocked by **one** additive requirement — **a graded admin authorization
+mechanism**.
+
+**Where it must live:** §16.4(a) already fixed that the policy registry **must not be the enforcement
+point**. So the graded mechanism belongs **in SQL predicates and RLS**, beside `is_admin()` /
+`is_trust_operator()` / `is_erasure_executor()`; the registry **describes and audits** it — which is
+precisely what `RB-01 · admin`, `RB-06 · support read`, `RB-09 · trust manage` are. **The registry is the
+documentation layer for the graded mechanism, not its implementation.**
+
+**Consistency gap recorded:** `content_manager` is the only admin-class role with **no dedicated
+predicate**. If `Content editor` maps to it, that asymmetry becomes load-bearing.
+
+### 107.4 Register reassessed — eleven blockers become three
+
+`D7` no longer blocks anything. The remaining blockers are **the graded mechanism** (policy registry,
+Settings configuration, community moderation, coach verification / partner approval, global search),
+**the audit-population decision** (`D4`), and **`A12`** (resource model, policy evaluation) — plus the
+standing **Guardian-in-Trust** conflict. **Reviewer assignment and the human half of the principal model
+are now unblocked.**
+
+### 107.5 `A12` — §26's open question is now half-answered
+
+A *"resolve identity"* capability would be an **Admin-role** capability, and by scope **`Trust lead`** is
+the only one of the five it fits. **Its counterpart `trust_operator` already holds the
+`audit_read_events()` definer path and the `A13·1` read policy — so the capability has a home requiring NO
+new identity path**, exactly as §26 demanded. **Still open:** whether it exists on the attention queue and
+People surfaces at all, or only inside Trust › Audit. **Security authority; `A12` not weakened.**
+
+### 107.6 `CONF-D8` — its input now exists, and it is the next architectural decision
+
+§90.5 gated `CONF-D8` behind `CONF-D7`; that input now exists. **And §31.1 shows `CONF-D8` and the graded
+mechanism are the same problem** — the `019` curated-view precedent cannot express `Limited` or
+`Read-only` either, because its gate is the same binary predicate.
+
+**`CONF-D8` is NOT declared decided.** Choosing between extending RLS per Admin role and widening the
+definer-view pattern with graded gates is a genuine architectural choice with materially different
+security properties, and §19's delegation is a historical grant whose reach to this question the record
+does not establish.
+
+### 107.7 Frontier
+
+**ARCHITECTURE (next decision point):** `CONF-D8` + the **graded admin authorization mechanism** — one
+problem, two names · the **audit-population** direction (`D4`).
+**OWNER:** AI Guardian in Trust · `CONF-D6`'s identity lock · the five of §100.5 · `PD-C03` · `CAP-1`.
+**DESIGN-SYSTEM AUTHORITY:** canonical Helix · Admin token home · governance-policy naming.
+**SECURITY:** `A12`'s remaining surface question.
+
+**No enforcement changed. No role granted, renamed, weakened or collapsed. `erasure_executor` untouched
+and unmapped. No migration, no application file, no schema change, no production contact. QA at 152.**
