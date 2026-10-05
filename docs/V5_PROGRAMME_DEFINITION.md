@@ -12132,3 +12132,127 @@ capability (scope fits **Content editor**) ⇒ an `A10` audit emitter ⇒ and cr
 | **3 · attention-queue severity** | **narrowed three times** — spec + shipped enum agree (§104.4) · `Risk` is a distinct axis (§105.5) · and a **fifth value, `"Severity set to Elevated"`, appears in Trust**, so the design's own severity vocabulary is not internally settled. **Owner** |
 | **4 · store-console ingestion** | **none.** `PD-A24 = C` scope question + an account boundary |
 | **5 · which "impressions"** | **none.** The term appears in no V5 source |
+
+---
+
+## 113 · GRADED ADMIN AUTHORIZATION — COMPLETE SPECIFICATION (owner-approved direction A)
+
+**Owner approval, 2026-10-05:** additive SQL/RLS predicate authorization model for `Operations lead`,
+`Support`, `Viewer`; RLS stays the enforcement floor; the seven database roles, Trust controls,
+`erasure_executor`, SECURITY DEFINER protections and guard/scoping/EXECUTE/`search_path` requirements all
+preserved; **no full `admin` as a shortcut**; **the registry is not an enforcement point**;
+*"specify the minimum capability model and prove least privilege"* **before** implementation.
+
+### 113.1 The capability model — minimum sufficient
+
+**Three facts force the shape:**
+
+1. `is_admin()` is **binary** and appears in **14 inline RLS clauses** — 6× `role in
+   ('admin','content_manager')`, 5× `role = 'admin'`, 3× `role in ('admin','content_manager','coach')`.
+2. The five Admin roles are a **layer above** the admin-class roles (`CONF-D7` Option 3), **not** values of
+   `user_profiles.role`.
+3. Granting `role='admin'` to a `Viewer` to let them in would hand them **all fourteen** inline clauses —
+   the escalation §107.3 identified.
+
+> **Therefore the Admin layer MUST be its own principal dimension, keyed independently of
+> `user_profiles.role`.** Any model deriving Admin capability from the existing `role` column reproduces
+> the escalation. **This is the load-bearing decision of the specification.**
+
+**Two relations, both data-driven:**
+
+| object | shape | why |
+|---|---|---|
+| **`admin_role_assignments`** | `user_id` → one of the five `admin_role` values | *"people who can sign in to the admin"* — the Settings › Administrators population, which the design shows as disjoint from the member directory |
+| **`admin_role_capabilities`** | (`admin_role`, `area`, `verb`) grants | the design's role × area × verb grid |
+
+**`area` and `verb` are DATA, not enum types.** The design's area list was **not fully extractable** (§10.1
+reached `System` with the table truncated), so a type-level enum would bake in an incomplete vocabulary and
+force a migration to correct it. Rows are correctable without DDL.
+
+**`Access` level (`Full`/`Limited`/`Read-only`) is COMPUTED, never stored** — it is a summary of the grid,
+and storing it would create a second source of truth that can silently disagree with enforcement.
+
+### 113.2 Predicate design
+
+Two functions, matching the posture of `is_admin()` / `is_trust_operator()` / `is_erasure_executor()`
+exactly — `LANGUAGE sql STABLE SECURITY DEFINER`, `SET search_path TO 'public','pg_temp'`,
+`OWNER TO postgres`, `REVOKE ALL … FROM PUBLIC, anon`, `GRANT EXECUTE … TO authenticated`:
+
+- **`is_admin_member()`** — true iff the caller holds **any** Admin-layer assignment. Gates *entry* to
+  Admin surfaces. **It is NOT `is_admin()` and must never be substituted for it.**
+- **`admin_can(p_area text, p_verb text)`** — true iff the caller's assigned `admin_role` has a grant row
+  for (`area`, `verb`). **This is the enforcement predicate.**
+
+### 113.3 Least-privilege proof
+
+**Claim:** the model cannot grant any caller more than they hold today.
+
+1. **No existing policy is modified and no role value is added.** The 14 inline clauses, `is_admin()`,
+   `is_trust_operator()`, `is_erasure_executor()` and all 202 `CREATE POLICY` statements are untouched.
+   **So every pre-existing grant is exactly preserved** — the change is purely additive.
+2. **A Viewer does not satisfy `is_admin()`.** Admin-layer membership lives in
+   `admin_role_assignments`, not `user_profiles.role`, so `is_admin()` remains false for them and the
+   fourteen inline clauses give them **nothing**.
+3. **Deny by default.** `admin_can()` returns true only on an explicit grant row. **Migration 153 seeds
+   NO capability rows**, so at apply time `admin_can()` is **false for every caller, every area, every
+   verb**. **The migration therefore cannot escalate anything — it is provably privilege-neutral on
+   application.**
+4. **Grants are additive and bounded.** A later grant row confers only that (area, verb) pair, through
+   predicates used only by new Admin-surface policies.
+
+**The cell grants themselves are NOT seeded because they are design data this agent does not hold** —
+§10.2 recorded the matrix cells as unextractable. **Inventing them would be inventing authorization.**
+
+### 113.4 Trust, erasure and Guardian separation
+
+- **Trust:** `is_trust_operator()` is unchanged and the Admin layer **never confers it**. `Trust lead`'s
+  database counterpart remains `trust_operator` (§107.2), assigned separately as today.
+- **Erasure:** `erasure_executor` is **not** an `admin_role` value and cannot be. `is_erasure_executor()`
+  is untouched; severance authority is unchanged.
+- **`A12` (direction E):** identity resolution stays **Trust-only** via `trust_operator` /
+  `audit_read_events()`. **`admin_can()` confers no re-identification**, and no Admin surface policy may
+  call the identity-map definer path. **`Operations lead`, `Support`, `Viewer` and the Guardian gain no
+  re-identification authority from this architecture** — enforced by the fact that the identity map has
+  **RLS with zero policies** and is reachable only through the existing definer path.
+- **`A10` (direction C):** the Guardian is not in this path at all; no predicate consults Guardian state.
+
+### 113.5 RLS integration and affected policies
+
+**Affected: none existing.** The predicates are consumed only by **policies on tables that do not yet
+exist** (the Admin surfaces of the extension register). Existing RLS is a **floor the new layer sits
+above**, never a ceiling it relaxes.
+
+**The new tables' own RLS:** `admin_role_assignments` and `admin_role_capabilities` are **themselves Admin
+data**. Read is gated on `is_admin_member()`; **write is gated on `is_admin()`** — i.e. assigning Admin
+roles remains a full-`admin` act, so the layer cannot be used to escalate itself. **`PD-A19` (admin/
+content_manager assignment governance, open) is the owner question that would narrow that further;
+until then the conservative gate holds.**
+
+### 113.6 Audit, `search_path`, EXECUTE, rollback
+
+- **Audit:** assignment and capability writes are **high-impact administrative actions** under `A10` ⇒
+  they must emit `audit_events` with category `admin_action`, reusing `audit_record_event()` (151).
+  **No new `A2` category** — `admin_action` already exists.
+- **`search_path`:** pinned `'public','pg_temp'` on both functions, per §9's Function Replacement Rule and
+  migration 116's posture.
+- **EXECUTE:** `REVOKE ALL FROM PUBLIC, anon` then `GRANT EXECUTE TO authenticated` — the established
+  pattern; **no `service_role` grant is needed and none is given**.
+- **Rollback safety:** the migration is **purely additive** (two new tables, two new functions, no
+  `CREATE OR REPLACE` of anything existing). Reversal is `DROP` of the four objects, with **no
+  pre-existing object altered** — so §9's Function Replacement Rule is not engaged at all.
+
+### 113.7 Test strategy
+
+1. **Privilege-neutrality:** with no capability rows, `admin_can(a,v)` is false for every caller — and an
+   Admin-layer member who is not `role='admin'` fails `is_admin()`.
+2. **Separation:** an `admin_role_assignments` row confers neither `is_trust_operator()` nor
+   `is_erasure_executor()`.
+3. **Self-escalation:** an Admin-layer member who is not `is_admin()` cannot INSERT into either table.
+4. **Posture:** both functions are `SECURITY DEFINER`, `search_path`-pinned, not `anon`-executable —
+   already covered schema-wide by the live suite's §63 checks.
+
+**Environment constraint recorded:** the CI-equivalent local replay harness needs Docker, and **Docker is
+not available in this environment**. Verification is therefore **static + CI**, and the behavioural rungs
+(`FIXED ON QA`, `VERIFIED LIVE`) remain **unmet pending QA application, which is not authorized here**.
+Under `QA_CLOSURE_STANDARD` §2.1 this lands at **FIXED IN CODE** only, and is recorded as such rather
+than claimed higher.
