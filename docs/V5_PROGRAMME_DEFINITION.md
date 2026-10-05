@@ -12960,3 +12960,62 @@ count**.
 Unchanged: **`CONF-D8` parked on the matrix.** What changed is that step 1 is now instant and
 deterministic — **a malformed response will be rejected with every defect named, rather than discovered
 during seeding.**
+
+---
+
+## 124 · THE UNRESOLVED-CELL CLOSURE RULE — ANSWERED FROM THE RECORD, NOT INVENTED
+
+The matrix has not arrived (intake run; the validator rejects the file as *"missing top-level `areas`
+array"* — it is still the evidence record, not an authority artifact). **Nothing was seeded, inferred or
+closed.**
+
+The one reachable item was the instruction to determine, **from the established record rather than by
+inventing a rule**, whether `CONF-D8` may close while cells are unresolved. **It is answered, and
+decisively.**
+
+### 124.1 Two rules in `QA_CLOSURE_STANDARD` settle it
+
+> **§2.1** — ***"`VERIFIED_CLOSED` requires every state its class demands. There are no partial closures
+> and no exceptions granted at implementation time."***
+>
+> **§5.4 · Findings blocked on a decision** — *"Split the row into a **mechanical half** and a **policy
+> half**, and schedule the mechanical half immediately. The mechanical half closes on its own evidence.
+> **The row stays `BLOCKED_DECISION` until both close.** **Never guess the policy to unblock the
+> mechanics.**"*
+
+**An unresolved cell is a policy half that has not closed.** §5.4 holds the row open until both halves
+close; §2.1 forbids partial closure.
+
+> **Determination: `CONF-D8` CANNOT be closed while any cell is unresolved.** If the matrix arrives with
+> unresolved cells, the TRUE grants are seeded, the unresolved ones are proven to **deny**, and
+> **`CONF-D8` stays `BLOCKED_DECISION`** until they are supplied. **The rule comes from the record; none
+> was invented.**
+
+### 124.2 The programme already has §5.4's shape, without having cited it
+
+| §5.4's prescription | what actually happened |
+|---|---|
+| *"Split the row into a mechanical half and a policy half"* | mechanism (153/154) vs the 85 grants |
+| *"schedule the mechanical half immediately"* | authored, applied, verified |
+| *"The mechanical half closes on its own evidence"* | **both `VERIFIED_CLOSED`, all four rungs** (§121) |
+| *"The row stays `BLOCKED_DECISION` until both close"* | `CONF-D8` parked |
+| *"Never guess the policy to unblock the mechanics"* | 0 cells invented; deny-by-default proven live |
+
+**Recorded because it is confirmation from an independent direction**: the structure was chosen on
+first principles and the closure standard prescribes exactly it. **`CONF-D8`'s correct status label is
+`BLOCKED_DECISION`**, which is more precise than "parked".
+
+### 124.3 One rule that will govern the role/verb tests when the matrix lands
+
+**§5.2 — *"Test the class, not the instance."*** The cited failure is `F-J-01`, where a suite asserted
+*"four of the five 116 wrappers individually rather than all five as a class"*.
+
+**So the arriving matrix must be tested across all 425 grants, not sampled** — which is also what the
+instruction's *"do not rely solely on aggregate counts"* requires. **The test will be generated from the
+matrix itself**, so coverage is exhaustive by construction rather than by diligence.
+
+### 124.4 Frontier — unchanged
+
+`CONF-D8` → **`BLOCKED_DECISION`** on the authoritative 85-cell matrix. Everything else remains as audited
+at §122: no branch became reachable, and none was manufactured. **QA at 154; 153/154 `VERIFIED_CLOSED`;
+`admin_can()` live and denying; production untouched.**
