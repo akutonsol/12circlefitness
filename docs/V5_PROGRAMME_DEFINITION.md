@@ -12256,3 +12256,93 @@ not available in this environment**. Verification is therefore **static + CI**, 
 (`FIXED ON QA`, `VERIFIED LIVE`) remain **unmet pending QA application, which is not authorized here**.
 Under `QA_CLOSURE_STANDARD` §2.1 this lands at **FIXED IN CODE** only, and is recorded as such rather
 than claimed higher.
+
+---
+
+## 114 · OWNER-APPROVED DIRECTIONS APPLIED — TRUST SCOPE, NAMING, HELIX, AND THE METRIC CONTRACTS
+
+Migration 153 is authored, declared pending and **CI-green (6/6)**. The queue continued into the
+documentation reconciliations the approval explicitly authorizes.
+
+### 114.1 `C` · TRUST IS FOUR AREAS — the tracked contradiction is reconciled
+
+**Owner-approved direction C: Trust contains AI Guardian · Security · Incidents · Audit Logs.**
+
+§111 established this was a **`V5`-versus-`V5`** contradiction — `V5_IMPACT_ANALYSIS:286` (tracked) says
+four areas attributed to `D11`; `V5_PROGRAMME_DEFINITION:237` (tracked) says three, also `D11`.
+**The approved direction adopts the four-area reading, so `V5_IMPACT_ANALYSIS:286` is now the governing
+statement of `D11`'s scope and §237's three-area row is superseded.**
+
+**Reconciled, not rewritten:** §19.2's ruling — *"AI Guardian remains P7 and is NOT inside Trust"* — stands
+as the historical delegated answer and is **superseded by owner decision**, exactly as `CONF-D4` was at
+§97.1. The superseded text keeps its place; this section is its pointer.
+
+**What does NOT change, and is the condition of the approval:**
+
+> **`A10` holds: security controls remain INDEPENDENT of the AI Guardian.** Guardian oversight and
+> telemetry live in Trust; **the Guardian is not a security enforcement root.** Concretely, and now
+> testable: **no authorization predicate may consult Guardian state.** Migration 153 satisfies this by
+> construction — `is_admin_member()` and `admin_can()` read only `admin_role_assignments` and
+> `admin_role_capabilities`, and **`P7` remains a distinct phase** for the Guardian product capability.
+
+**Unblocked by this:** the Guardian half of the policy registry · Guardian policy-set telemetry · the
+agent/workflow registry · `A7` recordability. **All four move from "parked on contradiction" to "parked on
+the registry's own dependencies."**
+
+### 114.2 `C` (naming) · GOVERNANCE POLICY ENTITIES ARE `governance_*` — RESOLVED
+
+The approval directs: *"Resolve the PostgreSQL `policy` naming collision using the established
+domain-prefix convention … Do not use `guardian_*`."*
+
+**Applying the convention (§110.3) and the two eliminations, the result is determined, not chosen:**
+
+- the schema names tables **and** functions by **domain prefix** — `audit_*`, `observability_*`, `coach_*`,
+  `workout_*`, `community_*`;
+- **`guardian_*` is excluded by direction** and independently by `A10` — the registry carries `RB-nn`
+  **authorization** policies, so naming it after the Guardian would couple security to Guardian **in the
+  schema itself**;
+- **bare `policy_*` is excluded by the collision** — `CREATE POLICY … ON policy_versions` against **405**
+  existing `CREATE`/`DROP POLICY` statements is precisely the confusion to avoid;
+- `authz_*` would be **wrong for the wider set** — the registry also carries `DA-` data-access, Privacy,
+  Safety and Model-usage policies, which are governance, not only authorization.
+
+> **RESOLVED: `governance_policy`, `governance_policy_version`, `governance_policy_rule`,
+> `governance_policy_set`, `governance_policy_evaluation`.** `principal` and `resource` are **not**
+> policy entities and take their own domain names when specified. **No PostgreSQL concept is renamed.**
+
+### 114.3 `D` · HELIX — the Admin extension is authorized, and the token hierarchy is now stated
+
+**Owner-approved direction D: extend canonical Helix authority to Admin; Admin tokens become a documented
+Helix extension, not a competing system.**
+
+This **answers §110.2's structural gap** — the token specification excluded Admin by its own terms
+(*"Scope: mobile client experience. Admin/internal screens excluded"*), so no authority had ever claimed
+Admin. **It now does.**
+
+| layer | artifact | status under direction D |
+|---|---|---|
+| **Canonical token source** | the design authority's token specification, as implemented in **Helix Tier 1–3 (Dart)** — §110.1 | **canonical**, now **scoped to Admin as well** |
+| **Admin extension namespace** | `--adm-*` | **a documented Helix EXTENSION**, not a competing system |
+| **Design tokens** | `brand/tokens/admin.tokens.{json,css}` | **derived, validated 97.7%** — evidence, **still not an authority** |
+| **Implementation tokens** | Helix Tier 1–3 | where components bind |
+| **Runtime artifacts** | Nocturne `_ds` bundle | **design-runtime only; not Helix; must not ship** |
+
+**The 11/11 match (§103.1) is what makes this coherent rather than a merger**: the Admin design already
+expresses the canonical identity exactly, so extending scope records a fact rather than forcing an
+alignment. **The additive extensions of §2.4 — 4 colour roles including `status.info`, the status
+tint/text/border variants, the type scale, density tokens, structural shadows, z-index — are now Helix
+extension work rather than an open token-home question.**
+
+**Neither Helix system is modified. The standalone stale implementation is left alone, as directed.**
+
+### 114.4 `G` · `H` · `I` · `K` — the metric contracts the approval establishes
+
+| | contract |
+|---|---|
+| **`G` Currency** | **Admin display = GBP/£** (matching the approved design's 42 `£` and zero `$`). **Billing stays `PD-C03`.** Where FX is required the record must carry **source amount · source currency · FX source · rate · effective timestamp · display currency** — six fields, so a conversion is reconstructible. **Never silently convert or overwrite a source-of-truth value** |
+| **`H` Risk ≠ Severity** | preserved as distinct axes. The shipped `audit_incidents` enum — `Critical/High/Warning/Informational` — is **unchanged**; the design's `Risk` (`High/Medium/Low`) is a **separate** attribute. **`"Severity set to Elevated"` (§112.4) is a fifth value appearing in Trust that matches neither vocabulary — recorded as evidence, and NOT resolved into either enum without product authority** |
+| **`I` Revenue** | Admin must distinguish **gross coaching revenue · platform commission · net/platform revenue**. `marketplace_commission_rate` (0.10, `038:14`) is the commission input. **Calculation and source definitions must be explicit before implementation; no monetary value is fabricated** |
+| **`K` Impressions** | **eligible content renders/views**, held distinct from reach · unique viewers · clicks · engagement · sessions. **No conflicting authoritative contract was found** — the term appears in no V5 source (§112.4) — so this definition stands without displacing evidence |
+| **`J` Store-console** | vendor-free under **`PD-A24 = C`**; ingestion must never become an authorization authority, Guardian security root, external source of truth or trust root. **Consistent with §114.1's `A10` condition** |
+
+**Nothing above is implemented. These are the contracts implementation must satisfy.**
