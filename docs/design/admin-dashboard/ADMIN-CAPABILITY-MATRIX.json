@@ -14,12 +14,12 @@
     "unknown": 85
   },
   "role_levels_separately_authoritative": {
-    "_": "Role-level labels DO appear in the approved Administrators table. They are NOT cells and cannot be expanded into cells without architectural judgment, so they are recorded here and not promoted.",
+    "_": "CORRECTED V5 \u00a7118.2. All FIVE roles carry a Level in the approved Roles table; an earlier truncated text extraction had recorded two as absent. These are role-level summaries and CANNOT be expanded into cells \u2014 'Full' names no areas, 'Limited' no verbs \u2014 so they remain category C and move no cell.",
     "trust_lead": "Full",
     "support": "Limited",
     "viewer": "Read-only",
-    "operations_lead": null,
-    "content_editor": null
+    "operations_lead": "Full",
+    "content_editor": "Limited"
   },
   "cells": [
     {
@@ -957,5 +957,10 @@
       "confidence": "none",
       "seedable": false
     }
-  ]
+  ],
+  "capability_vocabulary": {
+    "determination": "BINARY",
+    "basis": "V5 \u00a7118.1 \u2014 Full/Limited/Read-only occur only in per-role Level and per-administrator Access columns, never in the Area x Verb grid; and the three ph- icons are bound to status pills elsewhere, not to capability cells.",
+    "consequence": "A grant is the presence of a row in admin_role_capabilities; its absence is a denial. Migration 153 needs no schema change."
+  }
 }
