@@ -37,7 +37,12 @@
       "name": "12Circle QA",
       "applied_through": "152",
       "excluded": [],
-      "pending": {}
+      "pending": {
+      "153": {
+        "reason": "Graded Admin authorization layer, authored under the owner-approved architecture direction A of 2026-10-05 and specified at V5 \u00a7113. Privilege-neutral on application: no capability row is seeded, so admin_can() is false for every caller until the approved design's role x area x verb cells are supplied. Authored but deliberately not applied — applying it to QA was not authorized with the architecture approval.",
+        "gate": "Owner authorization to apply to QA. The design's capability-matrix cells (V5 \u00a710.2, recorded as unextractable from the approved pages) are a separate input needed before any grant row is seeded — the migration is safe to apply without them, and confers nothing until they exist."
+      }
+    }
     }
   }
 }
