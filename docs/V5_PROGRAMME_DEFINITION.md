@@ -11701,3 +11701,106 @@ problem, two names · the **audit-population** direction (`D4`).
 
 **No enforcement changed. No role granted, renamed, weakened or collapsed. `erasure_executor` untouched
 and unmapped. No migration, no application file, no schema change, no production contact. QA at 152.**
+
+---
+
+## 108 · §19 DELEGATION — EXHAUSTIVELY DETERMINED · IT DOES **NOT** REACH GRADED ADMIN AUTHORIZATION
+
+Investigation only. **No RLS, role, predicate, migration, schema, application file or authorization
+behaviour was modified.**
+
+### 108.1 Exactly what §19 delegates
+
+**Its own authority statement:** *"The owner delegated architecture authority **to resolve the §18
+frontier**, supplying a 13-point decision hierarchy. **Every decision below is an OWNER DECISION made
+under that delegation** — not an inference, not a recommendation."*
+
+**Scope in practice** — §20.1 counts the delegation's output as **35 resolved**: Tier 0 (3) · Tier 1 (2) ·
+Tier 2 (17) · **beyond-frontier (11)** · architect-formulated (2). **So the delegation was applied beyond
+§18's enumerated 42**, to adjacent items *"resolved under the same hierarchy"* — including `D5`, `D6`,
+`D7`, `CONF-08`, `CONF-06`, `D10`, `D-V5` and `EC-01`·Q2–Q5.
+
+**Its built-in limits:** *"Alternatives are preserved. No prior ruling is rewritten. **Where a prior ruling
+constrains, it governs.**"* Plus the hierarchy — notably **11 · never silently broaden a permission, data
+scope, retention period or trust boundary**, **12 · never treat documentation evidence as implementation
+evidence**, **13 · never claim a control stronger than the implementation can prove**.
+
+### 108.2 Exactly what it does not delegate — and the decisive precedent
+
+**`CONF-D8` was never taken up.** It appears **zero times in §§18, 19 and 20**, and the commission
+verified independently: *"zero of these appear in §19 or §20's resolved ledger."* §19 was
+scope-conscious — it recorded *"`CONF-06` depends on `D2`, **which is not among the 42**."*
+
+**The decisive precedent is `§8.18·Q1`, and it is the same class of act.** When the programme needed to
+know whether Trust required one authorization principal or two, that question was **put to the owner and
+answered by the owner**:
+
+> **§8.18 — *"Owner decision (Q1): TWO ROLES.* The Trust operator reads and reviews; a **separate new
+> constrained role executes erasure**."* … ***"No role is created. No policy, migration, reader or erasure
+> flow is implemented."***
+
+**Two things follow, and both are directly on point:**
+
+1. **Creating an authorization principal was an OWNER DECISION, not an exercise of §19's delegation.**
+   `trust_operator` and `erasure_executor` exist because §8.18·Q1 was put and answered; migration 142
+   cites `§8.18·Q1` in its own source as the authority for each role value.
+2. **Even the owner decision did not authorize implementation** — *"No role is created."* Implementation
+   came later, separately, under the P2 wave.
+
+**Graded Admin authorization requires exactly this class of act**: either new principals, or new
+predicates conferring differentiated authority. **The precedent says that is the owner's.** Hierarchy
+point **11** cuts the same way — a principal that can reach admin surfaces is a trust boundary, and
+creating one is broadening it.
+
+### 108.3 Does the delegation encompass the two architectural options?
+
+**Partly — and this NARROWS the owner's decision substantially, because the direction is already ruled.**
+
+| already decided, under the delegation | effect |
+|---|---|
+| **`D5` — *"(a) DIRECT SUPABASE + RLS, for Admin AND Trust"*** | **The access path is settled. An API-tier authorization layer is foreclosed** — §19.4's rationale was that routing Admin through an undeployed service is *"speculative infrastructure"* |
+| **`D7` — *"COLUMN-LIMITED VIEWS over `user_profiles`, not distinct modules"***, because *"column-limited views enforce least privilege at the data layer"* | **A view-based least-privilege device is already adopted** for Admin's identity reads — which is `CONF-D8`'s *"curated views"* option, already taken for that case |
+
+> **So §107.6's framing was too wide.** The open question is **not** *"RLS versus a definer/view layer"* —
+> `D5` already requires RLS as the path and `D7` already uses views as a least-privilege device, both
+> under the delegation. **What remains is narrower: how differentiated authority is expressed for the
+> three Admin roles that have no counterpart, inside an architecture that is already ruled.**
+
+### 108.4 Does either approach require a new owner/security decision?
+
+**Yes — both do, for the same reason, and the reason is not the mechanism.**
+
+Whichever shape is chosen, `Operations lead`, `Support` and `Viewer` need **differentiated authority that
+no current principal confers**: `is_admin()` is binary (`role = 'admin'`) and **no graded mechanism exists
+anywhere** (§107.3). Conferring it means creating or differentiating an authorization principal —
+**§8.18·Q1's class** — and therefore an owner decision.
+
+**Independently, the owner has already reserved it.** The `CONF-D7` ruling states the mapping is *"to be
+derived and documented **without changing enforcement until separately authorized**."* Under §19's own
+rule — ***"where a prior ruling constrains, it governs"*** — that reservation governs regardless of how
+the delegation is read.
+
+### 108.5 Determination
+
+> **§19 does NOT clearly authorize the choice.** It delegates resolution of the §18 frontier and adjacent
+> items under a stated hierarchy; it never took up `CONF-D8`; and the one directly comparable act in the
+> record — creating an authorization principal — was put to the **owner** at `§8.18·Q1`, not taken under
+> the delegation. **Delegation is not inferred from technical consistency with `D5`/`D7`.**
+>
+> **This is a genuine architectural/security boundary. STOP.**
+
+**What the delegation DOES already settle, and what therefore needs no new decision:** the access path
+(`D5`, direct Supabase + RLS) and the least-privilege device for identity reads (`D7`, column-limited
+views). **The owner's decision is correspondingly smaller than §107.6 implied.**
+
+### 108.6 Frontier
+
+**ARCHITECTURE / SECURITY — the stop:** how differentiated authority is conferred on `Operations lead`,
+`Support` and `Viewer`, within the already-ruled direct-Supabase+RLS architecture.
+**OWNER:** AI Guardian in Trust · `CONF-D6`'s identity lock · the five of §100.5 · `PD-C03` · `CAP-1` ·
+the audit-population direction (`D4`).
+**DESIGN-SYSTEM AUTHORITY:** canonical Helix · Admin token home · governance-policy naming.
+**SECURITY:** `A12`'s remaining surface question.
+
+**No RLS, role, predicate, migration, schema, application file or authorization behaviour modified. No
+production contact. QA at 152.**
