@@ -13083,3 +13083,86 @@ was a suite that checked four of five wrappers individually.
 
 **512/512 across 14 suites.** `D-02` reported 40 under suite ordering and **39/39 standalone** — a
 conditional assertion, verified not a regression.
+
+### 125.6 Verification ladder — migration 155
+
+| rung | evidence |
+|---|---|
+| FIXED IN CODE | generated from the matrix; hygiene + manifest guards pass; sequence contiguous 000–155 |
+| **FIXED ON QA** | applied; **116 rows live**, per-role counts matching |
+| **VERIFIED LIVE** | **D14 — all 425 combinations**, 8/8 · D13 20/20 · regression **512/512** |
+| **VERIFIED IN CI** | CI's own log: `D13 … 20/20 passed` · `D14 … 8/8 passed`, 6/6 jobs green |
+
+**`VERIFIED_CLOSED`** under `QA_CLOSURE_STANDARD` §2.1. QA frontier **155**.
+
+---
+
+## 126 · `CONF-D8` — MECHANISM RESOLVED AND PROVEN · NOT CLOSED, AND THE REASON IS SPECIFIC
+
+### 126.1 What is now established
+
+`CONF-D8` asked how Admin obtains *"broad cross-user reads"* — **caller-RLS + new admin policies**, or
+**curated bypassing views**. **The first is now built, seeded and proven**: `admin_role_assignments` →
+`is_admin_member()` → `admin_can(area, verb)`, enforced in SQL, with the owner-approved policy live and
+**all 425 grants verified against QA**. The authorization *model* is complete and enforceable at the data
+layer — **not in the UI**, which was the explicit requirement.
+
+### 126.2 Why it does not close — one criterion cannot be met, for two concrete reasons
+
+The owner's closure criteria include **"Admin-surface RLS policies implemented"**. That requires attaching
+`admin_can()` to the tables behind the 17 areas, and **both available routes are blocked**:
+
+**(a) No area → table mapping exists.** §97.4 and §103.3 mapped the twelve Admin *domains* to *IA areas*.
+**Nothing maps an area to the tables that back it**, and 16 of the 17 areas have no dedicated surface table
+at all — that is the 20-entry extension register (§28). Inventing the mapping would be inventing
+authorization scope.
+
+**(b) For the one obvious case, an additive arm would WEAKEN a V5 ruling.** `Audit logs` → `audit_events`,
+whose policy is `A13·1`:
+
+```sql
+USING ( (public.is_admin()
+         AND NOT (category = 'admin_action' AND actor_id = (SELECT auth.uid())))
+        OR public.is_trust_operator() )
+```
+
+**That `AND NOT` is a deliberate exclusion — an admin may not read their own `admin_action` rows.** Adding
+`OR admin_can('Audit logs','view')` would **restore precisely what the exclusion removes**, for anyone
+holding an Admin-layer assignment. It would also grant `Viewer` read of the audit population.
+
+> **This is forbidden on three independent grounds** — the owner's instruction 6 (*preserve A12
+> restrictions, Trust separation, existing boundaries*), `COWORK_ENGINEERING_GOVERNANCE` §9
+> (*"no remediation may weaken … authorization"*), and `A13·1` itself. **It was not done.**
+
+### 126.3 Disposition
+
+**`CONF-D8` stays OPEN** — its mechanism half is `VERIFIED_CLOSED` as migrations 153/155, and its
+per-surface half is blocked. **This is `QA_CLOSURE_STANDARD` §5.4's shape again**: the mechanical half
+closed on its own evidence, the row stays open until both do. **§2.1 forbids partial closure, so the row
+is not marked closed.**
+
+**Nothing is parked that could have proceeded.** The capability model is live, proven and denying
+correctly everywhere the matrix says deny.
+
+### 126.4 The next boundary — architecture, and narrower than before
+
+> **Which tables back each of the 17 Admin areas, and how `admin_can()` attaches to them without
+> weakening `A13·1`, `A12` or any existing policy.**
+
+For `Audit logs` specifically, the live options are visible but not mine to choose: a **curated view**
+carrying the `A13·1` exclusion and gated on `admin_can()` (`CONF-D8`'s second option, and `D7`'s adopted
+pattern), or an explicit ruling that the exclusion does not apply to the Admin layer. **The first
+preserves the control; the second changes it.**
+
+### 126.5 Frontier
+
+**COMPLETE:** `CONF-D7` · 153 · 154 · **155** · the approved matrix · the 425-grant verification ·
+binary determination · Trust four-area · policy naming · Helix Admin extension · metric contracts ·
+85-cell recovery · QA packet · harness sweep.
+
+**OPEN — architecture/security:** the area → table mapping and the `A13·1` interaction (§126.4).
+**OPEN — owner:** `CAP-1` · `CONF-D6` · `PD-C03` · §100.5 remainder.
+**OPEN — other:** `P7` (Guardian telemetry, agent registry) · cross-product Helix · `A12` surface
+question · `D12` component value.
+
+**QA at 155. Production untouched.**
