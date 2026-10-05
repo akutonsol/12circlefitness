@@ -99,6 +99,11 @@ const SUITES = [
   // is_admin() FALSE` — if that ever flips, a Viewer has inherited all 14 inline
   // RLS clauses naming 'admin' (V5 §107.3). First live run: 18/18.
   ['D13   admin graded authorization',     './d13-admin-graded-authorization-lab.mjs'],
+  // D14 · the owner-approved capability matrix, exercised in full. Every
+  // expectation is READ FROM the approved matrix file, so the suite cannot drift
+  // from policy. 17 areas x 5 verbs x 5 roles = 425 live admin_can() calls,
+  // asserting the class rather than a sample (QA_CLOSURE_STANDARD §5.2).
+  ['D14   admin capability matrix (425)',   './d14-admin-capability-matrix-lab.mjs'],
 ];
 
 let totalFailures = 0;

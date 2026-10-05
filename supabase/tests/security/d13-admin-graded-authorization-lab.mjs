@@ -38,15 +38,31 @@ async function run() {
   let arranged = false;
 
   try {
-    // ── 1 · deny-by-default, the property the whole design rests on ──────────
-    section('deny-by-default with an empty capability grid');
-    const empty = await svc('admin_role_capabilities?select=admin_role');
-    check('admin_role_capabilities is empty', Array.isArray(empty.body) && empty.body.length === 0,
-      `rows=${Array.isArray(empty.body) ? empty.body.length : '?'}`);
+    // ── 1 · deny-by-default, now against the SEEDED grid ────────────────────
+    // UPDATED V5 §125. This section asserted an EMPTY grid, which was correct
+    // until migration 155 seeded the owner-approved matrix. Two things had to
+    // change, and the second is the one that matters:
+    //   · the row count is now the approved 116, not 0;
+    //   · the deny probes used DISPLAY casing ('View'), which matches no row
+    //     because 153's CHECK stores lowercase verbs. Left as they were, they
+    //     would have kept passing for the wrong reason — vacuously — once the
+    //     grid was populated. They now use lowercase and a cell the matrix
+    //     genuinely denies to a Viewer.
+    // The exhaustive per-cell verification lives in D14, which reads its
+    // expectations from the approved matrix file itself.
+    section('deny-by-default against the seeded matrix');
+    const caps = await svc('admin_role_capabilities?select=admin_role');
+    check('capability grid holds the approved 116 rows',
+      Array.isArray(caps.body) && caps.body.length === 116,
+      `rows=${Array.isArray(caps.body) ? caps.body.length : '?'}`);
 
-    for (const [area, verb] of [['Security', 'View'], ['Audit logs', 'Manage'], ['Users', 'Update']]) {
+    // At this point the caller holds NO Admin-layer assignment, so a populated
+    // grid must still give them nothing — the grid grants to ROLES, never to
+    // everyone. This runs before the fixture role is arranged, deliberately.
+    for (const [area, verb] of [['Security', 'view'], ['Audit logs', 'update'], ['Users', 'create']]) {
       const r = await rpc(victim, 'admin_can', { p_area: area, p_verb: verb });
-      check(`admin_can('${area}','${verb}') is false`, r.body === false, `got ${JSON.stringify(r.body)}`);
+      check(`admin_can('${area}','${verb}') is false for an UNASSIGNED caller`,
+        r.body === false, `got ${JSON.stringify(r.body)}`);
     }
 
     // ── 2 · the Admin layer does NOT confer legacy admin — §113.3 proof ──────
@@ -81,6 +97,15 @@ async function run() {
 
         const isEras = await rpc(victim, 'is_erasure_executor');
         check('is_erasure_executor() is FALSE — erasure separation holds', isEras.body === false, `got ${JSON.stringify(isEras.body)}`);
+
+        // The predicate must DISCRIMINATE, not merely always deny: with the role
+        // assigned, a grant the approved matrix gives a Viewer must now be true,
+        // while one it withholds stays false. Without this pair, an always-false
+        // admin_can() would satisfy every other assertion in this suite.
+        const yes = await rpc(victim, 'admin_can', { p_area: 'Security', p_verb: 'view' });
+        check("admin_can('Security','view') is TRUE for an assigned Viewer", yes.body === true, `got ${JSON.stringify(yes.body)}`);
+        const no = await rpc(victim, 'admin_can', { p_area: 'Security', p_verb: 'manage' });
+        check("admin_can('Security','manage') is FALSE for an assigned Viewer", no.body === false, `got ${JSON.stringify(no.body)}`);
 
         // ── 3 · the layer cannot escalate itself ────────────────────────────
         section('self-escalation is refused');

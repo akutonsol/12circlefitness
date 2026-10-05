@@ -13019,3 +13019,67 @@ matrix itself**, so coverage is exhaustive by construction rather than by dilige
 `CONF-D8` → **`BLOCKED_DECISION`** on the authoritative 85-cell matrix. Everything else remains as audited
 at §122: no branch became reachable, and none was manufactured. **QA at 154; 153/154 `VERIFIED_CLOSED`;
 `admin_can()` live and denying; production untouched.**
+
+---
+
+## 125 · THE APPROVED CAPABILITY MATRIX — SEEDED, AND ALL 425 GRANTS VERIFIED LIVE
+
+**Owner approval, 2026-10-05 (Julia).** The five Admin role policies were supplied in plain language,
+transcribed mechanically into 425 grants, presented in full, and **explicitly approved as expanded**
+(commit `add4252`).
+
+### 125.1 Transcription, not inference
+
+Each policy function in the generator encodes **one owner sentence**. **No verb hierarchy** — `Manage`
+does not imply `Update`, per the owner's *"inheritance: NONE"*. **No cross-group inference.** **The role
+levels `Full`/`Limited`/`Read-only` were never used as grants**, as §115 and §118.1 required.
+
+**Result: 85/85 cells · 425/425 values · 0 unresolved · 116 granted · 309 denied** — `trust_lead` 33 ·
+`operations_lead` 33 · `support` 14 · `content_editor` 19 · `viewer` 17.
+
+`Approve` is TRUE in exactly **8** cells — Trust lead across the four Trust areas, Operations lead across
+the four Operations areas — and FALSE in the other 77.
+
+### 125.2 A casing trap caught before it bit
+
+Migration 153's CHECK stores **lowercase** verbs; the approved matrix and the Admin design use **display**
+casing (`View`). **Seeding display casing would have inserted 116 rows that no caller could ever match —
+every grant silently inert, and every test passing vacuously.**
+
+Migration 155 therefore lowercases verbs and keeps areas in display spelling, and the contract is written
+into the migration header: **`admin_can('<Area display name>', '<lowercase verb>')`**.
+
+**The same trap was live inside `D13`.** Its deny probes used `'View'`, so after seeding they would have
+kept passing **for the wrong reason**. They now use lowercase — and the suite gained the assertion it was
+missing: **a grant the matrix GIVES must return true**, so an always-false `admin_can()` can no longer
+satisfy the suite. **That assertion was initially placed before the fixture role was arranged and failed
+correctly; the test was wrong, not the predicate.**
+
+### 125.3 Migration 155 — generated, not written
+
+Generated **from the matrix file**, so the database cannot disagree with the approved policy. Only the
+**116 TRUE** grants are inserted; the 309 FALSE grants are the **absence of a row**, exactly as specified.
+**No policy, predicate, grant, role value or existing table is touched** — `is_admin()`,
+`is_trust_operator()`, `is_erasure_executor()`, `A13·1`'s audit-read policy and `A12`'s identity map are
+all untouched.
+
+**Applied to QA** under the owner's step-11 instruction. **116 rows live**, counts matching per role.
+
+### 125.4 `D14` — the class, not a sample
+
+**All 425 role × area × verb combinations exercised live**, every expectation **read from the approved
+matrix file** so the suite cannot drift from policy:
+
+```
+trust_lead · operations_lead · support · content_editor · viewer — 85/85 cells each
+all 425 role × area × verb combinations exercised — tested=425
+D14: 8/8
+```
+
+This is `QA_CLOSURE_STANDARD` §5.2's *"test the class, not the instance"* — whose cited failure, `F-J-01`,
+was a suite that checked four of five wrappers individually.
+
+### 125.5 Regression
+
+**512/512 across 14 suites.** `D-02` reported 40 under suite ordering and **39/39 standalone** — a
+conditional assertion, verified not a regression.
