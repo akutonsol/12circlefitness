@@ -41,6 +41,10 @@
       "153": {
         "reason": "Graded Admin authorization layer, authored under the owner-approved architecture direction A of 2026-10-05 and specified at V5 \u00a7113. Privilege-neutral on application: no capability row is seeded, so admin_can() is false for every caller until the approved design's role x area x verb cells are supplied. Authored but deliberately not applied — applying it to QA was not authorized with the architecture approval.",
         "gate": "Owner authorization to apply to QA. The design's capability-matrix cells (V5 \u00a710.2, recorded as unextractable from the approved pages) are a separate input needed before any grant row is seeded — the migration is safe to apply without them, and confers nothing until they exist."
+      },
+      "154": {
+        "reason": "Governance policy registry — the documentation/auditability layer for the deterministic authorization rules, named governance_* per V5 \u00a7114.2 to avoid the PostgreSQL policy collision. Purely additive: five new tables, no existing object touched, no rows seeded, no subject identifier anywhere. It describes enforcement and must never perform it.",
+        "gate": "Owner authorization to apply to QA, together with 153. The RB-nn and DA-nn policy content is design data (V5 \u00a716.2) and is not required for the structure to be safe — the registry confers nothing and is read by people, never by an RLS policy."
       }
     }
     }
