@@ -11804,3 +11804,80 @@ the audit-population direction (`D4`).
 
 **No RLS, role, predicate, migration, schema, application file or authorization behaviour modified. No
 production contact. QA at 152.**
+
+---
+
+## 109 · §108 CONFIRMED FROM A SOURCE IT DID NOT CONSULT — AND ON BETTER GROUNDS
+
+§108 determined that §19's delegation does not reach graded Admin authorization, resting on the
+`§8.18·Q1` precedent. **The brief asked for an *exhaustive* determination, so the determination was itself
+re-tested — and §108 had not opened five tracked governance documents.** `COWORK_ENGINEERING_GOVERNANCE.md`
+(487 lines) settles the question **directly**, on firmer grounds than precedent-by-analogy.
+
+### 109.1 The Authority Model is explicit, and it is dispositive
+
+`COWORK_ENGINEERING_GOVERNANCE.md` §3:
+
+> **Human Product Owner** retains final authority over … ***"irreversible architectural decisions"*** …
+> *"exceptions to governance"*.
+> **Lead Architect / Orchestrator** coordinates *"architectural **consistency**"*, reconciliation,
+> dependency ordering — and ***"does not manufacture product or clinical decisions."***
+> **Specialist Agents** — *"An agent may make technical decisions **supported by established architecture
+> and contracts**."* … *"An agent may not independently redefine product behavior."*
+
+**Applying it to the question:**
+
+| test | result |
+|---|---|
+| Is conferring differentiated Admin authority *"supported by established architecture and contracts"*? | **NO.** §107.3 proved there is **no graded mechanism anywhere** — `read_only`/`readonly`/`limited`/`access_level`/`permission` all **0** in any role sense. **There is no established contract to be supported by** |
+| Is it an *"irreversible architectural decision"*? | **Substantially yes.** Creating and granting an authorization principal is reversible only by a further privilege change, and `§8:219` forbids rewriting a migration in place. §19's own hierarchy ranks **6 · minimal irreversible commitment** |
+
+> **So under the repository's own Authority Model this sits with the owner — not because §19 is silent,
+> but because the Authority Model places it there.** §108's conclusion is confirmed on a better basis
+> than the `§8.18·Q1` analogy, which now corroborates rather than carries it.
+
+### 109.2 The escalation procedure §108 followed is the one the governance prescribes
+
+§8: *"When a technical task depends on an unresolved decision: **document the exact decision; explain the
+technical dependency; preserve the existing safe boundary; stop the dependent portion; report it for owner
+decision.**"*
+
+**That is exactly what §107 and §108 did** — derived and documented the mapping, explained the dependency,
+left all seven roles and nine enforcement sites untouched, stopped the dependent portion, and reported.
+**The procedure was not improvised.**
+
+### 109.3 Independent corroboration of §16.4(a) — the registry must not enforce
+
+§108 did not need this, but it settles a question §105 reasoned to on its own:
+
+> §13 **Deterministic Authority** — *"The deterministic system remains authoritative for enforceable
+> contracts, including … **authorization**; entitlement boundaries."* … *"AI must not bypass deterministic
+> validation."*
+> §9 **Security Invariants** — *"No remediation may weaken: **Row Level Security; authorization**; subject
+> scoping; RPC EXECUTE restrictions; **SECURITY DEFINER boundaries**; … auditability; human control."*
+
+**§16.4(a)'s conclusion — that the policy registry may describe and audit but never become the enforcement
+point — is now governance, not inference.** Authorization is a *deterministic enforceable contract*; a
+governance-policy registry is reasoning **about** it. And §9 fixes the direction of any graded mechanism:
+**it may only narrow.**
+
+### 109.4 What this changes
+
+**Nothing in the determination; everything in its grounding.** The boundary is unchanged and remains
+exactly where §108 placed it. **Three further constraints are now established on the answer**, whichever
+shape the owner chooses:
+
+1. the mechanism must live in the **deterministic layer** — RLS and SQL predicates (§13);
+2. it may **only narrow**, never weaken RLS, authorization, subject scoping, SECURITY DEFINER boundaries
+   or auditability (§9);
+3. any function replacement must **re-verify** authorization guard, caller/subject scoping, EXECUTE
+   grants, SECURITY DEFINER status, `search_path` pinning, write and return authorization
+   (§9's Function Replacement Rule) — the rule that `116`→`119` violated and `124` repaired.
+
+**A methodological note worth keeping:** §108 reached the right determination from an incomplete search.
+**Re-testing a conclusion against sources it never opened is cheap; discovering later that it rested on
+analogy when a direct rule existed is not.** The same failure mode as §100.2 — searching one part of the
+record and concluding from its silence.
+
+**No RLS, role, predicate, migration, schema, application file or authorization behaviour modified. No
+production contact. QA at 152.**
