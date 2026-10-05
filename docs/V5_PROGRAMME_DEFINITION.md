@@ -12548,3 +12548,131 @@ owner / external authority.
 
 **No implementation occurs until that condition is satisfied.** `admin_can()` returns false for every
 caller meanwhile — **the safe state, not a broken one.**
+
+---
+
+## 118 · CONF-D8 PARKED · BINARY MODEL CONFIRMED · QA PACKET FOR 153/154
+
+**§117 declared a global stop. That was wrong in kind** — a blocked critical path is a **parked
+dependency**, not a programme termination. The frontier is re-audited below and two branches were
+reachable.
+
+### 118.1 Binary vs tri-state — RESOLVED as **A**, and migration 153 is unchanged
+
+**Evidence, from the approved Settings page parsed structurally:**
+
+| table | header | content |
+|---|---|---|
+| **Administrators** | `Administrator · Role · Status · Last active · Created · **Access**` | `Priya Raman · Trust lead · … · **Full**` · `Tomas Vidal · Support · … · **Limited**` · `Jonah Meier · Viewer · … · **Read-only**` |
+| **Roles** | `Role · Description · Users · **Level** · Status` | Trust lead **Full** · Operations lead **Full** · Support **Limited** · Content editor **Limited** · Viewer **Read-only** |
+
+> **`Full` / `Limited` / `Read-only` occur ONLY in a `Level` column (per role) and an `Access` column
+> (per administrator, following their role). They appear NOWHERE in the Area × Verb grid.**
+
+**And the tri-state premise is independently refuted:** §116 established that `ph-check`,
+`ph-minus-circle` and `ph-dot-outline` are bound to **status pills elsewhere on the page**, not to any
+capability cell. **Three icons existing is not evidence about the grid** — which is exactly the inference
+the brief warned against.
+
+**Determination: OPTION A — three ADMIN ROLE LEVELS, each capability BINARY.** Migration 153's model —
+a row in `admin_role_capabilities` means granted, its absence means denied — is **correct and is left
+unchanged**. §113.1's decision to **compute** level from the grid rather than store it also stands: the
+design shows level as a derived summary, two roles Full, two Limited, one Read-only.
+
+**This closes the model question. No schema change is required, and the authority request's §4 is
+answered — the authority need only supply binary grants.**
+
+### 118.2 Correction to §116.3
+
+§116.3 recorded that *"`Operations lead` and `Content editor` carry no level in the artifact."*
+**That is wrong.** The Roles table carries a level for **all five**: `Operations lead → Full` and
+`Content editor → Limited`. The earlier reading came from a **truncated text extraction**; the structural
+parse shows the complete table.
+
+**What does not change:** levels still cannot produce the grid. *"Full"* names no areas and *"Limited"*
+no verbs, so all **425** grants remain UNKNOWN and the matrix file stands at **0 / 0 / 85**.
+**Knowing all five levels does not move a single cell.**
+
+### 118.3 QA authorization packet — migrations 153 and 154
+
+Prepared in the shape §39 established. **Preparation only: nothing was executed against QA, the frontier
+stays 152, and no rung beyond FIXED IN CODE is claimed.**
+
+**What they are.** `153` adds the Admin-layer principal (`admin_role_assignments`,
+`admin_role_capabilities`) and two predicates (`is_admin_member()`, `admin_can()`). `154` adds the
+governance policy registry (5 tables). **Both are purely additive — no existing table, function, policy,
+grant or role value is touched by either.**
+
+**Ordering.** `153` then `154`. They are independent, but 153 carries the authorization vocabulary 154's
+comments reference.
+
+**Why application is low-risk, stated as a property rather than a hope:**
+
+- **neither seeds a row** — `admin_can()` is false for every caller, every area, every verb on the
+  instant it is applied, so **no principal gains any authority**;
+- **no existing policy is modified**, so the 484-assertion live suite's behaviour cannot change;
+- **`anon` is revoked** on all seven new tables; **no `service_role` grant** is introduced;
+- both predicates are `SECURITY DEFINER` with `search_path` pinned to `'public','pg_temp'`, matching
+  `is_admin()`/`is_trust_operator()`/`is_erasure_executor()`.
+
+**Preconditions to check immediately before applying:**
+
+1. `select version from supabase_migrations.schema_migrations order by version desc limit 1;` → **152**.
+2. `select count(*) from pg_proc where proname in ('is_admin_member','admin_can');` → **0**.
+3. `select count(*) from pg_tables where tablename like 'admin_role%' or tablename like 'governance_%';`
+   → **0**.
+
+**The exact command:** `supabase db push --linked` with the QA ref `eyqtldjqpgpljlqvpowh` confirmed, or
+apply `153` then `154` individually.
+
+**Post-apply verification — deterministic assertions, each with its expected value:**
+
+| # | assertion | expected |
+|---|---|---|
+| 1 | `select public.admin_can('Security','View');` as any authenticated caller | **false** — deny-by-default holds |
+| 2 | `select count(*) from public.admin_role_capabilities;` | **0** |
+| 3 | `select prosecdef, proconfig from pg_proc where proname='admin_can';` | `t`, `{search_path=public,pg_temp}` |
+| 4 | `select count(*) from information_schema.role_table_grants where grantee='anon' and table_name like 'admin_role%';` | **0** |
+| 5 | `select rolname from pg_roles` / role vocabulary unchanged — `147`'s CHECK still lists exactly the seven | **7, unchanged** |
+| 6 | an `admin_role_assignments` row for a non-`admin` user → `select public.is_admin();` as that user | **false** — the layer does not confer legacy admin |
+| 7 | same user → `insert into public.admin_role_capabilities …` | **refused by RLS** — the layer cannot escalate itself |
+| 8 | `select public.is_trust_operator(), public.is_erasure_executor();` as that user | **false, false** — separation holds |
+| 9 | `npm run test:security` (Node 20, one runner) | **484/484**, unchanged |
+
+**Assertions 6–8 are the least-privilege proof of §113.3 executed rather than argued.** They require one
+fixture identity and **no capability rows** — so they are runnable the moment the migrations are applied,
+before any design data exists.
+
+**CI rerun.** The full workflow; `Live QA suites` must stay **484/484**. A change there would mean an
+existing policy was disturbed, which these migrations do not do.
+
+**Remaining risk:** none identified beyond the standard application risk, precisely because nothing is
+seeded and nothing existing is altered. **The migrations confer no authority until the 85-cell matrix
+exists.**
+
+### 118.4 Frontier re-audit — every known branch
+
+| branch | status | blocker | next unlock |
+|---|---|---|---|
+| `CONF-D7` | **COMPLETED** | — | — |
+| Graded authorization mechanism (153) | **COMPLETED** (FIXED IN CODE) | — | — |
+| Governance registry (154) | **COMPLETED** (FIXED IN CODE) | — | — |
+| Binary vs tri-state | **COMPLETED** (§118.1) | — | — |
+| Trust four-area reconciliation | **COMPLETED** (§114.1) | — | — |
+| Policy naming | **COMPLETED** (§114.2, `governance_*`) | — | — |
+| Helix Admin extension authority | **COMPLETED** (§114.3) | — | — |
+| Metric contracts G/H/I/K | **COMPLETED** (§114.4) | — | — |
+| 85-cell recovery | **COMPLETED** — exhausted with proof | — | — |
+| QA packet for 153/154 | **COMPLETED** (§118.3) | — | — |
+| **`CONF-D8` · capability seeding · Admin RLS · Settings authorization** | **PARKED** | the 85 cells | design authority returns the matrix |
+| QA application of 153/154 | **PARKED** | no authorization in the record | owner authorization |
+| `policy_evaluation` | **PARKED** | principal/resource model + a `D12` component value | `D12` authority |
+| Guardian telemetry · agent registry | **PARKED** | `P7` | phase gate |
+| `CAP-1` moderation | **PARKED** | owner policy — reportable objects, outcomes | owner |
+| `CONF-D6` | **PARKED** | 12Circle+ brand authority | owner |
+| `PD-C03` billing currency | **PARKED** | monetization — `COWORK` §8 forbids agents | owner |
+| §100.5 remainder | **PARKED** | owner | owner |
+| Cross-product canonical Helix | **PARKED** | external design-system authority | outside this repository |
+| `A12` surface question | **PARKED** | security authority | owner/security |
+
+**Ten branches COMPLETED, ten PARKED, each with a named blocker. No branch is reachable-but-unstarted.**
