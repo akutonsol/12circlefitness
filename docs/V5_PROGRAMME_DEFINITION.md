@@ -12346,3 +12346,81 @@ extension work rather than an open token-home question.**
 | **`J` Store-console** | vendor-free under **`PD-A24 = C`**; ingestion must never become an authorization authority, Guardian security root, external source of truth or trust root. **Consistent with §114.1's `A10` condition** |
 
 **Nothing above is implemented. These are the contracts implementation must satisfy.**
+
+---
+
+## 115 · THE CAPABILITY MATRIX — STRUCTURE RECOVERED, CELLS PROVEN ABSENT FROM THE ARTIFACT
+
+§10.2 recorded the matrix cells as *"not extractable"*. **A second attempt recovered the full structure
+and established WHY the cells are missing — which converts a vague gap into a bounded input.**
+
+### 115.1 The complete area vocabulary — 17 areas in 4 groups
+
+Recovered from the grid's own rows and `aria-label` attributes. **§10.1 had only 13; this is the full set:**
+
+| group | areas |
+|---|---|
+| **Ecosystem** | Community · Events · Training · Monetization · Wearable intelligence |
+| **Trust** | AI Guardian · Security · Incidents · Audit logs |
+| **Operations** | QA · Releases · Integrations · System |
+| **Settings** | Organization · Users · Roles · Configuration |
+
+**Verbs confirmed, 5:** `View · Create · Update · Manage · Approve`. **So the grid is 17 × 5 = 85 cells.**
+
+**Note:** the Trust group is **AI Guardian · Security · Incidents · Audit logs** — the **four-area** reading,
+independently corroborating §114.1's approved direction C **from the permission matrix itself**.
+
+### 115.2 Why the cells are absent — they are not in the file
+
+The grid's cell markup is **empty** in all four group tables. The three state icons — `ph-check`,
+`ph-minus-circle`, `ph-dot-outline` — **exist in the region but are not bound to any cell**.
+
+> **The cell values are rendered at view time by `support.js` (the `dc-runtime`, which requires
+> `window.React`). They are not in the static artifact at all.**
+
+**This is a definitive finding, not another failed attempt.** §10.2's *"unextractable"* is now explained:
+**there is nothing in the file to extract.** The cells can only come from viewing the rendered design or
+from the designer — and viewing requires the **Nocturne `_ds` bundle** that §7.1 recorded as a
+design-runtime dependency.
+
+### 115.3 Consequence — a bounded input, and what it gates
+
+**Migration 153's deny-by-default is now vindicated rather than merely cautious:** had the cells been
+guessed, 85 authorization decisions would have been invented.
+
+**Gated on the 85 cells:**
+
+- `admin_can()` confers nothing until they exist — **by design**;
+- **`CONF-D8`'s requirement that `Full`/`Limited`/`Read-only` be *"enforceable at the deterministic data
+  layer"* cannot be satisfied** — the levels are computed from the grid (§113.1), so without cells there
+  is nothing to compute. **The owner's instruction *"never implement a UI-only permission model"* is
+  precisely what blocks proceeding here;**
+- every Admin surface policy that would consume `admin_can(area, verb)`.
+
+**Minimum input required: the 85 cell values** — supplied as design data, or by rendering the approved
+Settings page with the `_ds` bundle. **Not an owner *decision*; an owner/design *input*.**
+
+### 115.4 A capability the register had missed — Settings feature registry
+
+The same extraction surfaced a **feature-flag registry** on Settings, not previously in the register:
+
+| feature | status | availability |
+|---|---|---|
+| AI Coach | **Enabled** | all plans with AI |
+| Around your community | **Coming soon** | — |
+| Wearable sync | **Enabled** | all members |
+| Coach marketplace | **Restricted** | beta cohort only |
+| Group challenges | **Disabled** | — |
+
+**Columns:** `Feature · Description · Status · Availability · Last modified`. **Status vocabulary:**
+`Enabled · Coming soon · Restricted · Disabled`.
+
+**Register entry 21 — feature/availability registry.** Current support: **none** — no feature-flag table
+exists. Authorization: every write is a high-impact admin action ⇒ `A10` audit emitter + a `CONF-D7` cell.
+Privacy: *"beta cohort only"* implies cohort targeting, which touches member segmentation. Migration:
+additive. **Owner decision: none for existence — it is approved design. PARKED on the capability cells
+like the rest.** **§102: preserved, not removed.**
+
+**Also observed and preserved:** `Wearable sync — Enabled — all members` sits alongside `PD-G01`'s
+deferral of wearable implementation. **Recorded, not reconciled — a design-state value, not a product
+claim.**
