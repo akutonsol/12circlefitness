@@ -12746,3 +12746,80 @@ than from the manifest.
 §118.4's table stands: **ten COMPLETED, ten PARKED.** The two parked critical-path branches were re-tested
 this run and remain blocked on the same two external inputs. **No branch became reachable; none was
 manufactured.**
+
+---
+
+## 120 · MIGRATIONS 153/154 APPLIED TO QA AND VERIFIED LIVE — 502/502
+
+**Owner authorization, 2026-10-05:** apply 153 and 154 to the 12Circle QA project, QA only, **no
+production action**. Executed per §118.3's packet.
+
+### 120.1 Target and preconditions, checked before anything was applied
+
+`QA_URL` resolves to **`eyqtldjqpgpljlqvpowh`** — the QA project. The production ref
+`nxdbooufqzkpslkcogxc` appears nowhere and **was not contacted.**
+
+| precondition | result |
+|---|---|
+| ledger frontier | **152**; 153/154 present locally, absent remotely |
+| `admin_role_assignments` · `admin_role_capabilities` · `governance_policy` | **HTTP 404 — all absent** |
+| `supabase db push --dry-run` | *"Would push these migrations: 153…, 154…"* — **exactly those two, in order** |
+
+### 120.2 Applied
+
+`supabase db push --linked`. Ledger now carries **153** and **154**. The `DROP POLICY IF EXISTS` NOTICEs
+are the repository's idempotency convention firing on first creation.
+
+**Structural verification by `db dump` was NOT possible — it requires Docker, which is unavailable here.**
+Verification is therefore **behavioural**, which `QA_CLOSURE_STANDARD` §5.2 rates higher anyway:
+*"correct shape is not proven behaviour."*
+
+### 120.3 The least-privilege proof, executed — `D13`, 18/18
+
+`supabase/tests/security/d13-admin-graded-authorization-lab.mjs`, **now registered** in `run.mjs`:
+
+| assertion | result |
+|---|---|
+| `admin_role_capabilities` empty; `admin_can()` false for `Security/View`, `Audit logs/Manage`, `Users/Update` | **PASS** — deny-by-default holds on QA |
+| **`is_admin_member()` TRUE while `is_admin()` FALSE** for a Viewer | **PASS** — *the* assertion. Were it to flip, a Viewer would inherit all 14 inline RLS clauses naming `'admin'` (§107.3) |
+| `is_trust_operator()` and `is_erasure_executor()` both FALSE | **PASS** — Trust and erasure separation hold |
+| a Viewer cannot grant themselves a capability (403) nor promote their own role (403) | **PASS** — no self-escalation |
+| a Viewer cannot read `audit_identity_map` (403) | **PASS** — `A12` opens no path |
+| a Viewer's `governance_policy` read returns empty | **PASS** — RLS filters rather than leaks |
+| `anon` on all three tables | **PASS** — 401 |
+
+**Fixture cleaned up: 0 assignments left, 0 capability rows.** The grid is still empty, as it must remain
+until the 85-cell matrix arrives.
+
+### 120.4 Two defects in my own test code, found by running it
+
+Recorded because both produced **false confidence or false alarm**, and neither was in the migrations:
+
+1. **Doubled path.** `svc()` prepends `/rest/v1/` itself; I passed paths that already had it, yielding
+   `PGRST125` and a guard that reported *"153 is PENDING"* **after it had been applied**. A test that
+   misreports the state it is verifying is worse than no test.
+2. **Double-encoded body.** `svc()` JSON-stringifies `opts.body`; I passed an already-stringified string.
+   PostgREST still answered **201** while the row landed unusable, so `is_admin_member()` correctly read
+   **false** and the suite blamed the function. **The function was right and the test was wrong** —
+   confirmed by reproducing it directly before changing anything. The fix is commented in place.
+
+### 120.5 Regression and the ladder
+
+**Full live suite: 502/502 across 13 suites** — the twelve existing suites **unchanged at 484/484**,
+confirming neither migration disturbed anything, plus D13's 18.
+
+| rung | 153 | 154 |
+|---|---|---|
+| FIXED IN CODE | ✅ | ✅ |
+| **FIXED ON QA** | ✅ applied, ledger carries it | ✅ applied, ledger carries it |
+| **VERIFIED LIVE** | ✅ D13 18/18 + 484/484 unchanged | ✅ registry RLS asserted live |
+| VERIFIED IN CI | pending this push | pending this push |
+
+**Frontier moved 152 → 154; `pending` cleared.** The manifest and the ledger agree, which is the only
+condition under which ENV-3 passes.
+
+### 120.6 What this does NOT establish
+
+**`CONF-D8` remains OPEN.** The mechanism is live and proven; **it grants nothing**, because
+`admin_role_capabilities` is empty and the 85-cell matrix has not been supplied (§116). **No capability
+row was seeded and no Admin-surface policy was authored** — both would require the matrix.

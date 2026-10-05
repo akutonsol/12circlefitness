@@ -87,6 +87,18 @@ const SUITES = [
   // each run leaves permanent rows on QA. That is the population behaving as
   // ruled. Rows carry a run-unique marker so they stay attributable.
   ['P2    audit + observability populations', './d12-p2-audit-populations.mjs'],
+  // D13 · the graded Admin authorization layer (153) and the governance registry
+  // (154). Registered only once both were applied to QA under owner authorization
+  // of 2026-10-05 — before that it was an unregistered lab, because registering a
+  // suite for a deliberately-unapplied migration makes CI fail on intent rather
+  // than on a defect (V5 §119.3).
+  //
+  // It asserts the MATRIX-INDEPENDENT half: every assertion holds with
+  // admin_role_capabilities EMPTY, which it is and must remain until the 85-cell
+  // matrix arrives. The load-bearing one is `is_admin_member() TRUE while
+  // is_admin() FALSE` — if that ever flips, a Viewer has inherited all 14 inline
+  // RLS clauses naming 'admin' (V5 §107.3). First live run: 18/18.
+  ['D13   admin graded authorization',     './d13-admin-graded-authorization-lab.mjs'],
 ];
 
 let totalFailures = 0;

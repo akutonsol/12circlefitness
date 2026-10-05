@@ -17,16 +17,16 @@
 //
 // It CLEANS UP after itself: unlike d12, these tables carry no append-only freeze,
 // so the fixture assignment row is removed in a finally block.
-import { URL_, SERVICE, IDENT, signIn, rpc, mutate, svc,
+import { URL_, SERVICE, IDENT, signIn, rpc, rest, mutate, svc,
          check, section, summary, beginSuite } from './lib.mjs';
 
-export default async function run() {
+async function run() {
   beginSuite();
 
   // ── 0 · are the migrations applied at all? ────────────────────────────────
   // Stated first so a run against an un-migrated QA reports WHY it asserted
   // nothing, rather than failing 20 times for one reason (V5 §28.9's lesson).
-  const probe = await svc('/rest/v1/admin_role_capabilities?select=admin_role&limit=1');
+  const probe = await svc('admin_role_capabilities?select=admin_role&limit=1');
   if (probe.status === 404 || (probe.body && /does not exist|schema cache/i.test(JSON.stringify(probe.body)))) {
     check('migrations 153/154 are applied to QA', false,
       'admin_role_capabilities not reachable — 153 is PENDING, nothing below was asserted');
@@ -40,7 +40,7 @@ export default async function run() {
   try {
     // ── 1 · deny-by-default, the property the whole design rests on ──────────
     section('deny-by-default with an empty capability grid');
-    const empty = await svc('/rest/v1/admin_role_capabilities?select=admin_role');
+    const empty = await svc('admin_role_capabilities?select=admin_role');
     check('admin_role_capabilities is empty', Array.isArray(empty.body) && empty.body.length === 0,
       `rows=${Array.isArray(empty.body) ? empty.body.length : '?'}`);
 
@@ -51,14 +51,17 @@ export default async function run() {
 
     // ── 2 · the Admin layer does NOT confer legacy admin — §113.3 proof ──────
     section('an Admin-layer member is not a legacy admin');
-    const me = await svc(`/rest/v1/user_profiles?select=id&email=eq.${encodeURIComponent(IDENT.victim.email)}`);
+    const me = await svc(`user_profiles?select=id&email=eq.${encodeURIComponent(IDENT.victim.email)}`);
     const uid = Array.isArray(me.body) && me.body[0] ? me.body[0].id : null;
     check('fixture identity resolved', !!uid, uid ? 'ok' : 'could not resolve victim id');
 
     if (uid) {
-      const ins = await svc('/rest/v1/admin_role_assignments', {
-        method: 'POST', headers: { Prefer: 'return=representation' },
-        body: JSON.stringify({ user_id: uid, admin_role: 'viewer' }),
+      // svc() JSON-stringifies opts.body itself — pass an OBJECT, never a string,
+      // or the body is double-encoded and the row lands unusable while PostgREST
+      // still answers 201. That exact mistake made is_admin_member() read false
+      // on this suite's first live run.
+      const ins = await svc('admin_role_assignments', {
+        method: 'POST', body: { user_id: uid, admin_role: 'viewer' },
       });
       arranged = ins.status < 300;
       check('arranged: victim holds the Viewer Admin role', arranged, `status=${ins.status}`);
@@ -81,28 +84,26 @@ export default async function run() {
 
         // ── 3 · the layer cannot escalate itself ────────────────────────────
         section('self-escalation is refused');
-        const selfGrant = await mutate(victim, '/rest/v1/admin_role_capabilities', 'POST',
+        const selfGrant = await mutate(victim, 'admin_role_capabilities', 'POST',
           { admin_role: 'viewer', area: 'Security', verb: 'manage' });
         check('a Viewer cannot grant themselves a capability',
           selfGrant.status >= 400 || selfGrant.affected === 0, `status=${selfGrant.status}`);
 
-        const selfAssign = await mutate(victim, '/rest/v1/admin_role_assignments', 'POST',
+        const selfAssign = await mutate(victim, 'admin_role_assignments', 'POST',
           { user_id: uid, admin_role: 'trust_lead' });
         check('a Viewer cannot promote their own Admin role',
           selfAssign.status >= 400 || selfAssign.affected === 0, `status=${selfAssign.status}`);
 
         // ── 4 · A12 — the layer opens no identity path ──────────────────────
         section('A12 · no new re-identification path');
-        const map = await mutate(victim, '/rest/v1/audit_identity_map?select=*', 'GET', null)
-          .catch(() => ({ status: 403 }));
+        const map = await rest(victim, 'audit_identity_map?select=*').catch(() => ({ status: 403 }));
         check('a Viewer cannot read audit_identity_map',
           !map || map.status >= 400 || (Array.isArray(map.body) && map.body.length === 0),
           `status=${map && map.status}`);
 
         // ── 5 · governance registry is readable only to admin/Trust ─────────
         section('governance registry (154)');
-        const gp = await mutate(victim, '/rest/v1/governance_policy?select=code', 'GET', null)
-          .catch(() => ({ status: 403 }));
+        const gp = await rest(victim, 'governance_policy?select=code').catch(() => ({ status: 403 }));
         check('a Viewer cannot read governance_policy',
           !gp || gp.status >= 400 || (Array.isArray(gp.body) && gp.body.length === 0),
           `status=${gp && gp.status}`);
@@ -118,15 +119,17 @@ export default async function run() {
     }
   } finally {
     if (arranged) {
-      const me = await svc(`/rest/v1/user_profiles?select=id&email=eq.${encodeURIComponent(IDENT.victim.email)}`);
+      const me = await svc(`user_profiles?select=id&email=eq.${encodeURIComponent(IDENT.victim.email)}`);
       const uid = Array.isArray(me.body) && me.body[0] ? me.body[0].id : null;
-      if (uid) await svc(`/rest/v1/admin_role_assignments?user_id=eq.${uid}`, { method: 'DELETE' });
+      if (uid) await svc(`admin_role_assignments?user_id=eq.${uid}`, { method: 'DELETE' });
     }
   }
 
   return summary('D13 admin graded authorization');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  run().then((f) => process.exit(f ? 1 : 0));
-}
+// run.mjs imports each suite for its side effects and reads the DEFAULT EXPORT as
+// that suite's failure count, so a suite must execute on import. Keeping run() as
+// a function and awaiting it here preserves the early-return guard at the top
+// while still matching that contract.
+export default await run();
