@@ -11881,3 +11881,115 @@ record and concluding from its silence.
 
 **No RLS, role, predicate, migration, schema, application file or authorization behaviour modified. No
 production contact. QA at 152.**
+
+---
+
+## 110 · OVERNIGHT QUEUE — FOUR BRANCHES ADVANCED ON EVIDENCE
+
+Branch A (graded Admin authority) is **PARKED** at §108/§109's owner boundary. The queue continued.
+**Investigation only; nothing implemented; no Helix system modified.**
+
+### 110.1 `B` · CANONICAL HELIX — **RESOLVED for this programme's authority chain**
+
+**The token specification Phase 4a implemented was located**: `12CIRCLE-FITNESS-PHASE-2-DESIGN-SYSTEM.md`,
+inside the package §108 recorded as *"REJECTED as implementation authority"* but whose scoped role
+`IMPLEMENT-THIS.md` preserved. Its own header is decisive:
+
+> *"**Form:** **exact Dart, written as edits to the existing Helix three-tier architecture.**
+> **Scope:** mobile client experience. **Admin/internal screens excluded.** No backend, provider, auth,
+> RLS, Storage or navigation-behaviour change."*
+
+and it carries the values verbatim — *"**ONE violet.** The four that were in play (`#7C5CFF`, `#7C3AED`,
+`#A855F7`…)"*, `background #0A0A0B`, `surface #121215`, `fontDisplay/Body/Numeric = Schibsted Grotesk`,
+and the accent-as-text rule *"`#7C3AED` on `#0A0A0B` is [below AA]"* that `twelve_circle_theme.dart`
+reproduces exactly.
+
+**Resolved on evidence:** within this programme's authority chain, **"Helix" means the IN-REPO DART
+three-tier architecture** — the specification says so in its own words (*"exact Dart … edits to the
+existing Helix three-tier architecture"*), and the standalone `/projects/helix` is **TypeScript**, so that
+sentence cannot refer to it. **The standalone repository has never been in the chain** (§106.2: no
+dependency, no intake mention, none in CI or the conformance test).
+
+**NOT resolved, and parked:** whether the standalone repository is the canonical **cross-product reusable
+system** going forward, and whether it should be updated, retired or re-pointed. That is a question about
+a repository outside this one's authority. **Design-system authority. Neither system modified.**
+
+**`IMPLEMENT-THIS.md` is unrecoverable** — searched; **0 found**. It lived in the authoritative Mobile zip,
+which is also gone (§106.2). **Only the Phase 4a commit message preserves its §4 text.** Recorded because
+the programme now depends on a commit message as the sole witness to an authority document.
+
+### 110.2 `B.2` · ADMIN TOKEN HOME — the gap is now EXPLAINED, and the decision narrowed
+
+> ***"Scope: mobile client experience. Admin/internal screens excluded."***
+
+**No token authority has ever claimed Admin scope.** The specification that defines the 12Circle identity
+excludes Admin by its own terms; the Admin design nonetheless expresses that identity **11/11** (§103.1).
+
+**That is why `BOUNDARIES.md` item G and handoff §8 flag *"Admin vs Helix token alignment"* as unresolved
+— the gap is structural, not an oversight.** The decision is correspondingly precise:
+
+> **Either extend the existing token authority's scope to Admin, or establish a separate Admin token
+> authority.** Both are design-system authority decisions. **PARKED.** The derived extraction
+> (`admin.tokens.*`, 97.7% validated) is **evidence of what the design does — it is not an authority**,
+> and is not promoted to one here.
+
+### 110.3 `C` · POLICY NAMING — a convention EXISTS; only the prefix is undetermined
+
+**Searched:** `governance_policy`, `gov_policy`, `ai_policy`, `guardian_policy`, `policy_version`,
+`policy_set`, `policy_rule` — **every hit is my own §105/§106 text. No established governance-policy
+vocabulary exists.**
+
+**But a naming convention does exist, and it was not previously recorded:** the schema names tables and
+functions by **domain prefix**, consistently — `audit_*` (5 tables, and every audit function from
+`audit_mint_pseudonym` to `audit_phi_correction`), `observability_*`, `coach_*` (10), `workout_*` (6),
+`user_*`, `client_*`, `community_*`. **405 `CREATE`/`DROP POLICY` lines** establish the collision, and the
+documents already qualify the Postgres sense in prose **21 times** as *"RLS policy"*.
+
+**So the naming decision is reduced to choosing a domain prefix — and governance eliminates one
+candidate:**
+
+> **`guardian_*` would be WRONG.** The registry carries **`RB-nn` authorization policies**, not only AI
+> policies, and `A10` requires *"security controls remain **independent of the AI Guardian**"*. Naming the
+> authorization registry after the Guardian would couple them in the schema itself.
+
+**A bare `policy_*` prefix is also excluded** — `CREATE POLICY … ON policy_versions` is exactly the
+confusion the collision creates. **Remaining candidates consistent with the convention: `governance_*` or
+`authz_*`. The choice is design-system/architecture authority. PARKED, but now a one-word decision.**
+
+### 110.4 `H` · `PD-C03` — SPLITS IN TWO; one half resolved by approved design
+
+**Measured in the approved Admin design:** **`£` ×42**, `GBP` ×1, and **`$` 0 · `€` 0 · `USD` 0 ·
+`EUR` 0**. **Measured in the mobile app: no currency symbol or currency formatter at all.** In the schema:
+`payments.currency DEFAULT 'usd'` and `022`'s comments price membership at `$29`/`$59`.
+
+| half | status |
+|---|---|
+| **Admin DISPLAY currency** | **RESOLVED — GBP**, by approved design authority, unambiguously and exclusively |
+| **BILLING currency and conversion** | **PARKED — owner.** This is `PD-C03` proper, and `COWORK_ENGINEERING_GOVERNANCE` §8 explicitly forbids agents inventing *"subscription policy; **pricing**"* |
+
+**The residue is precise:** if billing stays `usd` and Admin displays `£`, an FX source and rate-date rule
+are required — and an FX provider implicates **`PD-A24 = C`** (no new vendor). **Not resolved; not
+inferred.**
+
+### 110.5 `A` · `CONF-D6` — two assets the brand record did not account for
+
+`brand/README.md` lists as missing: *"light-ground variant, one-colour variant, icon-only (app icon) crop,
+clear-space rule or minimum size."*
+
+**Found in the repository:**
+
+| asset | dimensions | status |
+|---|---|---|
+| `apps/mobile/assets/images/12circle-logo.png` | **908 × 265** RGBA — a horizontal lockup | **tracked but referenced NOWHERE in `apps/mobile/lib`** |
+| `apps/mobile/assets/images/12circle-fab.png` | **1024 × 1024** RGBA — a square **icon-only** mark | **in production use** on three member surfaces: `app_shell.dart:274`, `splash_screen.dart:116`, `onboarding_screen.dart:45` |
+
+**A square icon-only mark therefore EXISTS and ships — but it is the 12Circle Fitness MEMBER mark, not the
+12Circle+ mark** (`12circle-plus-logo.png` is the `+` lockup). **No claim is made that it is the approved
+12Circle+ icon-only variant** — that is precisely the brand-authority question `CONF-D6` holds.
+
+**What this does change:** the Admin brand README's missing-variant list is accurate **for the 12Circle+
+package** and incomplete **as a statement about the product family**. **`CONF-D6` remains PARKED on owner
+brand authority**, with its inventory now accurate.
+
+**Also recorded:** `12circle-logo.png` is tracked and unreferenced — the commission cited it as a verified
+available asset, which it is, but nothing consumes it.
