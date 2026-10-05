@@ -11993,3 +11993,66 @@ brand authority**, with its inventory now accurate.
 
 **Also recorded:** `12circle-logo.png` is tracked and unreferenced — the commission cited it as a verified
 available asset, which it is, but nothing consumes it.
+
+---
+
+## 111 · `F` · AI GUARDIAN IN TRUST — IT IS A **V5-versus-V5** CONFLICT, NOT DESIGN-versus-V5
+
+The queue continued to the Guardian/Trust conflict. **Searching sources §104.6 and §106.6 had not opened
+changes what the conflict IS.**
+
+### 111.1 Two TRACKED V5 documents give `D11` different answers
+
+| source | Trust's scope | attributed to |
+|---|---|---|
+| **`docs/V5_IMPACT_ANALYSIS_2026-09-27.md:286`** (tracked) | ***"AI Guardian · Security · Incidents · Audit Logs"*** — **four areas, Guardian first** | **`D11`** |
+| **`docs/V5_PROGRAMME_DEFINITION.md:237`** (tracked) | *"Security · Incidents · Audit Logs"* — **three areas** | **`D11`**, `D-D1` |
+
+**The same decision identifier, two scopes, both tracked.** §19.2 then answered `D11` as the three-area
+reading — *"AI Guardian remains P7 and is NOT inside Trust"* — under the architecture delegation.
+
+### 111.2 Correction to this document's own characterization
+
+§8.1's analysis (programme lines ~1105–1115) recorded the disagreement, but attributed the four-area count
+to ***"the untracked register"***:
+
+> *"The **untracked** register's four-area count and this document's phase split **disagree**."*
+
+**That is incomplete. The four-area count is ALSO in a TRACKED document** — `V5_IMPACT_ANALYSIS:286`,
+committed in `docs/`. **Corrected here rather than quietly**; the disagreement is between two tracked V5
+sources, which is a materially stronger conflict than tracked-versus-untracked.
+
+### 111.3 What this means for the approved design
+
+**The approved Trust page's `#ai-guardian` is not a design invention contradicting V5.** It matches
+`V5_IMPACT_ANALYSIS:286`'s four-area reading of `D11` — **exactly, and in the same order of prominence**
+(Guardian first). The design aligns with **one tracked V5 source against another**.
+
+**So §104.6's framing — *"approved design versus `D11`/§19.2"* — was too narrow.** The real shape:
+
+> **`V5_IMPACT_ANALYSIS` (tracked) + the approved design** say Guardian is one of Trust's areas.
+> **`V5_PROGRAMME_DEFINITION` (tracked) + §19.2's delegated answer** say it is `P7` and not inside Trust.
+
+### 111.4 One further nuance — the dependency graph says *precede*, not *exclude*
+
+`V5_DECISION_RESOLUTION_2026-09-27.md` §18's build dependency graph:
+
+> `| **TRUST** | blocked by: audit, Admin, designs, `D11` | **blocks: Guardian UI** | — | must precede: `P7` |`
+
+**Trust *blocks* Guardian UI and *must precede* P7 — a sequencing relation, not an exclusion.** A
+capability can be sequenced after Trust **and** surfaced within it; the graph does not decide the
+question either way. **Recorded so it is not mistaken for support of either side.**
+
+### 111.5 Disposition — PARKED, and it is a listed stopping condition
+
+**This is "contradictory authoritative sources" and the operating rules forbid resolving it silently.**
+Under §102's governance exception the capability is **PRESERVED — not implemented, deleted, relocated,
+hidden or redesigned** — and the governance decision is **not reinterpreted**.
+
+**Minimum decision:** confirm `D11`'s scope as **three areas** (Guardian renders outside Trust; the
+approved Trust page's `#ai-guardian` section needs an agreed home) **or four** (Guardian is a Trust area;
+§19.2's exclusion is superseded and `V5_IMPACT_ANALYSIS:286` governs). **Either way one tracked source
+must be reconciled, and that reconciliation is the owner's.**
+
+**Downstream parked with it:** Guardian policy-set telemetry · the agent/workflow registry · the
+Guardian half of the policy registry · `A7` recordability.
