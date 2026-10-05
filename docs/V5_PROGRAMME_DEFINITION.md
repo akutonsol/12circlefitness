@@ -12424,3 +12424,78 @@ like the rest.** **§102: preserved, not removed.**
 **Also observed and preserved:** `Wearable sync — Enabled — all members` sits alongside `PD-G01`'s
 deferral of wearable implementation. **Recorded, not reconciled — a design-state value, not a product
 claim.**
+
+---
+
+## 116 · 85-CELL RECOVERY — EXHAUSTED WITH PROOF · 0 AUTHORITATIVE · 85 UNKNOWN
+
+The recovery was run to exhaustion down every path the brief names. **The cells do not exist in any
+available artifact, and this section proves it rather than reporting a failed search.**
+
+### 116.1 Every recovery path, and what each returned
+
+| path | result |
+|---|---|
+| **Static grid cells**, re-parsed with a real **HTML parser** (not regex — the earlier attempt could have mis-split nested cells) | **All 85 empty.** Four group tables: Ecosystem 5 · Trust 4 · Operations 4 · Settings 4, each with header `Area·View·Create·Update·Manage·Approve`, every data cell `—` |
+| **The page's own runtime logic** — the only inline script | ***`class Component extends DCLogic { renderVals() { return {}; } }`*** — **it returns an empty object.** The artifact supplies **no values by construction**; and the same empty `renderVals` appears in **all five** `Pages - *.dc.html` |
+| **The state icons** `ph-check` / `ph-minus-circle` / `ph-dot-outline` | **present, but bound to STATUS PILLS elsewhere on the page** (integration and feature statuses, the green `rgba(47,191,135,0.14)` pills) — **not to any matrix cell** |
+| **`support.js`** (the `dc-runtime`) | **zero** hits for `Trust lead`, `Operations lead`, `Viewer`, `Read-only`, `admin_can`, `capabilit`, `Approve`, `Audit logs`, `minus-circle`. A generic runtime, carrying no page data |
+| **The Nocturne `_ds_bundle.js`** — read **in full**, 300 bytes | `{"format":4,"namespace":"Nocturne_noctur",**"components":[]**,"sourceHashes":{},"inlinedExternals":[],"unexposedExports":[]}` then an empty namespace shim. **It declares ZERO components and contains no data at all** |
+| `styles.css`, `_ds_manifest.json` (`themes: []`, `fonts: []`) | styling and manifest only |
+| Repository-wide search for the areas, verbs, `Full`/`Limited`/`Read-only`, capability and role identifiers | nothing beyond the V5 documents recording the question |
+
+> **The decisive finding: the Nocturne bundle was available and was read, and it is EMPTY.** §115 said
+> recovering the cells would need that bundle. **It would not have helped — `"components":[]`.** The
+> capability grid in the approved artifact is a **layout frame, not populated data.**
+
+### 116.2 The matrix — all 85 cells recorded
+
+**`docs/design/admin-dashboard/ADMIN-CAPABILITY-MATRIX.json`** — machine-readable, every cell present with
+`group · area · verb · value · classification · source · evidence · confidence · seedable`.
+
+```
+85 total
+ 0 authoritative
+ 0 deterministic
+85 unknown          0 + 0 + 85 = 85 ✓
+```
+
+**No cell was promoted from UNKNOWN by intuition.**
+
+### 116.3 One thing that IS authoritative — and why it is not a cell
+
+The approved **Administrators** table does carry role-level labels: **`Trust lead → Full`**,
+**`Support → Limited`**, **`Viewer → Read-only`** (`Operations lead` and `Content editor` show none).
+
+**These are recorded in the matrix file and deliberately NOT expanded into cells.** *"Full"* does not say
+which areas; *"Limited"* does not say which verbs. **Deriving 85 cells from three adjectives is
+architectural judgment, which the brief excludes from the DETERMINISTIC class.** It is category C.
+
+**And it exposes something about the design itself: the approved screens assert LEVELS without the cells
+that would produce them.** §113.1 chose to compute level from the grid precisely so the two could never
+disagree — **the design has the dependency in the opposite direction, and that is a reconciliation the
+design authority owns.**
+
+### 116.4 `CONF-D8` — CANNOT CLOSE, and the reason is exact
+
+`CONF-D8` requires `Full`/`Limited`/`Read-only` to be **enforceable at the deterministic data layer**.
+With **0 of 85** cells, `admin_role_capabilities` has nothing to hold, so `admin_can()` is false
+everywhere and no Admin-surface policy can be written that grants anything.
+
+**Closing it on the strength of the Settings UI displaying three levels is precisely the UI-only
+permission model the brief forbids.** **`CONF-D8` remains OPEN.**
+
+**Migration 153's deny-by-default is now vindicated twice over**: the cells were not merely unextracted,
+they were **never authored**. Had they been guessed, 85 authorization decisions would have been invented
+from three adjectives.
+
+### 116.5 What this makes the blocker
+
+**Not an owner decision. A missing authoritative design artifact** — the second global stop condition.
+
+**Minimum input:** the 85 cell values, as design data. **The rendered design cannot supply them** (proved
+above), so they must come from the designer or from an authoring source not in this repository.
+
+**Everything gated on it:** `admin_role_capabilities` seeding · every Admin-surface RLS policy consuming
+`admin_can` · `CONF-D8` · the Admin screens of P5 · the Settings feature registry's authorization ·
+`CAP-1`'s moderation authorization.
