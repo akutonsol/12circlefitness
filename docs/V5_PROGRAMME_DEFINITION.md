@@ -12056,3 +12056,79 @@ must be reconciled, and that reconciliation is the owner's.**
 
 **Downstream parked with it:** Guardian policy-set telemetry · the agent/workflow registry · the
 Guardian half of the policy registry · `A7` recordability.
+
+---
+
+## 112 · QUEUE CONTINUED — A THIRD AUDIT DIRECTION · PARTNER STATES RESOLVED · `CAP-1` OBJECTS IDENTIFIED
+
+### 112.1 `D` · AUDIT POPULATION — a **third direction** exists, and §105 missed it
+
+§105 characterized two directions. **A third is available and it has a property neither has.**
+
+> **Direction C — fold policy evaluations into the EXISTING D12 `observability_events` population.**
+
+`observability_events` (145) carries: `component · correlation_id · correlation_signature ·
+correlation_key_id · occurred_at · recorded_at · **payload jsonb** · retention_class`.
+
+| property | effect |
+|---|---|
+| **NO subject identifier at all** — D12·Q5's ruling | **`A12`-safe BY CONSTRUCTION.** §26's minimum representation becomes a schema guarantee rather than a discipline. **This is the strongest privacy property of any direction** |
+| `retention_class` already offers **`operational_90d`** | solves the volume/retention problem (31,440 req/24 h) without inventing a class |
+| `payload jsonb` | can carry resource class, policy reference, risk |
+| `correlation_id` | incident linkage already present |
+| **but:** `component` CHECK is `structured_log \| metric \| trace \| observability_audit` | **adding a value is a `D12` change** |
+| **and:** its purpose is telemetry | authorization decisions in a 90-day telemetry store may not satisfy `A10`'s *"every high-impact administrative action is auditable"* |
+
+**All three directions require an authority decision, and none is free:**
+
+| | requires |
+|---|---|
+| **A** extend the audit architecture | a **16th `A2` category** ⇒ a `D4` change; and `A11`'s freeze cannot hold mutable policy state |
+| **B** separate operational store | a **fifth population** ⇒ against *"do not invent audit populations"*, unless a non-audit store is ruled not to be one |
+| **C** fold into `observability_events` | a **`D12` change** to the component vocabulary; and an `A10` auditability question |
+
+**No direction is selected. C is recorded because omitting it would have made the choice look binary when
+it is not** — and because its `A12`-by-construction property is the kind of advantage that should decide
+such a question, not be discovered after. **PARKED — `D4`/`D12` authority.**
+
+### 112.2 `G` · §100.5 item 1 — PARTNER STATES ARE DETERMINED BY APPROVED DESIGN
+
+People › Wellness Partners shows a complete, arithmetically closed lifecycle:
+
+> **Active 218 · Pending 9 · Inactive 19 — of 246.** `218 + 9 + 19 = 246` **exactly**, with a
+> **"Review 9 pending"** action, and `Status: All` as a directory filter.
+
+**So the partner approval STATES are design-determined — `Active · Pending · Inactive` — and they
+partition the population.** §100.5 item 1 said *"the approval state machine does not exist"*; the
+**states** now do.
+
+**What remains owner:** the **transition policy** — what moves `Pending → Active`, who may approve, and
+whether `Inactive` is reachable from `Active` by suspension or only by expiry. **Business process, still
+owner — but a much smaller question than "define the state machine."**
+
+### 112.3 `I` · `CAP-1` — reportable objects and the moderation surface identified
+
+Ecosystem › Community — *"Members, groups, posts and moderation"* — carries a **`Moderation queue · 7`**
+badge, a dedicated **Moderation** tab alongside Overview / Members / Groups / Posts / Member detail, and a
+**"Reports open"** counter. Population context: **1,940 posts · 6,210 comments · 18.4k reactions ·
+4,390 members · groups**.
+
+**Reportable objects, per the approved design: posts and comments**, within a community/groups structure
+that already exists in schema (`community_posts`, `post_comments`, `community_groups`,
+`accountability_pods`).
+
+**Still required and unchanged from `CAP-1`:** the **report** object itself, the **moderator state
+machine**, and the **outcome vocabulary** — none visible in the surface, and **not invented here**.
+**The authorization side is now clearer:** moderation is a privileged action ⇒ a `CONF-D7` Admin-role
+capability (scope fits **Content editor**) ⇒ an `A10` audit emitter ⇒ and cross-user read ⇒ `CONF-D8`.
+**Blocked on the graded mechanism, not on `D7`.**
+
+### 112.4 `G` · the other four §100.5 items — status after this pass
+
+| item | movement |
+|---|---|
+| **1 · partner approval** | **states resolved by design** (§112.2); transition policy owner |
+| **2 · coaching revenue gross vs commission** | **none.** `marketplace_commission_rate` 0.10 exists; the roadmap names MRR/ARPU/churn but not the split. **Owner — and `COWORK` §8 forbids agents inventing monetization** |
+| **3 · attention-queue severity** | **narrowed three times** — spec + shipped enum agree (§104.4) · `Risk` is a distinct axis (§105.5) · and a **fifth value, `"Severity set to Elevated"`, appears in Trust**, so the design's own severity vocabulary is not internally settled. **Owner** |
+| **4 · store-console ingestion** | **none.** `PD-A24 = C` scope question + an account boundary |
+| **5 · which "impressions"** | **none.** The term appears in no V5 source |
