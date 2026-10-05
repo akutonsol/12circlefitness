@@ -761,3 +761,242 @@ policy registry as well** · **AI Guardian in Trust** · `CONF-D6`'s identity lo
 **No capability removed, simplified, hidden, relocated or redesigned. The seven enforced database roles
 and their security properties are untouched. `PD-G01`, `PD-A24`, `P10` not released. Nocturne unchanged.
 No migration, no application file, no schema change, no production contact.**
+
+---
+
+# PART IV — AUTONOMOUS CONTINUATION (V5 §106)
+
+**All independent paths worked to their boundaries. Evidence gathering, archaeology and additive planning
+only. §102 applied without exception. The seven enforced database roles and their security behaviour are
+untouched; no role mapping is asserted anywhere below.**
+
+## 20 · `CONF-D7` — evidence gathered, and the question is LARGER than stated
+
+### 20.1 The strongest narrowing available — two vocabularies, two populations
+
+| surface | its own words | vocabulary shown |
+|---|---|---|
+| **People › Users** | *"**Everyone with a 12Circle+ account, across every role**"* | member roles — `Amara Osei · **Client** · Active · Coach-guided` |
+| **Settings › Administrators** | *"**People who can sign in to the admin**, and what they can reach"* | Admin roles — `Priya Raman · **Trust lead** · Full`, `Tomas Vidal · **Support** · Limited`, `admin.ops@… · **Operations lead**`, `Lena Fischer · **Content editor** · Suspended` |
+
+**The approved design applies the two vocabularies to two different populations, on two different pages,
+with different column semantics** (`Role`=Client vs `Role`=Trust lead; `Access`=Full/Limited). **They are
+nowhere presented as alternatives to each other.**
+
+### 20.2 Why this still does not decide the question — and reveals a third reading
+
+The seven enforced roles split into **three member roles** (`client · coach · vendor`) and **four
+admin-class roles** (`admin · content_manager · trust_operator · erasure_executor`). §20.1's evidence
+speaks to the *member* three. **It says nothing about the four.**
+
+**Three readings now stand, not two:**
+
+| # | reading | what it implies |
+|---|---|---|
+| **1** | **Separate layer.** Five Admin roles sit above all seven; the four admin-class roles remain the enforcement substrate | two systems to keep in step forever |
+| **2** | **Replacement.** The five replace the seven entirely | contradicts §20.1 — `Client` is shown as a live member role |
+| **3** | **PARTIAL replacement** — the five replace the **four admin-class** roles while `client · coach · vendor` persist as member roles | **fits every piece of evidence found, and was not in the original framing** |
+
+**Reading 3 was not available when `CONF-D7` was narrowed at §104.2. The question must be re-put to the
+owner in three-way form, not two-way.**
+
+### 20.3 Two further facts that the evidence surfaces and does not settle
+
+**(a) `Platform admin` is a sixth label.** It appears **exactly once per page — six times, always the
+signed-in identity in the header** (`D. Mac · Platform admin`) — and **never in the Administrators
+table**. It is not among the five designed roles. Whether it is a sixth Admin role, a generic label, or
+the DB `admin` role surfacing, **the artifacts do not say.**
+
+**(b) `erasure_executor` has NO designed surface — confirmed exhaustively.** Searching all eight pages:
+`erasure` **0** · `right to be forgotten` **0** · and every one of the 15 `sever` hits is **"Severity"** or
+"severe", **not severance**. A single `Delete account…` row action exists, which is **not**
+`audit_sever_identity()`. **The role that exclusively holds severance (`146:118`, `152:183`) is absent
+from the approved Admin design.**
+
+### 20.4 Boundary
+
+**`CONF-D7` cannot be decided from evidence and is the stop.** No mapping is asserted:
+`Trust lead`→`trust_operator`, `Content editor`→`content_manager`, and any equivalent for
+`Operations lead`, `Support`, `Viewer` or `erasure_executor` **remain unmade.** The seven enforced roles
+and their security behaviour stand unchanged.
+
+## 21 · Canonical Helix — the implementation-authority chain IS established; system canonicity is NOT
+
+**New evidence, from repository archaeology rather than inference.**
+
+The Phase 4a commit (`175a617`, 2026-09-22) states its own authority:
+
+> *"`IMPLEMENT-THIS.md` section 4: **'Tokens go into Helix Tier 1-3 as written there. No parallel
+> theme.'** Values come from `manifest.json` `tokens` (the board's rendered CSS, **the package's declared
+> source of truth**), cross-checked against `PHASE-2-DESIGN-SYSTEM.md`. Intake:
+> `docs/DESIGN_INTAKE_REPORT.md`."*
+
+`DESIGN_INTAKE_REPORT.md` completes the chain:
+
+- the **authoritative** Mobile package — `12circle-fitness-new-screens.zip`, sha256
+  `d4438803deee…88d32`, `manifest.json` → **`sourceOfTruth: design`**, *"READY FOR CLAUDE CODE"*.
+  **No longer on disk**; the intake report is now the only record of it — the same pattern as the 41 KB
+  Build Spec original;
+- the legacy `fitness-app-board/` — ***"REJECTED as implementation authority … must not be merged,
+  reconciled, or used as visual authority"***, **but** its `PHASE-2-DESIGN-SYSTEM.md` retains a scoped
+  role: its *"SPECIFICATION ONLY"* banner *"scopes to that one document, and `IMPLEMENT-THIS.md` … points
+  **at** that document for token values."*
+
+**What this establishes as evidence:** the declared implementation-authority chain is
+**design package `manifest.json` (`sourceOfTruth: design`) → `IMPLEMENT-THIS.md` → Dart Helix Tier 1-3**,
+carrying an explicit ***"No parallel theme"*** directive. **The standalone `/projects/helix` repository
+appears nowhere in it** — no dependency declaration, no mention in the intake report, none in the CI
+workflow, none in the conformance test.
+
+**What it does NOT establish:** whether the standalone repository is the canonical *design system* going
+forward, and whether it should be updated, retired or re-pointed. The global direction treats
+`/projects/helix` as the reusable cross-product system; this repository's own chain implements into Dart
+tiers. **Both can be true. Which governs is a design-system authority decision and is NOT resolved by
+recency, visual preference or inference.** Neither system was rewritten.
+
+## 22 · Admin tokens — four distinct layers, and the design authority itself declares the question open
+
+| layer | artifact | status |
+|---|---|---|
+| **1 · Source design authority** | the six approved `.dc.html` pages | **authoritative** — `CONF-D4`; `PROVENANCE.md`: *"Owner-approved designs … Design authority"* |
+| **2 · Derived extraction** | `brand/tokens/admin.tokens.{json,css}` | **derived, validated 97.7%** (§104.1). *"Derived, not invented."* **Not canonical** |
+| **3 · Implementation token source** | `apps/mobile/lib/core/helix/` Tier 1-3 | the declared implementation target (§21), CI-conformance-tested |
+| **4 · Runtime design-system dependency** | Nocturne `_ds` bundle | **design-tool only; must not ship** (§23) |
+
+**The design package declares the alignment question itself.** Handoff §6: *"**One** violet `#7C3AED` /
+accent `#A78BFA`, dark ground, Schibsted Grotesk, Phosphor icons, status semantics, 4.5:1 text contrast,
+44px controls, 2px focus ring. **Admin tokens (`--adm-*`) are documented**; Mobile uses the Helix
+three-tier system."* And §8 lists ***"Admin vs Helix token alignment"*** among its **unresolved
+boundaries**.
+
+> **So the design authority asserts ONE shared identity — corroborating the 11/11 measurement as a
+> declaration, not a coincidence — while positioning `--adm-*` as *documentation* and leaving the token
+> home explicitly open.** The boundary is confirmed by the design authority, not merely declined by me.
+
+**One asymmetry worth recording:** the Mobile package carried a machine-readable `manifest.json` with
+`sourceOfTruth`; **the Admin package carries no equivalent — 0 files declare `sourceOfTruth` or
+`handoffVersion`.** Its authority rests on prose plus the pages themselves.
+
+## 23 · Nocturne — located and documented, unchanged
+
+**Documented, not copied; no `.dc.html` modified; not renamed or substituted.**
+
+| file | bytes | sha256 (first 16) |
+|---|---|---|
+| `styles.css` | 13,029 | `6fea354710ec4e3b…` |
+| `_ds_bundle.js` | 300 | `aceb66bfea8c86f6…` |
+| `_ds_manifest.json` | 7,480 | `232f36fe241f1d1d…` |
+| `readme.md` | 8,307 | `dcc4460813d2feb7…` |
+| `_adherence.oxlintrc.json` | 4,195 | `06186bb46f06c0fa…` |
+
+Present at **two** locations — `~/Desktop/community-portal/_ds/nocturne-042b8c43-…/` and
+`~/Desktop/mobile-app/_ds/nocturne-042b8c43-…/` — **byte-identical in both**. Manifest: namespace
+`Nocturne_noctur`, **`themes: []`**, **`fonts: []`**, `source: spa`.
+
+**`themes: []` is confirming evidence**: Nocturne declares no themes, so it is not a product theme system
+and not Helix. **It remains an artifact/rendering dependency.** Whether to vendor it into the design
+branch for offline fidelity is a **publication decision**, not taken here.
+
+## 24 · Policy registry — entity-by-entity trace
+
+| # | entity | existing support | additive requirement | blocked by |
+|---|---|---|---|---|
+| 1 | **`policy`** | none | code · category · scope · owner · lifecycle | **D7** (scope cites roles) · naming (§16.4b) |
+| 2 | **`policy_version`** | none | monotonic version · `effective_from` · retired_by (**individual or body**) · change note | — |
+| 3 | **`policy_rule`** | none | first-class predicate rows | — |
+| 4 | **`policy_set`** | none | independent set version (`v3.14`) · membership · last full evaluation | — |
+| 5 | **`principal`** | `user_profiles.role` (7) + `actor_provenance` (`grounded/asserted/system`) | **agent + workflow registry**; *"agents without a policy: 0"* needs completeness | **D7** · `A10` |
+| 6 | **`resource`** | `audit_events.action` is free text; no resource column | **typed** resource reference | **A12** (§26) |
+| 7 | **`policy_evaluation`** | who/action/**outcome**/when | resource · policy ref · **risk** · quantified detail · incident link | **D7 · A12 · §25** |
+
+**Cross-check against the five models is unchanged from §16.4** and confirmed by this trace: the registry
+**describes and audits; RLS and the SQL predicates of §98.1 remain the enforcement floor.** Nothing here
+proposes moving enforcement.
+
+## 25 · Audit population — A versus B, consequences characterized
+
+**Neither is selected. The constraints are symmetric and the decision is architectural.**
+
+| | **A · extend the audit architecture** | **B · separate operational store** |
+|---|---|---|
+| `A1` four populations | **adds to an existing population** — no fifth invented | **creates a non-audit store** — arguably no audit population added at all, but that reading must be ratified, not assumed |
+| `A2` 15 categories | needs a **16th** for evaluations ⇒ **a `D4` change**, not an implementation detail | none needed |
+| `A11` append-only + freeze | evaluations are append-only by nature — **fits**; but policy *state* (Draft→Active→Retired) is **mutable**, and `A11` refuses UPDATE to every caller incl. `service_role` ⇒ **state cannot live in the frozen population** | mutable state is natural |
+| `A6` delta exclusions | must be honoured for any diff | unaffected |
+| `A12` | inherits pseudonymisation **by construction** — a real safety advantage | **must re-implement it**; §26 |
+| `A13` read path | inherits `audit_read_events()` + `R-1`'s `audit_read` emission | needs its own read authorization |
+| volume | 31,440 req/24 h into a **6-year** population | can carry `operational_90d` |
+| retention | `audit_6y` | D12 already defines **`operational_90d`** (`145:54`) |
+
+**The decisive tension, stated plainly:** **A** gives `A12` and `A13` for free but collides with `A2`'s
+fixed category list, `A11`'s immutability for mutable policy state, and six-year retention of
+high-volume operational data. **B** fits volume, retention and mutability but **must re-earn `A12` and
+`A13` from scratch — the controls most expensive to get right.**
+
+**A hybrid is visible in the evidence and is not proposed as the answer:** policy *state* in an
+operational store; *material* events (a block, an escalation, a version transition) emitted into the
+existing audit population under an existing category. **Whether that avoids a 16th category is exactly
+the question only `D4` authority can answer.**
+
+## 26 · `A12` — the minimum privacy-preserving representation
+
+**Built only from mechanisms that already exist. No new identity-resolution path is created.**
+
+| element | minimum representation | mechanism already present |
+|---|---|---|
+| **Subject** | `subject_pseudonym` — **never a name or email inline** | `142` |
+| **Actor / principal** | real identity is acceptable. **`A12` protects SUBJECTS, not ACTORS** — administrators and agents are actors, and `audit_events.actor_id` already carries a real uuid | `142` · `A13·1` |
+| **Resource** | **typed class + count** — `Client records ×1,240` — never an enumerated list of subjects | new, typed |
+| **Quantity** | the count itself is non-identifying and is the point of the control | — |
+| **Re-identification** | **only** via the definer path, role-gated, **emitting `audit_read`** — i.e. an explicit audited action in the UI, never inline rendering | `146` · `152` · `R-1` |
+| **Incident linkage** | link by pseudonym + incident id, never by subject identity | `143` |
+| **Retention** | reuse D12's **`operational_90d`** rather than inventing a class | `145:54` |
+| **Severance** | on severance the pseudonym is severed and evaluation rows become **permanently unresolvable** — correct, and requires **no deletion**, preserving `A11` | `152` S-2 |
+
+**The capability survives intact at this representation**: *"38 failed sign-ins on one coach account from
+3 countries"* renders as pseudonym + count + geo-count; *"Export client records · 1,240 records
+requested"* as typed resource + quantity. **Neither needs a cleartext subject.**
+
+> **Remaining `A12` decision — genuinely an authority question:** does the Trust operator's
+> *"resolve identity"* action exist on these surfaces at all, and if so under which role? That is a
+> `CONF-D7` **and** security-authority question. **`A12` is not weakened to answer it.**
+
+## 27 · AI Guardian in Trust — new evidence, still unresolved
+
+**The design package subordinates itself to V5 on governance.** Handoff §5: ***"Owner-approved designs are
+visual authority. V5 decisions are product/governance authority."***
+
+This cuts toward `D11`/§19.2 — placement of a capability within a phase's scope is a governance question,
+and the package says V5 governs those. **But it does not settle it**, because the owner has already
+treated the same design as authoritative for **information architecture** (`CONF-D1`'s six-item IA, §91),
+and whether "which area a capability lives in" is IA or governance is **precisely the ambiguity.**
+
+**Evidence recorded; conflict unresolved; capability preserved — not deleted, relocated, hidden,
+redesigned, nor the governance decision reinterpreted.**
+
+## 28 · Architecture extension register
+
+| # | capability | existing support | missing | security / RLS | authorization | migration | owner decision | authorized? |
+|---|---|---|---|---|---|---|---|---|
+| 1 | **Policy registry** (7 entities) | none | §24 | registry must not become enforcement (§16.4a) | **D7** | additive | **D7** + `D4` on §25 | **NO** |
+| 2 | **Policy naming** distinct from RLS | — | vocabulary | 202 RLS policies collide | — | — | design-system authority | **NO** |
+| 3 | **Risk axis** | none | `High/Medium/Low`, distinct from severity | — | — | additive | §100.5 #3 | **NO** |
+| 4 | **Guardian policy-set telemetry** | none | set version, median decision time, completeness | `A10` independence | **D7** | additive | §27 conflict | **NO** |
+| 5 | **Agent / workflow registry** | `actor_provenance='system'` only | agent identity, workflow | `A10` | **D7** | additive | §27 | **NO** |
+| 6 | **Notification telemetry** | `notifications` (read only) | sent/delivered/failed/pending | recipient identity ⇒ `A12` | — | additive | none | **NO** |
+| 7 | **Community reporting / moderation** | posts/comments/groups/pods | report + moderator state machine | moderator cross-user read ⇒ `CONF-D8` | **D7** | additive | `CAP-1` policy | **NO** |
+| 8 | **Wearable ingestion health** | `user_integrations` (connections) | `WI-13` telemetry | PHI-class (`WI-14`) | — | additive | **`PD-G01` not released** | **NO** |
+| 9 | **Revenue decomposition** | `payments.amount_cents` only | local amounts, MRR, churn | financial | — | additive | gross-vs-commission · `PD-C03` | **NO** |
+| 10 | **Helix token extensions** | 11/11 colour match | 4 roles incl. `status.info`, status tint/text/border, type scale, density, z-index, shadows | — | — | — | token home (§22) | **NO** |
+| 11 | **Helix components** | 3 (`Button`,`Card`,`MetricReadout`) | **≈30** | — | — | — | design-system authority | **NO** |
+| 12 | **Phosphor icon system** | none in Helix | v2.1.1, 107 icons | — | — | — | design-system authority | **NO** |
+| 13 | **Human-readable incident refs** | `uuid` only | `INC-`/`AIN-` schemes, **two, unreconciled** | — | — | additive | which scheme | **NO** |
+| 14 | **Reviewer assignment** | `actor_identity` (actor) | reviewer + `Unassigned` | — | **D7** | additive | none | **NO** |
+| 15 | **Settings configuration** (11 sections) | `platform_settings` (1 key); **no `organizations`**) | config store + change audit | every write is `A10`-auditable | **D7** | additive | none | **NO** |
+| 16 | **Coach verification · partner approval** | `onboarding_complete/step` only | state machines | — | **D7** | additive | partner approval (§100.5) | **NO** |
+| 17 | **Platform health store** | none | probes + status, **vendor-free** (`PD-A24`=`C`) | — | — | additive | none | **NO** |
+| 18 | **CI / release ingestion** | CI produces it | ingestion path | **`P10` not released** | — | additive | CI vs gate ledger | **NO** |
+| 19 | **DAU/WAU/MAU rollup** | sessions, check-ins | daily distinct-user rollup | member-derived ⇒ aggregates only | — | additive | "active" definition | **NO** |
+| 20 | **Global search** | none | cross-domain index | must respect `A10` | **D7** | additive | none | **NO** |
+
+**Twenty extensions. Implementation authorized for none. Eleven are blocked by `CONF-D7` alone.**

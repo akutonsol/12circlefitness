@@ -11486,3 +11486,118 @@ authoritative over RLS**.
 **No capability removed, simplified, hidden, relocated or redesigned. `PD-G01`, `PD-A24`, `P10` not
 released. Nocturne unchanged — a design-runtime dependency, not Helix. No migration, no application file,
 no schema change, no production contact. QA at 152.**
+
+---
+
+## 106 · AUTONOMOUS CONTINUATION — `CONF-D7` IS A THREE-WAY QUESTION · IMPLEMENTATION-AUTHORITY CHAIN FOUND
+
+All independent paths driven to their boundaries. **Full detail: Part IV of
+`docs/V5_ADMIN_DESIGN_HELIX_RECONCILIATION.md`.** Evidence, archaeology and additive planning only;
+**§102 without exception; the seven enforced roles and their security behaviour untouched; no role mapping
+asserted.**
+
+### 106.1 `CONF-D7` — the strongest narrowing available, and the question is LARGER than §104 stated
+
+**Evidence:** the approved design applies two role vocabularies to **two different populations**.
+**People › Users** — *"Everyone with a 12Circle+ account, across every role"* — shows `Amara Osei ·
+**Client**`. **Settings › Administrators** — *"**People who can sign in to the admin**"* — shows
+`Priya Raman · **Trust lead** · Full`, `Tomas Vidal · **Support** · Limited`. **They are nowhere presented
+as alternatives.**
+
+**But that speaks only to the three member roles.** The seven split into **three member** (`client ·
+coach · vendor`) and **four admin-class** (`admin · content_manager · trust_operator · erasure_executor`),
+and the evidence says nothing about the four. **A third reading therefore exists that §104.2 did not have:**
+
+> **(3) PARTIAL replacement — the five Admin roles replace the four admin-class database roles, while
+> `client · coach · vendor` persist as member roles.** This fits **every** piece of evidence found.
+
+**`CONF-D7` must be put to the owner as a three-way question, not two-way.**
+
+**Two further facts, surfaced and unsettled:**
+- **`Platform admin` is a sixth label** — exactly once per page, always the signed-in header identity,
+  **never in the Administrators table**, and not among the five designed roles.
+- **`erasure_executor` has NO designed surface — confirmed exhaustively.** Across all eight pages:
+  `erasure` **0**, `right to be forgotten` **0**, and **all 15 `sever` hits are "Severity"/"severe"**.
+  One `Delete account…` row action exists and is **not** `audit_sever_identity()`.
+
+### 106.2 The implementation-authority chain — found by archaeology, not inference
+
+The Phase 4a commit (`175a617`) names its own authority: *"`IMPLEMENT-THIS.md` §4: **'Tokens go into Helix
+Tier 1-3 as written there. No parallel theme.'** Values come from `manifest.json` `tokens` … **the
+package's declared source of truth**."* `DESIGN_INTAKE_REPORT.md` completes it: the authoritative Mobile
+package (sha256 `d4438803…`, **`sourceOfTruth: design`**) — **no longer on disk**, the intake report now
+its only record — and the legacy `fitness-app-board/`, ***"REJECTED as implementation authority"*** though
+its `PHASE-2-DESIGN-SYSTEM.md` retains a **scoped** role because `IMPLEMENT-THIS.md` *"points at that
+document for token values."*
+
+**Established:** the chain runs **design package `manifest.json` → `IMPLEMENT-THIS.md` → Dart Helix Tier
+1-3**, with an explicit ***"No parallel theme"***. **The standalone `/projects/helix` repository appears
+nowhere in it** — no dependency, no intake mention, none in CI, none in the conformance test.
+
+**NOT established:** whether that repository is the canonical design *system* going forward, or should be
+updated, retired or re-pointed. **Design-system authority. Not resolved by recency, preference or
+inference. Neither system was rewritten.**
+
+### 106.3 Admin tokens — four layers, and the design authority declares the question open itself
+
+**1 Source design authority** = the six approved `.dc.html` · **2 Derived extraction** =
+`admin.tokens.*`, validated 97.7%, *"Derived, not invented"*, **not canonical** · **3 Implementation token
+source** = Dart Helix Tier 1-3 · **4 Runtime dependency** = Nocturne, **must not ship**.
+
+Handoff §6 declares ***one*** shared identity — violet `#7C3AED`, Schibsted, Phosphor, 4.5:1, 44px, 2px
+focus — *"Admin tokens (`--adm-*`) are **documented**"*, and §8 lists ***"Admin vs Helix token
+alignment"*** among its **unresolved boundaries**. **So the 11/11 match is a declaration, not a
+coincidence — and the token home is declared open by the design authority, not merely declined by me.**
+
+**Asymmetry recorded:** the Mobile package carried a machine-readable `sourceOfTruth`; **the Admin package
+declares none — 0 files.**
+
+### 106.4 Audit population — A vs B characterized, neither selected
+
+**A** inherits `A12` and `A13` **by construction** — the controls most expensive to get right — but
+collides with `A2`'s fixed 15 categories (a 16th is a **`D4` change**), with `A11`'s freeze (policy
+*state* is mutable and `A11` refuses UPDATE to **every** caller), and with six-year retention of
+31,440 req/24 h. **B** fits volume, mutability and retention — D12 already defines **`operational_90d`** —
+but **must re-earn `A12` and `A13` from scratch**.
+
+**A hybrid is visible in the evidence and is not proposed as the answer.** Whether it avoids a 16th
+category is exactly what only `D4` authority can decide.
+
+### 106.5 `A12` — a minimum representation exists, built only from existing mechanisms
+
+**No new identity-resolution path is created.** Subject = `subject_pseudonym`, never a name inline ·
+**actor identity is acceptable — `A12` protects SUBJECTS, not ACTORS** · resource = **typed class +
+count** (`Client records ×1,240`), never an enumerated list · re-identification **only** via the definer
+path, role-gated, **emitting `audit_read`** · retention reuses **`operational_90d`** · on severance the
+pseudonym is severed and rows become **permanently unresolvable, requiring no deletion — preserving
+`A11`**.
+
+**The approved capability survives intact at this representation.** The remaining question — whether a
+*"resolve identity"* action exists on these surfaces and under which role — is a `CONF-D7` **and**
+security-authority decision. **`A12` is not weakened to answer it.**
+
+### 106.6 AI Guardian in Trust — new evidence, still unresolved
+
+Handoff §5: ***"Owner-approved designs are visual authority. V5 decisions are product/governance
+authority."*** **The design package subordinates itself to V5 on governance**, which cuts toward §19.2 —
+**but does not settle it**, because the owner has already treated the same design as authoritative for
+**IA** (`CONF-D1`, §91), and whether "which area a capability lives in" is IA or governance **is precisely
+the ambiguity.** Capability preserved; nothing relocated, deleted, hidden or reinterpreted.
+
+### 106.7 Architecture extension register — 20 entries
+
+Recorded in Part IV §28 with capability · evidence · existing support · missing architecture · security/RLS
+· authorization · migration · owner decision · authorization status. **Implementation authorized for
+none. Eleven of the twenty are blocked by `CONF-D7` alone.**
+
+### 106.8 Boundary
+
+**Every independent path has been driven to its boundary. The next action in each requires an authority
+this agent does not hold.**
+
+**OWNER — and `CONF-D7` is now the critical path**, gating 11 of 20 extensions, the policy registry,
+`#sec-authz`, the Guardian surfaces and `A7`'s recordability.
+
+**No capability removed, simplified, hidden, relocated or redesigned. Nocturne documented, not altered.
+Neither Helix system rewritten. `PD-G01`, `PD-A24`, `P10` not released. No migration, no application file,
+no schema change, no production contact. QA at 152.**
