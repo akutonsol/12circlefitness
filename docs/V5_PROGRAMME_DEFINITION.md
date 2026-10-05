@@ -12823,3 +12823,33 @@ condition under which ENV-3 passes.
 **`CONF-D8` remains OPEN.** The mechanism is live and proven; **it grants nothing**, because
 `admin_role_capabilities` is empty and the 85-cell matrix has not been supplied (§116). **No capability
 row was seeded and no Admin-surface policy was authored** — both would require the matrix.
+
+---
+
+## 121 · 153 AND 154 — ALL FOUR RUNGS MET · `VERIFIED_CLOSED`
+
+CI run on `448a885`: **6/6 green**, and the `Live QA suites` log carries the evidence itself —
+
+```
+PASS  D13   admin graded authorization      18/18
+502/502 assertions passed across 13 suites
+```
+
+**That is the `VERIFIED IN CI` rung evidenced from CI's own output, not from a local run** — the
+distinction §85 established and the reason the rung exists separately.
+
+| rung | 153 | 154 | evidence |
+|---|---|---|---|
+| FIXED IN CODE | ✅ | ✅ | authored, guards pass, sequence contiguous 000–154 |
+| FIXED ON QA | ✅ | ✅ | `supabase db push --linked`; ledger carries both |
+| VERIFIED LIVE | ✅ | ✅ | D13 **18/18** against QA; 484/484 existing unchanged |
+| VERIFIED IN CI | ✅ | ✅ | CI's own log: **502/502 across 13 suites** |
+
+**Both are `VERIFIED_CLOSED` under `QA_CLOSURE_STANDARD` §2.1's Security/authorization class, which
+requires all four.** This is the second phase in the programme to reach all four, after P2 at §85.
+
+**What is closed is the MECHANISM, and only that.** `admin_role_capabilities` is empty and `admin_can()`
+denies everything — **proven live, not asserted**. `CONF-D8` stays open on the 85-cell matrix (§116);
+no capability row seeded, no Admin-surface policy authored.
+
+**Frontier: QA at 154.** `PD-G01`, `PD-A24` and `P10` are not released. Production was not contacted.
