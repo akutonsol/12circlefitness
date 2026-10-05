@@ -12676,3 +12676,73 @@ exists.**
 | `A12` surface question | **PARKED** | security authority | owner/security |
 
 **Ten branches COMPLETED, ten PARKED, each with a named blocker. No branch is reachable-but-unstarted.**
+
+---
+
+## 119 · BOTH BLOCKERS RE-TESTED — NEITHER CLEARED · THE AUTHORIZATION LAB IS PREPARED
+
+Both objectives were tested against evidence rather than assumed. **Neither input has arrived.**
+
+### 119.1 `A` · the 85-cell matrix — NOT supplied
+
+Checked empirically, not from memory: **no new branch, no new commit** (the design branch is still
+`931218b`, this branch's remote equals local HEAD), **no new or untracked file anywhere**, and the matrix
+file reports **0 cells with a value** — still `85 total · 0 authoritative · 0 deterministic · 85 unknown`.
+
+**A1's validation cannot be run because there is nothing to validate.** `admin_role_capabilities` stays
+empty, `admin_can()` stays deny-by-default, and **no row was seeded.**
+
+### 119.2 `B` · QA authorization — does NOT exist
+
+**B1 forbids inferring authorization from prior packets, migration existence, CI success or the ability to
+run a command. Tested against the record:**
+
+| authorization in the record | covers |
+|---|---|
+| §32.6 release | 138 |
+| §39 packet | 139 |
+| 2026-09-30 | **142–147** |
+| §85 | 151 |
+
+**None names 153 or 154.** The manifest's own gates for both read *"Owner authorization to apply to QA"* —
+**unmet**. **And this run's instruction is conditional throughout** (*"Only after explicit QA
+authorization"*, *"If it does not exist: prepare the exact authorization boundary"*), so **it is a work
+instruction, not a grant.** Reading it as one would be exactly the inference B1 prohibits.
+
+**Nothing was applied. The frontier stays 152.**
+
+### 119.3 What WAS reachable — the matrix-independent half of `A6`
+
+`A6` asks for deterministic tests. **Its grant-specific tests need the matrix — but its separation and
+least-privilege tests do not.** Those are authored now, as
+**`supabase/tests/security/d13-admin-graded-authorization-lab.mjs`**:
+
+- `admin_can()` false for every caller with an empty grid, and the grid **is** empty;
+- **`is_admin_member()` true while `is_admin()` is FALSE** for a Viewer — §113.3's proof **executed**,
+  and the assertion that matters, since failing it means inheriting all 14 inline `'admin'` clauses;
+- `is_trust_operator()` and `is_erasure_executor()` both false — Trust and erasure separation;
+- a Viewer cannot grant themselves a capability, nor promote their own Admin role — **no self-escalation**;
+- a Viewer cannot read `audit_identity_map` — **`A12` opens no path**;
+- a Viewer cannot read `governance_policy`; `anon` reaches none of the three tables.
+
+**It is UNREGISTERED in `run.mjs` deliberately** — 153/154 are declared pending, so registering it would
+make CI fail on a migration that is intentionally unapplied, which is the opposite of evidence. It is
+registered the moment they are applied. **It cleans up after itself**, unlike `d12`, because these tables
+carry no append-only freeze.
+
+**Executed against QA now, it reports exactly one line:**
+
+```
+FAIL  migrations 153/154 are applied to QA
+      — admin_role_capabilities not reachable — 153 is PENDING, nothing below was asserted
+```
+
+**That is the §28.9 lesson applied in advance:** one named cause instead of twenty failures sharing it.
+**It also independently confirms 153 is not on QA** — the frontier claim verified from the database rather
+than from the manifest.
+
+### 119.4 Frontier — unchanged
+
+§118.4's table stands: **ten COMPLETED, ten PARKED.** The two parked critical-path branches were re-tested
+this run and remain blocked on the same two external inputs. **No branch became reachable; none was
+manufactured.**
