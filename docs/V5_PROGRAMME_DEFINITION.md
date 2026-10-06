@@ -14368,4 +14368,47 @@ proof, and labelling it honestly costs nothing while mistaking it for evidence c
 | element | FIXED IN CODE | FIXED ON QA | VERIFIED LIVE | VERIFIED IN CI |
 |---|---|---|---|---|
 | **164** (`B-21`) | ✅ | ✅ | ✅ | ✅ `2e9a461` green 6/6 — `VERIFIED_CLOSED` |
-| **165** (`B-22b/c`) | ✅ | ✅ frontier **165** | ✅ `D15` **246/246** · regression **760/760** · Flutter **1704/1704** | pending |
+| **165** (`B-22b/c`) | ✅ | ✅ frontier **165** | ✅ `D15` **246/246** · regression **760/760** · Flutter **1704/1704** | ✅ `868a9bf` green 6/6 — `VERIFIED_CLOSED` |
+
+---
+
+## 143 · GRID RECONCILIATION AFTER B-21 AND B-22 — 16 GRANTS REMAIN, ALL `B-23`
+
+| | grants | state |
+|---|---|---|
+| **READ · View** | **62** | effective — surface exists and the grant is proven in both directions |
+| | 15 | area deferred by owner decision (`QA`, `Releases`, `Organization`) |
+| **WRITE** | **7** | **implemented** — `Users/Update` · `Incidents/Create` · `Incidents/Update` · `Events/Create` · `Events/Update` · `Training/Create` · `Training/Update` |
+| | 6 | **ruled non-operational** — `B-20`'s four, plus `Incidents/Approve` and `Incidents/Manage` |
+| | 2 | **blocked behind `CAP-1`** — `Community/Create`, `Community/Update`; deliberately NOT registered non-operational |
+| | 8 | area deferred by owner decision |
+| | **16** | **undecided — every one of them `B-23`** |
+| **total** | **116** | matches the matrix exactly |
+
+**The write grants went from 1 implemented to 7**, and every remaining undecided grant is now in a single
+boundary. `B-23`'s sixteen: `AI Guardian` ×4, `Integrations` ×4, `System` ×4, and `Audit logs` / `Security`
+× `Create` and `Approve` — the two verbs `B-20` did not reach.
+
+**`B-23` is left untouched, deliberately.** Its verbs have no stated meaning in any tracked source, and
+inferring them from the matrix alone is precisely what the standing instruction forbids. Three separate
+findings now point the same way: `approval_status` (§141) and `events.status` (§142) both turned out to have
+**no ruled vocabulary**, and §77.3 had already declined to invent one. A fourth guess would not be better
+informed than those three were.
+
+### 143.1 Frontier
+
+| branch | state |
+|---|---|
+| `B-23` · sixteen undecided write verbs | **BLOCKED — owner/design.** No verb semantics exist |
+| `CAP-1` / `B-10` · moderation surface | **BLOCKED — owner.** Gates `Community`'s two write grants |
+| `B-5` · `B-6` · `B-7` · QA, Releases, Organization | **DEFERRED by decision**, rendering `A11` empty states |
+| `B-17` · AI Guardian runtime | **BLOCKED — architecture.** No telemetry surface |
+| `B-9` · `B-11` … `B-16` | **BLOCKED — owner / phase / not for release** |
+| `P5` Admin UI | **BLOCKED** — authorization covered database surfaces, explicitly not the UI |
+| `FG-1` · `FG-2` · ENV-3 live half | **BLOCKED — infrastructure.** `QA_DB_URL` unset |
+| `LRE-34` · `REL-36` · `LRE-35` | **BLOCKED — unsafe.** Verification needs a QA reset |
+
+**No branch is blocked on work I am authorized to do and have not done.**
+
+**Migrations 153–165 are each `VERIFIED_CLOSED`.** QA frontier **165** · CI `868a9bf` green **6/6** ·
+regression **760/760 across 15 suites** · Flutter **1704/1704** · production never contacted.
