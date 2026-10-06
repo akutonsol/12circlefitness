@@ -17,8 +17,7 @@
 //
 // It CLEANS UP after itself: unlike d12, these tables carry no append-only freeze,
 // so the fixture assignment row is removed in a finally block.
-import { URL_, SERVICE, IDENT, signIn, rpc, rest, mutate, svc,
-         check, section, summary, beginSuite } from './lib.mjs';
+import { URL_, SERVICE, IDENT, signIn, rpc, rest, mutate, svc, check, section, summary, beginSuite, n } from './lib.mjs';
 
 async function run() {
   beginSuite();
@@ -126,12 +125,29 @@ async function run() {
           !map || map.status >= 400 || (Array.isArray(map.body) && map.body.length === 0),
           `status=${map && map.status}`);
 
-        // ── 5 · governance registry is readable only to admin/Trust ─────────
-        section('governance registry (154)');
-        const gp = await rest(victim, 'governance_policy?select=code').catch(() => ({ status: 403 }));
-        check('a Viewer cannot read governance_policy',
-          !gp || gp.status >= 400 || (Array.isArray(gp.body) && gp.body.length === 0),
-          `status=${gp && gp.status}`);
+        // ── 5 · governance registry — CORRECTED BY MIGRATION 163 ────────────
+        // This asserted "a Viewer cannot read governance_policy", which was true
+        // when 154 shipped and is NO LONGER the approved posture. The matrix grants
+        // AI Guardian/View to viewer, and 154's read arm was is_admin() OR
+        // is_trust_operator() -- neither of which an Admin-layer principal
+        // satisfies -- so the owner-approved grant was INERT. 163 adds the
+        // admin_can('AI Guardian','view') arm that makes it effective (V5 §135).
+        //
+        // It was ALSO passing vacuously: governance_policy is empty on QA, so the
+        // old assertion could not distinguish "RLS denied the read" from "there was
+        // nothing to read". The discriminating test now lives in D15, which seeds a
+        // row for the duration and asserts three roles CAN read it and two CANNOT.
+        //
+        // What remains assertable here, and is the property this suite owns: the
+        // Admin layer may READ the governance record and may not AUTHOR it. 154's
+        // writes stay on is_admin() and 163 added no write arm.
+        section('governance registry (154/163)');
+        const gpWrite = await mutate(victim, 'governance_policy', 'POST',
+          { code: 'D13-FORBIDDEN', name: 'x', category: 'safety', status: 'draft' });
+        check('a Viewer cannot AUTHOR a governance policy — the registry is not writable by the Admin layer',
+          gpWrite.status >= 400 || gpWrite.affected === 0, `status=${gpWrite.status}`);
+        const gpLanded = await svc('governance_policy?select=id&code=eq.D13-FORBIDDEN');
+        check('…and no row landed', n(gpLanded.body) === 0, `rows=${n(gpLanded.body)}`);
       }
     }
 

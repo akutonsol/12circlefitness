@@ -13865,3 +13865,53 @@ code changes.*
 | **161 · 162** | ✅ | ✅ frontier **162** | ✅ `D15` **148/148**, regression **660/660** | ✅ `ebe0e9b` green — `VERIFIED_CLOSED` |
 
 Flutter **1704/1704**. Production never contacted.
+
+---
+
+## 135 · AN OWNER-APPROVED GRANT THAT DID NOTHING — `AI Guardian`, AND THE VACUOUS TEST THAT HID IT
+
+### 135.1 The grant was real in the matrix and inert in the database
+
+The approved matrix grants **`AI Guardian · View`** to `trust_lead`, `operations_lead` and `viewer`. 154's
+registry reads under `USING (is_admin() OR is_trust_operator())` — and **an Admin-layer `trust_lead` is
+neither.** `CONF-D7` ruled explicitly that Trust lead must **not** be mapped to the `trust_operator` database
+role, and 153 was built so `is_admin()` stays **false** for every Admin-layer principal, which is the property
+`D13` exists to protect. Both facts are correct. Together they made the grant do nothing.
+
+**Measured before 163:** `admin_can('AI Guardian','view')` returned **`true`** for an assigned `trust_lead`
+while the registry returned **no rows** to them.
+
+This is the **design→architecture union rule** in its plainest form: an approved capability the backend did
+not support. The architecture is extended rather than the capability dropped. **163 adds five additive
+`SELECT` arms and nothing else** — no grant is added, removed or reinterpreted, because **the matrix had
+already decided who may view `AI Guardian`.** Making an approved decision effective is not a new decision.
+
+**What 163 is not:** not write access (154's writes stay on `is_admin()`); not the AI Guardian **runtime**,
+whose autonomy level, *"awaiting human review"* and *"recommendations · 24 h"* come from a telemetry surface
+that does not exist — **that remains B-17**; and **not an enforcement point** — §13's deterministic authority
+is untouched, which `D15` now asserts directly: a registry row does **not** move what `admin_can()` answers.
+
+### 135.2 The test that was passing for the wrong reason
+
+`D13` asserted *"a Viewer cannot read `governance_policy`"*. It passed. **`governance_policy` is empty on
+QA**, so the assertion could not tell *"RLS denied the read"* from *"there was nothing to read"* — and it
+would have kept passing after the posture it describes had been **inverted by the approved matrix.**
+
+**A deny assertion over an empty table is not evidence.** This is the **third** time that has bitten in this
+programme — §128.5's `workout_logs`, §132.3's two absent audit categories, and now this — and the first time
+it concealed a **wrong claim** rather than merely an unproven one.
+
+The discriminating test now lives in `D15`: it seeds a clearly-marked QA policy row, asserts the **three
+granted roles read it** and the **two denied roles read nothing**, then removes it — `governance_policy`
+carries no append-only freeze, so unlike `audit_events` it **can** be cleaned up. `D13` keeps the property it
+actually owns: **the Admin layer may read the governance record and may not author it.**
+
+### 135.3 Ladder and register
+
+| element | FIXED IN CODE | FIXED ON QA | VERIFIED LIVE | VERIFIED IN CI |
+|---|---|---|---|---|
+| 153–162 | ✅ | ✅ | ✅ | ✅ `VERIFIED_CLOSED` |
+| **163** | ✅ | ✅ frontier **163** | ✅ `D13` 21/21 · `D15` **157/157** · regression **670/670** | pending |
+
+**Thirteen of seventeen areas now carry an authorization surface.** `AI Guardian`'s registry half is live;
+its runtime half is **B-17**.

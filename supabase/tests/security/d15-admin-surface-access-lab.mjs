@@ -613,6 +613,64 @@ async function run() {
       }
     }
 
+    // ── 6g · AI GUARDIAN registry read — the grant that was INERT (163) ────
+    // The matrix grants AI Guardian/View to trust_lead, operations_lead and viewer.
+    // 154's registry read was is_admin() OR is_trust_operator(), and an Admin-layer
+    // trust_lead is NEITHER -- CONF-D7 forbids mapping Trust lead to trust_operator
+    // and 153 keeps is_admin() false for every Admin-layer principal. So the grant
+    // was real in the matrix and did nothing in the database.
+    //
+    // THE TABLE IS EMPTY ON QA, so every assertion here would pass vacuously --
+    // including the pre-163 claim that a Viewer "cannot read governance_policy",
+    // which was true for the wrong reason. A row is seeded for the duration and
+    // removed afterwards; governance_policy carries no append-only freeze, so
+    // unlike audit_events it CAN be cleaned up.
+    section('AI Guardian registry read · the inert grant, made effective (163)');
+    const POLICY_CODE = 'QA-D15-PROBE-01';
+    await svc(`governance_policy?code=eq.${POLICY_CODE}`, { method: 'DELETE' });
+    const seeded = await svc('governance_policy', { method: 'POST', body: {
+      code: POLICY_CODE, name: 'D15 probe policy', category: 'role_based',
+      scope: 'QA probe', status: 'draft' } });
+    check('seeded a clearly-marked QA governance policy row', seeded.status < 300, `status=${seeded.status}`);
+
+    if (seeded.status < 300) {
+      try {
+        const total = await svc('governance_policy?select=id');
+        // GRANTED by the matrix -> must now read it. Before 163 these were all 0.
+        for (const role of ['trust_lead', 'operations_lead', 'viewer']) {
+          await assign(vUid, role);
+          const r = await rest(victim, 'governance_policy?select=id,code');
+          check(`${role} CAN read the governance registry — AI Guardian/View is true and is now effective`,
+            n(r.body) === n(total.body) && n(r.body) > 0,
+            `saw ${n(r.body)} of ${n(total.body)} (status ${r.status})`);
+        }
+        // DENIED by the matrix -> must still read nothing.
+        for (const role of ['support', 'content_editor']) {
+          await assign(vUid, role);
+          const r = await rest(victim, 'governance_policy?select=id');
+          check(`${role} still reads NOTHING — AI Guardian/View is false in the matrix`,
+            n(r.body) === 0, `saw ${n(r.body)} (status ${r.status})`);
+        }
+        // Read only. 163 added no write arm; 154's writes stay on is_admin().
+        await assign(vUid, 'trust_lead');
+        const w = await mutate(victim, 'governance_policy', 'POST',
+          { code: 'QA-D15-FORBIDDEN', name: 'x', category: 'safety', status: 'draft' });
+        check('the Admin layer cannot AUTHOR a governance policy — reads the record, does not write it',
+          w.status >= 400 || w.affected === 0, `status=${w.status}`);
+        const landed = await svc('governance_policy?select=id&code=eq.QA-D15-FORBIDDEN');
+        check('…and no forbidden row landed', n(landed.body) === 0, `rows=${n(landed.body)}`);
+        // The registry is NOT the enforcement point (owner constraint): a policy row
+        // granting something must not change what admin_can() answers.
+        const before = await rpc(victim, 'admin_can', { p_area: 'Users', p_verb: 'update' });
+        check('a registry row does not become authorization — admin_can is unmoved (§13 deterministic authority)',
+          before.body === false, `admin_can(Users,update) for trust_lead = ${JSON.stringify(before.body)}`);
+      } finally {
+        await svc(`governance_policy?code=eq.${POLICY_CODE}`, { method: 'DELETE' });
+        await svc('governance_policy?code=eq.QA-D15-FORBIDDEN', { method: 'DELETE' });
+        await assign(vUid, 'viewer');
+      }
+    }
+
     // ── 7 · anon reaches none of the three new surfaces ─────────────────────
     section('anon posture on the new surfaces');
     for (const v of VIEWS) {
