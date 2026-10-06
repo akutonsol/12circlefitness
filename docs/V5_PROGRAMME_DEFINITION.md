@@ -14708,3 +14708,119 @@ contract records as undefined.
 **Migrations 153–166 `VERIFIED_CLOSED`.** QA frontier **166** · CI `e1570f2` green **6/6** · live regression
 **783/783 across 15 suites** · AI **49/49** · characterizations **17/17** · Flutter **1704/1704** ·
 **production never contacted.**
+
+---
+
+## 149–153 · THE OWNER-APPROVED WAVE — B-23, B-17, CAP-1, K-07, AND ZERO UNRESOLVED GRANTS
+
+The owner approved the consolidated pack's recommendations. This records what was built, the contradiction
+the building exposed, and two investigations that changed what the record says.
+
+### 149 · `B-23` — twelve grants closed by ruling, two built, two held
+
+**Twelve registered non-operational** (System ×4, Integrations ×4, Audit logs ×2, Security ×2), each
+carrying the evidence that makes it so: `observability_events` is write-once and system-produced with a
+single `component='metric'` producer; `user_integrations` holds **member-owned OAuth credentials** whose base
+policy admits only the member; `audit_events` is append-only for every caller including `service_role`.
+
+**`B-23-AI-1` built (167).** The one verb pair in the sixteen with an existing, mutable, correctly-scoped
+resource. Additive `INSERT`/`UPDATE` arms on all five 154 registry tables plus **one shared audit trigger**.
+Policies-plus-trigger rather than five RPCs, because the other admin writers are RPCs only where a **column
+contract** was needed — here the whole row is the document, and five RPCs would be five places for the audit
+to drift. **`D15` asserts §13 holds: authoring a policy document confers no authorization.**
+
+### 150 · `B-17` — the Guardian state store, and what it refuses to assert
+
+**The vocabulary is not invented.** `A5` and Build Spec §5 fix *"Active / Monitoring / Degraded / Disabled"*
+exactly; those four strings are the `CHECK`. This is the **opposite** of `approval_status` (§141) and
+`events.status` (§142), where no tracked source enumerated the values and **nothing was built**.
+
+**`A10` makes emergency disablement a PRODUCT requirement**, not a Guardian feature — so the control belongs
+to the Admin layer, and **the Guardian cannot reach it**: the RPC requires `auth.uid()` and an Admin role
+assignment, and no agent holds either.
+
+**The table starts EMPTY, deliberately.** Seeding `'Active'` would assert a runtime that does not exist.
+Zero rows is the `A11` state the approved design already defines.
+
+### 151 · `CAP-1` — moderation that cannot rewrite a member
+
+**The content column is never written**, by any function in 170. `D15` asserts the member's original text is
+**byte-identical** after moderation. Staff can take a post down; staff cannot put words in a member's mouth.
+
+**`RESTRICTIVE`, not a rewrite.** 001's permissive `USING (true)` read policies are untouched — a permissive
+policy cannot narrow anything, so the new policy is `AS RESTRICTIVE` and ANDs with them. **The author keeps
+their own words**, because "preserving the member's text" would be hollow if the member could no longer see
+it.
+
+**No report lifecycle vocabulary was introduced.** `resolved_at IS NULL` **is** the queue, and `reason` stays
+free text — a fixed reason-code list is owner vocabulary, and §141/§142 are the precedent for not inventing
+one.
+
+### 152 · A contradiction the implementation exposed, and two superseded assertions
+
+**I registered `AI Guardian / Manage` as non-operational and then 169 implemented it.** `B-17` option 1
+resolved exactly that producer gap. `Manage` was removed from the register; `Approve` stays, with its reason
+**corrected** to name the missing action **queue** rather than missing semantics — Build Spec §5 defines
+`Approve` perfectly well.
+
+Two `D15` assertion pairs were **inverted rather than deleted**: *"the Admin layer cannot author a governance
+policy"* became *"a role without the grant cannot"*, and *"no write path is gated on Community/update"* became
+*"Community/update IS gated — moderation — and create is NOT"*. **An assertion that a capability is absent
+becomes false the day it is built, and deleting it would lose the property worth keeping.**
+
+### 153 · `K-07` — the defect that was self-documented
+
+`cancel-subscription` caught the Stripe error, logged *"continuing to mark local"*, and fell through to the
+local update. Stripe kept billing; the row said `canceled`; the relationship ended; the coach was notified.
+**The member paid for access they no longer had** — the one state a retry cannot recover.
+
+The invariant is now: **local entitlement is revoked only when the remote subscription is actually gone.** A
+failure returns **502** and changes nothing. **Idempotency was built with it**, because the fix would
+otherwise create a new defect — a retry after a successful first attempt must not fail forever. Two outcomes
+mean "already gone"; when the error code is inconclusive the function **asks Stripe what it holds** rather
+than guessing.
+
+**The test is about control flow, not wording.** Checking only that a log string is absent would pass if
+someone deleted the message and kept the fall-through — *which is the defect*. It asserts the guard
+**returns**, and that its position **precedes** the revoke. **Proven by two negative controls**: restoring the
+original swallow verbatim fails 2 assertions; moving the guard after the revoke fails 2. *The first control
+attempt did not apply cleanly and reported 0 failures — that result was meaningless and was re-run rather
+than accepted.*
+
+### 153.1 Two investigations that changed the record
+
+**`flagcdn.com` — no egress exists.** It appears **only in documentation**, as an observation about the
+design's own footer. Nothing in `apps/` or `supabase/` references it. **No decision is owed until the
+impressions panel is built**, and `METRIC-18` is deferred.
+
+**`CONF-D6` — the token half is already satisfied, in this repository.** `apps/mobile/lib/core/theme/
+twelve_circle_theme.dart` defines `violet #7C3AED`, `amber #E0A030`, `green #2FBF87` on dark surfaces
+(`#0A0A0B`), wired into `main.dart`, over a full Helix three-tier implementation
+(`helix_primitives` → `helix_semantics` → theme). **That is precisely the approved Admin design's stated
+visual system** — *"dark surface; a violet primary accent with an amber secondary; green for
+operational/positive"*.
+
+**But the standalone Helix repo's `12circle` theme disagrees**: electric lime `#9EF01A`, near-black athletic
+surfaces, *"Apple Fitness+ / WHOOP / Oura / Strava"*, and it marks itself **"FIRST PASS — values are meant to
+be tuned by design."** The app does **not** consume it.
+
+**So `P5` is not unblocked, and the reason is sharper than before:** `CONF-D6`'s **token values** exist, but
+the README's other named gaps — **the 11 Admin states (*"ENUMERATED, NOT DESIGNED … no frames"*)**,
+responsive behaviour, component specifications and iconography — are **design artifacts, not implementation
+gaps**. No amount of engineering produces them.
+
+### 153.2 Capability grid — reconciled to ZERO unresolved
+
+| | grants |
+|---|---|
+| READ · effective | **62** |
+| READ · area deferred by decision | 15 |
+| WRITE · **implemented** | **11** (was 7) |
+| WRITE · non-operational, registered and proven | **20** |
+| WRITE · area deferred by decision | 8 |
+| **UNRESOLVED** | **0** — was 18 |
+| **total** | **116**, matching the matrix exactly |
+
+`D15` **329/329** · live regression **845/845 across 15 suites** · AI **49/49** · characterizations
+**17/17** · Flutter **1706 passed / 5 skipped** (the `K-07` skip discharged) · CI green **6/6** ·
+QA frontier **170** · **production never contacted**.
