@@ -14491,3 +14491,50 @@ move.** Both response values now vary per run, and the suite was run twice conse
 **Three of my four security "findings" this sweep were my own tooling.** The pattern is now explicit enough
 to state as a rule: **a static scan that disagrees with a live probe is wrong until the live probe says
 otherwise.** Every one of these was settled by probing QA, not by reading harder.
+
+---
+
+## 145 · THE ADMIN LAYER COULD SEE NO AGGREGATE AT ALL — 019'S GATE, AND TWO PER-AREA SURFACES
+
+Found by continuing the §13 sweep into the Dashboard data contract rather than stopping at `B-23`.
+
+**`admin_platform_stats()` (019) computes thirteen platform counts and is gated on `is_admin()` alone.**
+Measured live: an Admin-layer `viewer`, `trust_lead` and `operations_lead` each receive
+**`42501 not authorized`**. So every Dashboard KPI the Admin layer is granted View over had **no reachable
+producer** — the same shape §135 found on the AI Guardian registry, and for the same reason: the backend
+keys on a role `CONF-D7` deliberately withholds from the Admin layer.
+
+**019 was not widened, deliberately.** Its thirteen counts span several areas, and the approved matrix grants
+View **per area** — one caller receiving a cross-area aggregate would be a broader grant than the matrix
+makes. Two self-gating views answer per area instead, and `D15` asserts 019 **remains `is_admin()` only**.
+
+**The pattern needed no new authorization** because it is exactly `admin_training_overview`, authorized in
+156 and shipped: counts only, `security_invoker = off`, authorization in the view's own `WHERE`, write grants
+revoked in the same migration.
+
+**No mapping was invented.** Each count sits in the area §127 already placed its table in. **Three of 019's
+counts are deliberately absent** — `coach_client_relationships`, `weekly_checkins`, `challenges` — because
+**§127 maps none of them to an Admin area**, and guessing one would be inventing the authorization boundary.
+
+**`admin_user_overview` closes a gap the data contract names.** Row 1 records
+*"3 of 7 roles unrepresented"* in `admin_platform_stats()`, which counts client, coach, vendor and admin and
+omits `content_manager`, `trust_operator` and `erasure_executor`. Enumerating roles the schema's own `CHECK`
+already fixes is mechanical, not a product decision. All seven are now represented.
+
+**No open metric is computed.** The data contract is explicit — *"Every one of the fourteen has at least one
+open business definition"* — so nothing here defines *"active"*, a currency, a window or a threshold.
+`admin_events_overview` in particular **does not compute "attendance"**: the contract records that term as
+undefined, and `events.current_registered` is an unmaintained counter that can legitimately disagree with the
+registration rows (§142). It counts the rows, which is a fact.
+
+**The counts are asserted TRUE, not merely present** — `users_total` and `events_total` are compared against
+the real populations, because a view returning zeros would satisfy every structural assertion.
+
+### 145.1 The discovery mechanism paid for itself
+
+The two new views were swept for **write privilege** and **anon posture** automatically, with no assertion
+written for them, because §139.6 made `D15` discover `admin_*` views from the migrations instead of listing
+them. **That is the gap that let 156/157's three views reach QA holding `authenticated` write grants**, and it
+is now closed for every view that ships from here on.
+
+`D15` **268/268** · regression **781/781 across 15 suites** · Flutter **1704/1704** · QA frontier **166**.

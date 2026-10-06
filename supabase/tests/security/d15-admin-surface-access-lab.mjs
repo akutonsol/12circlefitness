@@ -1106,6 +1106,58 @@ async function run() {
       await assign(vUid, 'viewer');
     }
 
+    // ── 6k · per-area AGGREGATE surfaces (166) ─────────────────────────────
+    // admin_platform_stats() (019) is gated on is_admin() alone, so the Admin layer
+    // could see NO aggregate at all — the same inert shape as the AI Guardian
+    // registry in §135. These two views answer per AREA instead of widening 019's
+    // cross-area gate.
+    section('per-area aggregate surfaces · Users and Events (166)');
+    const OVERVIEWS = [
+      ['admin_user_overview',   'Users',
+       ['users_total','clients_total','coaches_total','vendors_total','admins_total',
+        'content_managers_total','trust_operators_total','erasure_executors_total']],
+      ['admin_events_overview', 'Events',
+       ['events_total','event_registrations_total','classes_total','class_bookings_total']],
+    ];
+    for (const [view, area, keys] of OVERVIEWS) {
+      await assign(vUid, 'viewer');                 // holds View on both areas
+      const got = await rest(victim, `${view}?select=*`);
+      check(`${view}: a Viewer reads it — admin_can('${area}','view') is effective`,
+        n(got.body) === 1, `rows=${n(got.body)} status=${got.status}`);
+      check(`${view}: carries exactly its ${keys.length} counts and nothing else`,
+        n(got.body) === 1 && Object.keys(got.body[0]).length === keys.length &&
+          keys.every((k) => k in got.body[0]),
+        `keys=${n(got.body) === 1 ? Object.keys(got.body[0]).join(',') : 'none'}`);
+
+      // The counts must be TRUE, not merely present — a view returning zeros would
+      // satisfy every structural assertion above.
+      if (view === 'admin_user_overview' && n(got.body) === 1) {
+        const real = await svc('user_profiles?select=id&limit=1000');
+        check('admin_user_overview.users_total matches the real population',
+          got.body[0].users_total === n(real.body), `view=${got.body[0].users_total} actual=${n(real.body)}`);
+        check('…and all SEVEN schema roles are represented — the data contract row 1 gap',
+          ['clients_total','coaches_total','vendors_total','admins_total','content_managers_total',
+           'trust_operators_total','erasure_executors_total'].every((k) => typeof got.body[0][k] === 'number'),
+          `roles=${Object.keys(got.body[0]).filter((k) => k !== 'users_total').length}`);
+      }
+      if (view === 'admin_events_overview' && n(got.body) === 1) {
+        const real = await svc('events?select=id&limit=1000');
+        check('admin_events_overview.events_total matches the real population',
+          got.body[0].events_total === n(real.body), `view=${got.body[0].events_total} actual=${n(real.body)}`);
+      }
+
+      // UNASSIGNED must see no row at all — the view is self-gating.
+      await unassign(vUid);
+      const none = await rest(victim, `${view}?select=*`);
+      check(`${view}: an UNASSIGNED caller gets no row`, n(none.body) === 0, `rows=${n(none.body)}`);
+    }
+    await assign(vUid, 'viewer');
+
+    // 019 is UNCHANGED — it was not widened, and the Admin layer still cannot call it.
+    const stats = await rpc(victim, 'admin_platform_stats');
+    check('admin_platform_stats() is UNCHANGED — still is_admin() only, not widened',
+      stats.status >= 400, `status=${stats.status}`);
+
     // ── 7 · anon reaches none of the three new surfaces ─────────────────────
     section('anon posture on the new surfaces');
     for (const v of VIEWS) {
