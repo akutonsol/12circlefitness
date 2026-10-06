@@ -26,7 +26,20 @@ import { URL_, SERVICE, IDENT, signIn, rest, mutate, svc, rpc,
          check, section, summary, beginSuite, n } from './lib.mjs';
 
 const VIEWS = ['admin_audit_events', 'admin_training_overview', 'admin_integration_connections',
-               'admin_security_events'];
+               'admin_security_events', 'admin_user_directory', 'admin_incidents'];
+
+// Owner decision B-2: the Users projection is identity and account state ONLY.
+// Every column below is PHI, contact PII, a financial identifier, or a risk field
+// DERIVED from PHI. risk_* and phone were offered and DECLINED, so they are
+// asserted absent alongside the rest -- a projection that quietly widened would
+// otherwise satisfy every other assertion.
+const USERS_FORBIDDEN = ['medical_conditions', 'parq_answers', 'has_injuries', 'injury_locations',
+                         'injury_description', 'date_of_birth', 'height_cm', 'weight_kg',
+                         'sleep_hours', 'stress_level', 'dietary_restrictions', 'food_allergies',
+                         'risk_score', 'risk_level', 'risk_flags', 'stripe_customer_id',
+                         'stripe_account_id', 'phone'];
+const USERS_ALLOWED = ['id', 'first_name', 'last_name', 'email', 'avatar_url', 'role',
+                       'membership_tier', 'onboarding_complete', 'created_at'];
 
 // Owner decision B-1, 2026-10-05: the Security area is access-control oversight.
 // control_evidence and storage_media_access were OFFERED AND NOT CHOSEN, so they
@@ -453,6 +466,76 @@ async function run() {
       check(`${m} on admin_security_events is refused — the revoke is in 159 itself`,
         r.status >= 400, `status=${r.status}`);
     }
+
+    // ── 6d · USERS projection — owner decision B-2 (160) ───────────────────
+    section('Users area projection · identity and account state only');
+    const usersSvc = await svc('user_profiles?select=id&limit=1000');
+    const usersVia = await rest(victim, 'admin_user_directory?select=*&limit=1000');
+    check(`a Viewer reads the Users directory — ${n(usersVia.body)} of ${n(usersSvc.body)}`,
+      n(usersVia.body) > 0 && n(usersVia.body) === n(usersSvc.body),
+      `view=${n(usersVia.body)} service=${n(usersSvc.body)} status=${usersVia.status}`);
+    check('the projection carries EXACTLY the nine decided columns',
+      n(usersVia.body) > 0 &&
+        Object.keys(usersVia.body[0]).length === USERS_ALLOWED.length &&
+        USERS_ALLOWED.every(k => k in usersVia.body[0]),
+      `keys=${n(usersVia.body) ? Object.keys(usersVia.body[0]).join(',') : 'none'}`);
+    // Column by column, because "the projection looks right" is not the same claim
+    // as "this column cannot be reached".
+    for (const col of USERS_FORBIDDEN) {
+      const onBase = await svc(`user_profiles?select=${col}&limit=1`);
+      const onView = await rest(victim, `admin_user_directory?select=${col}&limit=1`);
+      check(`${col} exists on user_profiles and is UNREACHABLE through the Users projection`,
+        onBase.status < 400 && onView.status >= 400, `base=${onBase.status} view=${onView.status}`);
+    }
+    // The base table's own RLS is untouched: a Viewer must not read another member's
+    // PHI directly. 160 added no policy to user_profiles.
+    const phiDirect = await rest(victim, 'user_profiles?select=id,medical_conditions,parq_answers&limit=1000');
+    const phiVisible = (phiDirect.body || []).filter(r => r.id !== vUid).length;
+    check('base user_profiles still denies a Viewer every OTHER member\'s row — no policy was added to it',
+      phiVisible === 0, `other members' rows visible=${phiVisible} of ${n(usersSvc.body)} (status ${phiDirect.status})`);
+
+    // ── 6e · INCIDENTS projection — owner decision B-4 (160) ───────────────
+    section('Incidents area projection · no evidence, no actor_identity');
+    const incSvc = await svc('audit_incidents?select=id&limit=1000');
+    const incVia = await rest(victim, 'admin_incidents?select=*&limit=1000');
+    check(`a Viewer reads Incidents — ${n(incVia.body)} of ${n(incSvc.body)}`,
+      n(incVia.body) > 0 && n(incVia.body) === n(incSvc.body),
+      `view=${n(incVia.body)} service=${n(incSvc.body)}`);
+    for (const col of ['evidence', 'actor_identity', 'actor_provenance', 'created_at', 'updated_at']) {
+      const onBase = await svc(`audit_incidents?select=${col}&limit=1`);
+      const onView = await rest(victim, `admin_incidents?select=${col}&limit=1`);
+      check(`${col} exists on audit_incidents and is WITHHELD from the projection`,
+        onBase.status < 400 && onView.status >= 400, `base=${onBase.status} view=${onView.status}`);
+    }
+    // DISCRIMINATION: support holds Incidents/view = FALSE in the approved matrix,
+    // while it holds Users/view = TRUE. One role, two surfaces, opposite outcomes --
+    // which is the assertion an always-open or always-closed view cannot satisfy.
+    await assign(vUid, 'support');
+    const incSup  = await rest(victim, 'admin_incidents?select=id&limit=1000');
+    const userSup = await rest(victim, 'admin_user_directory?select=id&limit=1000');
+    check('Incidents CLOSES for Support — Incidents/view is false in the matrix',
+      n(incSup.body) === 0, `rows=${n(incSup.body)}`);
+    check('…while Users stays OPEN for that same Support role — Users/view is true',
+      n(userSup.body) > 0, `rows=${n(userSup.body)}`);
+    await assign(vUid, 'viewer');
+
+    // No write authority on either, revoked in 160 itself.
+    for (const v of ['admin_user_directory', 'admin_incidents']) {
+      for (const m of ['POST', 'DELETE']) {
+        const path = m === 'POST' ? v : `${v}?id=eq.${NONE}`;
+        const r = await rest(victim, path, { method: m,
+          ...(m === 'DELETE' ? {} : { body: JSON.stringify({ summary: 'probe' }) }),
+          headers: { 'Content-Type': 'application/json' } }).catch(() => ({ status: 403 }));
+        check(`${m} on ${v} is refused — the revoke is in 160 itself`, r.status >= 400, `status=${r.status}`);
+      }
+    }
+
+    // B-3 CLOSED as aggregate-only: the row-level denial is now a confirmed
+    // boundary, not a parked gap, so it is asserted as such rather than deferred.
+    const b3 = await rest(victim, 'workout_sessions?select=id&limit=1000');
+    const b3svc = await svc('workout_sessions?select=id&limit=1000');
+    check(`B-3 CONFIRMED aggregate-only: a Viewer reads 0 of ${n(b3svc.body)} row-level sessions`,
+      n(b3.body) === 0 && n(b3svc.body) > 0, `viewer=${n(b3.body)} service=${n(b3svc.body)}`);
 
     // ── 7 · anon reaches none of the three new surfaces ─────────────────────
     section('anon posture on the new surfaces');
