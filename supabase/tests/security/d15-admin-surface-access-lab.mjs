@@ -25,7 +25,17 @@
 import { URL_, SERVICE, IDENT, signIn, rest, mutate, svc, rpc,
          check, section, summary, beginSuite, n } from './lib.mjs';
 
-const VIEWS = ['admin_audit_events', 'admin_training_overview', 'admin_integration_connections'];
+const VIEWS = ['admin_audit_events', 'admin_training_overview', 'admin_integration_connections',
+               'admin_security_events'];
+
+// Owner decision B-1, 2026-10-05: the Security area is access-control oversight.
+// control_evidence and storage_media_access were OFFERED AND NOT CHOSEN, so they
+// are asserted ABSENT -- a surface that silently widened past the decision would
+// otherwise pass every other assertion below.
+const SECURITY_IN  = ['authentication', 'authorization_denial', 'admin_action', 'audit_read'];
+const SECURITY_OUT = ['incident', 'phi_read', 'phi_correction', 'financial', 'agent_action',
+                      'control_evidence', 'storage_media_access', 'relationship_change',
+                      'export_deletion', 'observability_audit', 'billing_entitlement'];
 
 async function uidOf(key) {
   const r = await svc(`user_profiles?select=id&email=eq.${encodeURIComponent(IDENT[key].email)}`);
@@ -323,6 +333,125 @@ async function run() {
       await svc('user_integrations?provider=eq.qa-d15-write-probe', { method: 'DELETE' });
     } else {
       check('write-escalation probe row seeded', false, 'could not seed the probe row');
+    }
+
+    // ── 6c · THE SECURITY AREA PROJECTION — owner decision B-1 (159) ───────
+    section('Security area projection · B-1 scope, A13·1 again, B-19 withheld');
+
+    // TWO OF THE FOUR DECIDED CATEGORIES HAVE NO LIVE ROWS ON QA -- `authentication`
+    // and `authorization_denial` are both at zero. Without a row, "only the decided
+    // categories appear" is satisfied by a view that MISSPELLED either of them, and
+    // the Security screen would silently show no sign-in or denial events at all.
+    // That is the defect this seeds against, and it is the same vacuity trap that
+    // made the first parked-boundary assertion fail (V5 §128.5).
+    //
+    // A13 permits deterministic, clearly-marked QA data. audit_events is append-only
+    // (trg_audit_events_freeze), so these rows CANNOT be cleaned up -- which is why
+    // the seed is IDEMPOTENT: it emits only what is missing, so repeated local and
+    // CI runs add at most one row per category, ever.
+    //
+    // EMITTED THROUGH THE SANCTIONED WRITE PATH, NOT INSERTED. A direct INSERT was
+    // the first attempt and it was correctly REFUSED with 42501 even for the service
+    // role: migration 148 revokes audit_events from `authenticated, service_role`
+    // because "writes reach these tables through SECURITY DEFINER functions owned by
+    // the table owner". That is a deliberate V5 boundary and the right answer was to
+    // use the real producer, not to work around it. audit_record_event() is granted
+    // to authenticated, so this exercises the same path production uses. The
+    // p_changed_columns argument selects 151's signature over 150's overload.
+    for (const cat of ['authentication', 'authorization_denial']) {
+      const probeAction = `qa.d15.scope-probe.${cat}`;
+      const already = await svc(`audit_events?select=id&action=eq.${encodeURIComponent(probeAction)}&limit=1`);
+      if (n(already.body) === 0) {
+        const r = await rpc(victim, 'audit_record_event', {
+          p_action: probeAction, p_category: cat, p_outcome: 'success',
+          p_actor_provenance: 'grounded', p_changed_columns: null });
+        check(`emitted one clearly-marked QA ${cat} row through audit_record_event()`,
+          r.status < 300, `status=${r.status} ${JSON.stringify(r.body).slice(0, 90)}`);
+      } else {
+        check(`a clearly-marked QA ${cat} row is already present`, true, 'idempotent — not re-emitted');
+      }
+    }
+
+    // The Viewer holds Security/view=true in the approved matrix.
+    const secRows = await rest(victim, 'admin_security_events?select=category&limit=1000');
+    check('a Viewer reads the Security projection',
+      n(secRows.body) > 0, `rows=${n(secRows.body)} status=${secRows.status}`);
+
+    // SCOPE, both directions. Only the four decided categories may appear, and the
+    // two that were offered and declined must be absent even though they exist in
+    // the population -- which is what makes this an assertion about the DECISION
+    // rather than about whatever the view happens to return.
+    const seen = new Set((secRows.body || []).map(r => r.category));
+    check(`only the four decided categories appear — got [${[...seen].sort().join(', ')}]`,
+      [...seen].every(c => SECURITY_IN.includes(c)),
+      `unexpected: ${[...seen].filter(c => !SECURITY_IN.includes(c)).join(', ') || 'none'}`);
+    // The other direction, and the one that needed the seed: every decided category
+    // must ACTUALLY flow through. A misspelling in the view's ARRAY would fail here
+    // and nowhere else.
+    for (const c of SECURITY_IN) {
+      const live = await svc(`audit_events?select=id&category=eq.${c}&limit=1`);
+      const via  = await rest(victim, `admin_security_events?select=id&category=eq.${c}&limit=1`);
+      check(`${c} is IN Security scope and reaches the view`,
+        n(live.body) > 0 && n(via.body) > 0,
+        `population=${n(live.body)} view=${n(via.body)}`);
+    }
+    for (const c of SECURITY_OUT) {
+      const live = await svc(`audit_events?select=id&category=eq.${c}&limit=1`);
+      const via  = await rest(victim, `admin_security_events?select=id&category=eq.${c}&limit=1`);
+      check(`${c} is OUT of Security scope${n(live.body) ? '' : ' (no live rows — recorded, not proof)'}`,
+        n(via.body) === 0, `view=${n(via.body)} population=${n(live.body)}`);
+    }
+
+    // A13·1 AGAIN. admin_action is in scope here, so the exclusion has to hold on
+    // this surface too -- otherwise adding the category to a second view would have
+    // restored what A13·1 removes from the first.
+    if (aUid) {
+      const ownSvc2 = await svc(`audit_events?select=id&category=eq.admin_action&actor_id=eq.${aUid}`);
+      const ok = await assign(aUid, 'viewer');
+      if (ok && n(ownSvc2.body) > 0) {
+        const own = await rest(admin, `admin_security_events?select=id&category=eq.admin_action&actor_id=eq.${aUid}`);
+        check(`A13·1 holds in the Security projection too — the reader's own ${n(ownSvc2.body)} admin_action rows are excluded`,
+          n(own.body) === 0, `saw ${n(own.body)} of ${n(ownSvc2.body)}`);
+        const others = await rest(admin, `admin_security_events?select=id&category=eq.admin_action&actor_id=neq.${aUid}&limit=1000`);
+        check('and it stays narrow — other actors\' admin_action rows remain visible',
+          n(others.body) > 0, `saw ${n(others.body)}`);
+      } else {
+        check('A13·1 in the Security projection is observable', false,
+          `admin authored ${n(ownSvc2.body)} admin_action rows`);
+      }
+    }
+
+    // DISCRIMINATION. support has Security/view = false in the approved matrix.
+    await assign(vUid, 'support');
+    const asSup = await rest(victim, 'admin_security_events?select=id&limit=1000');
+    check('the Security projection CLOSES for Support — Security/view is false in the matrix',
+      n(asSup.body) === 0, `rows=${n(asSup.body)}`);
+    await assign(vUid, 'viewer');
+
+    // B-19: delta and changed_columns stay withheld. They EXIST on audit_events
+    // (migration 150), so this is a projection decision, not an absent column.
+    for (const col of ['delta', 'changed_columns']) {
+      const onBase = await svc(`audit_events?select=${col}&limit=1`);
+      const onView = await rest(victim, `admin_security_events?select=${col}&limit=1`);
+      check(`B-19: ${col} exists on audit_events (${onBase.status}) and is WITHHELD from the Security projection`,
+        onBase.status < 400 && onView.status >= 400, `base=${onBase.status} view=${onView.status}`);
+      const onAudit = await rest(victim, `admin_audit_events?select=${col}&limit=1`);
+      check(`B-19: ${col} is withheld from the Audit logs projection too`,
+        onAudit.status >= 400, `status=${onAudit.status}`);
+    }
+
+    // A12 and the write posture, on this view as well.
+    for (const col of ['subject_id', 'correlation_signature', 'correlation_key_id']) {
+      const r = await rest(victim, `admin_security_events?select=${col}`);
+      check(`the Security projection exposes no ${col}`, r.status >= 400, `status=${r.status}`);
+    }
+    for (const m of ['POST', 'DELETE']) {
+      const path = m === 'POST' ? 'admin_security_events' : `admin_security_events?id=eq.${NONE}`;
+      const r = await rest(victim, path, { method: m,
+        ...(m === 'DELETE' ? {} : { body: JSON.stringify({ action: 'probe' }) }),
+        headers: { 'Content-Type': 'application/json' } }).catch(() => ({ status: 403 }));
+      check(`${m} on admin_security_events is refused — the revoke is in 159 itself`,
+        r.status >= 400, `status=${r.status}`);
     }
 
     // ── 7 · anon reaches none of the three new surfaces ─────────────────────
