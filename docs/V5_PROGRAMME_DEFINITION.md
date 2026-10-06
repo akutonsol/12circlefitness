@@ -14307,3 +14307,65 @@ rather than the claim.**
 | element | FIXED IN CODE | FIXED ON QA | VERIFIED LIVE | VERIFIED IN CI |
 |---|---|---|---|---|
 | **164** | ✅ | ✅ frontier **164** | ✅ `D15` **217/217** · regression **731/731** · Flutter **1704/1704** | pending |
+
+---
+
+## 142 · B-22 — THREE SURFACES, THREE HAZARDS, AND ONE THAT STAYS SHUT
+
+`B-21` closed `VERIFIED_CLOSED` on CI `2e9a461` (6/6). `B-22` was then taken as **three separate decisions
+with explicit column contracts**, not as a generalisation of the `Users` whitelist — the areas share a role
+and nothing else.
+
+### 142.1 What the evidence found in each
+
+| area | the hazard the schema revealed |
+|---|---|
+| **Community** | `community_posts` is `"users manage own posts"` — strictly author-scoped, so `Update` means **editing another member's words**. The design names a *"reports/moderation queue"* that **does not exist** (§127; `CAP-1`, parked as `B-10`) |
+| **Events** | `price`/`is_free` are **monetization** (§8 bars an agent from inventing pricing policy) · `current_registered` is a counter with **no trigger maintaining it**, so writing it desyncs attendance from `event_registrations`, which `K-04` exists to protect · `status` has **no `CHECK` and no ruled vocabulary** — the same condition that blocks `Incidents/Approve` · `vendor_id` is ownership |
+| **Training** | `coach_id` is **privilege-bearing** — `"coaches manage programs"` keys on it, so writing it reassigns ownership · `program_version` is maintained by `snapshot_program_version()` and the engine RPCs · `plan`, `strategy`, `engine_generated` are **engine output** |
+
+### 142.2 Community stays shut, and is NOT registered non-operational
+
+Its grants resolve into moderation, and moderation has no surface. **It is deliberately kept out of the
+non-operational register**, because unlike `B-20`'s and `B-21c`'s six entries these **will become operational
+once `CAP-1` is decided**. Recording them as *"authorized and not offered"* would assert something false
+about the future. The distinction is now carried in the register's `undecided` block, and `D15` asserts
+directly that **no write path is gated on `Community/create` or `Community/update`**, and that a
+`content_editor` still cannot rewrite another member's post.
+
+### 142.3 What was built, and what each contract excludes
+
+**Events — descriptive fields only.** `title`, `event_date`, `description`, `location`, `end_date`,
+`cover_image_url`, `host_name`, `max_capacity`. The excluded columns are not merely unset: `D15` asserts a
+staff-created event **takes its defaults** — `price = 0`, `is_free = true`, `status = 'upcoming'`,
+`current_registered = 0`, `vendor_id = null` — so no pricing, lifecycle, attendance or ownership was decided
+by this path.
+
+**Training — template authoring only.** `name`, `description`, `goal`, `difficulty`, `duration_weeks`,
+`is_template`. A staff-authored template **belongs to no coach** (`coach_id` left `NULL`) and is not
+engine-generated.
+
+**`B-3` is not implicated and `D15` proves it still holds**: a `content_editor` reads **0 of 9** row-level
+`workout_sessions`. `workout_programs` holds templates; member history lives elsewhere.
+
+**A consequence of the chosen contract, recorded rather than hidden:** `is_template` is writable and the
+owner took the unrestricted option, so a content editor can edit the authoring fields of a coach-*assigned*
+program and flip a program between template and assigned. That is the contract as decided.
+
+### 142.4 Two assertions that were nearly worthless, and the one that replaced them
+
+`coach_id`, `plan` and `strategy` were **`null` before and after** on the probe template — a staff-authored
+template belongs to no coach by design, so *"unchanged"* proved almost nothing. They are now **labelled
+`(was null — recorded, not proof)`** rather than counted as evidence, and a decisive assertion was added
+against a program that **is** coach-owned: it keeps its `coach_id` through a `content_editor` write, and the
+probe restores the field it touched.
+
+**This is the fourth time the same instinct has paid**: a passing assertion over an absent value is not
+proof, and labelling it honestly costs nothing while mistaking it for evidence costs everything.
+
+### 142.5 Ladder
+
+| element | FIXED IN CODE | FIXED ON QA | VERIFIED LIVE | VERIFIED IN CI |
+|---|---|---|---|---|
+| **164** (`B-21`) | ✅ | ✅ | ✅ | ✅ `2e9a461` green 6/6 — `VERIFIED_CLOSED` |
+| **165** (`B-22b/c`) | ✅ | ✅ frontier **165** | ✅ `D15` **246/246** · regression **760/760** · Flutter **1704/1704** | pending |

@@ -106,15 +106,13 @@
     },
     "B-22": {
       "areas": [
-        "Community",
-        "Events",
-        "Training"
+        "Community"
       ],
       "verbs": [
         "Create",
         "Update"
       ],
-      "note": "Needs a writable column set per area, as B-2 settled for Users."
+      "note": "PARTIALLY RESOLVED 2026-10-06. Events -> implemented, descriptive fields only (165). Training -> implemented, template authoring only (165). COMMUNITY REMAINS UNDECIDED and is deliberately NOT registered non-operational: its write grants resolve into MODERATION, the reports/moderation queue does not exist (CAP-1 / B-10), and unlike the ruled entries above these WILL become operational once CAP-1 is decided. Recording them as 'authorized and not offered' would assert something false about the future."
     },
     "B-23": {
       "areas": [

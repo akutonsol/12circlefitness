@@ -942,6 +942,165 @@ async function run() {
         del.status >= 400 && n(alive.body) === 1, `status=${del.status}`);
     }
 
+    // ── 6j · B-22 · content write paths (165) ──────────────────────────────
+    // Three separate decisions, not one "content write" generalisation of the Users
+    // whitelist. Community is DEFERRED behind CAP-1 and is asserted ABSENT below.
+    section('B-22 · Events and Training write paths · column contracts enforced');
+    const EV_TITLE = 'QA-D15-PROBE event';
+    const PG_NAME  = 'QA-D15-PROBE program template';
+    await svc(`events?title=eq.${encodeURIComponent(EV_TITLE)}`, { method: 'DELETE' });
+    await svc(`workout_programs?name=eq.${encodeURIComponent(PG_NAME)}`, { method: 'DELETE' });
+
+    try {
+      // Every role the matrix denies must be refused BOTH creators.
+      for (const role of ['trust_lead', 'operations_lead', 'support', 'viewer']) {
+        await assign(vUid, role);
+        const e = await rpc(victim, 'admin_create_event',
+          { p_title: 'QA-D15-FORBIDDEN event', p_event_date: new Date().toISOString(),
+            p_description: null, p_location: null, p_end_date: null,
+            p_cover_image_url: null, p_host_name: null, p_max_capacity: null });
+        const t = await rpc(victim, 'admin_create_program_template',
+          { p_name: 'QA-D15-FORBIDDEN program', p_description: null, p_goal: null,
+            p_difficulty: null, p_duration_weeks: null });
+        const leakedE = await svc("events?select=id&title=eq.QA-D15-FORBIDDEN%20event");
+        const leakedT = await svc("workout_programs?select=id&name=eq.QA-D15-FORBIDDEN%20program");
+        check(`${role} is REFUSED both content creators, and nothing lands`,
+          e.status >= 400 && t.status >= 400 && n(leakedE.body) === 0 && n(leakedT.body) === 0,
+          `event=${e.status} program=${t.status}`);
+      }
+
+      await assign(vUid, 'content_editor');
+
+      // ── Events ──────────────────────────────────────────────────────────
+      const mkEv = await rpc(victim, 'admin_create_event',
+        { p_title: EV_TITLE, p_event_date: new Date().toISOString(),
+          p_description: 'probe', p_location: 'probe', p_end_date: null,
+          p_cover_image_url: null, p_host_name: 'probe host', p_max_capacity: 10 });
+      const evRow = await svc(`events?select=*&title=eq.${encodeURIComponent(EV_TITLE)}`);
+      check('B-22b: a content_editor CAN create an event — the grant is real',
+        mkEv.status < 400 && n(evRow.body) === 1, `status=${mkEv.status} rows=${n(evRow.body)}`);
+
+      if (n(evRow.body) === 1) {
+        const e0 = evRow.body[0];
+        // The excluded columns must have taken their DEFAULTS, not values the
+        // function supplied — monetization, lifecycle, attendance and ownership.
+        check('excluded Events columns took their defaults — no pricing, status, attendance or ownership was set',
+          Number(e0.price) === 0 && e0.is_free === true && e0.status === 'upcoming' &&
+            e0.current_registered === 0 && e0.vendor_id === null,
+          `price=${e0.price} is_free=${e0.is_free} status=${e0.status} registered=${e0.current_registered} vendor=${e0.vendor_id}`);
+
+        const upd = await rpc(victim, 'admin_update_event',
+          { p_event_id: e0.id, p_title: null, p_description: 'probe updated',
+            p_location: null, p_event_date: null, p_end_date: null,
+            p_cover_image_url: null, p_host_name: null, p_max_capacity: 25 });
+        const e1 = (await svc(`events?select=*&id=eq.${e0.id}`)).body[0];
+        check('a content_editor CAN update descriptive fields',
+          upd.status < 400 && e1.description === 'probe updated' && e1.max_capacity === 25,
+          `status=${upd.status}`);
+        for (const col of ['price', 'is_free', 'status', 'current_registered', 'vendor_id']) {
+          check(`Events.${col} is UNCHANGED — outside the B-22b contract`,
+            JSON.stringify(e1[col]) === JSON.stringify(e0[col]),
+            `before=${JSON.stringify(e0[col])} after=${JSON.stringify(e1[col])}`);
+        }
+        check('…and the title was not blanked by the NULL argument',
+          e1.title === EV_TITLE, `title=${e1.title}`);
+      }
+
+      // ── Training ────────────────────────────────────────────────────────
+      const mkPg = await rpc(victim, 'admin_create_program_template',
+        { p_name: PG_NAME, p_description: 'probe', p_goal: 'probe',
+          p_difficulty: 'beginner', p_duration_weeks: 4 });
+      const pgRow = await svc(`workout_programs?select=*&name=eq.${encodeURIComponent(PG_NAME)}`);
+      check('B-22c: a content_editor CAN create a program template',
+        mkPg.status < 400 && n(pgRow.body) === 1, `status=${mkPg.status} rows=${n(pgRow.body)}`);
+
+      if (n(pgRow.body) === 1) {
+        const p0 = pgRow.body[0];
+        check('a staff-authored template belongs to NO coach and is not engine-generated',
+          p0.coach_id === null && p0.is_template === true && p0.engine_generated === false,
+          `coach_id=${p0.coach_id} is_template=${p0.is_template} engine=${p0.engine_generated}`);
+
+        const updP = await rpc(victim, 'admin_update_program_template',
+          { p_program_id: p0.id, p_name: null, p_description: 'probe updated',
+            p_goal: null, p_difficulty: 'advanced', p_duration_weeks: null, p_is_template: null });
+        const p1 = (await svc(`workout_programs?select=*&id=eq.${p0.id}`)).body[0];
+        check('a content_editor CAN update authoring fields',
+          updP.status < 400 && p1.description === 'probe updated' && p1.difficulty === 'advanced',
+          `status=${updP.status}`);
+        for (const col of ['coach_id', 'program_version', 'plan', 'strategy', 'engine_generated']) {
+          const wasNull = p0[col] === null;
+          check(`workout_programs.${col} is UNCHANGED — owned by another system` +
+                (wasNull ? ' (was null — recorded, not proof)' : ''),
+            JSON.stringify(p1[col]) === JSON.stringify(p0[col]),
+            `before=${JSON.stringify(p0[col])} after=${JSON.stringify(p1[col])}`);
+        }
+
+        // THE DECISIVE OWNERSHIP ASSERTION. Above, coach_id was null before and
+        // after, so "unchanged" proved almost nothing — a staff-authored template
+        // belongs to no coach by design. This repeats it against a program that IS
+        // coach-owned, which is the case that matters: the writer must not be able
+        // to reassign a coach's program to itself or to anyone else.
+        const owned = await svc('workout_programs?select=id,coach_id,description,difficulty&coach_id=not.is.null&limit=1');
+        if (n(owned.body) === 1) {
+          const o0 = owned.body[0];
+          const r = await rpc(victim, 'admin_update_program_template',
+            { p_program_id: o0.id, p_name: null, p_description: 'D15 probe touch',
+              p_goal: null, p_difficulty: null, p_duration_weeks: null, p_is_template: null });
+          const o1 = (await svc(`workout_programs?select=id,coach_id,description&id=eq.${o0.id}`)).body[0];
+          check('a COACH-OWNED program keeps its coach_id through a content_editor write',
+            r.status < 400 && o1.coach_id === o0.coach_id && o0.coach_id !== null,
+            `before=${o0.coach_id} after=${o1.coach_id}`);
+          await svc(`workout_programs?id=eq.${o0.id}`, { method: 'PATCH',
+            body: { description: o0.description } });
+          const restored = (await svc(`workout_programs?select=description&id=eq.${o0.id}`)).body[0];
+          check('…and the probe restored that program\'s description',
+            JSON.stringify(restored.description) === JSON.stringify(o0.description),
+            `value=${JSON.stringify(restored.description)}`);
+        } else {
+          check('a coach-owned program exists to assert ownership preservation against',
+            false, 'none found — the coach_id assertion above is vacuous without one');
+        }
+      }
+
+      // Each write emitted an admin_action carrying changed_columns and NO delta.
+      const acts = await svc(
+        "audit_events?select=action,delta,changed_columns&action=in.(events.create,events.update,workout_programs.create,workout_programs.update)&order=occurred_at.desc&limit=4");
+      check('the content writes emitted admin_action records',
+        n(acts.body) >= 4, `rows=${n(acts.body)}`);
+      check('…each carrying changed_columns and NO delta',
+        (acts.body || []).every((a) => a.delta === null && Array.isArray(a.changed_columns)),
+        `sample=${JSON.stringify((acts.body || [])[0])}`);
+
+      // ── B-22a · Community is DEFERRED, so nothing may exist for it ──────
+      for (const verb of ['create', 'update']) {
+        const needle = new RegExp(`admin_can\\(\\s*'Community'\\s*,\\s*'${verb}'`, 'i');
+        const gated = MIGRATION_SOURCES.filter((m) => needle.test(m.sql)).map((m) => m.name);
+        check(`B-22a: NO write path is gated on Community/${verb} — deferred behind CAP-1`,
+          gated.length === 0, gated.join(', ') || 'none');
+      }
+      const otherPost = await svc('community_posts?select=id,user_id&limit=1');
+      if (n(otherPost.body) === 1 && otherPost.body[0].user_id !== vUid) {
+        const tamper = await rest(victim, `community_posts?id=eq.${otherPost.body[0].id}`,
+          { method: 'PATCH', body: JSON.stringify({ content: 'D15 TAMPER' }),
+            headers: { 'Content-Type': 'application/json' } }).catch(() => ({}));
+        const post = await svc(`community_posts?select=content&id=eq.${otherPost.body[0].id}`);
+        check('a content_editor still cannot rewrite another member\'s post',
+          post.body[0].content !== 'D15 TAMPER', `status=${tamper.status}`);
+      }
+
+      // B-3 is untouched by any of this.
+      const sess = await rest(victim, 'workout_sessions?select=id');
+      const sessAll = await svc('workout_sessions?select=id');
+      checkDenied('B-3 still holds: a content_editor reads no row-level training data',
+        { saw: n(sess.body), population: n(sessAll.body) });
+    } finally {
+      await svc(`events?title=eq.${encodeURIComponent(EV_TITLE)}`, { method: 'DELETE' });
+      await svc(`workout_programs?name=eq.${encodeURIComponent(PG_NAME)}`, { method: 'DELETE' });
+      await svc("events?title=eq.QA-D15-FORBIDDEN%20event", { method: 'DELETE' });
+      await svc("workout_programs?name=eq.QA-D15-FORBIDDEN%20program", { method: 'DELETE' });
+      await assign(vUid, 'viewer');
+    }
+
     // ── 7 · anon reaches none of the three new surfaces ─────────────────────
     section('anon posture on the new surfaces');
     for (const v of VIEWS) {
