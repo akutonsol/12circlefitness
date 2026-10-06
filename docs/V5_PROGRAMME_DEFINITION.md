@@ -13915,3 +13915,79 @@ actually owns: **the Admin layer may read the governance record and may not auth
 
 **Thirteen of seventeen areas now carry an authorization surface.** `AI Guardian`'s registry half is live;
 its runtime half is **B-17**.
+
+---
+
+## 136 · THE INERT-GRANT SWEEP — 38 OF 39 APPROVED WRITE GRANTS DO NOTHING, AND FOUR CANNOT BE MADE TO
+
+§135 found **one** inert grant by accident, while checking something else. That is not a method, so the
+matrix was swept exhaustively: **for every `true` grant, is there a surface that honours it?**
+
+**The 77 View grants are now almost entirely effective** — thirteen of seventeen areas carry a read surface,
+`Configuration` reads through the pre-existing `platform_settings` policy B-8 confirmed, and `QA`, `Releases`
+and `Organization` are deferred by owner decision.
+
+**The 39 write grants are a different picture. One is implemented. Thirty-eight are inert.**
+
+### 136.1 The classification, and it is not uniform
+
+| group | grants | state |
+|---|---|---|
+| **A · IMPLEMENTED** — `Users · Update` → `support` | 1 | ✅ 161/162, names only, audited |
+| **B · BLOCKED BY AN IMMUTABLE BOUNDARY** — `Audit logs · Update` and `· Manage`, and the same two on `Security` → `trust_lead` | 4 | **cannot be implemented as written** |
+| **C · BACKED, NEEDS A GRADED ARM** — `Incidents · Create/Update/Manage/Approve` → `trust_lead` | 4 | mechanical once the semantics are confirmed |
+| **D · NEEDS A WRITE PATH AND A COLUMN DECISION** — `Community`, `Events`, `Training` × `Create/Update` → `content_editor` | 6 | each needs the B-2 treatment |
+| **E · AREA DEFERRED BY OWNER** — `QA`, `Releases` × 4 verbs → `operations_lead` | 8 | parked with B-5/B-6 |
+| **F · SEMANTICS UNDEFINED** — `AI Guardian`, `Integrations`, `System` × `Create/Update/Manage/Approve`; `Audit logs`/`Security` `Create`+`Approve` | 15 | nothing states what the verb *does* |
+
+### 136.2 Group B is the one that matters, and it is a genuine conflict
+
+**`audit_events` is append-only by construction.** `trg_audit_events_freeze` (142:251) raises on **both**
+`UPDATE` and `DELETE`, unconditionally, and fires for the table owner too — which is precisely why it
+survived my own write-escalation defect in §129.2 when `user_integrations` did not.
+
+The approved matrix grants `trust_lead` **`Update`** and **`Manage`** on **`Audit logs`**, and on
+**`Security`**, which is a projection of the same table.
+
+**These cannot both hold.** Implementing them means either weakening or bypassing audit immutability, and the
+standing constraint is explicit — *do not weaken … audit immutability* — as is §9's security-invariant rule.
+**The design→architecture union rule carves this out in its own words: extend the architecture *unless an
+immutable V5 governance or security boundary prevents it*. Here one does.**
+
+**So this is NOT an implementation gap and must not be recorded as one.** Nothing is owed. What is needed is
+an owner ruling on what the verbs **mean** on an append-only population — most plausibly that `Update` and
+`Manage` describe *managing the audit **surface*** (retention class, export, incident linkage) rather than
+*editing audit **records***, which would be implementable and would weaken nothing. **That reading is not
+mine to adopt.**
+
+### 136.3 Why this sweep was worth running
+
+`AI Guardian` had been live and wrong for three migrations, and nothing failed. **An inert grant is invisible
+from both ends:** the matrix says the capability exists, the database silently withholds it, and every test
+that asserts *"the denied role sees nothing"* passes — because the granted role sees nothing either.
+
+That is the same shape as §135.2's vacuous assertion, one level up: **a test proves a denial and says nothing
+about whether the corresponding grant works.** `D15` now asserts both directions for every surface it
+covers — the granted roles read, the denied roles do not — which is what turned `AI Guardian` from an
+assumption into a measurement.
+
+**Nothing in group B, D or F was implemented.** Inventing a write path, a column set or a verb's meaning is
+exactly what the standing instruction forbids.
+
+### 136.4 Register
+
+**B-20 · `Audit logs` / `Security` write verbs vs `A11` audit immutability** — group B, 4 grants.
+*Decision required:* **owner/security** — rule what `Update` and `Manage` mean on an append-only population.
+**No implementation may proceed on a reading I chose.**
+
+**B-21 · `Incidents` write path** — group C, 4 grants. `audit_open_incident()` and the transitions trigger
+already exist; they are not gated on `admin_can()`, so an Admin-layer `trust_lead` cannot reach them.
+*Decision required:* **owner** — confirm the Admin layer may open and transition incidents, then it is mechanical.
+
+**B-22 · `Community` / `Events` / `Training` content write paths** — group D, 6 grants.
+*Decision required:* **owner** — the writable column set per area, as B-2 did for `Users`.
+
+**B-23 · undefined write verbs** — group F, 15 grants. *Decision required:* **owner/design** — what `Create`,
+`Manage` and `Approve` *do* in each area. Several may be UI affordances with no data write at all.
+
+**The register now holds twenty-three boundaries.** Nothing here is blocked on work I am authorized to do.
