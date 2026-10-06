@@ -78,14 +78,40 @@ section('2. F-01 — coach_client_workout_stats is caller-scoped');
 // ═══ 3. F-02 workouts ══════════════════════════════════════════════════════
 section('3. F-02 — the legacy workouts catalog');
 {
+  // THIS SECTION USED TO PROVE LESS THAN IT LOOKED. `workouts` is EMPTY on QA and
+  // the delete attempt was UNFILTERED, so it passed on status 400 — PostgREST
+  // REFUSING AN UNFILTERED DELETE, which says nothing about whether the member
+  // holds the privilege. Being wrong here means a member can empty the exercise
+  // catalogue. A marked row is seeded and a FILTERED delete is attempted against
+  // it, so the assertion now rests on the row surviving (V5 §146).
+  const PROBE = 'P1-SWEEP-PROBE catalog row';
+  await svc(`workouts?title=eq.${encodeURIComponent(PROBE)}`, { method: 'DELETE' });
+  const seeded = await svc('workouts', { method: 'POST', body: { title: PROBE, category: 'probe' } });
+  check('seeded a catalog row, so the delete assertion below is not vacuous',
+    seeded.status < 300, `status=${seeded.status}`);
+  const probeId = n(seeded.body) ? seeded.body[0].id : null;
+
   const read = await rest(victim, 'workouts?select=id&limit=1');
   check('a member can read the catalog', read.status < 300, `status=${read.status}`);
+
   const w = await mutate(victim, 'workouts', 'POST', { title: 'P1-FORGED', category: 'x' });
   check('a member cannot write the catalog', blocked(w), `status=${w.status}`);
-  const d = await mutate(victim, 'workouts', 'DELETE');
-  check('a member cannot delete from the catalog', blocked(d), `status=${d.status}`);
+
+  const d = await mutate(victim, `workouts?id=eq.${probeId}`, 'DELETE');
+  const survived = await svc(`workouts?title=eq.${encodeURIComponent(PROBE)}&select=id`);
+  check('a member cannot delete a catalog row — and the seeded row SURVIVED',
+    blocked(d) && n(survived.body) === 1,
+    `status=${d.status} seeded_row_remaining=${n(survived.body)}`);
+
+  const u = await mutate(victim, `workouts?id=eq.${probeId}`, 'PATCH', { title: 'P1-TAMPERED' });
+  const title = await svc(`workouts?select=title&id=eq.${probeId}`);
+  check('a member cannot rewrite a catalog row either',
+    n(title.body) === 1 && title.body[0].title === PROBE,
+    `status=${u.status} title=${n(title.body) ? title.body[0].title : 'GONE'}`);
+
   const left = await svc('workouts?title=eq.P1-FORGED&select=id');
   check('nothing was written', n(left.body) === 0, `rows=${n(left.body)}`);
+  await svc(`workouts?title=eq.${encodeURIComponent(PROBE)}`, { method: 'DELETE' });
 }
 
 // ═══ 4. F-03 notification injection ════════════════════════════════════════

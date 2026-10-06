@@ -25,7 +25,59 @@
 // (`gh run list --branch <branch> --limit 1`). A red result from a collision is
 // indistinguishable at a glance from a real regression, which is the whole reason
 // this warning is here rather than in a commit message.
+import { execFileSync } from 'node:child_process';
 import { results, beginSuite } from './lib.mjs';
+
+// ⚠ REFUSES TO START WHILE CI IS RUNNING THE SAME SUITES AGAINST THE SAME QA PROJECT.
+//
+// The warning above has been a comment since V5 §95, and a comment did not stop it
+// happening again: V5 §146 records a local run of this file overlapping CI's
+// live-qa step, which left a coach_client_relationship visible to the AI suite that
+// runs next and failed `J-04` on an invariant that had nothing to do with the
+// change under test. Locally the same sequence leaves zero rows and J-04 passes
+// 16/16 — the failure was the collision, not the code.
+//
+// .githooks/pre-push closed the OTHER half of this rule (don't push over a run).
+// This closes the half that actually corrupts fixtures: don't RUN over a run.
+//
+// Fails CLOSED when a run is in flight; fails OPEN when it cannot tell — no `gh`,
+// offline, unauthenticated, or not a git checkout — because refusing to test
+// because a CLI is missing is worse than the problem it prevents.
+//
+//   ALLOW_CONCURRENT_QA_RUN=1 node supabase/tests/security/run.mjs   # deliberate
+function refuseIfCiRunning() {
+  if (process.env.ALLOW_CONCURRENT_QA_RUN === '1') return;
+  if (process.env.CI) return;                       // this IS the CI runner
+  let branch, raw;
+  try {
+    branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    raw = execFileSync('gh', ['run', 'list', '--branch', branch, '--limit', '10',
+      '--json', 'status,databaseId,headSha'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch {
+    console.log('  (could not check for in-flight CI — proceeding)');
+    return;
+  }
+  let live = [];
+  try {
+    live = JSON.parse(raw).filter((r) =>
+      ['queued', 'in_progress', 'requested', 'waiting', 'pending'].includes(r.status));
+  } catch { return; }
+  if (!live.length) return;
+  console.error(`\n  ✋ REFUSING TO RUN — CI is executing on "${branch}":`);
+  for (const r of live) console.error(`     run ${r.databaseId}  ${String(r.headSha).slice(0, 7)}  ${r.status}`);
+  console.error(`
+  Both would arrange the SAME fixtures against the SAME QA project. V5 §95 produced
+  four failures that read like an authorization hole and were not; §146 produced a
+  J-04 failure in a suite the change never touched.
+
+  Wait for it, or override deliberately:
+      ALLOW_CONCURRENT_QA_RUN=1 node supabase/tests/security/run.mjs
+`);
+  process.exit(2);
+}
+refuseIfCiRunning();
 
 const SUITES = [
   ['D-01  coach_client_relationships', './d01-coach-client-relationships.mjs'],

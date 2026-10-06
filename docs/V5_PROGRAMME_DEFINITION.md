@@ -14538,3 +14538,54 @@ them. **That is the gap that let 156/157's three views reach QA holding `authent
 is now closed for every view that ships from here on.
 
 `D15` **268/268** · regression **781/781 across 15 suites** · Flutter **1704/1704** · QA frontier **166**.
+
+---
+
+## 146 · A CI FAILURE I CAUSED BY TESTING, AND THE OTHER HALF OF §95'S RULE
+
+`73bbc1d` went red — but **not** in the suites it changed. The live security run passed **781/781**; the
+failure was one assertion in a different step:
+
+> `FAIL INV  the probe coach has no client relationships to justify access — 1 relationship row(s) visible`
+
+`J-04` asserts its probe coach is unrelated to anyone, so that a later access check cannot be satisfied for
+the wrong reason. A stray relationship row made it visible.
+
+**Root cause: I ran the full security suite locally while CI was running the same suites against the same QA
+project.** Reproduced the other way round — locally, in sequence, the security run leaves **zero** fixture
+relationships and `J-04` passes **16/16**, with the AI suite at **49/49**. The failure was the collision, not
+the code.
+
+### 146.1 The rule existed; only half of it was mechanical
+
+`run.mjs` has carried **"⚠ ONE RUNNER AT A TIME, PER QA PROJECT"** as a comment since §95, where overlapping
+runners produced four failures and one of them *"READS EXACTLY LIKE AN AUTHORIZATION HOLE AND IS NOT ONE"*.
+
+§139.3 made the **push** half mechanical with `.githooks/pre-push`. **It does not cover running tests**, and
+running tests is the half that actually corrupts fixtures — a push only cancels a run, while a concurrent
+runner arranges the same rows underneath it.
+
+`run.mjs` now **refuses to start** when CI is executing on the same branch, printing the run it is waiting
+for. It **fails closed** on a live run and **fails open** when it cannot tell — no `gh`, offline,
+unauthenticated, not a git checkout — because refusing to test because a CLI is missing is worse than the
+problem. It never blocks itself: `CI=1` short-circuits, so the CI runner is unaffected.
+
+Proven on four paths: refuses with **exit 2** on a live run · proceeds on a completed run · proceeds under
+`CI=1` · proceeds under `ALLOW_CONCURRENT_QA_RUN=1`.
+
+**That is twice now that a rule I kept breaking got moved into a mechanism rather than restated** — §137 for
+the cancelled-run fixture poisoning, and this. The pattern worth naming: *when the same rule is broken a
+third time, the rule is not the problem.*
+
+### 146.2 And a catalogue assertion that proved less than it looked
+
+Found in the same sweep. `d06` asserted *"a member cannot delete from the catalog"* with an **unfiltered**
+`DELETE`, and passed on **status 400** — which is **PostgREST refusing an unfiltered delete**, not the member
+lacking the privilege. `workouts` is empty on QA, so even `blocked()`'s `affected === 0` arm would have
+passed. **Being wrong there means a member can empty the exercise catalogue.**
+
+It now seeds a marked row, issues a **filtered** delete, and rests on the row **surviving** — which returns
+**403**, a real privilege refusal. An UPDATE assertion was added on the same row, because rewriting the
+catalogue is as damaging as deleting it and nothing covered it. `d06` **34 → 36**.
+
+Live regression **783/783 across 15 suites**.
