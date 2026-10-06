@@ -700,24 +700,72 @@ void main() {
       });
     });
 
-    test('any view created after 112 revokes its own write grants', () {
+    // SEC-018 · every view created after 112 must end up with its write grants
+    // revoked from `authenticated`. Supabase ships
+    // `ALTER DEFAULT PRIVILEGES ... GRANT ALL ON TABLES TO authenticated`, so a new
+    // view is BORN with INSERT/UPDATE/DELETE granted and a later GRANT SELECT does
+    // not take them away.
+    //
+    // WHY THIS CHECKS THE CUMULATIVE END STATE RATHER THAN ONE FILE. It used to
+    // require the REVOKE in the SAME migration that creates the view. That is the
+    // right way to AUTHOR a migration, but it is unsatisfiable for a FORWARD-ONLY
+    // remediation: when a view has already been applied to an environment, the
+    // repository's own rule is that the applied file is not edited in place
+    // (check-migration-hygiene.sh, on Wave 0's finding that 15 migrations edited in
+    // place made "replay from empty" and "what production actually ran" diverge).
+    // So a defect of exactly this kind could only ever be fixed by breaking one
+    // rule or the other.
+    //
+    // V5 §129 is the case that forced the question: 156/157 created three Admin
+    // views revoking from PUBLIC and anon but NOT authenticated, and because both
+    // single-table views are auto-updatable and run security_invoker = off, a user
+    // holding only the Admin-layer `viewer` role DELETED another user's row through
+    // one of them. 158 revokes the grants forward.
+    //
+    // THE INVARIANT IS NOT RELAXED. A view with no REVOKE anywhere still fails, so
+    // this test would still have gone red on 9681ff6, where 158 did not yet exist —
+    // which is exactly how the defect was caught. What changed is only WHERE the
+    // satisfying statement may live, and a later migration must still name the view
+    // explicitly. The reason string reports which migration satisfied it, so a
+    // remediation sitting far from its cause stays visible rather than silent.
+    test('every view created after 112 has its write grants revoked', () {
       final createView = RegExp(
         r'CREATE\s+(OR\s+REPLACE\s+)?VIEW\s+(public\.)?([a-z_][a-z0-9_]*)',
         caseSensitive: false,
       );
+      // view name -> the migration that creates it (first one wins)
+      final created = <String, MapEntry<int, String>>{};
       migrations.forEach((n, mig) {
         if (n <= 112) return;
-        final flat = _flat(mig.sql);
-        for (final m in createView.allMatches(flat)) {
-          final view = m.group(3)!;
-          expect(
-            RegExp('REVOKE[^;]*ON\\s+(public\\.)?$view\\b[^;]*authenticated',
-                    caseSensitive: false)
-                .hasMatch(flat),
-            isTrue,
-            reason: '${mig.name} creates view "$view" without revoking write from '
-                'authenticated — Supabase default privileges will have granted ALL',
-          );
+        for (final m in createView.allMatches(_flat(mig.sql))) {
+          created.putIfAbsent(m.group(3)!, () => MapEntry(n, mig.name));
+        }
+      });
+
+      created.forEach((view, origin) {
+        final revoke = RegExp(
+          'REVOKE[^;]*ON\\s+(public\\.)?$view\\b[^;]*authenticated',
+          caseSensitive: false,
+        );
+        String? satisfiedBy;
+        migrations.forEach((n, mig) {
+          if (satisfiedBy != null || n < origin.key) return;
+          if (revoke.hasMatch(_flat(mig.sql))) satisfiedBy = mig.name;
+        });
+        expect(
+          satisfiedBy,
+          isNotNull,
+          reason: '${origin.value} creates view "$view" and NO migration at or '
+              'after it revokes write from authenticated — Supabase default '
+              'privileges will have granted ALL, and a security_invoker = off view '
+              'over a single table is auto-updatable, so a write through it runs as '
+              'the view owner and base-table RLS does not apply',
+        );
+        if (satisfiedBy != origin.value) {
+          // Allowed, but recorded: the fix is not where the hazard was introduced.
+          // ignore: avoid_print
+          print('SEC-018 note: view "$view" created in ${origin.value} is revoked '
+              'later, in $satisfiedBy (forward-only remediation)');
         }
       });
     });

@@ -265,6 +265,66 @@ async function run() {
     check('Roles READ confers no role-management authority (owner constraint)',
       wRole.status >= 400 || wRole.affected === 0, `status=${wRole.status}`);
 
+    // ── 6b · THE CURATED VIEWS CONFER NO WRITE AUTHORITY ───────────────────
+    // This section exists because 156/157 SHIPPED WITHOUT IT and the gap was real.
+    // Both migrations revoked from PUBLIC and anon but NOT from `authenticated`,
+    // and Supabase's default privileges grant ALL on a new view to that role. The
+    // two single-table views are auto-updatable and run security_invoker = off, so
+    // a write through them executes as the view OWNER and base-table RLS does not
+    // apply. A user holding only the Admin-layer `viewer` role -- View yes, Update
+    // explicitly NO -- DELETED another user's user_integrations row through
+    // admin_integration_connections before migration 158 (V5 §129.2).
+    //
+    // Section 6 above asserted write refusal on the BASE TABLES and passed, which
+    // is exactly why it did not catch this: the escalation was through the VIEW.
+    // A deny assertion only covers the object it names.
+    section('the curated views confer no write authority (158)');
+    const NONE = '00000000-0000-0000-0000-000000000000';
+    // INSERT and DELETE reflect the privilege directly: both answered 2xx before
+    // 158 and 403 after it.
+    for (const v of VIEWS) {
+      for (const method of ['POST', 'DELETE']) {
+        const path = method === 'POST' ? v : `${v}?id=eq.${NONE}`;
+        const r = await rest(victim, path, {
+          method,
+          ...(method === 'DELETE' ? {} : { body: JSON.stringify({ provider: 'probe' }) }),
+          headers: { 'Content-Type': 'application/json' },
+        }).catch(() => ({ status: 403 }));
+        check(`${method} on ${v} is refused`, r.status >= 400,
+          `status=${r.status} — a 2xx means authenticated still holds the write grant`);
+      }
+    }
+    // UPDATE is asserted by OUTCOME, not by status. PostgREST answers 204 to a
+    // PATCH on these views whether or not the privilege exists -- it returns 204
+    // even for admin_training_overview, which is not auto-updatable and could not
+    // accept an UPDATE under any privilege. So the status code carries no
+    // information here and asserting 403 on it would be asserting PostgREST's
+    // request handling. What matters is that no write LANDS, which is checked
+    // against the base row below, by a caller who DOES hold the View grant and
+    // therefore supplies a non-empty row set -- the exact condition under which
+    // the pre-158 DELETE succeeded.
+    const coachUid2 = await uidOf('coach');
+    await svc('user_integrations', { method: 'POST', body: {
+      user_id: coachUid2, provider: 'qa-d15-write-probe', connected: true,
+      access_token: 'ORIGINAL' } });
+    const probeRow = (await svc('user_integrations?select=id,connected&provider=eq.qa-d15-write-probe')).body[0];
+    if (probeRow) {
+      const visible = await rest(victim, 'admin_integration_connections?select=id&provider=eq.qa-d15-write-probe');
+      check('the Viewer DOES see the probe row — the row set is non-empty, so a write would have had a target',
+        n(visible.body) === 1, `rows=${n(visible.body)}`);
+      await rest(victim, `admin_integration_connections?id=eq.${probeRow.id}`, { method: 'PATCH',
+        body: JSON.stringify({ connected: false }), headers: { 'Content-Type': 'application/json' } }).catch(() => ({}));
+      const delRes = await rest(victim, `admin_integration_connections?id=eq.${probeRow.id}`,
+        { method: 'DELETE' }).catch(() => ({ status: 403 }));
+      const after = await svc('user_integrations?select=id,connected,access_token&provider=eq.qa-d15-write-probe');
+      check('ESCALATION CLOSED: another user\'s row survives a Viewer\'s PATCH and DELETE, unchanged',
+        n(after.body) === 1 && after.body[0].connected === true && after.body[0].access_token === 'ORIGINAL',
+        `rows=${n(after.body)} connected=${n(after.body) === 1 ? after.body[0].connected : 'gone'} delete_status=${delRes.status}`);
+      await svc('user_integrations?provider=eq.qa-d15-write-probe', { method: 'DELETE' });
+    } else {
+      check('write-escalation probe row seeded', false, 'could not seed the probe row');
+    }
+
     // ── 7 · anon reaches none of the three new surfaces ─────────────────────
     section('anon posture on the new surfaces');
     for (const v of VIEWS) {
