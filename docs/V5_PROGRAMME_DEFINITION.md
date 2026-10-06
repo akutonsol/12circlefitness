@@ -13583,3 +13583,50 @@ feature's own privacy premise most sharply.
 membership scope and accept the client impact. **Not bundled with `CONF-D8`.**
 
 **The register now holds eighteen boundaries.** Nothing in this section unblocks any of them.
+
+---
+
+## 131 · FRONTIER REASSESSMENT AFTER THE SURFACES CLOSED — RUN PER BRANCH, AGAINST §122.3
+
+§122.3 asked *"does QA closure unlock anything?"* and answered **no**, per branch, with specific reasons. The
+matrix has since arrived, the mechanism closed, and nine of seventeen areas now have an authorization surface.
+That is a materially different starting point, so the same audit is re-run rather than assumed.
+
+| branch (as §122.3 named it) | then | now | why |
+|---|---|---|---|
+| Migrations 153/154 | COMPLETE | **COMPLETE**, plus **155 · 156 · 157 · 158** all `VERIFIED_CLOSED` | all four rungs, CI `d4a0b46` 6/6 |
+| `CONF-D8` · capability seeding · Admin RLS | BLOCKED on the 85 cells | **PARTLY COMPLETE** — matrix seeded (155), nine areas surfaced (156–158) | the remaining eight areas are **B-1 … B-8**, each a distinct decision |
+| Settings feature/availability registry | BLOCKED — *"its authorization does [need cells]"* | **STILL BLOCKED, for a narrowed reason** | the authorization half **is** now resolved by the matrix. What remains is that **nothing defines which features exist**, and `Configuration` was **not** in the owner's authorized list — so it is blocked by scope as well as by definition |
+| `policy_evaluation` | BLOCKED — no producer | **STILL BLOCKED** | direction B authorizes the `observability_events` home; there is still **no policy engine to emit an evaluation**. Unchanged by anything in §128–130 |
+| Guardian telemetry · agent registry | BLOCKED — `P7` | **STILL BLOCKED** | `P7`. Also **B-17**: AI Guardian must not become a prerequisite for core security |
+| `A12` surface question | BLOCKED — security authority | **STILL BLOCKED** | and note `A12` was *strengthened* by §128.3's decision not to resolve in a view — that closed a risk, it did not answer the question |
+| `CAP-1` · `CONF-D6` · `PD-C03` · §100.5 | BLOCKED — owner | **STILL BLOCKED** | **B-10 … B-13**, unchanged |
+| Cross-product Helix | BLOCKED — external design authority | **STILL BLOCKED** | unchanged |
+| `D12` component value | BLOCKED — moot | **STILL BLOCKED** | still nothing to store |
+
+### 131.1 Branches outside §122.3's list, checked too
+
+| branch | state | why |
+|---|---|---|
+| **`P5` — Admin UI implementation** | **BLOCKED** | the owner's authorization covered **database authorization surfaces**, explicitly not the UI, and the standing instruction *"DO NOT IMPLEMENT THE DASHBOARD"* has not been lifted. The surfaces now exist for it to consume |
+| **`FG-1` · `FG-2` · ENV-3 live half** | **BLOCKED — infrastructure** | all three are SQL, not REST, and need a **QA database credential in CI**. `QA_DB_URL` is unset in this environment; `supabase/scripts/live-evidence.sh` is written to skip without it |
+| `LRE-34` · `REL-36` · `LRE-35` | **BLOCKED — unsafe** | *"seed/link guards proven in a local container only, never against QA"*. Verifying them against QA means a **reset/reseed**, which would destroy the fixture identities and the audit population every live suite depends on. Not authorized and not safe |
+| `E-09` | **BLOCKED** | deployment of the block is gated by `W1B-N5` |
+| `UIX-2` text half | **BLOCKED — owner** | replacement wording is `REQUIRES_REVIEW` |
+| **B-18** community-content read breadth | **BLOCKED — owner** | §130; and the owner instructed that it **not** be changed as part of `CONF-D8` |
+| Docker-dependent verification (`db dump`, local CI replay) | **BLOCKED — infrastructure** | Docker unavailable; behavioural verification is used instead, which `QA_CLOSURE_STANDARD` §5.2 rates higher anyway |
+
+### 131.2 The honest answer
+
+**Closing the surfaces unlocked nothing beyond itself.** Every remaining branch is blocked on an **owner
+decision** (B-1 … B-4, B-8 … B-16, B-18, `UIX-2`), an **architecture decision** (B-5 … B-7, B-17,
+`policy_evaluation`, the Settings registry), a **security authority** (`A12`, B-2, B-4), a **phase gate**
+(`P5`, `P7`, `W1B-N5`), **external authority** (Helix), or **infrastructure** (`FG-1`, `FG-2`, ENV-3's live
+half, Docker, the QA DB credential).
+
+**No branch is blocked on work I am authorized to do and have not done.** That is the condition for stopping,
+and it is reached here — not because migrations, tests, commits, CI or documentation completed, but because
+the audit above found no reachable authorized branch.
+
+**Eighteen boundaries stand in §129.4. `CONF-D8` remains OPEN with nine of seventeen areas surfaced. QA at 158.
+`PD-G01`, `PD-A24` and `P10` not released. Production never contacted.**
