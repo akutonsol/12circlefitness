@@ -13991,3 +13991,52 @@ already exist; they are not gated on `admin_can()`, so an Admin-layer `trust_lea
 `Manage` and `Approve` *do* in each area. Several may be UI affordances with no data write at all.
 
 **The register now holds twenty-three boundaries.** Nothing here is blocked on work I am authorized to do.
+
+---
+
+## 137 · A CANCELLED CI RUN POISONED THE NEXT ONE — AND THE RULE I BROKE FOR THE THIRD TIME
+
+`b48a394` went red on `D13` with **one** failure: *"arranged: victim holds the Viewer Admin role —
+status=409"*. The cause chain is entirely mine.
+
+### 137.1 What happened, in order
+
+1. **I pushed `b48a394` over the in-flight run for `8374253`**, which GitHub cancelled. §96.2's rule —
+   *check that no run is in flight before pushing* — exists because I broke it in §95 and broke it again in
+   §98.4. **This is the third time.**
+2. The cancelled run was **mid-live-suite**. A cancelled process never runs a `finally`, so `D13`'s fixture
+   assignment **survived**.
+3. `admin_role_assignments` has **`user_id` as its PRIMARY KEY**, and `D13`'s arrange was a **bare
+   `INSERT`** — so the next run got **409**.
+4. `D13`'s cleanup was guarded by **`if (arranged)`**. A *failed* arrange therefore **left the row in
+   place**, so the failure **perpetuated itself**: every later run would have failed for a reason with
+   nothing to do with the code under test.
+5. `D15`'s `assign()` deletes before inserting, so when it ran it **cleaned the row up** — which is why the
+   table read clean by the time I inspected it, and why the cause looked like it had vanished.
+
+### 137.2 The fix is in the test, not the process
+
+I will keep breaking §96.2 occasionally; three times says so. **So the suite is made to survive it**, which
+is the more durable of the two repairs:
+
+- `D13`'s arrange now **deletes before inserting**, matching `D14` and `D15`, which already did;
+- its cleanup is now **unconditional** — deleting a row that is not there is free, and the guard was the
+  thing that turned one bad run into a permanent one.
+
+**Proven, not assumed:** a stale `support` assignment was planted — *the exact post-cancellation state* —
+and `D13` then passed **21/21**.
+
+**Swept for the class** (`QA_CLOSURE_STANDARD` §5.2): `D13` was the only suite with a bare `INSERT` against
+that primary key. `D14` and `D15` were already delete-first. **No other instance exists.**
+
+### 137.3 What this says about the evidence
+
+The run before this one was **green on the same code**. A cancelled run left state behind, and the next run
+reported a failure in a suite whose subject had not changed — **the same false-alarm shape as §95**, where a
+concurrent runner produced a result that *"READS EXACTLY LIKE AN AUTHORIZATION HOLE AND IS NOT ONE"*.
+
+**A red CI result whose failure is an `arrange` step is a claim about fixtures, not about security.** Both
+times, the tell was the same: the failing assertion was a precondition, not a property.
+
+Full regression after the fix: **670/670 across 15 suites**, **0 fixture assignments left**, **capability
+grid intact at 116**.

@@ -75,6 +75,18 @@ async function run() {
       // or the body is double-encoded and the row lands unusable while PostgREST
       // still answers 201. That exact mistake made is_admin_member() read false
       // on this suite's first live run.
+      // DELETE FIRST. admin_role_assignments has user_id as its PRIMARY KEY, so a
+      // bare INSERT returns 409 if ANY row for this fixture survives from an
+      // earlier run -- and this arrange used to be a bare INSERT.
+      //
+      // V5 §137: that is not hypothetical. Pushing over an in-flight CI run
+      // cancelled it mid-suite; a cancelled process never runs a `finally`, so the
+      // assignment row survived, and the NEXT run's arrange returned 409. Because
+      // the cleanup below was guarded by `if (arranged)`, a failed arrange left the
+      // row in place -- so the failure perpetuated itself and every subsequent run
+      // would have failed for a reason that had nothing to do with the code under
+      // test. A suite must survive the abrupt death of the one before it.
+      await svc(`admin_role_assignments?user_id=eq.${uid}`, { method: 'DELETE' });
       const ins = await svc('admin_role_assignments', {
         method: 'POST', body: { user_id: uid, admin_role: 'viewer' },
       });
@@ -159,11 +171,12 @@ async function run() {
         `status=${a.status}`);
     }
   } finally {
-    if (arranged) {
-      const me = await svc(`user_profiles?select=id&email=eq.${encodeURIComponent(IDENT.victim.email)}`);
-      const uid = Array.isArray(me.body) && me.body[0] ? me.body[0].id : null;
-      if (uid) await svc(`admin_role_assignments?user_id=eq.${uid}`, { method: 'DELETE' });
-    }
+    // UNCONDITIONAL. This used to run only `if (arranged)`, which meant a FAILED
+    // arrange left its row behind -- the exact condition that makes the failure
+    // self-perpetuating (V5 §137). Deleting a row that is not there is free.
+    const me = await svc(`user_profiles?select=id&email=eq.${encodeURIComponent(IDENT.victim.email)}`);
+    const uid = Array.isArray(me.body) && me.body[0] ? me.body[0].id : null;
+    if (uid) await svc(`admin_role_assignments?user_id=eq.${uid}`, { method: 'DELETE' });
   }
 
   return summary('D13 admin graded authorization');
