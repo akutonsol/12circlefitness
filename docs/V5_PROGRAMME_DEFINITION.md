@@ -14638,3 +14638,73 @@ destructive one with an empty population is the most misleading test a repositor
 it is specific, and it is false.
 
 Live regression **783/783 across 15 suites** · AI **49/49** · characterizations **17/17**.
+
+---
+
+## 148 · AUTONOMOUS FRONTIER — SEARCHED, NOT ASSUMED
+
+The §13 sweep was run to completion rather than stopping at `B-23`. **It produced one implementation, four
+guards, three corrections to my own tooling, and five clean results proven by live probe.**
+
+### 148.1 Swept clean, with evidence rather than assumption
+
+| class | result | how it was established |
+|---|---|---|
+| tables without RLS | **0 of 106** | 14 are secured by `DO`/`FOREACH` loops; a seeded cross-user row proved the filtering |
+| views holding a write privilege | **0 of 13** | probed live with `POST` and `DELETE` as a member |
+| secret-bearing tables beyond `user_integrations` | **0 exposed** | three invite-token tables; `coach_team_invites` proven with a **seeded** fixture because it is empty |
+| `EXECUTE` granted to `anon`/`PUBLIC` | **0** | one textual hit is a comment; anon gets **401** live on three privileged RPCs |
+| post-122 definer functions without a pinned `search_path` | **0 of 35** | and now guarded in CI |
+| schema drift QA ↔ migrations | **0 undeclared objects** | 118 live objects enumerated from PostgREST's own spec |
+
+### 148.2 Three of my four "security findings" were my own tooling
+
+A static sweep reported **14 tables with no RLS** — including `ai_memories` and `ai_profiles`, which carry
+`user_id` — and **56 definer functions without a pinned `search_path`**. **Both were false.** Migration
+074 enables RLS through a `foreach` loop; 118 and 122 pin `search_path` through `ALTER FUNCTION` loops.
+Neither mechanism leaves the literal statement my extractor matched.
+
+**Acting on the first would have meant adding policies to five tables holding members' AI memories — "fixing"
+RLS that works.** A checker that invents a defect is as dangerous as one that misses it, and this is the same
+root cause as §129.3's three misses: *a pattern that does not match the code the repository actually
+contains*.
+
+**The rule that falls out, and it has now held four times:** *a static scan that disagrees with a live probe
+is wrong until the live probe says otherwise.* Every one of these was settled by probing QA, not by reading
+harder.
+
+### 148.3 What was built
+
+**166** — two per-area aggregate surfaces, because `admin_platform_stats()` is gated on `is_admin()` alone and
+**the Admin layer could see no aggregate at all**. 019 was not widened: its counts span areas and the matrix
+grants View per area. `admin_user_overview` closes the data contract's named row-1 gap (*"3 of 7 roles
+unrepresented"*); `admin_events_overview` counts rows and **refuses to compute "attendance"**, which the
+contract records as undefined.
+
+**Four mechanisms, each closing a class that had already bitten:**
+
+| mechanism | the class it closes |
+|---|---|
+| `check-function-posture.mjs` + CI | a new definer function losing its `search_path` pin — 116/119/120/121 each did, twice forcing a bulk sweep |
+| `rlsEnabled()` detecting dynamic enablement | §148.2's false positive |
+| `IS_MAIN` guard on both script CLIs | a guard whose own self-test **silently did not run** and reported success |
+| `run.mjs` refusing a concurrent QA run | §95's rule, whose **push** half §139.3 mechanised and whose **test** half caused §146's red CI |
+
+### 148.4 Frontier — exhausted for everything I am authorized to do
+
+| branch | state |
+|---|---|
+| `B-23` · 16 undecided write verbs | **BLOCKED — owner/design.** No verb semantics in any tracked source |
+| `CAP-1`/`B-10` · moderation | **BLOCKED — owner.** Gates `Community`'s two write grants |
+| Dashboard metrics (DAU, revenue, health, …) | **BLOCKED — owner.** The data contract: *"Every one of the fourteen has at least one open business definition"* |
+| `B-5`/`B-6`/`B-7` | **DEFERRED by decision**, rendering `A11` empty states |
+| `B-17` AI Guardian runtime · `policy_evaluation` | **BLOCKED — architecture.** No telemetry surface, no evaluation producer |
+| `B-9` · `B-11` … `B-16` | **BLOCKED — owner / phase / not for release** |
+| `P5` Admin UI | **BLOCKED** — database surfaces were authorized, explicitly not the UI |
+| `FG-1` · `FG-2` · ENV-3 live half | **BLOCKED — infrastructure.** `QA_DB_URL` unset |
+| `LRE-34` · `REL-36` · `LRE-35` | **BLOCKED — unsafe.** Verification requires a QA reset that destroys the fixtures |
+| engine-substrate test fixtures | **DECLINED deliberately** — seeding graph rows would fabricate the substrate under test |
+
+**Migrations 153–166 `VERIFIED_CLOSED`.** QA frontier **166** · CI `e1570f2` green **6/6** · live regression
+**783/783 across 15 suites** · AI **49/49** · characterizations **17/17** · Flutter **1704/1704** ·
+**production never contacted.**
