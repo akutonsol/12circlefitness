@@ -1,13 +1,13 @@
 {
   "_": [
-    "NON-OPERATIONAL CAPABILITY REGISTER — V5 §139.",
+    "NON-OPERATIONAL CAPABILITY REGISTER \u2014 V5 \u00a7139.",
     "",
     "A capability in this register is AUTHORIZED AND NOT OFFERED. admin_can() answers",
     "for it exactly as the approved matrix says, and the product provides no operation",
     "for it to gate. That is a decided state, not an unfinished one.",
     "",
     "WHY THIS FILE EXISTS. 38 of the 39 write grants in the approved matrix have no",
-    "write path (V5 §136). Without a record saying WHICH of those are settled and why,",
+    "write path (V5 \u00a7136). Without a record saying WHICH of those are settled and why,",
     "a later reader finds a long list of grants that do nothing and reopens them as",
     "implementation debt -- which is exactly how B-20 reached the owner. Prose in a",
     "13,000-line ledger did not prevent that. A machine-readable register, enforced by",
@@ -25,23 +25,27 @@
     "resource still refuses mutation, and no write path is gated on it."
   ],
   "version": "1.0",
-  "authority": "owner decision B-20, 2026-10-06",
+  "authority": "owner decisions B-20 (2026-10-05) and B-21c (2026-10-06)",
   "matrix_is_unchanged": true,
   "non_operational": [
     {
       "area": "Audit logs",
       "verb": "Update",
-      "granted_to": ["trust_lead"],
-      "invariant": "A11 append-only — audit_events",
+      "granted_to": [
+        "trust_lead"
+      ],
+      "invariant": "A11 append-only \u2014 audit_events",
       "reason": "An audit record cannot be modified. trg_audit_events_freeze (142:273) raises on UPDATE for every caller, including service_role, and 148 revokes the table from authenticated and service_role leaving only SELECT.",
-      "why_not_an_implementation_defect": "No approved design feature is being withheld. The build spec contains no mutate affordance on any screen, and the Dashboard drawer states 'Actions open the item. Nothing is changed from this screen.' There is nothing to extend the architecture toward, so the §102 union rule is not engaged.",
+      "why_not_an_implementation_defect": "No approved design feature is being withheld. The build spec contains no mutate affordance on any screen, and the Dashboard drawer states 'Actions open the item. Nothing is changed from this screen.' There is nothing to extend the architecture toward, so the \u00a7102 union rule is not engaged.",
       "what_would_change_this": "An owner decision defining a non-mutating management surface (saved views, export requests, retention class). That would be new product behaviour and must be specified, not inferred."
     },
     {
       "area": "Audit logs",
       "verb": "Manage",
-      "granted_to": ["trust_lead"],
-      "invariant": "A11 append-only — audit_events",
+      "granted_to": [
+        "trust_lead"
+      ],
+      "invariant": "A11 append-only \u2014 audit_events",
       "reason": "The only existing management operation on the audit surface is audit_sever_identity() (152:175), which mutates no audit record and is RESERVED to is_erasure_executor() by A12 ruling 6. The Admin layer must not reach it, and erasure_executor semantics must not be modified.",
       "why_not_an_implementation_defect": "Every adjacent resource is frozen or reserved: audit_events and audit_control_evidence carry freeze triggers, observability_events is retained and write-once, and audit_identity_map is severed only by the erasure executor. No mutable resource exists in this area for the Admin layer to manage.",
       "what_would_change_this": "Same as Audit logs / Update."
@@ -49,27 +53,95 @@
     {
       "area": "Security",
       "verb": "Update",
-      "granted_to": ["trust_lead"],
-      "invariant": "A11 append-only — audit_events, via the Security projection",
+      "granted_to": [
+        "trust_lead"
+      ],
+      "invariant": "A11 append-only \u2014 audit_events, via the Security projection",
       "reason": "The Security area is a category filter over audit_events (owner decision B-1: authentication, authorization_denial, admin_action, audit_read). Its records are the same frozen rows, reached through admin_security_events, which is itself read-only (159 revokes write from PUBLIC, anon and authenticated).",
-      "why_not_an_implementation_defect": "As Audit logs / Update. The spec describes Security as 'Authentication anomalies, authorization events, suspicious activity, unresolved security incidents' — four read populations.",
+      "why_not_an_implementation_defect": "As Audit logs / Update. The spec describes Security as 'Authentication anomalies, authorization events, suspicious activity, unresolved security incidents' \u2014 four read populations.",
       "what_would_change_this": "An owner decision defining detector or threshold configuration as a Security-area resource. No such resource exists today."
     },
     {
       "area": "Security",
       "verb": "Manage",
-      "granted_to": ["trust_lead"],
-      "invariant": "A11 append-only — audit_events, via the Security projection",
+      "granted_to": [
+        "trust_lead"
+      ],
+      "invariant": "A11 append-only \u2014 audit_events, via the Security projection",
       "reason": "As Security / Update. 'unresolved security incidents' are governed by the Incidents area, whose write verbs are a SEPARATE and still-undecided boundary (B-21) over a genuinely mutable table.",
       "why_not_an_implementation_defect": "As Audit logs / Manage.",
-      "what_would_change_this": "Same as Security / Update, or an owner ruling that Security/Manage means acting on incidents — which would resolve into B-21 rather than into this register."
+      "what_would_change_this": "Same as Security / Update, or an owner ruling that Security/Manage means acting on incidents \u2014 which would resolve into B-21 rather than into this register."
+    },
+    {
+      "area": "Incidents",
+      "verb": "Approve",
+      "granted_to": [
+        "trust_lead"
+      ],
+      "invariant": "no ruled vocabulary \u2014 V5 \u00a777.3",
+      "reason": "approval_status has NO enumerated values. Migration 143's own column comment: \"unlike severity, which V5 specifies as Critical/High/Warning/Informational, the approval-status values are not enumerated in any tracked source. Left unconstrained rather than invented; see V5 \u00a777.3.\" All 160 live incidents sit at 'pending' and nothing has ever moved.",
+      "why_not_an_implementation_defect": "Implementing Approve means choosing what value it sets, which is inventing the vocabulary \u00a777.3 deliberately declined to invent. The approved design names 'incident workflows' and 'incident and approval states' as things to DESIGN, not as specified behaviour.",
+      "what_would_change_this": "An owner ruling enumerating the approval_status values. The transition itself is then mechanical: the table is tracked-mutable and the transitions trigger already journals approval_status changes."
+    },
+    {
+      "area": "Incidents",
+      "verb": "Manage",
+      "granted_to": [
+        "trust_lead"
+      ],
+      "invariant": "undefined verb",
+      "reason": "No tracked source states what Manage does on an incident. The same condition as B-23's sixteen grants.",
+      "why_not_an_implementation_defect": "Nothing is being withheld, because nothing has been specified. Incidents are readable (B-4), openable (B-21b) and their response fields writable (B-21a); Manage names no further operation.",
+      "what_would_change_this": "An owner or design ruling stating what Manage does that Update and Approve do not."
     }
   ],
   "undecided": {
     "_": "NOT ruled non-operational. These have no write path and no decision; they must not be read as settled.",
-    "B-21": { "areas": ["Incidents"], "verbs": ["Create", "Update", "Manage", "Approve"], "note": "audit_incidents IS mutable — DELETE is blocked and identity columns are frozen, but transitions are recorded, so these are implementable once the owner confirms the Admin layer may open and transition incidents." },
-    "B-22": { "areas": ["Community", "Events", "Training"], "verbs": ["Create", "Update"], "note": "Needs a writable column set per area, as B-2 settled for Users." },
-    "B-23": { "areas": ["AI Guardian", "Integrations", "System"], "verbs": ["Create", "Update", "Manage", "Approve"], "note": "Nothing states what the verb does. Several may be UI affordances with no data write." },
-    "B-5/B-6": { "areas": ["QA", "Releases"], "verbs": ["Create", "Update", "Manage", "Approve"], "note": "Area deferred by owner to an A11 empty state; the write verbs defer with it." }
+    "B-21": {
+      "areas": [
+        "Incidents"
+      ],
+      "verbs": [],
+      "note": "RESOLVED 2026-10-06. Update -> implemented, response fields only (164). Create -> implemented, owner amended B1 additively (164). Approve and Manage -> ruled non-operational above."
+    },
+    "B-22": {
+      "areas": [
+        "Community",
+        "Events",
+        "Training"
+      ],
+      "verbs": [
+        "Create",
+        "Update"
+      ],
+      "note": "Needs a writable column set per area, as B-2 settled for Users."
+    },
+    "B-23": {
+      "areas": [
+        "AI Guardian",
+        "Integrations",
+        "System"
+      ],
+      "verbs": [
+        "Create",
+        "Update",
+        "Manage",
+        "Approve"
+      ],
+      "note": "Nothing states what the verb does. Several may be UI affordances with no data write."
+    },
+    "B-5/B-6": {
+      "areas": [
+        "QA",
+        "Releases"
+      ],
+      "verbs": [
+        "Create",
+        "Update",
+        "Manage",
+        "Approve"
+      ],
+      "note": "Area deferred by owner to an A11 empty state; the write verbs defer with it."
+    }
   }
 }

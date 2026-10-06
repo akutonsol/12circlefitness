@@ -14239,3 +14239,71 @@ meaning at all, and several may be UI affordances with no data write.
 | **B-20 register + 4 workflow guards** | ✅ | n/a — no migration, which is the content of the ruling | ✅ `D15` **189/189** · regression **703/703** | ✅ `b8dc857` green **6/6**, and the three new guards are **observed executing** in the log |
 
 Flutter **1704/1704**. Production never contacted.
+
+---
+
+## 141 · B-21 — ONE BOUNDARY THAT WAS FOUR PROBLEMS, TWO BUILT AND TWO REGISTERED
+
+§129.4 recorded `B-21` as *"confirm the Admin layer may open and transition incidents, then it is
+mechanical."* **That was wrong in a way only the evidence showed.** The four grants fail for four different
+reasons, and two of them cannot be implemented at all.
+
+### 141.1 What the evidence established, before anything was proposed
+
+| finding | consequence |
+|---|---|
+| `audit_incidents` is **tracked-mutable** — `DELETE` blocked, `id`/`created_at` immutable, every other field change journalled to `audit_incident_transitions` with actor and provenance | mutation is anticipated by the governance design, unlike `audit_events` |
+| **no writer exists.** No `UPDATE` policy, and 148 grants the table `SELECT` only — **not even `is_admin()` could change an incident** | 164's function is the first incident mutation this system has ever performed |
+| `audit_open_incident()` is gated on `is_admin() OR is_trust_operator()` — **itself a prior owner decision, B1** | `Create` required **amending an owner decision**, not adding an arm |
+| **`approval_status` has no ruled vocabulary.** 143's own comment: *"not enumerated in any tracked source. Left unconstrained rather than invented; see V5 §77.3"* | **`Approve` cannot be built** — setting a value invents what §77.3 declined to invent |
+| `Manage` has no stated meaning anywhere | the same condition as `B-23`'s sixteen |
+| 160 live incidents, **all `pending`**, **zero** transitions ever recorded | the workflow has never run; any assertion over it needed a populated fixture |
+
+**`actor_identity` is privilege-bearing, and that is not obvious from its name.** 143's read policy is
+`actor_identity = auth.uid() OR is_active_coach_of(actor_identity)` — so **writing it changes who can see the
+incident.** It is an authorization column wearing a data column's clothes, and it is excluded from the write
+contract for that reason, not merely because `B-4` withheld it from the projection.
+
+### 141.2 What was built
+
+**`B-21a` · Update — response fields only.** `action_taken`, `recommended_action`, `resolution`: what the
+team *did*, the fields that genuinely accrue after an incident is opened. **The account of what happened —
+`summary`, `severity`, `scope`, `suspected_cause`, `occurred_at` — is deliberately not writable**, so an
+incident's description cannot be rewritten after the fact. `D15` asserts all nine excluded columns
+**field by field**, rather than trusting the function's shape.
+
+**`B-21b` · Create — B1 amended additively.** `audit_open_incident()` gains
+`OR admin_can('Incidents','create')`. **B1's original holders lose nothing**, which is asserted directly:
+`p1-admin` satisfies `is_admin()`, holds **no** Admin-layer role, and can still open an incident. The
+function was **restated in full**, not patched — `CREATE OR REPLACE` drops `proconfig` unless the `SET` is
+restated (I-MIG-03 / CRC-07).
+
+**No `audit_record_event()` call in the update path, and that is deliberate.** Every other admin writer here
+emits one. 143 already ruled the mechanism for this population: the transitions table *"is the RETENTION
+MECHANISM A11 mandates"*, and emitting transitions into the Event population is recorded there as an
+*"ALTERNATIVE CONSIDERED AND NOT TAKEN"*, because an Event row *"cannot express 'approval_status moved from
+pending to approved' without stuffing the field, the old value and the new value into free text."* Emitting
+as well would create the duplicate 143 rejected. **`D15` proves the journal recorded exactly
+`action_taken` and `resolution` and nothing outside the contract.**
+
+### 141.3 What was registered instead of built
+
+`Incidents · Approve` and `Incidents · Manage` join `B-20`'s four in the non-operational register — now
+**six entries**, each carrying its reason, its invariant and what would change it. `Approve`'s entry names
+the one thing that would unblock it: **an owner ruling enumerating the `approval_status` values.** The
+transition itself is then mechanical, because the table is already tracked-mutable and the trigger already
+journals that field.
+
+### 141.4 A failed assertion that was my fixture, not the code
+
+*"B1 preserved: `is_admin()` can still open an incident, holding NO Admin-layer role"* failed on
+`is_admin_member=true`. The open had succeeded; `p1-admin` simply still carried the `viewer` assignment the
+`A13·1` section arranges earlier in the suite. `viewer` does not hold `Incidents/create`, so the point was
+proven anyway — but **the assertion claimed something untrue about the fixture, so the premise was corrected
+rather than the claim.**
+
+### 141.5 Ladder
+
+| element | FIXED IN CODE | FIXED ON QA | VERIFIED LIVE | VERIFIED IN CI |
+|---|---|---|---|---|
+| **164** | ✅ | ✅ frontier **164** | ✅ `D15` **217/217** · regression **731/731** · Flutter **1704/1704** | pending |

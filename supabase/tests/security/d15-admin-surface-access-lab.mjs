@@ -813,6 +813,135 @@ async function run() {
     }
     await assign(vUid, 'viewer');
 
+    // ── 6i · B-21 · the Incidents write path (164) ─────────────────────────
+    // audit_incidents had NO writer at all before 164: no UPDATE policy, and 148
+    // grants the table SELECT only, so not even is_admin() could change one. These
+    // are therefore the first incident mutations this system has ever performed.
+    //
+    // THE FIXTURE IS IDEMPOTENT because an incident CANNOT BE DELETED — 143's
+    // trigger raises on DELETE. Repeated local and CI runs reuse the one probe
+    // incident rather than accumulating them.
+    section('B-21 · Incidents write path · create, response-only update, journal');
+    const PROBE_SUMMARY = 'QA-D15-PROBE incident — deterministic fixture';
+
+    // B-21b · CREATE. trust_lead holds Incidents/create; nobody else does.
+    await assign(vUid, 'trust_lead');
+    let probeId = null;
+    const existing = await svc(
+      `audit_incidents?select=id,actor_identity&summary=eq.${encodeURIComponent(PROBE_SUMMARY)}&limit=1`);
+    if (n(existing.body) === 1) {
+      probeId = existing.body[0].id;
+      check('a deterministic probe incident is already present', true, 'idempotent — not re-opened');
+    } else {
+      const opened = await rpc(victim, 'audit_open_incident', {
+        p_summary: PROBE_SUMMARY, p_occurred_at: new Date().toISOString(),
+        p_severity: 'Informational', p_scope: 'QA probe',
+        p_evidence: [], p_suspected_cause: null, p_recommended_action: null });
+      check('B-21b: a trust_lead CAN open an incident — B1 amended additively',
+        opened.status < 400 && !!opened.body, `status=${opened.status} id=${JSON.stringify(opened.body)}`);
+      const found = await svc(
+        `audit_incidents?select=id,actor_identity&summary=eq.${encodeURIComponent(PROBE_SUMMARY)}&limit=1`);
+      probeId = n(found.body) === 1 ? found.body[0].id : null;
+      check('…and the row landed with the opener recorded as actor_identity',
+        !!probeId && found.body[0].actor_identity === vUid,
+        `id=${probeId} actor=${n(found.body) ? found.body[0].actor_identity : 'none'}`);
+    }
+
+    // B1 LOST NOTHING. The amendment is additive, so the two database roles B1
+    // originally named must still be able to open an incident. Asserted with
+    // p1-admin, who satisfies is_admin() and holds no Admin-layer role at all —
+    // if the amendment had replaced B1's gate rather than widening it, this fails.
+    // Both fixtures are stripped of Admin-layer roles first. p1-admin still carried
+    // the `viewer` assignment the A13·1 section arranged, and `viewer` does not hold
+    // Incidents/create — so the open would have proven the point anyway, but the
+    // assertion claimed "holding NO Admin-layer role" and that was simply untrue at
+    // this point in the suite. The premise is corrected rather than the claim.
+    await unassign(vUid);
+    await unassign(aUid);
+    const adminOpen = await rpc(admin, 'audit_open_incident', {
+      p_summary: 'QA-D15-PROBE b1-preserved', p_occurred_at: new Date().toISOString(),
+      p_severity: 'Informational', p_scope: 'QA probe', p_evidence: [],
+      p_suspected_cause: null, p_recommended_action: null });
+    const adminHasLayer = await rpc(admin, 'is_admin_member');
+    check('B1 preserved: is_admin() can still open an incident, holding NO Admin-layer role',
+      adminOpen.status < 400 && adminHasLayer.body === false,
+      `open=${adminOpen.status} is_admin_member=${JSON.stringify(adminHasLayer.body)}`);
+
+    // Every role the matrix DENIES Incidents/create must be refused outright.
+    for (const role of ['operations_lead', 'support', 'content_editor', 'viewer']) {
+      await assign(vUid, role);
+      const r = await rpc(victim, 'audit_open_incident', {
+        p_summary: 'QA-D15-FORBIDDEN incident', p_occurred_at: new Date().toISOString(),
+        p_severity: 'Informational', p_scope: null, p_evidence: [],
+        p_suspected_cause: null, p_recommended_action: null });
+      const leaked = await svc("audit_incidents?select=id&summary=eq.QA-D15-FORBIDDEN%20incident");
+      check(`${role} is REFUSED Incidents/create and no incident appears`,
+        r.status >= 400 && n(leaked.body) === 0, `status=${r.status} rows=${n(leaked.body)}`);
+    }
+
+    if (probeId) {
+      // B-21a · UPDATE — response fields only, and nothing else may move.
+      const before = await svc(`audit_incidents?select=*&id=eq.${probeId}`);
+      const b = before.body[0];
+      const stamp = `resolved at ${new Date().toISOString()}`;
+
+      for (const role of ['operations_lead', 'support', 'content_editor', 'viewer']) {
+        await assign(vUid, role);
+        const r = await rpc(victim, 'admin_update_incident_response',
+          { p_incident_id: probeId, p_action_taken: 'FORBIDDEN', p_recommended_action: null, p_resolution: null });
+        const now = await svc(`audit_incidents?select=action_taken&id=eq.${probeId}`);
+        check(`${role} is REFUSED the incident response writer`,
+          r.status >= 400 && now.body[0].action_taken === b.action_taken,
+          `status=${r.status}`);
+      }
+
+      await assign(vUid, 'trust_lead');
+      const upd = await rpc(victim, 'admin_update_incident_response',
+        { p_incident_id: probeId, p_action_taken: 'D15 probe action', p_recommended_action: null,
+          p_resolution: stamp });
+      const after = await svc(`audit_incidents?select=*&id=eq.${probeId}`);
+      const a = after.body[0];
+      check('B-21a: a trust_lead CAN write the response fields — the grant is real',
+        upd.status < 400 && a.action_taken === 'D15 probe action' && a.resolution === stamp,
+        `status=${upd.status} action_taken=${a.action_taken}`);
+
+      // THE ACCOUNT OF WHAT HAPPENED IS NOT WRITABLE. This is the contract, so it
+      // is asserted field by field rather than trusted to the function's shape.
+      for (const col of ['summary', 'severity', 'scope', 'suspected_cause', 'occurred_at',
+                         'evidence', 'actor_identity', 'approval_status', 'created_at']) {
+        check(`${col} is UNCHANGED — outside the B-21a contract`,
+          JSON.stringify(a[col]) === JSON.stringify(b[col]),
+          `before=${JSON.stringify(b[col])} after=${JSON.stringify(a[col])}`);
+      }
+
+      // The journal is the retention mechanism 143 ruled for this population, so it
+      // must have recorded the change, attributed to the caller.
+      const tr = await svc(
+        `audit_incident_transitions?select=changed_field,new_value,changed_by&incident_id=eq.${probeId}&order=changed_at.desc&limit=10`);
+      const fields = (tr.body || []).map((t) => t.changed_field);
+      check('the transitions journal recorded the response change, attributed to the caller',
+        fields.includes('action_taken') &&
+          (tr.body || []).some((t) => t.changed_field === 'action_taken' && t.changed_by === vUid),
+        `fields=[${[...new Set(fields)].join(', ')}]`);
+      check('…and journalled NOTHING outside the contract',
+        fields.every((f) => ['action_taken', 'recommended_action', 'resolution'].includes(f)),
+        `unexpected=[${fields.filter((f) => !['action_taken','recommended_action','resolution'].includes(f)).join(', ')}]`);
+
+      // The table itself stays unwritable: 164 added a FUNCTION, not a policy.
+      const direct = await rest(victim, `audit_incidents?id=eq.${probeId}`, { method: 'PATCH',
+        body: JSON.stringify({ approval_status: 'tampered' }),
+        headers: { 'Content-Type': 'application/json' } }).catch(() => ({}));
+      const post = await svc(`audit_incidents?select=approval_status&id=eq.${probeId}`);
+      check('B-21c: approval_status CANNOT be moved — no path exists and none was added',
+        post.body[0].approval_status === b.approval_status,
+        `status=${direct.status} value=${post.body[0].approval_status}`);
+      const del = await rest(victim, `audit_incidents?id=eq.${probeId}`, { method: 'DELETE' })
+        .catch(() => ({ status: 403 }));
+      const alive = await svc(`audit_incidents?select=id&id=eq.${probeId}`);
+      check('an incident still cannot be DELETED by anyone',
+        del.status >= 400 && n(alive.body) === 1, `status=${del.status}`);
+    }
+
     // ── 7 · anon reaches none of the three new surfaces ─────────────────────
     section('anon posture on the new surfaces');
     for (const v of VIEWS) {
