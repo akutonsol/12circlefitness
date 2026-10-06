@@ -735,13 +735,19 @@ async function run() {
             { saw: n(r.body), population: n(total.body), detail: `status=${r.status}` });
         }
         // Read only. 163 added no write arm; 154's writes stay on is_admin().
-        await assign(vUid, 'trust_lead');
+        // SUPERSEDED BY 167. This asserted the Admin layer could not author a
+        // governance policy, which was true until owner decision B-23-AI-1 made
+        // trust_lead the author. The property that still holds — and is the one
+        // worth asserting — is that a role WITHOUT the grant cannot. `support`
+        // holds AI Guardian/view = false and create = false (V5 §152).
+        await assign(vUid, 'support');
         const w = await mutate(victim, 'governance_policy', 'POST',
           { code: 'QA-D15-FORBIDDEN', name: 'x', category: 'safety', status: 'draft' });
-        check('the Admin layer cannot AUTHOR a governance policy — reads the record, does not write it',
+        check('a role without AI Guardian/create cannot author a governance policy',
           w.status >= 400 || w.affected === 0, `status=${w.status}`);
         const landed = await svc('governance_policy?select=id&code=eq.QA-D15-FORBIDDEN');
         check('…and no forbidden row landed', n(landed.body) === 0, `rows=${n(landed.body)}`);
+        await assign(vUid, 'trust_lead');
         // The registry is NOT the enforcement point (owner constraint): a policy row
         // granting something must not change what admin_can() answers.
         const before = await rpc(victim, 'admin_can', { p_area: 'Users', p_verb: 'update' });
@@ -1077,11 +1083,16 @@ async function run() {
         `sample=${JSON.stringify((acts.body || [])[0])}`);
 
       // ── B-22a · Community is DEFERRED, so nothing may exist for it ──────
-      for (const verb of ['create', 'update']) {
-        const needle = new RegExp(`admin_can\\(\\s*'Community'\\s*,\\s*'${verb}'`, 'i');
-        const gated = MIGRATION_SOURCES.filter((m) => needle.test(m.sql)).map((m) => m.name);
-        check(`B-22a: NO write path is gated on Community/${verb} — deferred behind CAP-1`,
-          gated.length === 0, gated.join(', ') || 'none');
+      // CAP-1 IS DISCHARGED (170). Community/update is now the MODERATION path, so
+      // the old "no write path exists" assertion is inverted: update MUST be gated,
+      // create must NOT be (owner decision CAP-1-3 — staff do not post).
+      {
+        const upd = MIGRATION_SOURCES.filter((m) => /admin_can\(\s*'Community'\s*,\s*'update'/i.test(m.sql)).map((m) => m.name);
+        check('CAP-1: Community/update IS gated on a write path — moderation',
+          upd.length > 0, upd.join(', ') || 'NONE — moderation is missing');
+        const cre = MIGRATION_SOURCES.filter((m) => /admin_can\(\s*'Community'\s*,\s*'create'/i.test(m.sql)).map((m) => m.name);
+        check('CAP-1-3: Community/create has NO write path — staff do not post',
+          cre.length === 0, cre.join(', ') || 'none');
       }
       const otherPost = await svc('community_posts?select=id,user_id&limit=1');
       if (n(otherPost.body) === 1 && otherPost.body[0].user_id !== vUid) {
@@ -1157,6 +1168,142 @@ async function run() {
     const stats = await rpc(victim, 'admin_platform_stats');
     check('admin_platform_stats() is UNCHANGED — still is_admin() only, not widened',
       stats.status >= 400, `status=${stats.status}`);
+
+    // ── 6l · OWNER-APPROVED WAVE: 167 · 168 · 169 · 170 ───────────────────
+    section('B-23-AI-1 · governance-policy authoring (167/168)');
+    const POL = 'D15-PROBE-POLICY';
+    await svc(`governance_policy?code=eq.${POL}`, { method: 'DELETE' });
+    for (const role of ['viewer', 'operations_lead', 'support', 'content_editor']) {
+      await assign(vUid, role);
+      const r = await mutate(victim, 'governance_policy', 'POST',
+        { code: POL, name: 'x', category: 'role_based', status: 'draft' });
+      const landed = await svc(`governance_policy?select=id&code=eq.${POL}`);
+      check(`${role} is REFUSED governance authoring`,
+        r.status >= 400 && n(landed.body) === 0, `status=${r.status} landed=${n(landed.body)}`);
+    }
+    await assign(vUid, 'trust_lead');
+    const mk = await mutate(victim, 'governance_policy', 'POST',
+      { code: POL, name: 'probe policy', category: 'role_based', status: 'draft' });
+    const polRow = await svc(`governance_policy?select=id,name&code=eq.${POL}`);
+    check('B-23-AI-1: a trust_lead CAN author a governance policy',
+      mk.status < 400 && n(polRow.body) === 1, `status=${mk.status}`);
+
+    if (n(polRow.body) === 1) {
+      const pid = polRow.body[0].id;
+      const rev = await mutate(victim, `governance_policy?id=eq.${pid}`, 'PATCH', { name: 'probe revised' });
+      const now = await svc(`governance_policy?select=name&id=eq.${pid}`);
+      check('…and revise it', rev.status < 400 && now.body[0].name === 'probe revised', `status=${rev.status}`);
+
+      // 168: the DELETE grant is gone, not merely filtered by RLS.
+      const del = await mutate(victim, `governance_policy?id=eq.${pid}`, 'DELETE');
+      const alive = await svc(`governance_policy?select=id&id=eq.${pid}`);
+      check('168: DELETE is REFUSED outright — the privilege is absent, not RLS-filtered',
+        del.status >= 400 && n(alive.body) === 1, `status=${del.status} survived=${n(alive.body)}`);
+
+      // §13: a policy DOCUMENT must not become authorization.
+      const can = await rpc(victim, 'admin_can', { p_area: 'Users', p_verb: 'update' });
+      check('§13 intact: authoring a policy document confers NO authorization',
+        can.body === false, `admin_can(Users,update)=${JSON.stringify(can.body)}`);
+
+      const gev = await svc("audit_events?select=action,changed_columns&action=like.governance_policy.*&order=occurred_at.desc&limit=1");
+      check('governance writes are audited as admin_action',
+        n(gev.body) === 1 && Array.isArray(gev.body[0].changed_columns), `${JSON.stringify((gev.body || [])[0])}`);
+      await svc(`governance_policy?code=eq.${POL}`, { method: 'DELETE' });
+    }
+
+    section('B-17 · Guardian state and emergency disablement (169)');
+    await svc('guardian_state?id=eq.true', { method: 'DELETE' });
+    check('guardian_state starts EMPTY — no runtime is asserted',
+      n((await svc('guardian_state?select=*')).body) === 0, 'A11 state');
+    for (const role of ['viewer', 'operations_lead', 'content_editor']) {
+      await assign(vUid, role);
+      const r = await rpc(victim, 'admin_set_guardian_state', { p_state: 'Monitoring', p_reason: null });
+      check(`${role} is REFUSED the Guardian control`, r.status >= 400, `status=${r.status}`);
+    }
+    await assign(vUid, 'trust_lead');
+    const g1 = await rpc(victim, 'admin_set_guardian_state', { p_state: 'Monitoring', p_reason: null });
+    check('B-17: a trust_lead CAN set Guardian state', g1.status < 400, `status=${g1.status}`);
+    const bad = await rpc(victim, 'admin_set_guardian_state', { p_state: 'Paused', p_reason: 'x' });
+    check('a state outside A5\'s four is REFUSED — no vocabulary was invented', bad.status >= 400, `status=${bad.status}`);
+    const nr = await rpc(victim, 'admin_set_guardian_state', { p_state: 'Disabled', p_reason: null });
+    check('disabling the Guardian REQUIRES a reason', nr.status >= 400, `status=${nr.status}`);
+    const dis = await rpc(victim, 'admin_set_guardian_state',
+      { p_state: 'Disabled', p_reason: 'D15 probe — emergency disablement' });
+    const gs = await svc('guardian_state?select=state,reason,set_by');
+    check('EMERGENCY DISABLEMENT works and records who and why',
+      dis.status < 400 && n(gs.body) === 1 && gs.body[0].state === 'Disabled' && gs.body[0].set_by === vUid,
+      `state=${n(gs.body) ? gs.body[0].state : 'none'}`);
+    const direct = await mutate(victim, 'guardian_state?id=eq.true', 'PATCH', { state: 'Active' });
+    const held = await svc('guardian_state?select=state');
+    check('the table cannot be written directly — only the RPC',
+      direct.status >= 400 && held.body[0].state === 'Disabled', `status=${direct.status}`);
+    const gev2 = await svc("audit_events?select=delta&action=eq.guardian_state.set&order=occurred_at.desc&limit=1");
+    check('the transition is audited with a full before/after delta',
+      n(gev2.body) === 1 && gev2.body[0].delta?.after?.state === 'Disabled',
+      `${JSON.stringify((gev2.body || [])[0]?.delta)}`);
+    await svc('guardian_state?id=eq.true', { method: 'DELETE' });
+
+    section('CAP-1 · community moderation preserves the member\'s words (170)');
+    const CPROBE = 'D15-CAP1-PROBE member words';
+    await svc(`content_reports?reason=eq.D15-probe`, { method: 'DELETE' });
+    await svc(`community_posts?content=like.D15-CAP1-PROBE*`, { method: 'DELETE' });
+    const authorId = await uidOf('attacker');            // a third party to the moderator
+    await svc('community_posts', { method: 'POST', body: { user_id: authorId, content: CPROBE } });
+    const cp = await svc(`community_posts?select=id,content&content=like.D15-CAP1-PROBE*`);
+    check('seeded a post authored by someone else', n(cp.body) === 1, `rows=${n(cp.body)}`);
+
+    if (n(cp.body) === 1) {
+      const postId = cp.body[0].id, originalText = cp.body[0].content;
+      for (const role of ['viewer', 'support', 'trust_lead']) {
+        await assign(vUid, role);
+        const r = await rpc(victim, 'admin_moderate_content',
+          { p_target_type: 'post', p_target_id: postId, p_state: 'hidden', p_reason: 'probe' });
+        check(`${role} is REFUSED moderation — Community/update is content_editor's alone`,
+          r.status >= 400, `status=${r.status}`);
+      }
+      await assign(vUid, 'content_editor');
+      const nr2 = await rpc(victim, 'admin_moderate_content',
+        { p_target_type: 'post', p_target_id: postId, p_state: 'hidden', p_reason: null });
+      check('hiding REQUIRES a reason', nr2.status >= 400, `status=${nr2.status}`);
+      const mod = await rpc(victim, 'admin_moderate_content',
+        { p_target_type: 'post', p_target_id: postId, p_state: 'hidden', p_reason: 'D15 probe' });
+      const post2 = (await svc(`community_posts?select=content,moderation_state,moderated_by&id=eq.${postId}`)).body[0];
+      check('CAP-1-1: the post is hidden', mod.status < 400 && post2.moderation_state === 'hidden', `status=${mod.status}`);
+      check('CAP-1-1: THE MEMBER\'S ORIGINAL TEXT IS UNCHANGED — staff cannot rewrite it',
+        post2.content === originalText, `content ${post2.content === originalText ? 'preserved' : 'ALTERED'}`);
+
+      await unassign(vUid);
+      const asThird = await rest(victim, `community_posts?select=id&content=like.D15-CAP1-PROBE*`);
+      checkDenied('a third party can no longer see the hidden post',
+        { saw: n(asThird.body), population: 1 });
+      const asAuthor = await rest(await signIn('attacker'), `community_posts?select=id&content=like.D15-CAP1-PROBE*`);
+      check('…but the AUTHOR still sees their own words', n(asAuthor.body) === 1, `rows=${n(asAuthor.body)}`);
+      await assign(vUid, 'viewer');
+      const asAdmin = await rest(victim, `community_posts?select=id&content=like.D15-CAP1-PROBE*`);
+      check('…and the Admin layer sees it, because it has to moderate it',
+        n(asAdmin.body) === 1, `rows=${n(asAdmin.body)}`);
+
+      // CAP-1-2 · the report queue
+      await unassign(vUid);
+      const rep = await mutate(victim, 'content_reports', 'POST',
+        { reporter_id: vUid, target_type: 'post', target_id: postId, reason: 'D15-probe' });
+      check('CAP-1-2: a member can file a report', rep.status < 400, `status=${rep.status}`);
+      const forged = await mutate(victim, 'content_reports', 'POST',
+        { reporter_id: authorId, target_type: 'post', target_id: postId, reason: 'D15-probe' });
+      check('…and cannot file one AS someone else', forged.status >= 400, `status=${forged.status}`);
+      const otherSees = await rest(await signIn('attacker'), 'content_reports?select=id&reason=eq.D15-probe');
+      checkDenied('…and cannot read another member\'s report',
+        { saw: n(otherSees.body), population: 1 });
+
+      const mev = await svc("audit_events?select=delta,subject_pseudonym&action=eq.community_content.moderate&order=occurred_at.desc&limit=1");
+      check('the moderation is audited against the PSEUDONYMISED author',
+        n(mev.body) === 1 && !!mev.body[0].subject_pseudonym && mev.body[0].subject_pseudonym !== authorId,
+        `pseudonym=${(mev.body || [])[0]?.subject_pseudonym}`);
+
+      await svc(`content_reports?reason=eq.D15-probe`, { method: 'DELETE' });
+      await svc(`community_posts?content=like.D15-CAP1-PROBE*`, { method: 'DELETE' });
+      await assign(vUid, 'viewer');
+    }
 
     // ── 7 · anon reaches none of the three new surfaces ─────────────────────
     section('anon posture on the new surfaces');
