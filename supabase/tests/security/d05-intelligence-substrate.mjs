@@ -4,8 +4,7 @@
 //   * clients cannot READ the deterministic engine's substrate, or WRITE any of
 //     its provenance (decision traces, predictions, program versions, audit rows)
 //   * the engine and every legitimate app path still work
-import { rest, rpc, svc, mutate, blocked, signIn,
-         check, section, summary, n, loadIds } from './lib.mjs';
+import { rest, rpc, svc, mutate, blocked, signIn, check, section, summary, n, loadIds, checkDenied } from './lib.mjs';
 
 const ids = await loadIds();
 const REL = 'coach_client_relationships';
@@ -34,11 +33,22 @@ for (const t of ['ai_conversations', 'ai_insights', 'ai_memories', 'decision_tra
 section('2. Engine substrate is not readable by an ordinary member');
 {
   for (const t of ['movement_nodes', 'movement_edges', 'exercise_intelligence']) {
-    const r = await rest(victim, `${t}?select=*&limit=5`);
-    check(`member reads 0 ${t}`, n(r.body) === 0, `status=${r.status} rows=${n(r.body)}`);
-  }
-  const staff = await rest(admin, 'movement_nodes?select=id&limit=5');
-  check('a content editor CAN read the movement graph', staff.status < 300, `status=${staff.status}`);
+      // MEASURED AGAINST THE REAL POPULATION, not asserted bare. These three engine
+      // tables are EMPTY on QA, so "member reads 0" passed without proving anything
+      // -- the member saw nothing because there was nothing to see (V5 §147).
+      // checkDenied labels that honestly instead of counting it as evidence, and
+      // allowEmpty is set because the emptiness is the engine's current state, not
+      // something this suite can seed without inventing graph rows.
+      const all = await svc(`${t}?select=*&limit=1000`);
+      const r = await rest(victim, `${t}?select=*&limit=5`);
+      checkDenied(`member reads no ${t}`,
+        { saw: n(r.body), population: n(all.body), allowEmpty: true, detail: `status=${r.status}` });
+    }
+    const nodes = await svc('movement_nodes?select=id&limit=1000');
+    const staff = await rest(admin, 'movement_nodes?select=id&limit=5');
+    check(`a content editor CAN read the movement graph${n(nodes.body) === 0 ? ' (graph is EMPTY — status only, not proof of visibility)' : ''}`,
+      staff.status < 300 && (n(nodes.body) === 0 || n(staff.body) > 0),
+      `status=${staff.status} staff_rows=${n(staff.body)} population=${n(nodes.body)}`);
 
   // ...and the client still gets what it actually needs, through the RPC.
   const graph = await rpc(victim, 'movement_graph',

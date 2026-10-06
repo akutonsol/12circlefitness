@@ -14589,3 +14589,52 @@ It now seeds a marked row, issues a **filtered** delete, and rests on the row **
 catalogue is as damaging as deleting it and nothing covered it. `d06` **34 → 36**.
 
 Live regression **783/783 across 15 suites**.
+
+---
+
+## 147 · THE VACUITY SWEEP ACROSS ALL 21 SUITES — ONE DANGEROUS, THE REST LABELLED
+
+§139.5 added `checkDenied`/`checkGranted`; this applies the standard to the suites that predate them.
+
+**Scanned all 21 suites: 60 zero-count deny assertions, 55 with no visible population comparison.** Most are
+**not** vacuous — the regex cannot see that a suite seeds its own fixture first — so a mass conversion would
+have been both risky and wrong. The question was narrowed to the one that matters: **which deny assertions
+run against a table that is actually empty on QA right now?**
+
+Fourteen tables came back empty. Six sit outside `D15`, and only **one** carried a destructive consequence.
+
+### 147.1 The dangerous one — a member deleting the exercise catalogue
+
+`d06` asserted *"a member cannot delete from the catalog"* with an **unfiltered** `DELETE` and passed on
+**status 400** — which is **PostgREST refusing an unfiltered delete**, not the member lacking the privilege.
+`workouts` is empty, so `blocked()`'s `affected === 0` arm would have passed too. **Two independent reasons to
+pass, neither of them the one the assertion claims.**
+
+It now seeds a marked row, issues a **filtered** delete, and rests on the row **surviving** — returning
+**403**, a real privilege refusal. An `UPDATE` assertion was added on the same row, because **rewriting** the
+catalogue is as damaging as deleting it and nothing covered it. `d06` **34 → 36**.
+
+### 147.2 The rest — labelled rather than converted or seeded
+
+`d05`'s engine-substrate denials (`movement_nodes`, `movement_edges`, `exercise_intelligence`) and its
+paired *"a content editor CAN read the movement graph"* all passed over **empty** tables — the member saw
+nothing because there was nothing to see, and the staff read returned `200` with an empty body. They now read:
+
+```
+PASS  member reads no movement_nodes (population empty — recorded, not proof)
+PASS  a content editor CAN read the movement graph (graph is EMPTY — status only, not proof of visibility)
+```
+
+**Seeding was declined deliberately.** These are engine-built graph tables; inventing rows to satisfy an
+assertion would be fabricating the substrate the assertion is about. **Labelling the gap is honest; filling
+it with invented data is not.** The suites stay green, and the output no longer claims more than it proved.
+
+**Checked and found sound:** `client_session_credits` seeds its own fixtures with cleanup, so `d08` was never
+vacuous; `d05`'s anon loop asserts `status >= 400`, which holds at `401` regardless of population; the
+remaining cases are read-status assertions over empty tables with no destructive consequence.
+
+**The rule this leaves behind:** *a deny assertion is only as strong as the population it denies over, and a
+destructive one with an empty population is the most misleading test a repository can hold* — it is green,
+it is specific, and it is false.
+
+Live regression **783/783 across 15 suites** · AI **49/49** · characterizations **17/17**.
