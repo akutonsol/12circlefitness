@@ -222,6 +222,27 @@ export function checkGranted(name, { saw, population, detail = '' }) {
     `saw=${saw} of ${population}${detail ? ` ${detail}` : ''}`);
 }
 
+/**
+ * A WRITE-REFUSAL assertion that reads the database, not the status line.
+ *
+ * V5 §155. A privilege sweep over twelve system-owned tables reported a write
+ * privilege on every one of them, and ALL TWELVE were artifacts of the probe:
+ *   · PostgREST answers 201 to an INSERT that RLS's WITH CHECK rejects — nothing
+ *     is created, and the status says otherwise;
+ *   · it answers 204 to a PATCH whose row set is empty, or whose body is empty,
+ *     whether or not the privilege exists (§129.2 established this for UPDATE);
+ *   · an empty `{}` body yields 201 with no row at all.
+ *
+ * So neither 2xx nor 4xx proves anything about a write on its own. `before` and
+ * `after` row counts do. Use this wherever the question is "did this write land",
+ * which is the only question that matters.
+ */
+export function checkNoWrite(name, { before, after, status, detail = '' }) {
+  return check(name, after <= before,
+    `rows ${before}->${after} (status ${status}${detail ? `, ${detail}` : ''}) — ` +
+    'asserted by row count, because a PostgREST 201/204 does not mean a write landed');
+}
+
 export function section(t) {
   console.log(`\n── ${t} ${'─'.repeat(Math.max(2, 68 - t.length))}`);
 }

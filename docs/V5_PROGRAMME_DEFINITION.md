@@ -14824,3 +14824,125 @@ gaps**. No amount of engineering produces them.
 `D15` **329/329** · live regression **845/845 across 15 suites** · AI **49/49** · characterizations
 **17/17** · Flutter **1706 passed / 5 skipped** (the `K-07` skip discharged) · CI green **6/6** ·
 QA frontier **170** · **production never contacted**.
+
+---
+
+## 154 · `CONF-D6` CLOSED — AND `P5` IS STILL DESIGN-GATED
+
+**Owner decisions, 2026-10-06.**
+
+**`CONF-D6-A`** — the shipped 12Circle app/Admin identity (violet/amber/green, wired through the existing
+Helix three-tier implementation) is the **authoritative implementation identity** for the current V5 Admin
+surface. The standalone Helix repository's electric-lime *"FIRST PASS"* palette is **not authoritative** and
+must not override it.
+
+**`CONF-D6-B`** — the shipped, wired three-tier token implementation is the **locked token authority**. No
+separate design artifact overrides it unless the owner later approves that artifact as a new design authority.
+
+**What this closes:** the token/identity ambiguity §153.1 surfaced, and `CONF-D6`'s token-values component.
+
+**What it does NOT close, and `P5` remains `DESIGN-GATED` because of it.** The design README names four
+requirements that a token ruling cannot satisfy:
+
+| artifact | state |
+|---|---|
+| **the 11 Admin states** | *"ENUMERATED, NOT DESIGNED … no frames"* — enumerated in the record, never drawn |
+| responsive behaviour | not specified |
+| component specifications | not specified |
+| iconography | not specified |
+
+**These are design artifacts. No amount of engineering produces them, and inventing frames to satisfy a phase
+gate would be fabricating the authority the gate exists to check.** `P5` is therefore recorded
+**`DESIGN-GATED`**, not blocked on anything this programme can build.
+
+---
+
+## 155 · THE METRIC GATE — READ AT SOURCE, AND IT AUTHORIZES NOTHING
+
+The instruction was to read the actual `§C.3` text rather than reconstruct it. Done, and the result is
+decisive:
+
+**`§C.3` contains ZERO recommendation lines and ZERO approved answers.** It is a pure options table — eleven
+questions, each with 2–4 evidence-compatible choices, and no lead-architect recommendation attached to any of
+them. I deliberately gave none, because every one of the eleven turns on a business definition the record does
+not contain.
+
+**So no metric implementation is authorized, and all eleven defer.** `METRIC-02` · `03` · `05` · `06a` ·
+`06b` · `11` · `12` · `13` · `14` · `16` · `17` · `18`.
+
+**But `§C.3` also names four cards that need no decision, and all four have live producers:**
+
+| card | producer | state |
+|---|---|---|
+| Total users | `admin_user_overview` (166) | ✅ live, all seven roles |
+| Recent admin activity | `admin_audit_events` (156) | ✅ live |
+| Security | `admin_security_events` (159) | ✅ live, `B-1` scope |
+| AI Guardian (read-only) | `governance_policy` (163) + `guardian_state` (169) | ✅ live; state empty = `A11` |
+
+**No metric principle was touched:** gross/commission/net stay distinct, `PD-C03` governs billing currency,
+GBP/£ remains the Admin display currency with explicit FX, impressions stay narrowly defined, and **no
+third-party egress was introduced**.
+
+---
+
+## 156 · A PRIVILEGE SWEEP THAT REPORTED TWELVE FINDINGS, ALL OF THEM MINE
+
+Run because 154's `DELETE` grant (§168) proved that RLS can be the only barrier under a wrong table grant.
+
+**The first pass flagged twelve system-owned tables** — `audit_events`, `audit_incidents`,
+`audit_incident_transitions`, `audit_control_evidence`, `observability_events`, the five `governance_policy*`
+tables, `admin_role_assignments` and `admin_role_capabilities` — as holding a write privilege for
+`authenticated`.
+
+**Every one was an artifact of the probe.** Re-run with realistic bodies and **row-count verification**:
+
+```
+INSERT governance_policy        status=201   rows 0->0   ✓ did not land
+INSERT admin_role_assignments   status=201   rows 0->0   ✓ did not land
+INSERT admin_role_capabilities  status=201   rows 0->0   ✓ did not land
+UPDATE audit_events   by OUTCOME: ✓ unchanged
+UPDATE audit_incidents by OUTCOME: ✓ unchanged
+```
+
+**The lesson is new and goes in the evidence standards: PostgREST answers `201` to an `INSERT` that RLS's
+`WITH CHECK` rejects.** Nothing is created and the status says otherwise. That is the INSERT analogue of
+§129.2's `204`-on-`PATCH`, and together they mean **neither a 2xx nor a 4xx proves anything about a write.**
+Only `before`/`after` row counts do. `lib.mjs` now exports **`checkNoWrite`**, which asserts by row count and
+says so in its own output.
+
+**I nearly reported twelve false security defects**, which would have been §144's mistake at four times the
+scale — and the correction came from the same discipline: *a static or status-based reading that disagrees
+with a live outcome is wrong until the outcome says otherwise.*
+
+**What the sweep confirmed, by outcome:** no system-owned table accepts a write from an unassigned member;
+`audit_events` and `audit_incidents` are unchanged after a tamper attempt; `guardian_state` and
+`audit_identity_map` hold no write privilege at all; `content_reports` accepts member inserts, which is its
+purpose.
+
+### 156.1 Guardian — all five verbs re-verified on populated fixtures
+
+| verb | positive | negative |
+|---|---|---|
+| **View** | trust_lead · operations_lead · viewer read the registry | support · content_editor read **nothing** |
+| **Create** | trust_lead authors a policy | viewer · operations_lead · support · content_editor **403, nothing lands** |
+| **Update** | trust_lead revises it | — |
+| **Manage** | trust_lead sets Guardian state; emergency disablement requires a reason | viewer · operations_lead · content_editor **403** |
+| **Approve** | — | **non-operational**, three-leg proof: grant answers, no write path, resource unmoved |
+
+`AI Guardian / Manage` is **correctly absent** from the register; `Approve` **correctly remains**, its reason
+naming the missing action **queue** rather than missing semantics.
+
+### 156.2 `flagcdn` — no action, recorded as such
+
+Appears **only** in documentation, as an observation about the approved design's own footer. **Nothing in
+`apps/` or `supabase/` references it.** Recorded permanently as **NO CURRENT RUNTIME EGRESS / NO ACTION
+REQUIRED**, to be revisited only if an implementation actually introduces the dependency.
+
+### 156.3 Test counts, stated rather than smoothed
+
+**Baseline 845/845 → now 844/844.** The delta is `D-02` at **39/39** where it was 40/40: its
+*"public signup cannot mint an admin"* assertion **self-skips on a 429** email rate limit, which my own
+repeated runs trigger. Documented at §132.4, logged by the suite, benign — and reported rather than rounded.
+
+Flutter **1706 / 5 skipped** · AI **49/49** · characterizations **17/17** · QA frontier **170** ·
+**production never contacted**.
