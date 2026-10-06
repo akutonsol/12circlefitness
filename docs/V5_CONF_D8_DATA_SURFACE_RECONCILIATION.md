@@ -241,3 +241,165 @@ columns). **`D7` already adopted this pattern and five such views ship.**
 6. `CAP-1` · `PD-C03` · `P7` · `PD-G01` · `P10` · `PD-A05` — unchanged, each already parked.
 
 **Nothing was created. No policy, view, migration or grant was written. `CONF-D8` remains open.**
+
+---
+
+# 8 · IMPLEMENTATION EVIDENCE — what was built, verified and left alone
+
+Owner authorization **2026-10-05**, on the classification above. Scope was explicit: implement the areas
+classified safe, build the minimum curated projection for `Audit logs`, change nothing else, and **test the
+actual resulting data access, not merely function return values.**
+
+Section 7's boundaries are **not** superseded by this section. Boundary 1 is now answered for `Audit logs`
+and still open for `Security`; boundaries 2–6 are untouched and carried forward to V5 §129.4.
+
+## 8.1 The mechanism half — `VERIFIED_CLOSED`
+
+| element | state | evidence |
+|---|---|---|
+| graded authorization mechanism | **`VERIFIED_CLOSED`** | migration **153** · `admin_role_assignments`, `admin_role_capabilities`, `is_admin_member()`, `admin_can(area, verb)` |
+| governance policy registry | **`VERIFIED_CLOSED`** | migration **154** · documentation layer only; it is **not** the enforcement point |
+| the approved capability matrix | **owner-approved** | `ADMIN-CAPABILITY-MATRIX.json`, authority **Julia**, 17 areas × 5 verbs × 5 roles |
+| matrix arithmetic | **85 cells · 425 grants** | **116 true · 309 false · 0 unresolved** |
+| seeded to the database | **`VERIFIED_CLOSED`** | migration **155** · 116 `INSERT`s, generated from the matrix file, verbs lowercased to match 153's `CHECK` |
+| every grant verified live | **425/425** | `D14` 8/8 — expectations read **from the matrix file**, so the test cannot drift from the policy |
+| separation and least privilege | **20/20** | `D13` — `is_admin_member()` true while `is_admin()` false; Trust and erasure separation; no self-escalation |
+
+**Deny-by-default was proven live before any policy existed** — the mechanism granted nothing while
+`admin_role_capabilities` was empty.
+
+## 8.2 The seven authorized additive surfaces — migration 156
+
+Sixteen **new** permissive `SELECT` policies. No existing policy was edited, dropped or replaced, so nothing
+any existing policy allows or denies changed: PostgreSQL ORs permissive policies, and a new one can only
+widen. The widening is exactly the approved matrix.
+
+| # | area | surface | consumes |
+|---|---|---|---|
+| 1 | Community | `community_posts`, `post_comments`, `post_reactions`, `community_groups`, `accountability_pods` | `admin_can('Community','view')` |
+| 2 | Events | `events`, `event_registrations`, `classes`, `class_bookings` | `admin_can('Events','view')` |
+| 3 | Training | **aggregate view only** — `admin_training_overview` | `admin_can('Training','view')` |
+| 4 | Monetization | `subscriptions`, `payments`, `coach_packages` | `admin_can('Monetization','view')` |
+| 5 | Wearable / Integrations | `admin_integration_connections` (157) over the **shared** `user_integrations` | `admin_can('Wearable intelligence','view')` **AND** `admin_can('Integrations','view')` |
+| 6 | System | `observability_events` | `admin_can('System','view')` |
+| 7 | Settings › Roles | `admin_role_assignments`, `admin_role_capabilities` — **READ only** | `admin_can('Roles','view')` |
+
+**The stricter authorization is an `AND`, and it is proven behaviourally.** Both areas grant View to all five
+roles today, so an `AND` and an `OR` are indistinguishable by observation. `D15` withdraws the `Integrations`
+grant only, asserts the shared surface **closes** while the `Wearable` grant remains true, restores the row
+and re-asserts the grid at 116. An `OR` would still have returned the row.
+
+**Settings › Roles created no write authority.** Writes remain on legacy `is_admin()` exactly as 153 built
+them, and `D15` asserts a Viewer's role-assignment `INSERT` is refused (403). This honours the owner's
+constraint that the matrix must not become role-management authority.
+
+**Training is aggregate-only, by construction.** `admin_training_overview` exposes four counts and no member
+row, no `user_id` and no free text. `D15` asserts the projection has exactly those four keys, that
+`user_id` / `workout_id` / `notes` cannot be selected, and that a Viewer still reads **0 of 9**
+row-level `workout_sessions`. The row-level boundary is parked, not quietly crossed.
+
+## 8.3 The curated `Audit logs` projection — the hard constraint, honoured
+
+`A13·1`'s exclusion is `AND NOT (category = 'admin_action' AND actor_id = (SELECT auth.uid()))`. An additive
+`OR admin_can('Audit logs','view')` arm on `audit_events` would have **restored exactly what that clause
+removes**. It was not added. `audit_events`' own policy is untouched.
+
+`admin_audit_events` instead carries the exclusion **in its own predicate**:
+
+| property | how it is achieved | verified |
+|---|---|---|
+| `A13·1` preserved | the exclusion is reproduced verbatim in the view's `WHERE` | **the reader's own 128 `admin_action` rows are excluded** |
+| `A13·1` stays **narrow** | the exclusion names only the reader's own rows | **the other 69 remain visible** |
+| gated by the matrix | `WHERE admin_can('Audit logs','view')` — the view is self-gating | **closes for `Support`**, whose grant is `false` |
+| base protection intact | no arm was added to `audit_events` | **a Viewer still reads 0 of 1000** directly |
+| `A12` by construction | projects `subject_pseudonym` and **never resolves it** | `subject_id` unselectable; `audit_identity_map` 403 |
+| no new resolver | **no `audit_identity_map` join exists in the view** | — |
+
+**Why the view must not resolve.** §19.3 rules that **no standing party** may resolve a pseudonym and that
+resolution *"occurs INSIDE THE AUDIT READ PATH"*. A view is a standing resolver by definition — precisely the
+argument migration 142 used to keep the active-coach arm out of a table policy. Callers needing `subject_id`
+keep using the 146/152 `SECURITY DEFINER` path.
+
+**The column set was conformed, not invented.** It is the established projection of those read paths
+(`id, actor_id, action, occurred_at, outcome, category, actor_provenance, correlation_id`) with
+`subject_pseudonym` standing where they return the resolved `subject_id`. `correlation_signature` and
+`correlation_key_id` are deliberately absent — write-once integrity material, exposed to no reader anywhere.
+
+**`Security` is NOT implemented.** Its content is a **category filter** over the same population, and **no
+authority maps `A2`'s 15 categories to the `Security` area.** Choosing that mapping would be inventing
+scope. It is carried to V5 §129.4 as its own boundary.
+
+## 8.4 A credential disclosure I introduced, and the lesson that must survive
+
+**156 was wrong.** It put a blanket `SELECT` arm on `user_integrations`, which carries **`access_token` and
+`refresh_token`**. The approved matrix grants that area to **all five roles**, so the arm would have handed
+every **Viewer, Support agent and Content editor** live OAuth bearer tokens for every user's wearable
+account — credentials that permit impersonating the user against the upstream provider.
+
+Found by auditing **all sixteen** tables for secret-bearing columns. `user_integrations` was the **only** one;
+`payments` and `subscriptions` hold Stripe **identifiers**, which are references, useless without the Stripe
+secret key, and legitimately part of a reconciliation surface.
+
+**Migration 157** withdrew the arm and replaced it with a column-limited `D7`-pattern view exposing
+`id, user_id, provider, connected, connected_at, disconnected_at` and **neither token**. `D15` asserts both
+columns return `42703 column does not exist`.
+
+**No approved capability was lost (§102).** The design displays connection *status*; every field of it
+survives. A token could not be rendered usefully if the design asked for one.
+
+**The lesson, stated so it outlives this migration:**
+
+1. **`user_integrations` contains bearer credentials.** Treat it as a secret store, not a reporting table.
+2. **A blanket `SELECT` arm on a credential-bearing table is unsafe**, however narrow the role that receives
+   it, because the grant is to the *table*, not to the columns the UI happens to render.
+3. **Credential-bearing surfaces require the `D7` column-limited view pattern**, so the credential is absent
+   from the projection rather than merely unrequested.
+4. **Remediation stays forward-only.** 156 was already applied; `check-migration-hygiene.sh` forbids editing
+   an applied migration in place, on Wave 0's finding that in-place edits made *"replay from empty"* and
+   *"what production actually ran"* diverge.
+5. **Audit every table in a batch for secret columns before granting it**, not the ones that look risky.
+   The regex that first reported "clean" was broken and I printed its answer; see §129.3.
+
+## 8.5 A write escalation the same two migrations left behind — migration 158
+
+156 and 157 revoked from `PUBLIC` and `anon` but **not from `authenticated`**. Supabase ships
+`ALTER DEFAULT PRIVILEGES ... GRANT ALL ON TABLES TO authenticated`, so each new view was **born holding
+`INSERT`, `UPDATE` and `DELETE`**, and the later `GRANT SELECT` does not take them away.
+
+Both single-table views are **auto-updatable** and run `security_invoker = off`, so a write through them
+executes **as the view owner**, where base-table RLS does not apply.
+
+**Proven on QA before the fix:** a user holding only the Admin-layer **`viewer`** role — View yes, Update
+**explicitly no** — issued a `DELETE` through `admin_integration_connections` and **removed another user's
+integration row**. `user_own_integrations` (`auth.uid() = user_id`) did not apply.
+
+**Audit immutability was not breached.** `trg_audit_events_freeze` raises on `UPDATE`/`DELETE` regardless of
+privilege, and triggers fire for the table owner too. Defence in depth held where it existed; it did not
+exist on `user_integrations`, which is where the escalation landed.
+
+**Caught by `SEC-018`**, the standing guard — not by me. Migration **158** revokes `ALL` from
+`PUBLIC, anon, authenticated` on all three views and re-grants `SELECT`.
+
+## 8.6 Verification — the full ladder
+
+| rung | state |
+|---|---|
+| FIXED IN CODE | ✅ migrations 156 · 157 · 158 |
+| **FIXED ON QA** | ✅ applied; ledger carries 156, 157, 158; `expected_applied.json` frontier **158** — manifest and ledger agree |
+| **VERIFIED LIVE** | ✅ **`D15` 60/60** · `D13` 20/20 · `D14` 8/8 (all 425) · full live regression **573/573 across 15 suites**, the fourteen prior suites unchanged at 513 |
+| **VERIFIED IN CI** | ✅ **`d4a0b46` green, 6/6 jobs** — the preceding `9681ff6` was red on `SEC-018`, which is how §129.2 surfaced |
+
+Flutter **1704/1704** after 158 (**1703 passed, 1 failed** before it, the failure being `SEC-018`).
+
+**`D15` tests data access, not booleans** — decisive 0→N pairs against the service-role count on
+`event_registrations` (0→2), `class_bookings` (0→1), `subscriptions` (0→58) and `observability_events`
+(0→69), because PostgREST answers `200` with `[]` when RLS filters everything.
+
+## 8.7 What was NOT built, and must not be inferred as built
+
+**`CONF-D8` is NOT closed.** Nine of seventeen areas now have an authorization surface. The remaining eight,
+and every parked write path, are enumerated individually in **V5 §129.4**. A "no backing surface" area
+received **no invented table and no speculative authorization layer**, per the owner's instruction.
+
+**The seven pre-existing broad-read tables were not touched.** See **V5 §129.5** — a separate finding with its
+own provenance, which **predates this work** and is **not** a 156/157/158 regression.

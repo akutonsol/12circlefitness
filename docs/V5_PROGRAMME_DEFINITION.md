@@ -13223,3 +13223,306 @@ write path · row-level Training reads (PHI) · `Incidents` evidence exposure to
 **`CONF-D8` remains OPEN.** Its mechanism half is `VERIFIED_CLOSED`; the surface half now has a complete,
 evidenced map — **seven areas implementable, four needing a view design, three needing architecture.**
 **QA at 155. Production untouched.**
+
+---
+
+## 128 · THE SEVEN AUTHORIZED ADMIN SURFACES AND THE CURATED AUDIT PROJECTION — BUILT AND PROVEN
+
+Owner authorization **2026-10-05**, on §127's classification. The full evidence record lives in
+`docs/V5_CONF_D8_DATA_SURFACE_RECONCILIATION.md` §8; this section records what the programme learned.
+
+### 128.1 Nothing existing was edited, and that was a design choice
+
+Sixteen **new** permissive `SELECT` policies, two curated views in 156, a third in 157. **No existing policy
+was edited, dropped or replaced.** PostgreSQL ORs permissive policies, so a new one can only widen, never
+narrow — which means the diff cannot have broken an existing boundary, and the 513 assertions of the fourteen
+prior suites held unchanged, as predicted rather than as a relief.
+
+The verbs in the SQL are the matrix's **display spelling** for areas and **lowercase** for verbs, matching
+153's `CHECK`. §125.2 caught that trap before it bit; it did not reappear.
+
+### 128.2 The baseline measurement that changed what the tests could claim
+
+Before writing a single assertion I measured, for every target table, what the service role sees against what
+an **unassigned** authenticated caller sees:
+
+| decisive — 0 without the role | redundant — already public to `authenticated` |
+|---|---|
+| `event_registrations` 2→0 · `class_bookings` 1→0 · `subscriptions` 58→0 · `observability_events` 69→0 · `audit_events` 1000→0 | `community_posts` 10/10 · `post_comments` 5/5 · `post_reactions` 30/30 · `community_groups` 5/5 · `accountability_pods` 1/1 · `events` 3/3 · `classes` 3/3 |
+
+**This measurement is why `D15` is worth anything.** Seven of the sixteen arms grant nothing that was not
+already granted. An assertion that "an admin can read `community_posts`" **would pass with 156 reverted** —
+vacuous, and `QA_CLOSURE_STANDARD` §5.2's *"test the class, not the instance"* cuts against writing one. They
+are asserted for **non-regression only**, labelled as redundant in the suite's own output, and the
+pre-existing posture is recorded as a separate finding (§129.5) rather than dressed up as a result of this
+work.
+
+Had I skipped the baseline, `D15` would have reported a comfortable pass over seven assertions that proved
+nothing, and the one genuinely decisive class — the four tables that *do* deny — would have been diluted into
+the same list.
+
+### 128.3 `A13·1` preserved rather than bypassed, and the §19.3 trap avoided
+
+An additive `OR admin_can('Audit logs','view')` arm on `audit_events` would have **restored exactly** what
+`A13·1`'s `AND NOT (category = 'admin_action' AND actor_id = (SELECT auth.uid()))` deliberately removes. The
+owner's instruction was explicit and the arm was not written. `audit_events`' own policy is untouched, and a
+Viewer still reads **0 of 1000** rows from it directly.
+
+The curated `admin_audit_events` carries the exclusion in its own predicate. Live proof, on real rows: the
+reader's **own 128** `admin_action` rows are excluded while **the other 69 remain visible** — so the exclusion
+is preserved *and* narrow, which is the harder half. It **closes entirely for `Support`**, whose `Audit logs`
+View grant is `false` in the approved matrix; without that pair, an always-open view would have satisfied
+every other audit assertion.
+
+**The trap I nearly walked into.** My first draft projected `subject_id`, conforming to the 146/152 read
+paths. §19.3 rules that **no standing party** may resolve a pseudonym and that resolution *"occurs INSIDE THE
+AUDIT READ PATH"* — and **a view is a standing resolver by definition.** That is precisely the argument
+migration 142 used to keep the active-coach arm out of a table policy, and it applies here unchanged. The view
+projects `subject_pseudonym` and joins no identity map. `A12` therefore holds **by construction**, not by
+policy.
+
+### 128.4 Three verifications the owner asked for by name
+
+> *"test the actual resulting data access, not merely function return values"*
+
+`D13` proves `admin_can()` returns the right booleans and `D14` proves all 425 of them. **Neither proves a row
+crosses an RLS boundary.** `D15` reads rows, and every positive compares against the **service-role count**,
+because PostgREST answers `200` with `[]` when RLS filters everything — the same shape that made three coach
+surfaces render a confident permanent zero under `SEC-G3`.
+
+> *"using the stricter applicable authorization"* — for the shared `user_integrations` surface
+
+Implemented as `admin_can('Wearable intelligence','view') AND admin_can('Integrations','view')`. Both areas
+grant View to all five roles today, so an `AND` and an `OR` are **indistinguishable by observation**. `D15`
+withdraws the `Integrations` grant only, asserts the surface **closes** while the `Wearable` grant is still
+`true`, restores the row, and re-asserts the grid at **116**. An `OR` would have returned the row throughout.
+
+> *"prove that the base `audit_events` protection remains intact"*
+
+Asserted directly: `viewer=0, service=1000`.
+
+### 128.5 One failure on the first run, and it was mine
+
+`D15`'s parked-boundary check used `workout_logs`, which is **empty on QA**, so *"the Viewer saw 0"* proved
+nothing. The `service > 0` clause in the same assertion caught the vacuous pass and the suite went red. It now
+asserts over `workout_sessions` (**0 of 9**) and records `workout_logs`' emptiness as *recorded, not claimed
+as proof*.
+
+**A deny assertion over an empty table is not evidence.** This is the second time in this programme that a
+guard clause against vacuity earned its place, and the first time it fired against me.
+
+---
+
+## 129 · TWO DEFECTS OF MY OWN IN 156/157, AND THE REGISTER OF WHAT REMAINS
+
+Both were in migrations I wrote, both were found before any UI consumed them, and **neither was found by my
+own reasoning alone** — one by a systematic column audit I only ran because the surface was named
+"Integrations", the other by a standing guard test. Recorded in full because the pattern matters more than the
+fix.
+
+### 129.1 A credential disclosure — `user_integrations` carries bearer tokens
+
+156 put a blanket `SELECT` arm on `user_integrations`, which carries **`access_token`** and
+**`refresh_token`**. The approved matrix grants that area to **all five roles**, so the arm would have handed
+every **Viewer, Support agent and Content editor** live OAuth bearer credentials for every user's wearable
+account — sufficient to impersonate the user against the upstream provider.
+
+`COWORK_ENGINEERING_GOVERNANCE` §9 forbids remediation that weakens authorization, and the standing
+constraint *"do not grant broad admin access as a shortcut"* names this exact shape.
+
+**Migration 157** withdrew the arm and replaced it with a column-limited `D7`-pattern view omitting both
+tokens; `D15` asserts each returns `42703 column does not exist`. **No approved capability was lost (§102)** —
+the design shows connection *status* and every field of it survives.
+
+**Generalised, because the specific fix is the less useful half:** a grant is to the **table**, not to the
+columns the UI happens to render. A credential-bearing table therefore requires the column-limited view
+pattern, so the credential is **absent from the projection** rather than merely unrequested. Of the sixteen
+tables in this batch, `user_integrations` was the **only** one carrying a secret — `payments` and
+`subscriptions` hold Stripe **identifiers**, which are references, useless without the secret key.
+
+### 129.2 A write escalation — the views were born with `authenticated` write grants
+
+156 and 157 revoked from `PUBLIC` and `anon` but **not from `authenticated`**. Supabase ships
+`ALTER DEFAULT PRIVILEGES ... GRANT ALL ON TABLES TO authenticated`, so each view was **born holding
+`INSERT`, `UPDATE`, `DELETE`**; a later `GRANT SELECT` does not remove them. The repository's established
+pattern names all three roles in one statement (118:106, 118:119). I wrote two statements and omitted the
+role that mattered.
+
+**Why it was not theoretical.** `admin_audit_events` and `admin_integration_connections` each select from one
+table with no aggregate, making them **auto-updatable**, and both run `security_invoker = off` — so a write
+through them executes **as the view owner**, where base-table RLS does not apply.
+
+**Proven on QA before the fix:** a user holding only the Admin-layer **`viewer`** role — View yes, Update
+**explicitly no** — issued a `DELETE` through `admin_integration_connections` and **removed another user's
+integration row**. `user_own_integrations` did not apply. **A destructive privilege escalation, and a direct
+violation of the matrix this layer exists to enforce.**
+
+**Audit immutability was not breached.** `trg_audit_events_freeze` (142:273) raises on `UPDATE`/`DELETE`
+regardless of privilege, and triggers fire for the table owner too. **Defence in depth held where it existed.
+It did not exist on `user_integrations`** — which is exactly where the escalation landed. That asymmetry is
+the finding: the table protected by a trigger survived my mistake, the table protected only by RLS did not.
+
+**Migration 158** revokes `ALL` from `PUBLIC, anon, authenticated` on all three views and re-grants `SELECT`.
+Verified closed live: `DELETE` 403, read capability preserved.
+
+**Why my own tests missed it.** `D15` §6 **already asserted write refusal and passed** — on the **base
+tables**. The escalation was through the **view**. *A deny assertion only covers the object it names.* `D15`
+now asserts writes against the views too, with `INSERT`/`DELETE` by status and **`UPDATE` by outcome**:
+PostgREST answers `204` to a `PATCH` on these views whether or not the privilege exists — including on
+`admin_training_overview`, which is not auto-updatable and could not accept an `UPDATE` under any privilege —
+so the status carries no information, and asserting `403` on it would be asserting PostgREST's request
+handling rather than the security property.
+
+**`SEC-018` was extended, and the reason is a genuine conflict between two repository rules.** It required the
+`REVOKE` in the **same migration** that creates the view. That is right for authoring, but **unsatisfiable for
+a forward-only remediation**, because `check-migration-hygiene.sh` forbids editing an applied migration in
+place — on Wave 0's finding that 15 in-place edits made *"replay from empty"* and *"what production actually
+ran"* diverge. A defect of this kind could otherwise be fixed only by breaking one rule or the other. It now
+checks the **cumulative end state**. **The invariant is not relaxed:** a view with no `REVOKE` anywhere still
+fails, so the test would still have gone red on `9681ff6`, which is how this surfaced. Only the *location* of
+the satisfying statement changed, a later migration must still name the view, and the test **prints which
+migration satisfied it** so a remediation far from its cause stays visible rather than silent.
+
+### 129.3 A third error, in my tooling rather than the product
+
+My first secret-column audit printed **`user_integrations  clean`** — a table whose token columns I had read
+minutes earlier. BSD `sed` does not support `\?` or `\b`, so the extractor returned nothing and I printed the
+empty result as a verdict. The same class of bug had already made an RLS check report three tables as having
+no `ENABLE ROW LEVEL SECURITY` when all sixteen did, because my regex assumed single spaces.
+
+**A checker that silently finds nothing reports "clean".** Both were replaced by one Python extractor that
+fails loudly on a table it cannot find. Recorded because *"the schema was right and the check was wrong"* is
+the same failure mode as §120.4's two test defects, and it is now the most common way this programme produces
+false confidence.
+
+### 129.4 THE BOUNDARY REGISTER — each one stated individually
+
+`CONF-D8` is **not closed**. Nine of seventeen areas have an authorization surface. Each boundary below is
+distinct and none may be collapsed into a generic blocker.
+
+**B-1 · `Security` area projection — the category mapping is undefined**
+*Issue:* `Security`'s content is a category filter over `audit_events`; the curated-view pattern is authorized
+and proven, but which categories constitute "Security" is not stated anywhere.
+*Evidence:* `A2` fixes **15 categories** (`R-1`); the live population carries `relationship_change`,
+`audit_read`, `admin_action`, `incident`, `export_deletion`, `billing_entitlement`, `phi_correction`. No
+document maps any subset to the `Security` area. Matrix grant: View `true` for `trust_lead`,
+`operations_lead`, `viewer`; `false` for `support`, `content_editor`.
+*Governing rule:* `A2` + `R-1`; §102 forbids shrinking the approved capability.
+*Why it cannot be inferred:* choosing the subset **is** defining the product surface. Naming looks sufficient
+and is not — `incident` plainly belongs, `audit_read` is arguable, `relationship_change` is a judgement about
+whether authorization changes are security events.
+*Decision required:* **owner/design** — the exact category list for the `Security` area, or a ruling that it
+projects a different population.
+
+**B-2 · `Support` › `Users` › `Update` — the one non-View grant outside Trust/Operations**
+*Issue:* the matrix grants `support` **Update** on `Users`. No write path exists and the target columns are
+privilege-bearing.
+*Evidence:* `D7` rules column-limited views over `user_profiles`; `enforce_profile_privilege()` protects the
+privilege columns; §127 §4.2 classified `Users` as `CURATED_VIEW_REQUIRED`.
+*Governing rule:* `D7`; §9 security invariants; `D-02`'s role-escalation suite (40/40) is the regression floor.
+*Why it cannot be inferred:* which columns Support may write is a security decision, and a wrong guess is
+exactly the role-escalation class `D-02` exists to catch.
+*Decision required:* **security review + owner** — the precise writable column set, and the mechanism
+(column-limited `UPDATE` policy vs `SECURITY DEFINER` RPC).
+
+**B-3 · Training row-level / PHI disclosure**
+*Issue:* the aggregate surface ships; per-member training history does not.
+*Evidence:* `admin_training_overview` is counts-only and proven so; a Viewer reads **0 of 9**
+`workout_sessions`. `workout_logs` is empty on QA, so its denial is **not** assertable there.
+*Governing rule:* PHI handling; §102 (the capability may not be deleted to fit the architecture).
+*Why it cannot be inferred:* whether an Admin role may read an identified member's training history is a
+privacy decision, not a mechanical one.
+*Decision required:* **owner/privacy** — may Admin roles read row-level training data, for which roles, and
+identified or pseudonymised.
+
+**B-4 · `Incidents` evidence exposure to `Viewer`**
+*Issue:* `incident` records carry unbounded `evidence`; the matrix grants `Viewer` View.
+*Evidence:* §127 §2.3 classified `Incidents` as `CURATED_VIEW_REQUIRED` for this reason.
+*Governing rule:* `A12`; least privilege.
+*Why it cannot be inferred:* an unbounded free-text column may contain anything, including re-identifying
+detail, so a blanket projection cannot be shown safe.
+*Decision required:* **owner/security** — projection with `evidence` withheld, or a ruling that `Viewer` may
+receive it.
+
+**B-5 · `QA` area — no backing surface**
+*Issue:* no table backs it. Per the owner's instruction, **no table was invented and no speculative
+authorization layer added.**
+*Evidence:* §127 §3.1 `NO_BACKING_SURFACE`.
+*Governing rule:* the owner's instruction; §102.
+*Why it cannot be inferred:* there is nothing to authorize until the data model exists.
+*Decision required:* **architecture** — define the QA surface, or rule the area display-only.
+
+**B-6 · `Releases` area — no backing surface** — as B-5. §127 §3.2. **Decision required: architecture.**
+
+**B-7 · `Organization` area — no backing surface** — as B-5. §127 §4.1. **Decision required: architecture.**
+
+**B-8 · `Configuration` / `platform_settings` posture — a pre-existing defect**
+*Issue:* `platform_settings` is world-readable to any authenticated caller —
+`FOR SELECT TO authenticated USING (true)`, migration **039**.
+*Evidence:* §127 §4.4. **Predates this work; not introduced by 156/157/158.**
+*Governing rule:* least privilege.
+*Why it cannot be inferred:* narrowing it may break existing clients that read it, so the blast radius is a
+product decision.
+*Decision required:* **owner** — leave as is, or narrow it and accept the client impact.
+
+**B-9 · `decision_traces` / `PD-A05`** — `decision_traces` exists (089:17) and `PD-A05` governs who reads it;
+`content_manager` is the arm option (a) withholds. **Unchanged, parked. Decision required: owner, per `PD-A05`.**
+
+**B-10 · `CAP-1`** — scope ruled (posts/comments) and otherwise unchanged. **Parked.**
+
+**B-11 · `CONF-D6`** — unchanged. **Parked.**
+
+**B-12 · `PD-C03`** — unchanged. **Parked.**
+
+**B-13 · §100.5** — unchanged. **Parked.**
+
+**B-14 · `P7`** — unchanged. **Parked.**
+
+**B-15 · `PD-G01`** — unchanged, and **must not be released**. **Parked.**
+
+**B-16 · `P10`** — unchanged, and **must not be released**. **Parked.**
+
+**B-17 · `AI Guardian` runtime** — the registry half exists (154, documentation only); the runtime half is
+`ARCHITECTURE_EXTENSION` per §127 §2.1, and the standing constraint is that AI Guardian **must not become a
+prerequisite for core security**. **Decision required: architecture**, and it does not block anything above.
+
+### 129.5 A SEPARATE SECURITY FINDING — a broad authenticated-read posture that PREDATES this work
+
+**Provenance, stated first because it determines how this is read:** the following tables were **already
+readable in full by any authenticated caller** before migration 156 existed. This was **measured** (§128.2),
+not inferred. **It is NOT a 156/157/158 regression, and those migrations' arms on these tables grant nothing
+that was not already granted.**
+
+| table | visible to an unassigned authenticated caller | granting policy predates 156 |
+|---|---|---|
+| `community_posts` | 10 of 10 | ✅ |
+| `post_comments` | 5 of 5 | ✅ |
+| `post_reactions` | 30 of 30 | ✅ |
+| `community_groups` | 5 of 5 | ✅ |
+| `accountability_pods` | 1 of 1 | ✅ |
+| `events` | 3 of 3 | ✅ |
+| `classes` | 3 of 3 | ✅ |
+
+**Per the owner's instruction, these policies were NOT modified as part of `CONF-D8`.**
+
+*Why it is worth a decision anyway:* a members-only product whose community content is readable by **any**
+authenticated account — including one created purely to read it — is a product posture, not an accident of
+implementation. `accountability_pods` is the most pointed case: a pod is a small private accountability group
+by design, and its rows are currently readable by everyone.
+
+*Decision required:* **owner/security**, as its own review — is full authenticated read the intended posture
+for community content, or should these narrow to membership scope? **Deliberately not bundled with `CONF-D8`.**
+
+### 129.6 Ladder state
+
+| element | FIXED IN CODE | FIXED ON QA | VERIFIED LIVE | VERIFIED IN CI |
+|---|---|---|---|---|
+| 153 · 154 · 155 | ✅ | ✅ | ✅ | ✅ `VERIFIED_CLOSED` |
+| **156 · 157 · 158** | ✅ | ✅ frontier **158**, ledger and manifest agree | ✅ `D15` **60/60**, regression **573/573** | ✅ **`d4a0b46` green, 6/6 jobs** |
+
+**All four rungs are met for 156, 157 and 158, so each is `VERIFIED_CLOSED` under `QA_CLOSURE_STANDARD` §2.1.**
+The run that proves it is `d4a0b46`; the preceding run `9681ff6` was **red on `SEC-018`**, which is how
+§129.2 was found, and both results are part of this record.
+
+**`CONF-D8`'s mechanism half is `VERIFIED_CLOSED`. Its surface half is NOT closed, and §129.4 is why.**
+Production remains untouched and unauthorized.
