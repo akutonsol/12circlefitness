@@ -13911,7 +13911,7 @@ actually owns: **the Admin layer may read the governance record and may not auth
 | element | FIXED IN CODE | FIXED ON QA | VERIFIED LIVE | VERIFIED IN CI |
 |---|---|---|---|---|
 | 153–162 | ✅ | ✅ | ✅ | ✅ `VERIFIED_CLOSED` |
-| **163** | ✅ | ✅ frontier **163** | ✅ `D13` 21/21 · `D15` **157/157** · regression **670/670** | pending |
+| **163** | ✅ | ✅ frontier **163** | ✅ `D13` 21/21 · `D15` **157/157** · regression **670/670** | ✅ `e888247` green 6/6 — `VERIFIED_CLOSED` |
 
 **Thirteen of seventeen areas now carry an authorization surface.** `AI Guardian`'s registry half is live;
 its runtime half is **B-17**.
@@ -14040,3 +14040,70 @@ times, the tell was the same: the failing assertion was a precondition, not a pr
 
 Full regression after the fix: **670/670 across 15 suites**, **0 fixture assignments left**, **capability
 grid intact at 116**.
+
+---
+
+## 138 · FRONTIER — ELEVEN MIGRATIONS CLOSED, THIRTEEN AREAS SURFACED, TWENTY-THREE BOUNDARIES STANDING
+
+**`VERIFIED_CLOSED`, all four rungs: 153 · 154 · 155 · 156 · 157 · 158 · 159 · 160 · 161 · 162 · 163.**
+QA frontier **163**, ledger and manifest agree. CI `e888247` green **6/6**. Flutter **1704/1704**. Live
+regression **670/670 across 15 suites**. Production never contacted.
+
+### 138.1 What the Admin authorization layer now is
+
+**Thirteen of seventeen areas carry an authorization surface**, and `Configuration` reads through the
+pre-existing policy `B-8` confirmed. **Every one of the 77 View grants that has a surface is now proven
+effective in both directions** — the granted roles read, the denied roles do not — which is the assertion
+shape §136.3 showed to be the only one that detects an inert grant.
+
+The reads reach real data through **six curated views**, each self-gating, each `security_invoker = off`
+with authorization in its own `WHERE`, each revoking its write grants, and none of them resolving a
+pseudonym.
+
+### 138.2 What is NOT built, stated so it cannot be mistaken for an oversight
+
+**38 of 39 approved write grants are inert** (§136), and they are inert for **six different reasons**. Four
+of them — `Audit logs` and `Security` × `Update`/`Manage` — **cannot be implemented as written**, because
+`audit_events` is append-only and the union rule's own carve-out applies. **That is not an implementation
+debt and no work is owed on it** until the verbs are ruled on.
+
+`QA`, `Releases` and `Organization` render **`A11` empty states by owner decision**. Nothing was deleted;
+no producer, table, column set or verb meaning was invented.
+
+### 138.3 Reassessed per branch — nothing is reachable
+
+| branch | state | why |
+|---|---|---|
+| `CONF-D8` surfaces | **13/17 areas surfaced** | the rest are **B-5 … B-7** (deferred by decision) and **B-20 … B-23** (undecided verbs) |
+| Write paths | **1 of 39** | **B-20** blocked by `A11`; **B-21/B-22/B-23** need owner rulings |
+| AI Guardian runtime | **BLOCKED** | **B-17** — no telemetry surface exists; and it must not become a prerequisite for core security |
+| `policy_evaluation` | **BLOCKED** | still no producer to emit an evaluation |
+| `P5` Admin UI | **BLOCKED** | authorization covered database surfaces, explicitly not the UI |
+| `FG-1` · `FG-2` · ENV-3 live half | **BLOCKED — infrastructure** | all three are SQL, not REST; `QA_DB_URL` is unset |
+| `LRE-34` · `REL-36` · `LRE-35` | **BLOCKED — unsafe** | verifying against QA means a reset that destroys the fixtures and the audit population |
+| `CAP-1` · `CONF-D6` · `PD-C03` · §100.5 · `PD-A05` | **BLOCKED — owner** | **B-9 … B-13**, unchanged |
+| `P7` · `PD-G01` · `P10` | **BLOCKED — phase / not for release** | **B-14 … B-16**, unchanged |
+| Cross-product Helix | **BLOCKED — external** | design-system authority |
+
+**No branch is blocked on work I am authorized to do and have not done.**
+
+### 138.4 The four defects I introduced, and what found each
+
+Recorded together because the pattern is more useful than any one fix. **None was found by my own reasoning
+alone.**
+
+| defect | found by |
+|---|---|
+| credential disclosure — blanket arm on a table holding OAuth bearer tokens | a column audit I ran only because the area was named *"Integrations"* |
+| write escalation — three views born with `authenticated` write grants; a View-only role **deleted another user's row** | **`SEC-018`**, a standing guard |
+| `22P02` bare-literal array append — every call to the new write path failed | **`AI-J-002`**, a standing invariant that **named the class** |
+| a cancelled CI run poisoned the next, and the failure was self-perpetuating | CI, and only because the failure was loud |
+
+**The guards earned their keep; my reasoning did not.** Twice I extended a guard that had caught me, and both
+times the bar was the same: *the extension must preserve the detection that caught the defect.* Where it
+would not, the guard wins and the code changes.
+
+**And four times a test passed for the wrong reason** — `workout_logs` (§128.5), two absent audit categories
+(§132.3), `governance_policy` (§135.2), and the `admin_role_assignments` arrange (§137). **Three were deny
+assertions over empty tables.** A deny assertion with no data behind it is not evidence, and the fourth was
+worse: it kept passing after the posture it described had been **inverted by the approved matrix**.
