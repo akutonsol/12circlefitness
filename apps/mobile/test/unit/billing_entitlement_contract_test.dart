@@ -481,12 +481,57 @@ void main() {
           reason: 'a bought session pack must be spent when a session is booked');
     }, skip: 'Open finding K-05 — session credits are granted but never consumed or enforced');
 
+    // UN-SKIPPED 2026-10-06 (V5 §153). K-07 is REMEDIATED. The block used to catch
+    // the Stripe error, log "continuing to mark local", and fall through to the
+    // local update — so a failed remote cancel still flipped the row to `canceled`,
+    // ended the coaching relationship and notified the coach, while Stripe kept
+    // billing. The customer paid for access they no longer had.
+    //
+    // These assertions are deliberately about the CONTROL FLOW, not the wording.
+    // Checking only that a log string is absent would pass if someone deleted the
+    // message and kept the fall-through, which is the defect.
     test('K-07 a failed Stripe cancel does not revoke local entitlement', () {
       final fn = _edgeFn('cancel-subscription');
-      expect(fn, isNot(contains('Stripe cancel failed (continuing to mark local)')),
+      final exec = fn
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('//'))
+          .join('\n');
+
+      expect(exec, isNot(contains('continuing to mark local')),
           reason: 'marking the row canceled after Stripe refused leaves the '
               'customer paying for access they no longer have');
-    }, skip: 'Open finding K-07 — the local row is flipped to canceled even when Stripe throws');
+
+      // The guard must RETURN, not merely log.
+      expect(exec, contains('stripe_cancel_failed'),
+          reason: 'a failed remote cancel must surface as an error, not a success');
+
+      // And it must return BEFORE the local revoke. Position is the contract:
+      // a guard placed after the update would satisfy every `contains` above.
+      final guard = exec.indexOf('stripe_cancel_failed');
+      final revoke = exec.indexOf("status: 'canceled'");
+      expect(guard, greaterThan(-1));
+      expect(revoke, greaterThan(-1));
+      expect(guard, lessThan(revoke),
+          reason: 'the failure guard must precede the local entitlement revoke — '
+              'otherwise the row is already flipped by the time it fires');
+    });
+
+    test('K-07 cancelling twice is idempotent, not an error', () {
+      final fn = _edgeFn('cancel-subscription');
+      final exec = fn
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('//'))
+          .join('\n');
+      // A retry after a successful first attempt must not 502. Stripe signals
+      // "already gone" two ways and both must be treated as success, or the fix
+      // for K-07 would make a second cancel permanently fail.
+      expect(exec, contains('resource_missing'),
+          reason: 'a subscription Stripe no longer holds is already in the desired state');
+      expect(exec, contains("'canceled'"),
+          reason: 'a subscription Stripe still holds but reports canceled is also already done');
+      expect(exec, contains('alreadyGone'),
+          reason: 'the idempotent path must be explicit, not incidental');
+    });
 
     test('K-09 losing the coach plan restores the free client capacity', () {
       final hook = _edgeFn('stripe-webhook');
