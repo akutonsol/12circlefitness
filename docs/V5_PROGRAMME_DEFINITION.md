@@ -13493,15 +13493,22 @@ readable in full by any authenticated caller** before migration 156 existed. Thi
 not inferred. **It is NOT a 156/157/158 regression, and those migrations' arms on these tables grant nothing
 that was not already granted.**
 
-| table | visible to an unassigned authenticated caller | granting policy predates 156 |
+| table | visible to an unassigned authenticated caller | the policy that grants it — **named, and all predate 156** |
 |---|---|---|
-| `community_posts` | 10 of 10 | ✅ |
-| `post_comments` | 5 of 5 | ✅ |
-| `post_reactions` | 30 of 30 | ✅ |
-| `community_groups` | 5 of 5 | ✅ |
-| `accountability_pods` | 1 of 1 | ✅ |
-| `events` | 3 of 3 | ✅ |
-| `classes` | 3 of 3 | ✅ |
+| `community_posts` | 10 of 10 | **001** · `FOR SELECT TO authenticated USING (true)` |
+| `post_comments` | 5 of 5 | **001** · `FOR SELECT TO authenticated USING (true)` |
+| `post_reactions` | 30 of 30 | **001** · `FOR SELECT TO authenticated USING (true)` |
+| `community_groups` | 5 of 5 | **016** · `"all read groups"` — `TO authenticated USING (true)` |
+| `accountability_pods` | 1 of 1 | **002** `"Anyone can read pods"`, **narrowed by 100** to `"Authenticated can read pods"` |
+| `events` | 3 of 3 | **001** · `FOR SELECT TO authenticated USING (true)` |
+| `classes` | 3 of 3 | **001** · `FOR SELECT TO authenticated USING (true)` |
+
+**On how the measurement was taken, stated precisely.** The counts were read *after* 156 was applied, so they
+are not a literal pre-156 observation. They are still evidence of the pre-156 posture, because the caller held
+**no Admin-layer assignment**, which makes `admin_can()` false and every one of 156's arms inert for them —
+`D13` asserts exactly that for an unassigned caller. The provenance column above is the independent proof, and
+it does not depend on the measurement at all: each granting policy is named and every one predates 156 by at
+least 140 migrations.
 
 **Per the owner's instruction, these policies were NOT modified as part of `CONF-D8`.**
 
@@ -13526,3 +13533,53 @@ The run that proves it is `d4a0b46`; the preceding run `9681ff6` was **red on `S
 
 **`CONF-D8`'s mechanism half is `VERIFIED_CLOSED`. Its surface half is NOT closed, and §129.4 is why.**
 Production remains untouched and unauthorized.
+
+---
+
+## 130 · THE BROAD-READ POSTURE WAS REVIEWED ONCE BEFORE, AND KEPT — WHICH CHANGES WHAT IT IS
+
+A follow-up on §129.5, run because *"this predates my work"* establishes provenance but not **intent**, and the
+owner's review needs the second one.
+
+### 130.1 `accountability_pods` was deliberately narrowed — from `anon` to `authenticated`, and no further
+
+`migration 002` created **`"Anyone can read pods"`** as `FOR SELECT USING (true)` — **with no `TO` clause**,
+which in PostgreSQL means `PUBLIC`, so the `anon` role was included. A pod was readable without signing in.
+
+`migration 100_rls_harden_client_data.sql` — a hardening pass, by name — **dropped that policy** and replaced
+it with **`"Authenticated can read pods"`**, `FOR SELECT TO authenticated USING (true)`.
+
+**So this table was examined by a deliberate hardening pass, and the decision taken was `anon` → `authenticated`
+and no further.** The remaining breadth is not an oversight nobody noticed; it is the state a prior review
+chose. That materially changes the question put to the owner: not *"did we miss this?"* but **"is the 100-era
+decision still the intended posture?"**
+
+### 130.2 Why it is still worth asking
+
+An `accountability_pod` is a **small private accountability group** by design — that is the feature, not an
+implementation detail. Under the current policy, every row is readable by **any** authenticated account,
+including one created for the purpose. The same holds for `community_posts`, `post_comments`, `post_reactions`
+and `community_groups`: a members-only product whose community content is readable by any signed-in account is
+a **product posture**, and `001` is the original schema, which predates every access-control decision this
+programme has made.
+
+`events` and `classes` are the weakest cases — a public catalogue of what is on offer is a defensible thing to
+expose to any signed-in user, and `event_registrations` / `class_bookings`, which carry **who** attends, are
+correctly closed (they are two of the four decisive 0→N surfaces in §128.2).
+
+### 130.3 What was NOT done
+
+**No policy was modified.** The owner's instruction was explicit: record it, do not change it as part of
+`CONF-D8`. **Boundary B-18** is therefore added to §129.4's register:
+
+**B-18 · community-content read breadth**
+*Issue:* seven tables are fully readable by any authenticated caller; `accountability_pods` contradicts the
+feature's own privacy premise most sharply.
+*Evidence:* §129.5's named policies · §130.1's `002` → `100` history · the §128.2 measurement.
+*Governing rule:* least privilege; the `100`-era hardening precedent.
+*Why it cannot be inferred:* narrowing to membership scope would change what existing clients can read, and
+`100` already decided this once — so reversing it is a product decision, not a defect fix.
+*Decision required:* **owner/security**, as its own review — confirm the `100`-era posture, or narrow these to
+membership scope and accept the client impact. **Not bundled with `CONF-D8`.**
+
+**The register now holds eighteen boundaries.** Nothing in this section unblocks any of them.
