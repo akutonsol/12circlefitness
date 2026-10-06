@@ -104,7 +104,7 @@ const SUITES = [
   // from policy. 17 areas x 5 verbs x 5 roles = 425 live admin_can() calls,
   // asserting the class rather than a sample (QA_CLOSURE_STANDARD §5.2).
   ['D14   admin capability matrix (425)',   './d14-admin-capability-matrix-lab.mjs'],
-  ['D15   admin surface access (156-160)',  './d15-admin-surface-access-lab.mjs'],
+  ['D15   admin surface access (156-162)',  './d15-admin-surface-access-lab.mjs'],
 ];
 
 let totalFailures = 0;

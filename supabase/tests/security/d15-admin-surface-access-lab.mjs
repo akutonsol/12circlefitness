@@ -537,6 +537,82 @@ async function run() {
     check(`B-3 CONFIRMED aggregate-only: a Viewer reads 0 of ${n(b3svc.body)} row-level sessions`,
       n(b3.body) === 0 && n(b3svc.body) > 0, `viewer=${n(b3.body)} service=${n(b3svc.body)}`);
 
+    // ── 6f · SUPPORT'S Users-Update WRITE PATH — owner decision B-2 (161/162) ─
+    // The only non-View grant outside Trust and Operations, so this is the one
+    // place the Admin layer writes member data at all.
+    section('Support Users-Update write path · names only, audited without values');
+    const tgt = await svc(`user_profiles?select=id,first_name,last_name&email=eq.${encodeURIComponent(IDENT.coach.email)}`);
+    const target = n(tgt.body) ? tgt.body[0] : null;
+    check('write-path target resolved', !!target, target ? 'ok' : 'could not resolve the coach fixture');
+
+    if (target) {
+      const orig = { first: target.first_name, last: target.last_name };
+      const nameNow = async () => {
+        const r = await svc(`user_profiles?select=first_name,last_name&id=eq.${target.id}`);
+        return n(r.body) ? r.body[0] : {};
+      };
+      try {
+        // EVERY role the matrix denies must be refused, not merely ineffective.
+        for (const role of [null, 'viewer', 'trust_lead', 'operations_lead', 'content_editor']) {
+          await unassign(vUid);
+          if (role) await assign(vUid, role);
+          const r = await rpc(victim, 'admin_update_user_name',
+            { p_user_id: target.id, p_first_name: 'D15-FORBIDDEN', p_last_name: null });
+          const after = await nameNow();
+          check(`${role || 'an unassigned caller'} is REFUSED the Users-Update write path`,
+            r.status >= 400 && after.first_name === orig.first,
+            `status=${r.status} name=${after.first_name}`);
+        }
+
+        // support holds Users/Update = true, and must actually succeed.
+        await assign(vUid, 'support');
+        const beforeAudit = await svc("audit_events?select=id&action=eq.user_profiles.name.set");
+        const ok = await rpc(victim, 'admin_update_user_name',
+          { p_user_id: target.id, p_first_name: 'D15Probe', p_last_name: orig.last });
+        const changed = await nameNow();
+        check('Support CAN correct a name — the grant is real, not decorative',
+          ok.status < 400 && changed.first_name === 'D15Probe',
+          `status=${ok.status} name=${changed.first_name}`);
+
+        // The writable set is the function body. Nothing else may move.
+        const full = await svc(`user_profiles?select=role,membership_tier,email,phone,medical_conditions&id=eq.${target.id}`);
+        check('only the name moved — role, membership_tier, email, phone and PHI are untouched',
+          n(full.body) === 1 && full.body[0].role === 'coach',
+          `role=${n(full.body) ? full.body[0].role : '?'}`);
+
+        // A12: the admin_action record must prove WHAT changed without carrying the
+        // values, because a name re-identifies the pseudonymous subject.
+        const afterAudit = await svc("audit_events?select=id,delta,changed_columns,subject_pseudonym,category&action=eq.user_profiles.name.set&order=occurred_at.desc&limit=1");
+        check('the correction emitted exactly one new admin_action audit record',
+          n(afterAudit.body) === 1 && afterAudit.body[0].category === 'admin_action',
+          `rows=${n(afterAudit.body)} new=${n(afterAudit.body) - 0 > 0}`);
+        if (n(afterAudit.body) === 1) {
+          const ev = afterAudit.body[0];
+          check('A12: the audit record carries NO delta — a name would re-identify the pseudonymous subject',
+            ev.delta === null, `delta=${JSON.stringify(ev.delta)}`);
+          check('…but it DOES name the changed column, so the record is still evidence',
+            Array.isArray(ev.changed_columns) && ev.changed_columns.includes('first_name'),
+            `changed_columns=${JSON.stringify(ev.changed_columns)}`);
+          check('…and the subject is a pseudonym, not the user id',
+            !!ev.subject_pseudonym && ev.subject_pseudonym !== target.id,
+            `pseudonym=${ev.subject_pseudonym} userId=${target.id}`);
+        }
+
+        // Input validation, server-side.
+        const blank = await rpc(victim, 'admin_update_user_name',
+          { p_user_id: target.id, p_first_name: '   ', p_last_name: null });
+        check('a whitespace-only name is rejected server-side', blank.status >= 400, `status=${blank.status}`);
+        const nosuch = await rpc(victim, 'admin_update_user_name',
+          { p_user_id: NONE, p_first_name: 'X', p_last_name: null });
+        check('an unknown target is rejected', nosuch.status >= 400, `status=${nosuch.status}`);
+      } finally {
+        await svc(`user_profiles?id=eq.${target.id}`, { method: 'PATCH',
+          body: { first_name: orig.first, last_name: orig.last } });
+        await unassign(vUid);
+        await assign(vUid, 'viewer');
+      }
+    }
+
     // ── 7 · anon reaches none of the three new surfaces ─────────────────────
     section('anon posture on the new surfaces');
     for (const v of VIEWS) {

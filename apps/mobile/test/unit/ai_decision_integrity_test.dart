@@ -324,19 +324,64 @@ void main() {
       // historical originals (089, 094, 095, 115) are applied and immutable, so
       // they are excluded by number, not by exception — their live definitions
       // are already asserted clean above.
+      //
+      // SUPERSEDED DECLARATIONS ARE EXCLUDED ON THE SAME GROUND, V5 §134.3. The
+      // sentence above is the rule this test actually encodes: an applied
+      // migration MAY carry the pattern provided its LIVE definition is clean. The
+      // number cutoff expressed that because, when this was written, every such
+      // case was historical. It is not a second, stricter rule — and read as one it
+      // forces a choice between two repository rules, since
+      // check-migration-hygiene.sh forbids editing an applied migration in place
+      // (Wave 0: in-place edits made "replay from empty" and "what production
+      // actually ran" diverge) and this file's own comment above states the same:
+      // "an applied migration is never edited, so a forward-only correction is the
+      // last declaration."
+      //
+      // 161 shipped `v_changed := v_changed || 'first_name'` in
+      // admin_update_user_name and EVERY call failed 22P02 — including the only
+      // authorized one. 162 corrects it forward. This test caught it, and it still
+      // would: detection is unchanged for any function whose LIVE declaration
+      // carries the pattern, which is what the first test in this group asserts
+      // function by function. Had 162 not been written, the live declaration would
+      // be 161's and both tests would fail.
+      //
+      // A superseded offender is PRINTED rather than passed over in silence, so a
+      // correction sitting in a different file stays visible.
       final dir = Directory('${_repoRoot().path}/supabase/migrations');
       final offenders = <String>[];
+      final superseded = <String>[];
       for (final f in dir.listSync().whereType<File>()) {
         final name = f.uri.pathSegments.last;
         if (!name.endsWith('.sql')) continue;
         final n = int.tryParse(name.split('_').first);
         if (n == null || n <= 126) continue;
         final sql = _flat(_stripSqlComments(f.readAsStringSync()));
-        if (literalAppend.hasMatch(sql)) offenders.add(name);
+        if (!literalAppend.hasMatch(sql)) continue;
+        // Which functions does this migration declare, and is this still the last
+        // word on any of them? If a later migration redeclares every one of them,
+        // nothing this file says is live.
+        final declared = RegExp(
+                r'CREATE\s+OR\s+REPLACE\s+FUNCTION\s+(?:public\.)?([a-z_][a-z0-9_]*)',
+                caseSensitive: false)
+            .allMatches(sql)
+            .map((m) => m.group(1)!)
+            .toSet();
+        final stillLive = declared.isEmpty ||
+            declared.any((fn) => _lastMigrationDeclaring(fn) <= n);
+        if (stillLive) {
+          offenders.add(name);
+        } else {
+          superseded.add('$name (live definition is later)');
+        }
+      }
+      for (final s in superseded) {
+        // ignore: avoid_print
+        print('AI-J-002 note: bare-literal append survives in $s — superseded, '
+            'and the live declaration is asserted clean above');
       }
       expect(offenders, isEmpty,
-          reason: 'these migrations append a bare literal to an accumulator: '
-              '${offenders.join(', ')} — cast it to ::text');
+          reason: 'these migrations append a bare literal to an accumulator and it '
+              'is still the LIVE definition: ${offenders.join(', ')} — cast it to ::text');
     });
 
     test('[invariant] build_workout keeps the RECOVERY_REDUCTION threshold contract', () {
