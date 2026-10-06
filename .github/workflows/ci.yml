@@ -113,6 +113,30 @@ jobs:
           # schema_migrations to make a check green.
           node supabase/scripts/check-migration-manifest.mjs
 
+      - name: Admin capability matrix + non-operational register
+        run: |
+          set -euo pipefail
+          # Both validators existed and NEITHER ran in CI (V5 §139.4). The matrix
+          # validator was written for the 85-cell recovery and then only ever
+          # invoked by hand; the register is new. A guard nobody runs is a guard
+          # that will be wrong the first time it matters.
+          #
+          # The matrix is the owner-approved authorization grid: 85 cells, 425
+          # grants, and D14 reads its live expectations straight from it, so a
+          # malformed matrix would silently weaken 425 live assertions.
+          #
+          # The register records which granted capabilities are AUTHORIZED AND NOT
+          # OFFERED (owner decision B-20). It is cross-checked against the matrix,
+          # so the two cannot drift apart unnoticed.
+          node supabase/scripts/validate-admin-capability-matrix.mjs
+          node supabase/scripts/validate-non-operational-register.mjs
+          # Proves the schema scanner can still SEE things it must see. Each case
+          # encodes a checker that once found nothing and reported success: the
+          # sed extractor that called a token-bearing table "clean", the RLS scan
+          # that assumed single spaces, and the parser that skipped a table whose
+          # identifiers are quoted (V5 §129.3, §139.3).
+          node supabase/scripts/schema-facts.mjs --self-test
+
       - name: Schema contract guard (relations, columns, embedded resources)
         run: |
           set -euo pipefail

@@ -172,6 +172,56 @@ export function check(name, pass, detail) {
   return pass;
 }
 
+/**
+ * A DENIAL assertion that cannot pass for want of data.
+ *
+ * V5 §139.5. Four assertions in this programme passed for the wrong reason, and
+ * three were the same shape: a deny check over a table with no rows.
+ *   · §128.5  "a Viewer reads 0 row-level workout_logs" — workout_logs is empty.
+ *   · §132.3  two Security categories asserted absent — neither had any rows, so a
+ *             MISSPELLED category in the view would have satisfied the test.
+ *   · §135.2  "a Viewer cannot read governance_policy" — the table is empty, and
+ *             the assertion kept passing after the approved matrix INVERTED the
+ *             posture it described. It was not merely unproven; it was wrong.
+ *
+ * `saw === 0` only means something when there was something to see. This FAILS on
+ * an empty population rather than passing, so the absence of data is reported as a
+ * gap in the evidence instead of being silently counted as proof.
+ *
+ *   checkDenied('a Viewer reads no other member', { saw: n(mine.body), population: n(all.body) })
+ *
+ * Use `allowEmpty` only where emptiness is itself the fact being recorded, and say
+ * so in the name — the assertion then states plainly that it proves nothing.
+ */
+export function checkDenied(name, { saw, population, detail = '', allowEmpty = false }) {
+  if (population === 0 && !allowEmpty) {
+    return check(name, false,
+      `NOT ASSERTABLE: the population is empty, so "saw ${saw}" distinguishes refusal ` +
+      `from absence. Seed a row or mark allowEmpty.${detail ? ` ${detail}` : ''}`);
+  }
+  if (population === 0) {
+    return check(`${name} (population empty — recorded, not proof)`, saw === 0,
+      `saw=${saw} population=0${detail ? ` ${detail}` : ''}`);
+  }
+  return check(name, saw === 0, `saw=${saw} of ${population}${detail ? ` ${detail}` : ''}`);
+}
+
+/**
+ * The other half: a GRANT assertion that cannot pass for want of data either.
+ * §136.3 — an inert grant is invisible from both ends, because a test asserting
+ * "the denied role sees nothing" passes while the granted role also sees nothing.
+ * This is what turned AI Guardian from an assumption into a measurement.
+ */
+export function checkGranted(name, { saw, population, detail = '' }) {
+  if (population === 0) {
+    return check(name, false,
+      `NOT ASSERTABLE: the population is empty, so "saw ${saw}" cannot show the grant ` +
+      `works.${detail ? ` ${detail}` : ''}`);
+  }
+  return check(name, saw === population,
+    `saw=${saw} of ${population}${detail ? ` ${detail}` : ''}`);
+}
+
 export function section(t) {
   console.log(`\n── ${t} ${'─'.repeat(Math.max(2, 68 - t.length))}`);
 }

@@ -14107,3 +14107,97 @@ would not, the guard wins and the code changes.
 (§132.3), `governance_policy` (§135.2), and the `admin_role_assignments` arrange (§137). **Three were deny
 assertions over empty tables.** A deny assertion with no data behind it is not evidence, and the fourth was
 worse: it kept passing after the posture it described had been **inverted by the approved matrix**.
+
+---
+
+## 139 · B-20 DECIDED — AUTHORIZED AND NOT OFFERED — AND FOUR WORKFLOW FAILURE MODES CLOSED MECHANICALLY
+
+### 139.1 The evidence that distinguished a defect from a decided state
+
+Gathered before anything was presented, per the `B-1`/`B-18`/`B-19` discipline:
+
+| finding | source |
+|---|---|
+| `audit_events` `UPDATE` **and** `DELETE` raise for **every** caller, `service_role` included | `trg_audit_events_freeze`, 142:251 |
+| the table is revoked from `authenticated, service_role`, leaving only `SELECT` | 148:46 |
+| `audit_control_evidence` is frozen; `observability_events` is retained, identity-immutable and write-once | 144, 145 |
+| the **only** management operation on the audit surface, `audit_sever_identity()`, mutates **no** audit record and is **reserved to `is_erasure_executor()`** by `A12` ruling 6 | 152:175 |
+| the approved build spec contains **no mutate verb anywhere** — no edit, update, delete, approve, manage, resolve or export affordance on any screen | spec, swept |
+| the Dashboard drawer states *"Actions open the item. **Nothing is changed from this screen.**"* | `CONF-D5` README |
+| `admin_can('Audit logs','update')` **already returns `true`** for `trust_lead` | measured live |
+
+**So there is no mutable resource in either area, and no design feature being withheld.** The authorization
+layer is complete and correct; there is simply no operation for it to gate.
+
+**Owner decision B-20:** these capabilities are **authorized and not offered** — *"latent — confirm, and
+record it mechanically."*
+
+### 139.2 Recorded so it cannot be reopened as debt
+
+**Prose did not prevent this.** §136 already explained the conflict in the ledger, and the question still
+arrived as *"four grants conflict with append-only semantics"* — because a reader meeting 38 inert write
+grants reasonably reads them as unfinished work. So the ruling is now a **machine-readable register**,
+`ADMIN-NON-OPERATIONAL-CAPABILITIES.json`, cross-checked against the approved matrix by a validator that
+**eight negative controls** prove catches drift: changed holders, an unknown area, an undefined verb, an
+**empty register**, a cell listed as both ruled and undecided, a flipped `matrix_is_unchanged`, a blanked
+field, and an emptied `undecided` block.
+
+**The register holds only what was ruled.** Its `undecided` block names `B-21`, `B-22`, `B-23` and
+`B-5`/`B-6` explicitly, so it can never be mistaken for a complete account of the inert grants.
+
+**`D15` proves each entry on all three legs**, because any one alone misleads: the grant alone looks like
+unfinished work, the refusal alone looks like a broken grant, and an absent write path says nothing about
+what the database would do if one appeared.
+
+1. **the grant still answers** — `admin_can` is `true` for every holder; the ruling removed nothing;
+2. **no write path is gated on it** — a static scan of every migration, with a canary;
+3. **the resource refuses mutation** — `DELETE` 403, and `PATCH` asserted **by outcome**, since PostgREST
+   answers `204` here regardless of privilege (§129.2). The record survives unchanged.
+
+### 139.3 Four workflow failure modes, closed in the mechanism rather than the habit
+
+Each had already produced a real defect or a real false pass.
+
+**① A deny assertion over an empty table is not evidence.** Four assertions passed for the wrong reason —
+`workout_logs` (§128.5), two absent Security categories (§132.3), `governance_policy` (§135.2, which kept
+passing after the approved matrix **inverted** the posture it described), and the `admin_role_assignments`
+arrange (§137). `lib.mjs` now exports **`checkDenied`**, which **fails** on an empty population instead of
+passing, and **`checkGranted`**, its mirror — because §136.3 showed an inert grant is invisible from both
+ends: *the denied role sees nothing, and so does the granted one.* Nine `D15` assertions moved onto them.
+A sweep of the other suites found no further instance of the harmful shape; what it did find is
+**status-only** assertions, which test whether a request is permitted rather than whether rows flow — a
+weaker claim, recorded rather than silently converted.
+
+**② Security-sensitive views must be tested for real mutation.** The view list is now **discovered from the
+migrations**, not listed, so a view added later is swept the day it ships — which is exactly how 156/157's
+three views reached QA holding `authenticated` write grants (§129.2). Every discovered view is attacked with
+`POST` and `DELETE`, and **every credential-looking column the schema declares** is attempted against every
+view, with a **control** proving `access_token` *is* selectable on its own table — otherwise the sweep would
+pass over a column nobody can select anywhere.
+
+**③ A checker that finds nothing must not report success.** Three did: a BSD-`sed` extractor that printed
+*"user_integrations clean"* for a table holding OAuth tokens, an RLS scan whose single-space pattern missed
+all sixteen `ENABLE` statements, and a parser that skipped `workout_logs` because the baseline migration
+**quotes its identifiers**. `supabase/scripts/schema-facts.mjs` replaces them: it **throws** on an unknown
+table, handles quoted identifiers, picks up `ALTER … ADD COLUMN`, and ships a `--self-test` whose six cases
+**are those three misses**, now standing tests in CI.
+
+**④ Pushing over a live CI run is prevented, not remembered.** §96.2 made it a rule after §95; it was broken
+in §98.4 and again in §137. **Three violations by one operator is evidence the mechanism was wrong.**
+`.githooks/pre-push` refuses the push, naming the in-flight run. It **fails closed** on a live run and
+**fails open** when it cannot tell — no `gh`, offline, unauthenticated — saying which, because blocking
+every push over a missing CLI would be worse than the problem. Proven across **five cases**, including the
+`ALLOW_PUSH_OVER_CI=1` override. It is a convenience, not a control: `core.hooksPath` is per-clone, so
+anything that must not be bypassable stays in CI.
+
+### 139.4 Two validators existed and neither ran in CI
+
+The capability-matrix validator was written for the 85-cell recovery and then **only ever invoked by hand**,
+though `D14` reads its live expectations straight from that file — a malformed matrix would have silently
+weakened **425** live assertions. Both validators and the schema self-test are now wired into the static
+guards. **A guard nobody runs is a guard that will be wrong the first time it matters.**
+
+### 139.5 State
+
+`D15` **189/189** · live regression **703/703 across 15 suites** · Flutter **1704/1704** · QA frontier
+**163** (B-20 required no migration — that is its content). Production never contacted.

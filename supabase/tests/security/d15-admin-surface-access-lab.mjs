@@ -23,10 +23,75 @@
 // pre-existing broad posture is recorded as a finding rather than dressed up as a
 // result of this migration.
 import { URL_, SERVICE, IDENT, signIn, rest, mutate, svc, rpc,
-         check, section, summary, beginSuite, n } from './lib.mjs';
+         check, checkDenied, checkGranted, section, summary, beginSuite, n } from './lib.mjs';
+import { readFileSync, readdirSync } from 'node:fs';
 
-const VIEWS = ['admin_audit_events', 'admin_training_overview', 'admin_integration_connections',
-               'admin_security_events', 'admin_user_directory', 'admin_incidents'];
+// Owner decision B-20 (2026-10-06): these capabilities are AUTHORIZED AND NOT
+// OFFERED. Read from the register rather than restated here, so the test and the
+// ruling cannot drift — the same discipline D14 uses for the capability matrix.
+const NON_OPERATIONAL = JSON.parse(
+  readFileSync('docs/design/admin-dashboard/ADMIN-NON-OPERATIONAL-CAPABILITIES.json', 'utf8'));
+
+// Every migration's SQL, loaded once. POSITIVE ASSERTION: this THROWS if it finds
+// no migrations, rather than returning [] and letting a "no write path exists"
+// assertion pass because nothing was read. Three checkers in this programme have
+// reported success from an empty result (V5 §139.3), and a static scan that
+// silently scanned nothing is the same bug wearing a test's clothes.
+const MIGRATION_SOURCES = (() => {
+  const dir = 'supabase/migrations';
+  const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+  if (files.length < 100) {
+    throw new Error(`D15: expected the full migration set in ${dir}, found ${files.length} ` +
+      'file(s) — refusing to run static assertions against a directory this small, ' +
+      'because "no match" would then mean "nothing was searched"');
+  }
+  const loaded = files.map((name) => ({ name, sql: readFileSync(`${dir}/${name}`, 'utf8') }));
+  // Prove the loader can actually SEE a string it must be able to find, so a
+  // path or encoding fault cannot masquerade as a clean scan.
+  const canary = loaded.some((m) => /admin_can\(\s*'Community'\s*,\s*'view'/i.test(m.sql));
+  if (!canary) {
+    throw new Error("D15: the migration scan could not find admin_can('Community','view'), " +
+      'which migration 156 definitely contains — the scan is broken, not the schema');
+  }
+  return loaded;
+})();
+
+// DISCOVERED, NOT LISTED. V5 §139.6: a hardcoded list covers the views someone
+// remembered. Every `admin_*` view in the migration set is swept for mutation
+// below, so a view added later is covered the day it ships rather than the day
+// someone updates this array — which is how 156/157's three views reached QA
+// holding `authenticated` write grants in the first place (§129.2).
+const VIEWS = (() => {
+  const found = [...new Set(MIGRATION_SOURCES.flatMap((m) =>
+    [...m.sql.matchAll(/CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+(?:public\.)?(admin_[a-z0-9_]+)/gi)]
+      .map((x) => x[1].toLowerCase())))].sort();
+  if (found.length === 0) {
+    throw new Error('D15: discovered NO admin_* views in the migration set — the scan is ' +
+      'broken, not the schema; refusing to report a clean mutation sweep over nothing');
+  }
+  return found;
+})();
+
+// Credential-looking columns the schema ACTUALLY declares, discovered rather than
+// listed. Throws if it finds none, because a sweep over an empty set would report
+// every view clean (V5 §139.3).
+const SECRET_COLUMNS = (() => {
+  const re = /token|secret|password|credential|api_key|private_key/i;
+  const found = new Set();
+  for (const m of MIGRATION_SOURCES) {
+    for (const c of m.sql.matchAll(/^\s*"?([a-z_][a-z0-9_]*)"?\s+(?:TEXT|text|varchar|VARCHAR)/gm)) {
+      if (re.test(c[1])) found.add(c[1].toLowerCase());
+    }
+  }
+  if (found.size === 0) {
+    throw new Error('D15: discovered NO credential-looking columns in the schema — the scan ' +
+      'is broken, not the schema (user_integrations.access_token exists), and a clean ' +
+      'sweep over an empty set would be meaningless');
+  }
+  return [...found].sort();
+})();
+
+
 
 // Owner decision B-2: the Users projection is identity and account state ONLY.
 // Every column below is PHI, contact PII, a financial identifier, or a risk field
@@ -101,8 +166,8 @@ async function run() {
       const svcRows = await svc(`${t}?select=id`);
       const mine    = await rest(victim, `${t}?select=id`);
       baseline[t] = n(svcRows.body);
-      check(`${t}: an UNASSIGNED caller sees 0 of ${baseline[t]} rows`,
-        n(mine.body) === 0, `saw ${n(mine.body)} (status ${mine.status})`);
+      checkDenied(`${t}: an UNASSIGNED caller sees nothing`,
+        { saw: n(mine.body), population: baseline[t], detail: `status=${mine.status}` });
     }
 
     const arranged = await assign(vUid, 'viewer');
@@ -110,9 +175,8 @@ async function run() {
 
     for (const [t, area] of DECISIVE) {
       const mine = await rest(victim, `${t}?select=id`);
-      check(`${t}: a Viewer now sees all ${baseline[t]} rows via admin_can('${area}','view')`,
-        baseline[t] > 0 && n(mine.body) === baseline[t],
-        `saw ${n(mine.body)} of ${baseline[t]} (status ${mine.status})`);
+      checkGranted(`${t}: a Viewer now sees every row via admin_can('${area}','view')`,
+        { saw: n(mine.body), population: baseline[t], detail: `status=${mine.status}` });
     }
 
     // ── 2 · the seven redundant arms — non-regression only ──────────────────
@@ -156,8 +220,8 @@ async function run() {
           n(raw.body) === 0, `viewer=${n(raw.body)} service=0 (recorded, not claimed as proof)`);
         continue;
       }
-      check(`PARKED boundary intact: a Viewer reads 0 of ${n(all.body)} row-level ${t}`,
-        n(raw.body) === 0, `viewer=${n(raw.body)} service=${n(all.body)}`);
+      checkDenied(`PARKED boundary intact: a Viewer reads no row-level ${t}`,
+        { saw: n(raw.body), population: n(all.body) });
     }
 
     // ── 4 · Integrations — the column-limited view, and the STRICTER AND ────
@@ -225,9 +289,8 @@ async function run() {
     // nothing -- and 156 added no arm to it.
     const svcAudit = await svc('audit_events?select=id&limit=1000');
     const rawAudit = await rest(victim, 'audit_events?select=id&limit=1000');
-    check('BASE audit_events still denies a Viewer every row — A13·1 not bypassed',
-      n(rawAudit.body) === 0 && n(svcAudit.body) > 0,
-      `viewer=${n(rawAudit.body)} service=${n(svcAudit.body)}`);
+    checkDenied('BASE audit_events still denies a Viewer every row — A13·1 not bypassed',
+      { saw: n(rawAudit.body), population: n(svcAudit.body) });
 
     // 5b · the curated surface DOES open to that same Viewer (Audit logs/View=true)
     const curated = await rest(victim, 'admin_audit_events?select=id&limit=1000');
@@ -239,8 +302,8 @@ async function run() {
     // view would satisfy 5b too.
     await assign(vUid, 'support');
     const asSupport = await rest(victim, 'admin_audit_events?select=id&limit=1000');
-    check('the curated view CLOSES for Support — Audit logs/View is false in the matrix',
-      n(asSupport.body) === 0, `rows=${n(asSupport.body)}`);
+    checkDenied('the curated view CLOSES for Support — Audit logs/View is false in the matrix',
+      { saw: n(asSupport.body), population: n(curated.body) });
     await assign(vUid, 'viewer');
 
     // 5d · A13·1 itself, on real rows. p1-admin authored admin_action rows, so
@@ -317,6 +380,27 @@ async function run() {
           `status=${r.status} — a 2xx means authenticated still holds the write grant`);
       }
     }
+    // NO ADMIN VIEW MAY PROJECT A CREDENTIAL. Swept over the DISCOVERED view list
+    // and the credential columns the schema actually declares, so this covers a
+    // view added later and a secret column added later, without either being
+    // listed here. This is the standing form of the §129.1 defect: 156 put a
+    // blanket arm on user_integrations, which carries OAuth bearer tokens, and the
+    // only reason it was caught was that I happened to audit the columns.
+    // CONTROL FIRST. If a credential column were simply unselectable everywhere,
+    // every assertion below would pass while proving nothing. This shows the column
+    // IS reachable on its own table, so a 400 on a view is the view withholding it.
+    const ctl = await svc('user_integrations?select=access_token&limit=1');
+    check('control: access_token IS selectable on its own table — so the 400s below mean something',
+      ctl.status < 400, `status=${ctl.status}`);
+
+    for (const v of VIEWS) {
+      for (const col of SECRET_COLUMNS) {
+        const r = await rest(victim, `${v}?select=${col}&limit=1`);
+        check(`${v} does not project ${col}`, r.status >= 400,
+          `status=${r.status} — a 2xx means a credential column is reachable through an Admin surface`);
+      }
+    }
+
     // UPDATE is asserted by OUTCOME, not by status. PostgREST answers 204 to a
     // PATCH on these views whether or not the privilege exists -- it returns 204
     // even for admin_training_overview, which is not auto-updatable and could not
@@ -513,8 +597,8 @@ async function run() {
     await assign(vUid, 'support');
     const incSup  = await rest(victim, 'admin_incidents?select=id&limit=1000');
     const userSup = await rest(victim, 'admin_user_directory?select=id&limit=1000');
-    check('Incidents CLOSES for Support — Incidents/view is false in the matrix',
-      n(incSup.body) === 0, `rows=${n(incSup.body)}`);
+    checkDenied('Incidents CLOSES for Support — Incidents/view is false in the matrix',
+      { saw: n(incSup.body), population: n(incSvc.body) });
     check('…while Users stays OPEN for that same Support role — Users/view is true',
       n(userSup.body) > 0, `rows=${n(userSup.body)}`);
     await assign(vUid, 'viewer');
@@ -640,16 +724,15 @@ async function run() {
         for (const role of ['trust_lead', 'operations_lead', 'viewer']) {
           await assign(vUid, role);
           const r = await rest(victim, 'governance_policy?select=id,code');
-          check(`${role} CAN read the governance registry — AI Guardian/View is true and is now effective`,
-            n(r.body) === n(total.body) && n(r.body) > 0,
-            `saw ${n(r.body)} of ${n(total.body)} (status ${r.status})`);
+          checkGranted(`${role} CAN read the governance registry — AI Guardian/View is true and is now effective`,
+            { saw: n(r.body), population: n(total.body), detail: `status=${r.status}` });
         }
         // DENIED by the matrix -> must still read nothing.
         for (const role of ['support', 'content_editor']) {
           await assign(vUid, role);
           const r = await rest(victim, 'governance_policy?select=id');
-          check(`${role} still reads NOTHING — AI Guardian/View is false in the matrix`,
-            n(r.body) === 0, `saw ${n(r.body)} (status ${r.status})`);
+          checkDenied(`${role} still reads NOTHING — AI Guardian/View is false in the matrix`,
+            { saw: n(r.body), population: n(total.body), detail: `status=${r.status}` });
         }
         // Read only. 163 added no write arm; 154's writes stay on is_admin().
         await assign(vUid, 'trust_lead');
@@ -670,6 +753,65 @@ async function run() {
         await assign(vUid, 'viewer');
       }
     }
+
+    // ── 6h · B-20 · AUTHORIZED AND NOT OFFERED, proven on all three legs ───
+    // A capability is non-operational only if ALL THREE hold. Asserting any one
+    // alone would be misleading: the grant alone looks like unfinished work, the
+    // refusal alone looks like a broken grant, and the absent write path alone
+    // proves nothing about what the database would do if one appeared.
+    section('B-20 · non-operational capabilities (authorized, not offered)');
+    check('the non-operational register is present and non-empty',
+      Array.isArray(NON_OPERATIONAL.non_operational) && NON_OPERATIONAL.non_operational.length > 0,
+      `entries=${NON_OPERATIONAL.non_operational?.length ?? 0}`);
+
+    const auditRow = await svc('audit_events?select=id,outcome&limit=1');
+    check('an audit record exists to attempt mutation against — otherwise every ' +
+      'assertion below would pass vacuously',
+      n(auditRow.body) === 1, `rows=${n(auditRow.body)}`);
+
+    for (const entry of NON_OPERATIONAL.non_operational) {
+      for (const role of entry.granted_to) {
+        await assign(vUid, role);
+        // LEG 1 · the authorization still answers. The ruling did not quietly
+        // remove the grant, and the approved matrix is unchanged.
+        const can = await rpc(victim, 'admin_can',
+          { p_area: entry.area, p_verb: entry.verb.toLowerCase() });
+        check(`${entry.area}/${entry.verb}: ${role} STILL holds the grant — the ruling removed nothing`,
+          can.body === true, `admin_can=${JSON.stringify(can.body)}`);
+      }
+
+      // LEG 2 · no write path is gated on it. If one were ever added, this fails
+      // and the register must be revisited rather than the test relaxed.
+      const needle = new RegExp(
+        `admin_can\\(\\s*'${entry.area.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\s*,\\s*'${entry.verb.toLowerCase()}'`, 'i');
+      const gated = MIGRATION_SOURCES.filter((m) => needle.test(m.sql)).map((m) => m.name);
+      check(`${entry.area}/${entry.verb}: NO write path is gated on it`,
+        gated.length === 0, gated.length ? `gated in ${gated.join(', ')}` : 'no migration references it');
+    }
+
+    // LEG 3 · the resource refuses mutation, to the granted role, on a real row.
+    // DELETE is asserted by status and UPDATE BY OUTCOME: PostgREST answers 204 to
+    // a PATCH here whether or not the privilege exists (V5 §129.2), so the status
+    // carries no information and only the row's survival does.
+    if (n(auditRow.body) === 1) {
+      const before = auditRow.body[0];
+      await assign(vUid, 'trust_lead');
+      const del = await rest(victim, `audit_events?id=eq.${before.id}`, { method: 'DELETE' })
+        .catch(() => ({ status: 403 }));
+      check('a trust_lead holding Audit logs/Update CANNOT delete an audit record',
+        del.status >= 400, `status=${del.status}`);
+      await rest(victim, `audit_events?id=eq.${before.id}`, { method: 'PATCH',
+        body: JSON.stringify({ outcome: 'tampered' }),
+        headers: { 'Content-Type': 'application/json' } }).catch(() => ({}));
+      const after = await svc(`audit_events?select=outcome&id=eq.${before.id}`);
+      check('…and the record is unchanged after the attempt — A11 append-only holds',
+        n(after.body) === 1 && after.body[0].outcome === before.outcome,
+        `before=${before.outcome} after=${n(after.body) ? after.body[0].outcome : 'GONE'}`);
+      // The same row count, so nothing was removed by either attempt.
+      const still = await svc('audit_events?select=id&limit=1');
+      check('…and the audit population still answers', n(still.body) === 1, `rows=${n(still.body)}`);
+    }
+    await assign(vUid, 'viewer');
 
     // ── 7 · anon reaches none of the three new surfaces ─────────────────────
     section('anon posture on the new surfaces');
