@@ -14201,3 +14201,41 @@ guards. **A guard nobody runs is a guard that will be wrong the first time it ma
 
 `D15` **189/189** · live regression **703/703 across 15 suites** · Flutter **1704/1704** · QA frontier
 **163** (B-20 required no migration — that is its content). Production never contacted.
+
+---
+
+## 140 · CAPABILITY-GRID RECONCILIATION — ALL 116 GRANTS ACCOUNTED FOR
+
+Reassessed after the `B-20` boundary, as required. **Every true grant in the approved matrix is now in a
+named state; none is unexplained.**
+
+| | grants | state |
+|---|---|---|
+| **READ · View** | **62** | **effective** — the area has a surface and the grant is proven to work |
+| | 15 | area **deferred by owner decision** (`QA`, `Releases`, `Organization`) |
+| **WRITE** | 1 | **implemented** — `Users · Update`, names only, audited without values |
+| | 4 | **ruled non-operational** — `B-20`, registered and enforced on three legs |
+| | 8 | area **deferred by owner decision** |
+| | **26** | **undecided** — `B-21` (4), `B-22` (6), `B-23` (16) |
+| **total** | **116** | matches the matrix exactly |
+
+**Fourteen of seventeen areas carry a surface.** The three that do not are deferred by decision, not by
+omission — and `QA`/`Releases` render an `A11` empty state so **nothing approved was removed**.
+
+**The 62 effective read grants are proven in both directions**, which is the only assertion shape that
+detects an inert grant: the granted roles read, the denied roles do not, and `checkDenied`/`checkGranted`
+now **fail** rather than pass when the population is empty.
+
+**The 26 undecided write grants are the frontier**, and they are not one blocker. `B-21` is mechanical once
+confirmed — `audit_incidents` is genuinely mutable, blocking only `DELETE` and its identity columns.
+`B-22` needs a writable column set per area, as `B-2` settled for `Users`. `B-23`'s verbs have no stated
+meaning at all, and several may be UI affordances with no data write.
+
+### 140.1 Ladder
+
+| element | FIXED IN CODE | FIXED ON QA | VERIFIED LIVE | VERIFIED IN CI |
+|---|---|---|---|---|
+| 153–163 | ✅ | ✅ frontier **163** | ✅ | ✅ `VERIFIED_CLOSED` |
+| **B-20 register + 4 workflow guards** | ✅ | n/a — no migration, which is the content of the ruling | ✅ `D15` **189/189** · regression **703/703** | ✅ `b8dc857` green **6/6**, and the three new guards are **observed executing** in the log |
+
+Flutter **1704/1704**. Production never contacted.
