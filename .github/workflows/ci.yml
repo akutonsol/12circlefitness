@@ -137,6 +137,20 @@ jobs:
           # identifiers are quoted (V5 §129.3, §139.3).
           node supabase/scripts/schema-facts.mjs --self-test
 
+      - name: Function posture (definer search_path, anon EXECUTE)
+        run: |
+          set -euo pipefail
+          # Two classes 118 and 122 each had to bulk-remediate, and which NOTHING in
+          # CI was checking (V5 §144.2). 122 states why the first recurs: "ACLs and
+          # ownership survive CREATE OR REPLACE; proconfig does NOT" — so 116, 119,
+          # 120 and 121 each silently dropped the search_path pin, twice requiring a
+          # sweep over every function in public. This fails the build instead.
+          #
+          # Its own negative controls run first, so a guard that can no longer
+          # detect its three failure cases fails loudly rather than passing green.
+          node supabase/scripts/check-function-posture.mjs --self-test
+          node supabase/scripts/check-function-posture.mjs
+
       - name: Schema contract guard (relations, columns, embedded resources)
         run: |
           set -euo pipefail

@@ -19,6 +19,15 @@
 //   node supabase/scripts/schema-facts.mjs --self-test
 //   node supabase/scripts/schema-facts.mjs columns user_integrations
 import { readdirSync, readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+
+// RUN THE CLI ONLY WHEN THIS FILE IS THE ENTRY POINT. Without this, importing the
+// module from another script that happens to carry --self-test in argv ran THIS
+// self-test and then process.exit(0) — so the importing script's own self-test
+// never executed and reported success. Found while building
+// check-function-posture.mjs, whose negative controls were silently skipped
+// (V5 §144.3). A guard that cannot run its own failure cases is decorative.
+const IS_MAIN = import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
 
 const DIR = 'supabase/migrations';
 
@@ -74,15 +83,44 @@ export function secretColumnsOf(table, mig = migrations()) {
   return columnsOf(table, mig).filter((c) => SECRETISH.test(c.name)).map((c) => c.name);
 }
 
-/** True if any migration enables RLS on `table`. Throws if the table is unknown. */
+/**
+ * True if any migration enables RLS on `table`, by either mechanism. Throws if the
+ * table is unknown.
+ *
+ * DYNAMIC ENABLEMENT IS THE SECOND MECHANISM AND IT IS EASY TO MISS. Migration 074
+ * secures five ai_* tables with
+ *
+ *     foreach t in array array['ai_profiles','ai_memories', ...] loop
+ *       execute format('alter table %I enable row level security', t);
+ *
+ * so no literal `ALTER TABLE ai_memories ENABLE ROW LEVEL SECURITY` exists anywhere.
+ * An earlier version of this function matched only the literal form and reported all
+ * five as UNPROTECTED (V5 §144). They are fully protected — the live probe proved a
+ * member reads only their own rows — and acting on that false positive would have
+ * meant "fixing" working RLS. A checker that invents a defect is as dangerous as one
+ * that misses it.
+ *
+ * The result says WHICH mechanism, so a dynamic grant stays visible rather than
+ * blending into the literal ones.
+ */
 export function rlsEnabled(table, mig = migrations()) {
   columnsOf(table, mig);                       // asserts the table exists first
-  const re = new RegExp(`ALTER\\s+TABLE\\s+(?:"?public"?\\.)?${ident(table)}\\s+ENABLE\\s+ROW\\s+LEVEL\\s+SECURITY`, 'i');
-  return mig.some((m) => re.test(m.sql));
+  const literal = new RegExp(
+    `ALTER\\s+TABLE\\s+(?:"?public"?\\.)?${ident(table)}\\s+ENABLE\\s+ROW\\s+LEVEL\\s+SECURITY`, 'i');
+  if (mig.some((m) => literal.test(m.sql))) return 'literal';
+  // Dynamic: a DO block that both enables RLS and names this table in an array.
+  const named = new RegExp(`'${table.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`, 'i');
+  for (const m of mig) {
+    for (const blk of m.sql.matchAll(/do\s*\$\$[\s\S]*?end\s*\$\$\s*;/gi)) {
+      const b = blk[0];
+      if (/enable\s+row\s+level\s+security/i.test(b) && named.test(b)) return 'dynamic';
+    }
+  }
+  return false;
 }
 
 // ── self-test ───────────────────────────────────────────────────────────────
-if (process.argv[2] === '--self-test') {
+if (IS_MAIN && process.argv[2] === '--self-test') {
   const mig = migrations();
   const fails = [];
   const t = (name, pass, detail = '') => {
@@ -107,7 +145,13 @@ if (process.argv[2] === '--self-test') {
     ae.includes('delta') && ae.includes('changed_columns'), `${ae.length} columns`);
 
   t('RLS is detected despite multi-space formatting (the second miss)',
-    ['payments', 'user_integrations', 'admin_role_assignments'].every((x) => rlsEnabled(x, mig)));
+    ['payments', 'user_integrations', 'admin_role_assignments'].every((x) => rlsEnabled(x, mig) === 'literal'));
+  // V5 §144: these five are secured by a FOREACH loop in 074, with no literal
+  // ALTER TABLE anywhere. Reporting them unprotected was a false positive that
+  // would have led to "fixing" RLS that works.
+  t('RLS enabled inside a DO/FOREACH loop is detected (the fourth miss)',
+    ['ai_profiles', 'ai_memories', 'ai_insights', 'ai_reviews', 'ai_goal_predictions']
+      .every((x) => rlsEnabled(x, mig) === 'dynamic'));
 
   let threw = false;
   try { columnsOf('a_table_that_does_not_exist', mig); } catch { threw = true; }
@@ -117,6 +161,6 @@ if (process.argv[2] === '--self-test') {
   process.exit(fails.length ? 1 : 0);
 }
 
-if (process.argv[2] === 'columns') {
+if (IS_MAIN && process.argv[2] === 'columns') {
   for (const c of columnsOf(process.argv[3])) console.log(`  ${c.name.padEnd(28)} ${c.type.slice(0, 50).padEnd(52)} ${c.source}`);
 }

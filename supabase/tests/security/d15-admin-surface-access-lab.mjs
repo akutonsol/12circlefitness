@@ -896,13 +896,18 @@ async function run() {
       }
 
       await assign(vUid, 'trust_lead');
+      // BOTH VALUES MUST VARY PER RUN. The probe incident is reused — an incident
+      // cannot be deleted — so writing a CONSTANT action_taken changed nothing on
+      // the second run, the trigger journalled nothing for it, and the journal
+      // assertion below failed (V5 §144.4). It passed once and failed every run
+      // after. A fixture that persists needs values that move.
       const upd = await rpc(victim, 'admin_update_incident_response',
-        { p_incident_id: probeId, p_action_taken: 'D15 probe action', p_recommended_action: null,
-          p_resolution: stamp });
+        { p_incident_id: probeId, p_action_taken: `D15 probe action ${stamp}`,
+          p_recommended_action: null, p_resolution: stamp });
       const after = await svc(`audit_incidents?select=*&id=eq.${probeId}`);
       const a = after.body[0];
       check('B-21a: a trust_lead CAN write the response fields — the grant is real',
-        upd.status < 400 && a.action_taken === 'D15 probe action' && a.resolution === stamp,
+        upd.status < 400 && a.action_taken === `D15 probe action ${stamp}` && a.resolution === stamp,
         `status=${upd.status} action_taken=${a.action_taken}`);
 
       // THE ACCOUNT OF WHAT HAPPENED IS NOT WRITABLE. This is the contract, so it

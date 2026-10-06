@@ -14412,3 +14412,82 @@ informed than those three were.
 
 **Migrations 153–165 are each `VERIFIED_CLOSED`.** QA frontier **165** · CI `868a9bf` green **6/6** ·
 regression **760/760 across 15 suites** · Flutter **1704/1704** · production never contacted.
+
+---
+
+## 144 · FRONTIER SWEEP — THREE FALSE POSITIVES OF MY OWN, AND THE GUARD THAT NOW CATCHES THE REAL CLASS
+
+Run as the §13 sweep rather than assuming `B-23` was all that remained. **The security findings it produced
+were all mine, not the schema's** — which is itself the result.
+
+### 144.1 "14 tables have no RLS" — wrong, and dangerously so
+
+A static sweep reported `ai_profiles`, `ai_memories`, `ai_insights`, `ai_reviews`, `ai_goal_predictions` and
+nine `exercise_*` tables as **having no RLS at all**. `ai_memories` and `ai_profiles` carry `user_id`, so the
+reading was *"any authenticated account reads every member's AI memories."*
+
+**It was false.** A live probe settled it: a seeded coach-owned `ai_memories` row was **invisible** to another
+member — service saw 3 rows, the member saw their own 2. Migration **074:77** secures all five through a
+`foreach` loop:
+
+```sql
+foreach t in array array['ai_profiles','ai_memories', ...] loop
+  execute format('alter table %I enable row level security', t);
+  execute format($f$create policy "own ai data" on %I for all to authenticated
+                    using (user_id = auth.uid()) with check (user_id = auth.uid())$f$, t);
+```
+
+**No literal `ALTER TABLE … ENABLE ROW LEVEL SECURITY` exists for any of them**, and my `rlsEnabled()` matched
+only that form. The corrected sweep finds **zero** tables without RLS; 14 are secured dynamically.
+
+**Acting on this would have meant "fixing" RLS that works** — adding policies over a table that already had
+one, on five tables holding members' AI memories. **A checker that invents a defect is as dangerous as one
+that misses it**, and this is the same root cause as §129.3's three misses: a pattern that does not match the
+code the repository actually contains. `rlsEnabled()` now detects dynamic enablement, reports **which
+mechanism**, and carries a self-test case over exactly these five.
+
+### 144.2 "56 definer functions have no pinned search_path" — wrong for the same reason
+
+The same shape: 118:284 and 122:71 each run
+`EXECUTE format('ALTER FUNCTION %s SET search_path = public, pg_temp', f.sig)` over every function lacking a
+pin, so reading only `CREATE` text reports 56 that are pinned in the database.
+
+**The real question is narrower, and it is a genuine hazard.** 122 states it: *"ACLs and ownership survive
+`CREATE OR REPLACE`; **proconfig does NOT**."* 116, 119, 120 and 121 each silently dropped the pin, twice
+forcing a sweep over every function in `public`. So the class recurs, and **nothing in CI was checking it.**
+
+Scoped correctly — functions declared **after** the last bulk re-pin — **35 of 35 pin `search_path`**,
+including 161–165. `supabase/scripts/check-function-posture.mjs` now fails the build on a new definer
+function without a pin, and on any `GRANT EXECUTE` to `anon` or `PUBLIC` (122's own exit criterion). It runs
+**its own negative controls first**, so a guard that can no longer detect its three failure cases fails
+loudly instead of passing green.
+
+### 144.3 The new guard's self-test never ran, and reported success
+
+`check-function-posture.mjs --self-test` printed **`schema-facts`'** results. `schema-facts.mjs` executed its
+CLI block **on import** and called `process.exit(0)` before the importing script's own self-test could run.
+
+**A guard that cannot execute its own failure cases is decorative**, and this one would have shipped that way.
+Both modules now run their CLI only when they are the entry point. All four of the function-posture negative
+controls fire, including the one asserting it does **not** trip on the same text inside a comment.
+
+### 144.4 A test of mine that passed once and failed every run after
+
+`D15`'s incident-journal assertion went red on a repeat run: `fields=[resolution]`. The probe incident is
+**reused** — an incident cannot be deleted — so writing a **constant** `action_taken` changed nothing the
+second time, and the trigger correctly journalled nothing for it. **A persistent fixture needs values that
+move.** Both response values now vary per run, and the suite was run twice consecutively to prove it.
+
+### 144.5 What the sweep confirmed clean, with evidence rather than assumption
+
+| class | result |
+|---|---|
+| tables without RLS | **0** (14 secured dynamically) |
+| views holding a write privilege for `authenticated` | **0 of 13**, probed live — the `SEC-018` class is fully closed |
+| secret-bearing tables beyond `user_integrations` | **3 invite-token tables, all scoped.** `coach_invites` 0 of 4 to a stranger · `coach_client_relationships` 403 outright · `coach_team_invites` **proven with a seeded fixture**, because the table is empty and the first pass was vacuous |
+| `GRANT EXECUTE` to `anon`/`PUBLIC` | **0** — the single textual hit is placeholder text in a comment; anon gets **401** live on `admin_can`, `audit_open_incident` and `admin_update_user_name` |
+| post-122 definer functions missing a pin | **0 of 35** |
+
+**Three of my four security "findings" this sweep were my own tooling.** The pattern is now explicit enough
+to state as a rule: **a static scan that disagrees with a live probe is wrong until the live probe says
+otherwise.** Every one of these was settled by probing QA, not by reading harder.
