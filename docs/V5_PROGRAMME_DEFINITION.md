@@ -13630,3 +13630,238 @@ the audit above found no reachable authorized branch.
 
 **Eighteen boundaries stand in §129.4. `CONF-D8` remains OPEN with nine of seventeen areas surfaced. QA at 158.
 `PD-G01`, `PD-A24` and `P10` not released. Production never contacted.**
+
+---
+
+## 132 · THREE OWNER DECISIONS TAKEN — B-1 IMPLEMENTED, B-18 AND B-19 CONFIRMED
+
+Surfaced as explicit owner decisions on **2026-10-05** and **not inferred**. All three were put with the
+evidence, the options and what each would cost; two closed without implementation.
+
+### 132.1 The decisions, as given
+
+| boundary | decision | consequence |
+|---|---|---|
+| **B-1** · `Security` area projection scope | **access-control oversight** — `authentication`, `authorization_denial`, `admin_action`, `audit_read` | **implemented** as migration **159** |
+| **B-18** · community-content read breadth | **confirm — no change** | **closes as a CONFIRMED POSTURE, not a defect.** No policy touched |
+| **B-19** · `delta` / `changed_columns` in the Admin audit projections | **withhold both** | **closes as a CONFIRMED DESIGN.** The projections stay exactly as shipped |
+
+**B-18's closure is a result, not an absence of one.** §130 established that migration `100` — a hardening
+pass by name — examined `accountability_pods`, moved it from `anon` to `authenticated`, and stopped there. The
+owner has now confirmed that decision still stands. The finding is therefore **answered**, and the seven
+tables' breadth is the intended posture rather than an unreviewed legacy. Had I inferred it either way I would
+have been wrong about which.
+
+**B-19's closure retro-justifies a choice I had made on a wrong premise.** 156 omitted `delta` and
+`changed_columns` because I checked 142's `CREATE TABLE`, did not find them, and concluded they did not exist.
+**They do** — migration **150** (`A6` delta capture) adds both. The omission was right for a reason I had not
+established: the 146/152 read paths omit them too. The decision now makes it deliberate, and `D15` asserts the
+columns **exist on `audit_events`** and are **absent from both projections**, so no later reader can mistake
+a decision for an absence. *Checking one migration's `CREATE TABLE` and concluding a column does not exist is
+the same error as §129.3's "absent in the file I looked at ≠ absent" — the third instance in this programme.*
+
+### 132.2 `admin_security_events` — what 159 carries, and what it deliberately does not
+
+Scope is the decision, both directions:
+
+| in scope — all four **proven to reach the view** | out of scope, with the reason |
+|---|---|
+| `authentication` · `authorization_denial` · `admin_action` · `audit_read` | `incident` → Incidents (B-4) · `phi_read`/`phi_correction` → Trust · `financial`/`billing_entitlement` → Monetization · `agent_action` → AI Guardian (B-17) · `relationship_change`, `export_deletion`, `observability_audit` → outside access-control oversight |
+
+**`control_evidence` and `storage_media_access` were offered and NOT chosen.** They were the third option; the
+owner took the narrower one. They are **not missing** and must not be added without a new decision. `D15`
+asserts them **absent**, because a surface that silently widened past the decision would pass every other
+assertion.
+
+**`A13·1` is preserved in this projection too, and that is the point.** `admin_action` is in scope, so without
+the clause, adding that category to a second surface would have **quietly restored what `A13·1` removes from
+the first**. Proven on real rows: the reader's own **140** `admin_action` rows are excluded, **75** other
+actors' rows remain.
+
+**The §129.2 lesson is applied at source.** `REVOKE ALL ON public.admin_security_events FROM PUBLIC, anon,
+authenticated` sits in 159 itself, naming all three roles per the 118 pattern — not forward-remediated. `D15`
+asserts `POST` and `DELETE` are refused with 403.
+
+### 132.3 A scope test that was satisfiable by a typo, and the boundary that stopped me fixing it the easy way
+
+Only `admin_action` and `audit_read` had live rows on QA. So *"only the decided categories appear"* was
+**satisfied by a view that misspelled `authentication` or `authorization_denial`** — and the Security screen
+would then show **no sign-in and no denial events at all**, silently, forever. The assertion now runs in both
+directions: every decided category must **actually reach the view**.
+
+**Making that assertion non-vacuous required rows, and my first attempt was refused — correctly.** A direct
+`INSERT` into `audit_events` returned **`42501`** *even for the service role*, because migration **148**
+revokes the table from `authenticated, service_role` on the stated grounds that *"writes reach these tables
+through `SECURITY DEFINER` functions owned by the table owner"*. That is a deliberate V5 boundary. **The right
+answer was to use the real producer, not to work around it:** the seed emits through `audit_record_event()`,
+the same path production uses, and is **idempotent**, so repeated local and CI runs add at most one row per
+category ever. `A13` permits deterministic, clearly-marked QA data, and `audit_events` is append-only, so
+these rows cannot be removed — which is exactly why idempotence was required rather than cleanup.
+
+### 132.4 An assertion count that fell, and why it is recorded rather than passed over
+
+The regression reports **606/606**, with **`D-02` at 39/39 where it was 40/40**. Its
+*"public signup cannot mint an admin"* assertion **self-skips on a 429** email rate limit, which my own
+repeated runs today triggered. The suite logs the skip, and its own comment notes the same
+`handle_new_user()` trigger is covered earlier in the file. **Pre-existing, visible, benign.**
+
+Recorded because **a suite quietly losing an assertion is precisely how a green total hides a regression**, and
+a total that rises while a component falls is the shape that should always be opened. One genuine
+security assertion is not being exercised while the rate limit holds.
+
+### 132.5 Ladder
+
+| element | FIXED IN CODE | FIXED ON QA | VERIFIED LIVE | VERIFIED IN CI |
+|---|---|---|---|---|
+| 153 · 154 · 155 · 156 · 157 · 158 | ✅ | ✅ | ✅ | ✅ `VERIFIED_CLOSED` |
+| **159** | ✅ | ✅ frontier **159**, ledger and manifest agree | ✅ `D15` **94/94**, regression **606/606** | see §133 |
+
+### 132.6 Register movement
+
+**B-1 → IMPLEMENTED · B-18 → CLOSED (confirmed posture) · B-19 → CLOSED (confirmed design).**
+Of §129.4's eighteen plus B-19, **three are now resolved**. The `Security` area joins the surfaced set:
+**ten of seventeen areas now have an authorization surface.**
+
+---
+
+## 133 · SEVEN MORE OWNER DECISIONS — AND THREE OF THEM CLOSED A BOUNDARY WITH NO CODE
+
+§132's 159 is **`VERIFIED_CLOSED`**: CI `fc8e585` green 6/6. Seven further boundaries were then surfaced as
+explicit decisions, in three rounds, each put with the evidence and what the options would cost.
+
+| boundary | decision | outcome |
+|---|---|---|
+| **B-2** (read half) · Users projection | **identity and account state only** | **implemented** — 160 |
+| **B-2** (write half) · Support `Users · Update` | **name corrections only** | **implemented** — 161/162 |
+| **B-3** · Training row-level | **no — aggregate only** | **CLOSED · confirmed privacy boundary** |
+| **B-4** · Incidents | **withhold `evidence` AND `actor_identity`** | **implemented** — 160 |
+| **B-8** · `platform_settings` | **confirm by design** | **CLOSED · my flag withdrawn** |
+| **B-5 / B-6** · QA and Releases | **defer — render an `A11` empty state** | **DEFERRED by decision**, design preserved |
+| **B-7** · Organization | **defer — no content defined** | **DEFERRED by decision**, gap is in the design |
+
+### 133.1 Two of these corrected *me*, not the architecture
+
+**B-8 — I raised a defect that was not one.** I flagged `platform_settings` as a world-readable posture
+problem **without reading the table's contents**. It holds **one row** — `marketplace_commission_rate` —
+and migration `039`'s own comment states the reason: *"Any authenticated user can READ settings
+(checkout/coach need the rate)."* The breadth is a **functional requirement**. The flag is withdrawn.
+§129.4's B-8 stands corrected by this section.
+
+**B-4 — §127 named the wrong risk.** It classified `Incidents` as `CURATED_VIEW_REQUIRED` because of the
+unbounded `evidence` jsonb. Reading the live population showed **`evidence` is empty in every row**, while
+**`actor_identity` holds a real uuid** — a **direct identity, not a pseudonym**, resolving to a person
+without passing through the identity map §19.3 governs. The matrix grants `Incidents` View to `viewer`.
+**The risk §127 did not name was the larger one.** The owner withheld both.
+
+*A classification derived from a schema is a hypothesis about the data. Reading the data tested it, and it
+was half wrong.*
+
+### 133.2 The design→architecture union rule, applied to the areas that looked empty
+
+§127 called `QA`, `Releases` and `Organization` **`NO_BACKING_SURFACE`** from the schema side. The union rule
+says never delete an approved design feature for want of backend support — **so the question is whether a
+design feature exists**, and that required reading the design rather than the schema.
+
+**It does, for two of them.** `02-dashboard-full.webp` carries a **`QA & release`** card showing a `BLOCKED`
+gate badge, `Release 4.2.0 · staging`, `Build: Passing`, `Automated QA: 1,412 / 1,418`; the attention banner
+reads *"One integration is degraded and **one release gate is failing**."* The build spec's Operations list
+names **deployments**. This is approved capability, and its data lives in **CI, not Supabase**.
+
+**It does not, for `Organization`.** The word appears **zero times** in the approved build spec and in none of
+the four screens — every nav dropdown is closed in all four, so no sub-navigation is visible at all. It exists
+only as three rows in the capability matrix, **which is an authorization grid, not a content specification.**
+
+**The distinction decided the outcome.** `QA`/`Releases` defer to an **`A11` empty state** — the card ships,
+nothing is deleted, and **no producer was invented**, which the owner's standing instruction forbids.
+`Organization` defers because **the gap is in the DESIGN, not the architecture** — there is no approved
+feature to extend toward, so §102 is not engaged and this must not be mistaken for an implementation
+shortfall.
+
+### 133.3 Where the register stands
+
+Of §129.4's eighteen plus B-19: **B-1, B-2 (both halves) and B-4 implemented · B-3, B-8, B-18, B-19 closed ·
+B-5, B-6, B-7 deferred by decision.** **Twelve of seventeen areas now carry an authorization surface**, and
+`Configuration` reads through the pre-existing `platform_settings` policy that B-8 confirmed.
+
+**Still open: B-9 (`decision_traces` / `PD-A05`), B-10 (`CAP-1`), B-11 (`CONF-D6`), B-12 (`PD-C03`),
+B-13 (§100.5), B-14 (`P7`), B-15 (`PD-G01`), B-16 (`P10`), B-17 (AI Guardian runtime).**
+
+---
+
+## 134 · THE USERS, INCIDENTS AND WRITE-PATH IMPLEMENTATIONS — AND A GUARD THAT NAMED MY BUG
+
+### 134.1 Built to the decision, not to what seemed harmless
+
+**`admin_user_directory`** (160) exposes **exactly nine columns**. `user_profiles` is the most PHI-dense table
+in the schema and the matrix grants `Users` View to **all five roles**, so every other column is **absent by
+construction**. `risk_*` and `phone` were **offered and declined** — a `risk_level` discloses something about a
+member's health even when the fields it derives from stay hidden — and are asserted absent **alongside** the
+PHI. `D15` checks **eighteen columns one at a time**, each proven to **exist on the base table** and be
+**unreachable through the view**, so "absent" can never be confused with "never existed".
+
+**`admin_incidents`** (160) withholds `evidence` and `actor_identity` per B-4, and also `actor_provenance`,
+`created_at`, `updated_at` — **not in the chosen set.** Built to the decision.
+
+**Both revoke their write grants in 160 itself**, naming all three roles. `SEC-018` now prints forward-
+remediation notes for **only 156/157's three views**; 159 and 160 produce none.
+
+**The strongest assertion in this round is one role against two surfaces.** `support` holds
+`Incidents/view = false` and `Users/view = true`, so the same role must be **CLOSED on one projection and
+OPEN on the other**. Neither an always-open nor an always-closed view can satisfy that pair.
+
+### 134.2 The write path, and why its audit record carries no values
+
+`admin_update_user_name()` is an **RPC, not a column-limited policy**, because *a policy constrains which
+ROWS a caller may update, not which COLUMNS* — and column privileges are per-role while `authenticated` is
+one role shared by every member, so a grant cannot express *"support may write these two columns."* The
+writable set is the function body.
+
+**It diverges from `admin_set_user_role()` deliberately.** That function records before/after `role` in the
+delta, correctly: a role is not identifying. **A name is.** The audit population pseudonymises its subject
+precisely so a record does not identify the person it concerns, and writing *"before: Jane Smith, after: Jane
+Jones"* into it would **hand back the identity the pseudonym removes — defeating `A12` through the audit
+trail rather than through a read path.** It emits `changed_columns` and **no delta**: the record proves
+**what** changed and by whom, without re-identifying **who** it changed for. Asserted live: `delta` null,
+`changed_columns` `["first_name"]`, subject a pseudonym distinct from the user id.
+
+Every role the matrix denies is **refused 403** — unassigned, `viewer`, `trust_lead`, `operations_lead`,
+`content_editor` — and `support`'s write **actually lands**, so the grant is real rather than decorative.
+
+### 134.3 `AI-J-002` named my bug, and the guard decision that followed
+
+161 shipped `v_changed := v_changed || 'first_name'`. PostgreSQL resolves that through
+`anyarray || anyarray`, casts the untyped literal to `text[]`, and raises **`22P02`**. **Every call failed** —
+including the only authorized one. The authorization half was right from the first run; the emission happens
+**after** the `UPDATE`, so the statement rolled back and **no name was ever written**. Nothing was
+half-applied. 162 corrects it forward with `array_append`.
+
+**This programme had already hit this exact class** — eleven sites across three functions, remediated by
+126/127 — and written a forward-looking invariant: *"no migration after 126 reintroduces the bare-literal
+append."* **It fired on my new work, which is the entire point of such a guard.**
+
+**It now excludes superseded declarations, on the ground it already states for the historical originals:**
+*"excluded by number, not by exception — their live definitions are already asserted clean above."* **That
+sentence is the rule the test encodes.** The number cutoff expressed it because, when it was written, every
+such case was historical. Read as a stricter rule it forces a choice between two repository rules, since
+`check-migration-hygiene.sh` forbids editing an applied migration and **this same file's own comment** says
+*"an applied migration is never edited, so a forward-only correction is the last declaration."*
+
+**Detection is unchanged.** A function whose **live** declaration carries the pattern still fails, which the
+first test in the group asserts function by function. **Had 162 not been written, 161 would be the live
+declaration and both tests would fail.** Superseded offenders are **printed**, so a correction sitting in
+another file stays visible.
+
+*This is the second guard I have extended after it caught me, and the bar both times was the same: the
+extension must preserve the detection that caught the defect. Where it would not, the guard wins and the
+code changes.*
+
+### 134.4 Ladder
+
+| element | FIXED IN CODE | FIXED ON QA | VERIFIED LIVE | VERIFIED IN CI |
+|---|---|---|---|---|
+| 153–158 | ✅ | ✅ | ✅ | ✅ `VERIFIED_CLOSED` |
+| **159** | ✅ | ✅ | ✅ | ✅ `fc8e585` green — `VERIFIED_CLOSED` |
+| **160** | ✅ | ✅ | ✅ `D15` 134/134 | ✅ `d4a382a` green — `VERIFIED_CLOSED` |
+| **161 · 162** | ✅ | ✅ frontier **162** | ✅ `D15` **148/148**, regression **660/660** | ✅ `ebe0e9b` green — `VERIFIED_CLOSED` |
+
+Flutter **1704/1704**. Production never contacted.
