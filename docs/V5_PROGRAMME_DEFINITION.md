@@ -14946,3 +14946,113 @@ repeated runs trigger. Documented at §132.4, logged by the suite, benign — an
 
 Flutter **1706 / 5 skipped** · AI **49/49** · characterizations **17/17** · QA frontier **170** ·
 **production never contacted**.
+
+---
+
+## 157 · `DESIGN-02` AND `DESIGN-01` — THE SPECIFICATION LAYER, DERIVED NOT DESIGNED
+
+**`DESIGN-02`** closes the gap `COMPONENTS.md` records in its own words. **24 components, 92 token-mapped
+values**, extracted from the six approved `.dc.html` pages. **The inline styles are the authority**, because
+the referenced `_ds/nocturne-…` bundle is **absent from the package** — zero files — so no other source for
+the values exists.
+
+**Identity reconciles exactly.** `--adm-font-family` is `"Schibsted Grotesk"`; `twelve_circle_theme.dart`
+declares the same family for display, body and numeric; the palettes are identical. **`CONF-D6-B`'s locked
+token authority and the design package are the same token set**, which is why `BOUNDARIES G` needed no
+resolution rather than a ruling.
+
+**A defect in my own first draft, fixed before commit.** The token column mapped `border: 0` to
+`--adm-type-caption-tracking`, because several tokens share the value `0`. Mapping now requires the token's
+**family** to match the CSS property, trivial values are unmapped, and the document states plainly that a
+match is **by value, not by designed intent**.
+
+**Six gaps recorded rather than filled:** Radio and Toast appear in **no** approved page (probed several
+ways); no distinct Timeline is separable from generic list markup; variant matrices are nowhere enumerated;
+the sub-480px phone layout is absent, which `RESPONSIVE.md` itself records; and every unmapped literal is a
+token-set decision.
+
+**`DESIGN-01`** specifies the two undesigned `A11` states. **Both already appear in the approved design as
+content** — what was missing is their treatment as a state pattern. `critical-incident` has **no dependency**:
+the design gives both the populated case and the zero case, whose copy is consistent across three pages
+(*"None"* · *"none raised"* · *"none open"*). `Guardian-approval-required` is specified presentationally and
+then **stops**: *"Awaiting human review — 2"* needs a queue that does not exist, and the action's shape is
+established nowhere. **That is why `Approve` stays non-operational and `P7` owns the queue.**
+
+---
+
+## 158 · `METRIC-12` — THE CONFLICT DOES NOT EXIST
+
+`METRIC-12` was recorded as a live conflict: *"Approved UI shows `CRITICAL/HIGH/MEDIUM/LOW`; the shipped,
+V5-specified CHECK is `Critical/High/Warning/Informational` (143:70)."*
+
+**Reading the approved pages settles it, and the premise was wrong.**
+
+| | finding |
+|---|---|
+| `CRITICAL` | appears **zero times** in any of the six pages |
+| The attention queue | renders **`Critical`** and **`High`** — title case, **the shipped enum** — e.g. *"Critical · Security · 14 min ago · Open"*, *"High · QA · 1 h ago · Blocking release"* |
+| `HIGH`/`MEDIUM`/`LOW` uppercase | appear **only on Ecosystem**, attached to *"Harassment · 14 min"*, *"Health misinformation · 1 h"*, *"Spam · 3 h"*, *"Off-topic · Yesterday"* |
+
+**Those are moderation report priorities, not attention severities — a different object entirely.** The two
+vocabularies were never in conflict; they describe two different things, and the approved UI **already uses
+the shipped enum** wherever severity means severity.
+
+**`METRIC-12` is therefore `ALREADY SATISFIED`.** No enum change, no display-map, no implementation. Recorded
+as resolved by evidence rather than by ruling; if the owner reads it differently, the decision remains theirs.
+
+---
+
+## 159 · `CAP-1-REASON` — THE DESIGN SHOWS CATEGORIES, AND THAT IS NOT AN ENUMERATION
+
+The same reading turned up the moderation queue the design specifies, and it carries more than 170 models:
+
+```
+HIGH    Harassment            · 14 min   Comment in Tuesday Lifters     Reported user: Tom Vidal    · Unassigned
+HIGH    Health misinformation · 1 h      Post in Postpartum Strength    Reported user: Anon member  · J. Park
+MEDIUM  Spam                  · 3 h      Post in Run Club London        Reported user: New account  · Unassigned
+LOW     Off-topic             · Yesterday Comment in Makers & Movers    Reported user: Sam O.       · Unassigned
+```
+
+**What this establishes:** report reasons are **categorical labels**, not free prose; four appear
+(*Harassment · Health misinformation · Spam · Off-topic*); and a report carries a **priority** and an
+**assignee**.
+
+**What it does NOT establish, and why nothing was implemented:** the `CONF-D5` README states the screens
+carry *"All figures are **sample design-state data**"*. **Four labels in sample rows are not a closed
+vocabulary.** Shipping them as a `CHECK` would assert a completeness the design never claims — the precise
+mistake §141 and §142 refused over `approval_status` and `events.status`. **`reason` stays free text**, and
+`CAP-1-REASON` remains the owner's.
+
+### 159.1 Two design→backend gaps this exposed, recorded not built
+
+| gap | evidence | status |
+|---|---|---|
+| `content_reports` has **no priority** | the design shows HIGH/MEDIUM/LOW per report | needs the owner's scale — the same vocabulary question |
+| `content_reports` has **no assignee** | the design shows *"Unassigned"* / *"J. Park"* | triage ownership is a workflow the record does not define |
+
+**Neither was added.** A priority column needs the scale; an assignee needs a triage model. **`CAP-1-APPEAL`
+re-checked and unchanged** — the only mention anywhere records that *no* correction/appeal workflow exists,
+which is a finding, not an authorization.
+
+---
+
+## 160 · METRIC CLASSIFICATION — 12 IDs, by the directive's own framework
+
+| ID | semantics | calculation | producer | classification |
+|---|---|---|---|---|
+| **METRIC-12** | — | — | `audit_incidents.severity` | ✅ **ALREADY SATISFIED** (§158) |
+| **METRIC-18** | ✅ **direction `K`** — *"eligible content renders/views"*, distinct from reach · unique viewers · clicks · engagement · sessions | — | ❌ none | **SEMANTICALLY DEFINED / PRODUCER REQUIRED** |
+| **METRIC-06b** | ✅ **direction `I`** — gross · commission · net | ❌ *"must be explicit before implementation; no monetary value is fabricated"* | `marketplace_commission_rate` 0.10 | **OWNER — calculation only** |
+| METRIC-02 · 03 · 05 · 06a · 11 · 13 · 14 · 16 · 17 | ❌ | ❌ | varies | **OWNER DECISION REQUIRED** |
+
+**Nothing was implemented**, because nothing qualified. Three narrowings worth recording:
+
+- **METRIC-17** — the design labels **three** buckets exactly: `18–30 years` · `30–45 years` ·
+  `45–60 years`, with an unlabelled **4%** remainder. The question is unchanged, and the labelled edges
+  **overlap** (30 and 45 appear twice), so half-open intervals are required whichever way the fourth is ruled.
+- **METRIC-14** — the design renders *"Registrations · 30 d — 1,640"* and *"Attendance rate — 74%"* as
+  **separate** figures, and an event as *"88 / 120"*. That **argues against** option 1
+  (registrations ÷ capacity), since the design already shows those as different numbers. Evidence, not a
+  decision.
+- **METRIC-13** — *"Community — 86 pods · 1,940 posts"* uses *pods* as a Community unit, and *"Pod-level
+  challenges"* appears separately. Neither disambiguates `accountability_pods` from `community_groups`.
