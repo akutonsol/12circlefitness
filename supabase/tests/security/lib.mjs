@@ -309,8 +309,60 @@ export function summary(label) {
 }
 
 
-/** Row count of a PostgREST body; an error object counts as zero rows read. */
-export const n = (b) => Array.isArray(b) ? b.length : 0;
+/** PostgREST's default page size. A body of exactly this length may be a CAPPED page
+ *  rather than a true count. */
+export const PAGE_LIMIT = 1000;
+
+/** Row count of a PostgREST body; an error object counts as zero rows read.
+ *
+ *  THIS IS DELIBERATELY A PURE LENGTH, and an earlier version of it was not.
+ *  I made it raise a failed check on any body of exactly PAGE_LIMIT rows, which found
+ *  the real P2 defect (§174.1) and then fired on four D15 sites that are NOT blind:
+ *  they pass `limit=1000` on purpose and compare PRESENCE (`> 0`, `=== 0`), which a
+ *  capped page does not affect. Saturation is fatal to a DELTA or an EQUALITY over a
+ *  large population, and harmless to presence — so the check belongs where that
+ *  distinction is known, which is [checkDelta], not here. A detector that cries wolf
+ *  on correct code gets switched off. */
+export const n = (b) => (Array.isArray(b) ? b.length : 0);
+
+/** A before/after DELTA assertion that REFUSES to run on a saturated count.
+ *
+ *  This is where paging actually bites. P2 asserted `before + 1 === after` over
+ *  `audit_events.admin_action`, counted by the length of one PostgREST page. The
+ *  population crossed 1000 (1028 exact), both sides read 1000, and the assertion could
+ *  no longer see the event appear — nor see one FAIL to appear, which is the property it
+ *  existed to protect. The audit path was healthy the entire time.
+ *
+ *  So a delta built on a number that may be a capped page is reported as UNMEASURABLE
+ *  rather than as a pass or a fail. Count with [countExact] and it cannot happen. */
+export function checkDelta(name, { before, after, expected = 1, detail = '' }) {
+  if (before === PAGE_LIMIT || after === PAGE_LIMIT) {
+    return check(`${name} — UNMEASURABLE`, false,
+      `before=${before} after=${after}: one side is exactly PAGE_LIMIT, so this is a ` +
+      'capped page and the delta is invisible in both directions. Use countExact(). ' +
+      detail);
+  }
+  return check(name, after === before + expected,
+    `${before} -> ${after} (expected +${expected}) ${detail}`.trim());
+}
+
+/** The exact row count of a population, from `content-range`, independent of paging.
+ *  Reads as service_role, so it is a MEASUREMENT and never an access assertion — use
+ *  `rest()` for anything that must observe a caller's own visibility. */
+export async function countExact(path) {
+  const sep = path.includes('?') ? '&' : '?';
+  const r = await fetch(`${URL_}/rest/v1/${path}${sep}select=id&limit=1`, {
+    headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`,
+               Prefer: 'count=exact' },
+  });
+  const range = r.headers.get('content-range') || '';
+  const total = Number(range.split('/')[1]);
+  if (!Number.isFinite(total)) {
+    throw new Error(`countExact: no usable content-range for ${path} (got "${range}") ` +
+      '— refusing to return a count that was not measured');
+  }
+  return total;
+}
 
 export async function loadIds() {
   const { readFileSync } = await import('node:fs');

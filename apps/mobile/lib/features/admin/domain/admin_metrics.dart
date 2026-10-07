@@ -40,6 +40,12 @@ class AdminActivityOverview {
     required this.signInUsersWeek,
     required this.signInUsersMonth,
     required this.signInUsersPrevMonth,
+    required this.sessionsToday,
+    required this.sessionsMonth,
+    required this.dayStart,
+    required this.weekStart,
+    required this.monthStart,
+    required this.windowTimezone,
   });
 
   final int? sessionUsersToday;
@@ -51,6 +57,24 @@ class AdminActivityOverview {
   final int? signInUsersWeek;
   final int? signInUsersMonth;
   final int? signInUsersPrevMonth;
+
+  /// SESSION COUNTS, not user counts. A member who trains twice in a day is ONE active
+  /// user and TWO Sessions, and the approved design shows both — "947 Daily sessions"
+  /// beside the DAU figure, which the data contract (:97) calls distinct required
+  /// measures. Rendering one as the other would misreport engagement in whichever
+  /// direction the population happens to lean.
+  final int? sessionsToday;
+  final int? sessionsMonth;
+
+  /// The boundaries the figures above were actually computed over, and the timezone
+  /// they were computed in. These exist because the data contract (:98) names the
+  /// timezone as a sub-question the owner's definition must settle, and it is not
+  /// settled. An undisclosed window is an assumption the reader cannot check; a
+  /// disclosed one is a fact they can.
+  final DateTime? dayStart;
+  final DateTime? weekStart;
+  final DateTime? monthStart;
+  final String? windowTimezone;
 
   /// The Session basis is gated on `Users·view`.
   bool get hasSessionBasis => sessionUsersToday != null;
@@ -83,6 +107,12 @@ class AdminActivityOverview {
         signInUsersWeek: _int(r['signin_users_week']),
         signInUsersMonth: _int(r['signin_users_month']),
         signInUsersPrevMonth: _int(r['signin_users_prev_month']),
+        sessionsToday: _int(r['sessions_today']),
+        sessionsMonth: _int(r['sessions_month']),
+        dayStart: _date(r['day_start']),
+        weekStart: _date(r['week_start']),
+        monthStart: _date(r['month_start']),
+        windowTimezone: r['window_timezone'] as String?,
       );
 }
 

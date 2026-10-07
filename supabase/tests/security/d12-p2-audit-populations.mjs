@@ -11,7 +11,7 @@
 // are PERMANENT on QA. That is the population behaving as ruled, not a leak. Rows
 // are tagged with a run-unique marker so they remain attributable.
 import { URL_, ANON, SERVICE, IDENT, signIn, rest, svc, mutate, rpc,
-         check, section, summary, beginSuite, n } from './lib.mjs';
+         check, section, summary, beginSuite, n, countExact, checkDelta } from './lib.mjs';
 
 const RUN = `p2probe-${Date.now()}`;
 const H = (tok) => ({ apikey: ANON, Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' });
@@ -58,8 +58,12 @@ check('fixture: four probe identities exist with their roles',
 // ─────────────────────────────────────────────────────────────────────────────
 section('A2 · admin_set_user_role EMITS an audit Event (§8.3 named this gap)');
 
-const before = await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.admin_action`, { headers: SH });
-const nBefore = n(await before.json());
+// COUNTED EXACTLY, FROM content-range. This was `n(await …json())` — the length of one
+// PostgREST page. `admin_action` crossed 1000 rows on QA (1028 exact), so the page
+// saturated and this assertion began comparing 1000 to 1000: it could no longer see the
+// event appear, and could no longer see one FAIL to appear either, which is the property
+// it exists to protect. The audit path was healthy the whole time. See V5 §174.
+const nBefore = await countExact('audit_events?category=eq.admin_action');
 
 const setR = await fetch(`${URL_}/rest/v1/rpc/admin_set_user_role`, {
   method: 'POST', headers: H(adminTok),
@@ -69,9 +73,9 @@ check('an admin CAN set a role through the sanctioned path', setR.status < 300, 
 
 const after = await fetch(`${URL_}/rest/v1/audit_events?select=id,actor_id,subject_pseudonym,actor_provenance&category=eq.admin_action&order=occurred_at.desc&limit=1`, { headers: SH });
 const rows = await after.json();
-const afterAll = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.admin_action`, { headers: SH })).json());
-check('the role change EMITTED an admin_action Event (A2 IN; A3 application arm)',
-  afterAll === nBefore + 1, `${nBefore} -> ${afterAll}`);
+const afterAll = await countExact('audit_events?category=eq.admin_action');
+checkDelta('the role change EMITTED an admin_action Event (A2 IN; A3 application arm)',
+  { before: nBefore, after: afterAll, expected: 1 });
 const row = rows[0] ?? {};
 check('the actor is the calling admin and provenance is GROUNDED (A3 sub-ruling 3)',
   row.actor_id === admin.id && row.actor_provenance === 'grounded',
@@ -326,7 +330,7 @@ check('the incident records the ACTOR identity, grounded (B1: "actor identity mu
 // ─────────────────────────────────────────────────────────────────────────────
 section('B2 · relationship_change — material STATUS transitions only');
 
-const relBefore = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.relationship_change`, { headers: SH })).json());
+const relBefore = await countExact('audit_events?category=eq.relationship_change');
 const mkRel = await fetch(`${URL_}/rest/v1/coach_client_relationships`, {
   method: 'POST', headers: { ...SH, Prefer: 'return=representation' },
   body: JSON.stringify({ coach_id: trust.id, client_id: subj.id, status: 'pending' }),
@@ -337,14 +341,18 @@ check('fixture: a relationship exists at status pending', !!relId, `status=${mkR
 await fetch(`${URL_}/rest/v1/coach_client_relationships?id=eq.${relId}`, {
   method: 'PATCH', headers: SH, body: JSON.stringify({ specialty: 'strength', request_message: 'hello' }),
 });
-const relAfterMeta = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.relationship_change`, { headers: SH })).json());
-check('an INCIDENTAL metadata change emits NOTHING (B2: not every metadata change)',
-  relAfterMeta === relBefore, `${relBefore} -> ${relAfterMeta}`);
+const relAfterMeta = await countExact('audit_events?category=eq.relationship_change');
+// `expected: 0` through checkDelta rather than a bare `===`. An "emits nothing"
+// assertion is blind to saturation in the OTHER direction: two capped pages always
+// look equal, so a spurious event would be invisible exactly when the population is
+// large. checkDelta refuses to answer instead of answering wrongly.
+checkDelta('an INCIDENTAL metadata change emits NOTHING (B2: not every metadata change)',
+  { before: relBefore, after: relAfterMeta, expected: 0 });
 
 await fetch(`${URL_}/rest/v1/coach_client_relationships?id=eq.${relId}`, {
   method: 'PATCH', headers: SH, body: JSON.stringify({ status: 'active' }),
 });
-const relAfterStatus = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.relationship_change`, { headers: SH })).json());
+const relAfterStatus = await countExact('audit_events?category=eq.relationship_change');
 check('a material STATUS transition DOES emit (B2)',
   relAfterStatus === relBefore + 1, `${relAfterMeta} -> ${relAfterStatus}`);
 
@@ -356,7 +364,7 @@ check('and the Event carries the status transition (A6 names this delta "status"
 // ─────────────────────────────────────────────────────────────────────────────
 section('B3 · billing_entitlement — subscriptions is authoritative, NOT membership_tier');
 
-const billBefore = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.billing_entitlement`, { headers: SH })).json());
+const billBefore = await countExact('audit_events?category=eq.billing_entitlement');
 const mkSub = await fetch(`${URL_}/rest/v1/subscriptions`, {
   method: 'POST', headers: { ...SH, Prefer: 'return=representation' },
   body: JSON.stringify({ user_id: subj.id, kind: 'app', status: 'active', plan_tier: 'basic' }),
@@ -368,14 +376,14 @@ await fetch(`${URL_}/rest/v1/subscriptions?id=eq.${subId}`, {
   method: 'PATCH', headers: SH,
   body: JSON.stringify({ current_period_end: new Date(Date.now() + 2.6e9).toISOString() }),
 });
-const billAfterRoll = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.billing_entitlement`, { headers: SH })).json());
-check('a period rollover is NOT an entitlement change and emits nothing',
-  billAfterRoll === billBefore, `${billBefore} -> ${billAfterRoll}`);
+const billAfterRoll = await countExact('audit_events?category=eq.billing_entitlement');
+checkDelta('a period rollover is NOT an entitlement change and emits nothing',
+  { before: billBefore, after: billAfterRoll, expected: 0 });
 
 await fetch(`${URL_}/rest/v1/subscriptions?id=eq.${subId}`, {
   method: 'PATCH', headers: SH, body: JSON.stringify({ plan_tier: 'premium' }),
 });
-const billAfterTier = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.billing_entitlement`, { headers: SH })).json());
+const billAfterTier = await countExact('audit_events?category=eq.billing_entitlement');
 check('a plan_tier transition DOES emit, from the AUTHORITATIVE source (B3)',
   billAfterTier === billBefore + 1, `${billAfterRoll} -> ${billAfterTier}`);
 
@@ -386,18 +394,18 @@ check('the Event reads subscriptions(status, plan_tier) — not user_profiles.me
   `${billDelta.action}: ${billDelta.delta?.before?.plan_tier} -> ${billDelta.delta?.after?.plan_tier}`);
 
 // The legacy field must not be treated as authoritative: changing it emits nothing.
-const legacyBefore = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.billing_entitlement`, { headers: SH })).json());
+const legacyBefore = await countExact('audit_events?category=eq.billing_entitlement');
 await fetch(`${URL_}/rest/v1/user_profiles?id=eq.${subj.id}`, {
   method: 'PATCH', headers: SH, body: JSON.stringify({ membership_tier: 'premium' }),
 });
-const legacyAfter = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.billing_entitlement`, { headers: SH })).json());
-check('writing the LEGACY membership_tier emits nothing — it is not authoritative (B3)',
-  legacyAfter === legacyBefore, `${legacyBefore} -> ${legacyAfter}`);
+const legacyAfter = await countExact('audit_events?category=eq.billing_entitlement');
+checkDelta('writing the LEGACY membership_tier emits nothing — it is not authoritative (B3)',
+  { before: legacyBefore, after: legacyAfter, expected: 0 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 section('B4 · phi_correction — changed column NAMES only, never values');
 
-const phiBefore = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.phi_correction`, { headers: SH })).json());
+const phiBefore = await countExact('audit_events?category=eq.phi_correction');
 const mkChk = await fetch(`${URL_}/rest/v1/weekly_checkins`, {
   method: 'POST', headers: { ...SH, Prefer: 'return=representation' },
   body: JSON.stringify({ user_id: subj.id, week_number: 1, week_start_date: new Date().toISOString().slice(0,10),
@@ -411,14 +419,14 @@ await fetch(`${URL_}/rest/v1/weekly_checkins?id=eq.${chkId}`, {
   method: 'PATCH', headers: SH,
   body: JSON.stringify({ feedback_message: 'good work', coach_name: 'T', reviewed_at: new Date().toISOString() }),
 });
-const phiAfterCoach = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.phi_correction`, { headers: SH })).json());
+const phiAfterCoach = await countExact('audit_events?category=eq.phi_correction');
 check('a COACH writing only review fields is NOT a correction and emits nothing (114 v_coach_cols)',
   phiAfterCoach === phiBefore, `${phiBefore} -> ${phiAfterCoach}`);
 
 // The subject corrects their own submitted health answers. That IS the correction.
 const selfCorrect = await mutate(subjTok, `weekly_checkins?id=eq.${chkId}`, 'PATCH',
   { weight_kg: 79.0, sleep_hours: 6.5, notes: 'corrected' });
-const phiAfterSelf = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.phi_correction`, { headers: SH })).json());
+const phiAfterSelf = await countExact('audit_events?category=eq.phi_correction');
 check('the SUBJECT correcting their own health answers DOES emit (B4)',
   phiAfterSelf === phiBefore + 1, `status=${selfCorrect.status}  ${phiAfterCoach} -> ${phiAfterSelf}`);
 
@@ -439,7 +447,7 @@ check('NO PHI VALUE appears anywhere in the Event (B4: never before/after values
 // Migration 152 — owner decisions R-1 and S-2.
 section('R-1 · audit reads are recorded as the A2 category `audit_read`');
 
-const arBefore = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.audit_read`, { headers: SH })).json());
+const arBefore = await countExact('audit_events?category=eq.audit_read');
 
 const arAccept = await fetch(`${URL_}/rest/v1/rpc/audit_record_event`, {
   method: 'POST', headers: SH,
@@ -457,12 +465,12 @@ check('an audit_read carrying a delta is REFUSED — a read is an occurrence (A6
   (await arDelta.json()) === false, 'delta refused');
 
 // One call through the sanctioned read path must emit exactly one Event.
-const arMid = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.audit_read`, { headers: SH })).json());
+const arMid = await countExact('audit_events?category=eq.audit_read');
 const readCall = await rpc(trustTok, 'audit_read_events', { p_limit: 5 });
 check('the read path still WORKS after gaining the emission (it returned rows)',
   readCall.status < 300 && n(readCall.body) >= 1, `status=${readCall.status} rows=${n(readCall.body)}`);
 
-const arAfterOne = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.audit_read`, { headers: SH })).json());
+const arAfterOne = await countExact('audit_events?category=eq.audit_read');
 check('ONE call emitted exactly ONE audit_read Event — the recursion boundary holds',
   arAfterOne === arMid + 1, `${arMid} -> ${arAfterOne}`);
 
@@ -488,11 +496,11 @@ const vps = await (await fetch(`${URL_}/rest/v1/rpc/audit_mint_pseudonym`, {
 })).json();
 check('fixture: a second subject has a pseudonym', !!vps, `pseudonym=${String(vps).slice(0,8)}…`);
 
-const exBefore = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.export_deletion`, { headers: SH })).json());
+const exBefore = await countExact('audit_events?category=eq.export_deletion');
 const sever2 = await rpc(eraserTok, 'audit_sever_identity', { p_subject: victim.id });
 check('the erasure executor severs the second subject', sever2.body === true, `status=${sever2.status}`);
 
-const exAfter = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.export_deletion`, { headers: SH })).json());
+const exAfter = await countExact('audit_events?category=eq.export_deletion');
 check('severance emitted exactly ONE export_deletion Event (S-2)',
   exAfter === exBefore + 1, `${exBefore} -> ${exAfter}`);
 
@@ -511,7 +519,7 @@ check('the identifiable subject appears NOWHERE in the severance Event (S-2)',
   !JSON.stringify(exRow).includes(victim.id), `scanned the stored row for ${victim.id.slice(0,8)}…`);
 
 const sever2again = await rpc(eraserTok, 'audit_sever_identity', { p_subject: victim.id });
-const exRepeat = n(await (await fetch(`${URL_}/rest/v1/audit_events?select=id&category=eq.export_deletion`, { headers: SH })).json());
+const exRepeat = await countExact('audit_events?category=eq.export_deletion');
 check('a repeat severance emits nothing — there is nothing left to sever',
   sever2again.body === false && exRepeat === exAfter, `result=${sever2again.body}  ${exAfter} -> ${exRepeat}`);
 

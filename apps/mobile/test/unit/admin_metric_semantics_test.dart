@@ -55,6 +55,28 @@ void main() {
       expect(m.signInMonthDelta, 0);
     });
 
+    test('a SESSION COUNT is not a user count, and an absent one stays null rather '
+        'than borrowing the user figure', () {
+      final m = AdminActivityOverview.fromRow({
+        ...supportRow,
+        'sessions_today': 9,
+        'window_timezone': 'UTC',
+        'day_start': '2026-10-07T00:00:00Z',
+      });
+      expect(m.sessionUsersToday, 4);
+      expect(m.sessionsToday, 9);
+      expect(m.sessionsMonth, isNull);
+      expect(m.windowTimezone, 'UTC');
+      expect(m.dayStart, DateTime.parse('2026-10-07T00:00:00Z'));
+    });
+
+    test('an undisclosed window stays null, so the UI omits the footnote rather than '
+        'inventing a timezone', () {
+      final m = AdminActivityOverview.fromRow(supportRow);
+      expect(m.dayStart, isNull);
+      expect(m.windowTimezone, isNull);
+    });
+
     test('a delta is null when either month is unavailable — an unknown delta and '
         'a flat month are different findings', () {
       final m = AdminActivityOverview.fromRow(supportRow);

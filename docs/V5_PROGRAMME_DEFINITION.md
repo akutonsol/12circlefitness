@@ -16123,3 +16123,115 @@ CI on `774e9cb` returned **static guards, Flutter, live QA suites and the negati
 green**, so `ENG-02`, migration 175 and D17 are **VERIFIED IN CI**.
 
 **Production was not contacted.**
+
+---
+
+## §173 · METRIC-02 was incomplete, and my own owner pack asked the wrong question
+
+Re-reading `V5_ADMIN_DASHBOARD_DATA_CONTRACT` §1.2 — rather than my own notes about it —
+found two things 172 got wrong and one question I should have asked instead of the one I did.
+
+### §173.1 · `daily_sessions` is a required measure and was missing
+
+The contract at **:97** is explicit: the Ecosystem activity card *"adds **947 Daily
+sessions**, so **DAU and sessions are distinct required measures**"*, and **:101** fixes the
+shape as `{ dau, wau, mau, mom_change_pct, daily_sessions }`.
+
+172 built **distinct-user** counts on both bases and **no session count at all**. A member
+who trains twice in a day is **one active user and two Sessions**; the approved design shows
+both figures side by side. Migration **176** adds `sessions_today` and `sessions_month` as
+`count(*)`, never `count(DISTINCT user_id)`.
+
+**The only test that can tell the two apart is one member training twice**, and D16 now runs
+exactly that: `sessions_today` moves `1 → 2` while `session_users_today` stays at `1`. A
+`count(*)` mistaken for a distinct count passes every other assertion in the suite.
+
+That fixture needed correcting too. My first attempt inserted a second `in_progress` session
+and got **409**: a partial unique index (`108:98`) allows a member only **one active session**
+— correct product behaviour, nobody is mid-workout twice. Two Sessions in a day is a finished
+one plus a current one, which is also the real shape of what the design's figure counts.
+
+### §173.2 · I asked about the week boundary; the contract names timezone and population
+
+The same contract, at **:98**, states the sub-questions the owner's definition *"must
+settle"*: *"which event(s) count · **the timezone the 'day' is measured in** · whether a coach
+or partner counts as an 'active user' or only clients."*
+
+METRIC-02 = Option 3 settled **which events**. It said nothing about the other two. My owner
+pack asked instead about the *weekly window*, which the governing document never raises —
+so I escalated a question nobody had asked and missed the two that are written down.
+
+Both are now in the queue with their evidence. And because the timezone is genuinely
+unsettled, 176 **publishes the boundaries rather than choosing one**: `day_start`,
+`week_start`, `month_start` and `window_timezone` are columns on the view, and the Activity
+card renders *"Day begins 2026-10-07 00:00 UTC"*. The live value is **UTC**, which is the
+database's timezone and was previously an invisible assumption. This is the discipline
+METRIC-06a's recorded FX rate and METRIC-11's per-verdict provenance already follow: where
+the answer is not ours to give, publish what was actually used.
+
+The population sub-question is **not** guessed at either — the counts remain over every user
+with a Session, with no role filter, exactly as 172 shipped.
+
+### §173.3 · What was already determined and needed no question
+
+The same section settles METRIC-03 without an owner: **:107** reads *"of 164 · **23 with no
+client this month**, and 164 − 23 = 141. So an active coach is a coach with at least one
+client this month, and the 'of N · M with no client' breakdown is required."* That is exactly
+the partition `admin_user_overview` ships and D16 asserts.
+
+---
+
+## §174 · A detector that had gone blind, and a detector of my own that cried wolf
+
+### §174.1 · P2's audit assertion could no longer see an audit event
+
+`P2` asserts that `admin_set_user_role` **emits** an `admin_action` Event. It counted the
+population before and after by the **length of one PostgREST page**, and PostgREST caps a page
+at **1000 rows**. `audit_events.admin_action` crossed that threshold on QA — **1028 exact** —
+so both sides read `1000` and the assertion compared `1000` to `1000`.
+
+**The audit path was healthy the entire time.** What failed was the measurement. And the
+important half is the one that did not show up as red: a saturated count cannot see an event
+**fail** to appear either, which is the property the assertion exists to protect. It would
+have reported green over a missing audit record.
+
+`countExact()` now reads the true total from `content-range` with `Prefer: count=exact`, and
+**17 page-counted `audit_events` counts** in that suite were converted. This was not
+hypothetical housekeeping: `relationship_change` stands at **912** and gains several rows per
+suite run.
+
+### §174.2 · `checkDelta`, and the equality case that is blind in the other direction
+
+A delta built on a possibly-capped number is now reported **UNMEASURABLE** rather than as a
+pass or a fail. Four controls were proved: a real `+1` passes; a genuine miss still fails; a
+saturated `before` is refused; and — the sharpest — `999 → 1000` is refused **even though the
+arithmetic would have passed**.
+
+The same protection covers the *"emits nothing"* assertions, which are blind in the opposite
+direction: **two capped pages always look equal**, so a spurious event would be invisible
+exactly when the population is large. Those now pass `expected: 0` through `checkDelta`.
+
+### §174.3 · My first version of this detector cried wolf, and that is a defect
+
+I initially made `n()` itself raise a failed check on **any** body of exactly 1000 rows. It
+found the real P2 defect — and then fired on **four D15 sites that are not blind at all**:
+they pass `limit=1000` deliberately and compare **presence** (`> 0`, `=== 0`), which a capped
+page does not affect.
+
+Saturation is fatal to a **delta or an equality** over a large population and **harmless to
+presence**. A detector that cannot tell those apart reports correct code as broken, and **a
+detector that cries wolf gets switched off** — which would have cost more than the defect it
+caught. So `n()` is a pure length again, and the check lives in `checkDelta`, where the
+caller's intent is known.
+
+It also learned to **name its site**: the first version reported that something was blind
+without saying where, which turns a precise finding into a search.
+
+### §174.4 · Verification
+
+QA frontier **176** · live security **980/980 across 17 suites** (D16 **97/97**) · AI
+**49/49** · characterizations **17/17** · contract clean · Flutter **1791 / 5 skipped** ·
+`dart analyze` **0 errors** · every static guard green.
+
+**Production was not contacted. No assertion was relaxed — two were made measurable, and one
+detector was narrowed to the case it can actually judge.**

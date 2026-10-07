@@ -121,6 +121,64 @@ async function run() {
           'authentication rows this month)', num(vw.signin_users_month) >= 1,
       `signin_users_month=${vw.signin_users_month}`);
 
+    // ── 176 · SESSIONS ARE NOT USERS, and the design requires both ─────────
+    // The data contract (:97) calls DAU and sessions "distinct required measures",
+    // because the approved card shows "947 Daily sessions" beside the DAU figure.
+    // The only test that can tell the two apart is one member training TWICE: that is
+    // ONE active user and TWO Sessions. A count(*) mistaken for a
+    // count(DISTINCT user_id) passes every other assertion in this suite.
+    const beforeTwo = (await view(victim, 'admin_activity_overview')).row;
+    // The second Session is `completed`, not `in_progress`. A partial unique index
+    // allows a member only ONE ACTIVE session at a time — correct product behaviour,
+    // nobody is mid-workout twice — so the first draft's second insert returned 409
+    // and the assertion failed on MY fixture rather than on the view. Two Sessions in
+    // one day is a finished one plus a current one, which is also the real shape of
+    // the case the design's "947 Daily sessions" figure counts.
+    const ws2 = await svc('workout_sessions', { method: 'POST', body: {
+      user_id: vUid, workout_title: 'QA-D16-SESSION', started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(), status: 'completed' } });
+    check('arranged: the SAME member records a second Session today (one finished, ' +
+          'one active — a member may hold only one ACTIVE session)', ws2.status < 300,
+      `status=${ws2.status}`);
+    const afterTwo = (await view(victim, 'admin_activity_overview')).row;
+    check('METRIC-02 · sessions_today counts the SESSION (+1), so it is count(*) and ' +
+          'not a distinct-user count',
+      num(afterTwo.sessions_today) === num(beforeTwo.sessions_today) + 1,
+      `${beforeTwo.sessions_today} -> ${afterTwo.sessions_today}`);
+    check('METRIC-02 · session_users_today does NOT move, because it is the same ' +
+          'member — this is the assertion that tells the two measures apart',
+      num(afterTwo.session_users_today) === num(beforeTwo.session_users_today),
+      `${beforeTwo.session_users_today} -> ${afterTwo.session_users_today}`);
+    check('METRIC-02 · sessions_today is >= session_users_today, which must hold for ' +
+          'any population',
+      num(afterTwo.sessions_today) >= num(afterTwo.session_users_today),
+      `sessions=${afterTwo.sessions_today} users=${afterTwo.session_users_today}`);
+    check('METRIC-02 · the session count is gated with the rest of the Session basis',
+      num(afterTwo.sessions_month) !== null, `sessions_month=${afterTwo.sessions_month}`);
+
+    // ── 176 · the windows are PUBLISHED, so "today" is not an assumption ───
+    // The contract (:98) names the timezone as an unsettled sub-question. The view
+    // cannot answer it, so it discloses what it actually used.
+    const ws = afterTwo;
+    const coherent = ws.day_start && ws.week_start && ws.month_start &&
+      new Date(ws.day_start) >= new Date(ws.month_start) &&
+      new Date(ws.week_start) >= new Date(ws.month_start) - 0;
+    check('METRIC-02 · the day, week and month boundaries are published and coherent, ' +
+          'so a reader can tell what window produced each figure',
+      Boolean(coherent), `day=${ws.day_start} week=${ws.week_start} month=${ws.month_start}`);
+    check('METRIC-02 · the timezone those boundaries were computed in is NAMED rather ' +
+          'than assumed',
+      typeof ws.window_timezone === 'string' && ws.window_timezone.length > 0,
+      `window_timezone=${JSON.stringify(ws.window_timezone)}`);
+    // The support role must not gain the Session basis through the new columns.
+    await assign(vUid, 'support');
+    const supWin = (await view(victim, 'admin_activity_overview')).row;
+    check('METRIC-02 · support still sees the session COUNT (Users-gated) and still ' +
+          'sees NULL for the sign-in basis — the new columns did not widen anything',
+      num(supWin.sessions_today) !== null && supWin.signin_users_today === null,
+      `sessions_today=${supWin.sessions_today} signin=${JSON.stringify(supWin.signin_users_today)}`);
+    await assign(vUid, 'viewer');
+
     // ── 3 · METRIC-17 · half-open buckets, placed once each ────────────────
     section('METRIC-17 · the overlapping labels resolved to half-open intervals');
     const origAge = ONE((await svc(`user_profiles?id=eq.${vUid}&select=age,date_of_birth`)).body);

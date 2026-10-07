@@ -101,11 +101,26 @@ void main() {
               'signin_users_week': null,
               'signin_users_month': null,
               'signin_users_prev_month': null,
+              'sessions_today': 9,
+              'sessions_month': 140,
+              'day_start': '2026-10-07T00:00:00Z',
+              'week_start': '2026-10-05T00:00:00Z',
+              'month_start': '2026-10-01T00:00:00Z',
+              'window_timezone': 'UTC',
             })),
       ]);
       expect(find.text('4'), findsOneWidget);
       expect(find.text('26'), findsOneWidget);
       expect(find.text('+7'), findsOneWidget); // 26 - 19
+      // SESSIONS ARE NOT USERS. 4 members were active today and they recorded 9
+      // Sessions between them; the design shows both and the card must not conflate
+      // them. If the panel rendered one for the other, "9" would be absent.
+      expect(find.text('Daily sessions'), findsOneWidget);
+      expect(find.text('9'), findsOneWidget);
+      // The window is DISCLOSED, because the data contract leaves the timezone
+      // unsettled and an invisible window is an assumption the reader cannot check.
+      expect(find.textContaining('Day begins 2026-10-07'), findsOneWidget);
+      expect(find.textContaining('UTC'), findsOneWidget);
       // The three sign-in rows must each say so.
       expect(find.text('Active today · Sign-ins'), findsOneWidget);
       expect(find.text('Not available to your role'), findsWidgets);

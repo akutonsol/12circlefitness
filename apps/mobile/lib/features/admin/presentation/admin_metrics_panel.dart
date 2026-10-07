@@ -56,11 +56,32 @@ class AdminMetricsPanel extends ConsumerWidget {
   }
 
   // ── METRIC-02 ─────────────────────────────────────────────────────────────
+  /// The window footnote. It is NOT decoration: the data contract names the timezone
+  /// as an unsettled sub-question, so a reader has to be able to see what "today"
+  /// meant. Rendered only when the surface actually reported it.
+  /// Returns a LIST so it can be spread. A null-aware element (`?expr`) needs Dart
+  /// 3.8, which this package's SDK constraint predates.
+  static List<Widget> _windowNote(AdminActivityOverview m) {
+    if (m.dayStart == null || m.windowTimezone == null) return const [];
+    final d = m.dayStart!.toIso8601String().split('T').first;
+    return [
+      Padding(
+        padding: const EdgeInsets.only(top: AdminDims.space4),
+        child: Text('Day begins $d 00:00 ${m.windowTimezone}',
+            style: const TextStyle(
+              color: AdminColors.colorTextSubtle,
+              fontSize: AdminDims.typeCaptionSize,
+            )),
+      ),
+    ];
+  }
+
   Widget _activity(WidgetRef ref) => _AdminCard(
         title: 'Activity',
         child: _async<AdminActivityOverview>(
           ref.watch(adminActivityOverviewProvider),
-          labels: const ['Active today · Sessions', 'Active today · Sign-ins'],
+          labels: const ['Active today · Sessions', 'Daily sessions',
+                         'Active today · Sign-ins'],
           builder: (m) => [
             // The two bases are shown SEPARATELY, as the owner ruled. They are not
             // added together and no single "active users" figure is derived from
@@ -72,6 +93,13 @@ class AdminMetricsPanel extends ConsumerWidget {
             AdminMetricTile.of('This month · Sessions', m.sessionUsersMonth,
                 whenNull: MetricAbsence.notAuthorized,
                 delta: m.sessionMonthDelta),
+            // SESSION COUNTS, labelled as such. The design shows "947 Daily sessions"
+            // beside the DAU figure and the data contract calls them distinct required
+            // measures, so they are never substituted for one another here.
+            AdminMetricTile.of('Daily sessions', m.sessionsToday,
+                whenNull: MetricAbsence.notAuthorized, zeroCopy: 'None'),
+            AdminMetricTile.of('Sessions this month', m.sessionsMonth,
+                whenNull: MetricAbsence.notAuthorized, zeroCopy: 'None'),
             AdminMetricTile.of('Active today · Sign-ins', m.signInUsersToday,
                 whenNull: MetricAbsence.notAuthorized),
             AdminMetricTile.of('This week · Sign-ins', m.signInUsersWeek,
@@ -79,6 +107,7 @@ class AdminMetricsPanel extends ConsumerWidget {
             AdminMetricTile.of('This month · Sign-ins', m.signInUsersMonth,
                 whenNull: MetricAbsence.notAuthorized,
                 delta: m.signInMonthDelta),
+            ..._windowNote(m),
           ],
         ),
       );
