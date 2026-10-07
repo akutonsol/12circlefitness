@@ -16542,3 +16542,49 @@ VERIFIED IN CI (a test asserting the failure path) · **VERIFIED END-TO-END** �
 thing standing between it and `VERIFIED_CLOSED` is the registry mutation boundary (§177.1).
 
 **Flutter 1795 / 5 skipped** (1791 → 1795). **Production was not contacted.**
+
+---
+
+## §179 · Census — `EC-02` is blocked, and the registry disagrees with itself about it
+
+`EC-02` (ERR-2) looked like the next item in this run's line of work: *"a failed read of
+`ai_memories` yields `injuries: []`"*, and *"the confidence score is computed from the
+lengths of those same silently-emptied arrays, so a failed read is scored identically to a
+brand-new user"*. It is the same silent-degradation class as §163, §166.2, §170 and §174.
+
+**It is blocked, and the code says so before the registry does.**
+`ai-coaching-engine/index.ts:40` carries the note in situ:
+
+> *"The `{ data } … ?? []` / `catch` degradation below is NOT changed here: that is
+> ERR-2 / `EC-02` (rule S), whose fail-closed behaviour is blocked on Q-5."*
+
+`Q-5` is a **clinical/product** decision — `MASTER_QA_RECONCILIATION:511`, *"Women's-health
+clinical parameters … The mechanical defects I will fix regardless. The fertile-window
+definition and whether a predicted phase may be displayed as current are clinical/product
+calls."* — and `:3175` ties it directly here: *"whether a missing input may be defaulted at
+all is ERR-2 / rule S, blocked on **Q-5**."*
+
+**So I did not implement it.** Deciding whether a missing clinical input may be defaulted
+is not an engineering call, and this is exactly the boundary class §4-A names.
+
+### §179.1 · The contradiction, preserved rather than resolved
+
+The registry gives this finding **two different readiness states**:
+
+| source | state |
+|---|---|
+| `MASTER_REMEDIATION_REGISTRY:709` — `I-INT-02` (= `F-J-02`, **`EC-02`**) | **`REMEDIATED`** (column half, `0a4b14d`, VERIFIED IN CI run #53) **/ `BLOCKED_DECISION`** (fail-closed half — **Q-5**, untouched) |
+| `MASTER_REMEDIATION_REGISTRY:782` — the ERR-2 row, same ID | **`READY_TO_REMEDIATE`** … *"Source fix is independent of deployment and **lands now**."* |
+
+`:718` (*"Column fix: one line, no decision. Fail-closed behaviour is Q-5 / rule S"*),
+`:3175`, `:3296` and the source comment all agree with the first. The ERR-2 row is the
+outlier.
+
+**The weight of evidence is not the same as authority to choose.** §4-H is explicit — *"Do
+not silently choose between conflicting authoritative sources. Preserve the contradiction
+and continue independent work elsewhere."* So it is recorded here, unreconciled, and the
+owner pack carries it. Had I read only the ERR-2 row — as I nearly did — I would have
+implemented a fail-closed behaviour that a clinical decision explicitly gates.
+
+**`MASTER_REMEDIATION_REGISTRY.md` was not edited**, so the contradiction remains exactly
+where it is for the owner to resolve.
