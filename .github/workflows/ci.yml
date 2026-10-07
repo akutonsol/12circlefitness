@@ -651,17 +651,19 @@ jobs:
   #  "Error contract / false success" class requires VERIFIED END-TO-END for any
   #  user-facing success state, and SEC-G6 only supplies the static CI rung.
   #
-  #  The reason this is not ceremony: the fix distinguishes "unassessed" from "low risk"
-  #  by COLOUR and by LABEL, and a screen reader conveys no colour. If the label did not
-  #  reach the platform accessibility tree, EC-04's harm — a coach told a client is low
-  #  risk when nobody assessed them — would persist for exactly the users least able to
-  #  notice it. Only a device run can read the real semantics tree.
+  #  The accessibility guarantee — that a screen reader is TOLD the assessment is absent
+  #  — is asserted on the HOST in test/widget/ec04_risk_badge_semantics_test.dart, where
+  #  the semantics tree is readable, the test is debuggable and it runs on every push.
+  #  What only hardware can answer is whether "NOT ASSESSED" — longer than the "LOW RISK"
+  #  it replaced — still fits its pill at the real font and a real device pixel ratio.
+  #  The host harness renders in Ahem, where every glyph is a full em square, so it
+  #  cannot. A clipped badge would put the fix back where it started.
   #
   #  It touches NO backend and signs nothing in: the probe overrides
   #  clientDetailProvider with an in-memory profile, so there is no fixture to retire and
   #  this job needs no credential gate. It therefore does not depend on live-qa.
   ec04-e2e:
-    name: EC-04 — risk badge end-to-end (real semantics tree)
+    name: EC-04 — risk badge end-to-end (real font, real dpr)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -686,7 +688,7 @@ jobs:
 
       # The harness refuses to report success unless the probe's markers appear, so a
       # toolchain failure exits as INFRASTRUCTURE (2) and can never be read as evidence.
-      - name: EC-04 — drive the badge and read the accessibility tree
+      - name: EC-04 — drive the badge and measure it on real hardware
         run: xvfb-run -a apps/mobile/tool/negative_control/ec04_risk_badge_e2e.sh
 
   uix1-e2e:

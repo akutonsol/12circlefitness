@@ -8,11 +8,14 @@ set -euo pipefail
 # state**. SEC-G6 supplies the CI rung statically. This supplies the end-to-end one, by
 # driving integration_test/ec04_risk_badge_device_test.dart on a real desktop target.
 #
-# WHY THIS RUNG IS NOT CEREMONY HERE. The fix distinguishes "unassessed" from "low risk"
-# by COLOUR and by LABEL. A screen reader conveys no colour. If the label did not reach
-# the platform accessibility tree, EC-04's harm — a coach being told a client is low risk
-# when nobody assessed them — would persist for exactly the users least able to notice it.
-# Only a device run can read the real semantics tree.
+# WHAT THIS RUNG ADDS THAT THE HOST CANNOT. The accessibility guarantee — that a screen
+# reader is TOLD the assessment is absent — is asserted on the host in
+# test/widget/ec04_risk_badge_semantics_test.dart, because the semantics tree is readable
+# there and a host test is debuggable and runs on every push. What only hardware can
+# answer is whether "NOT ASSESSED" — longer than the "LOW RISK" it replaced — still fits
+# its pill at the real font and a real device pixel ratio. The host harness renders in
+# Ahem, where every glyph is a full em square, so it cannot. A clipped badge would put the
+# fix back where it started: a coach unable to read that nobody assessed the client.
 #
 # IT REFUSES TO REPORT SUCCESS OVER AN INFRASTRUCTURE FAILURE. The probe emits
 # EC04-MARKER lines; if they are absent, the driver never reached the surface and this
@@ -61,7 +64,7 @@ if grep -qiE "unable to find utility|xcodebuild|No supported devices|Failed to l
 fi
 
 MOUNTED=$(grep -c "EC04-MARKER mounted=client_detail" "$LOG" || true)
-SEMANTICS=$(grep -c "EC04-MARKER semantics=not_assessed" "$LOG" || true)
+FITS=$(grep -c "EC04-MARKER fits=1" "$LOG" || true)
 ASSESSED=$(grep -c "EC04-MARKER assessed_" "$LOG" || true)
 
 if [ "$STATUS" -ne 0 ]; then
@@ -76,11 +79,11 @@ fi
 # A zero exit is not enough. Every marker must be present, or the assertions did not
 # actually execute the paths they claim to.
 [ "${MOUNTED:-0}"   -ge 1 ] || infra "no mount marker — the surface was never reached."
-[ "${SEMANTICS:-0}" -ge 1 ] || die "no semantics marker — the accessibility assertion did
-     not run, so nothing proves a screen reader is told the assessment is absent."
+[ "${FITS:-0}" -ge 1 ] || die "no fit marker — the physical measurement did not run, so
+     nothing proves the badge fits its pill at the real font and dpr." 
 [ "${ASSESSED:-0}"  -ge 2 ] || die "fewer than two assessed-state markers — the control
      cases (low, high) did not both run, so the fix is not shown to have preserved them."
 
 echo "── EC-04 END-TO-END: PASS ───────────────────────────────────────────"
-echo "   mounted=$MOUNTED  semantics=$SEMANTICS  assessed_controls=$ASSESSED"
-grep "EC04-MARKER badge_size" "$LOG" || true
+echo "   mounted=$MOUNTED  fits=$FITS  assessed_controls=$ASSESSED"
+grep "EC04-MARKER fits=" "$LOG" || true
