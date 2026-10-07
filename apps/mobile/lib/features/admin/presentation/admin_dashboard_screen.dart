@@ -93,6 +93,20 @@ class AdminDashboardScreen extends ConsumerWidget {
                         // V5 §183 · the way in to Trust. ROUTE-G1 fails on a route
                         // with no entry point, and it is right to.
                         _AdminActionTile(
+                          icon: Icons.people_outline,
+                          title: 'People',
+                          subtitle: 'Users, coaches, clients, wellness partners',
+                          onTap: () => context.push('/admin-people'),
+                        ),
+                        const SizedBox(height: 12),
+                        _AdminActionTile(
+                          icon: Icons.build_outlined,
+                          title: 'Operations',
+                          subtitle: 'Releases, integrations, system events',
+                          onTap: () => context.push('/admin-operations'),
+                        ),
+                        const SizedBox(height: 12),
+                        _AdminActionTile(
                           icon: Icons.hub_outlined,
                           title: 'Ecosystem',
                           subtitle: 'Community, events, training, monetization, wearables',

@@ -16915,3 +16915,78 @@ QA frontier **178** (no migration) · Flutter **1822 / 5 skipped** (1813 → 182
 `dart analyze` **0 errors** · live security **993/993** · `ROUTE-G1` green.
 
 **Production was not contacted.**
+
+---
+
+## §185 · P5 · Operations and People — and what they refuse to show
+
+Both pages render the published sections in the published order, at `/admin-operations` and
+`/admin-people`, each with a console entry. **No schema was added for either.**
+
+### §185.1 · Operations — two of three requirements are rulings, not builds
+
+Its stated requirements are *"releases and environments; integrations health; system
+events"*.
+
+- **`#releases`** reads `admin_release_status`, which is **empty by design**: CI ingestion
+  is gated on `P10`'s *"installation forbidden"* constraint and `CONF-D9`, neither
+  released. The section renders the not-recorded state **and says why**, so an operator
+  does not read a gated path as a broken one. The two verdicts stay **separate** —
+  METRIC-11 Option 3, *"intentionally separate states … must not be collapsed"* — and the
+  test asserts `BLOCKED`, `Releasable`, `Not releasable` and `Overall` appear nowhere.
+- **`#integrations`** shows **connections**, not health. Integration health is `WI-13` and
+  waits on `PD-G01`; the card states it, and the test asserts no tile is labelled
+  `Latency`, `Sync status` or `Integration health`.
+- **`#system`** reads `admin_security_events` and carries `A13·1`'s note, because that
+  projection excludes the reader's own `admin_action` rows too — so the counts are
+  incomplete for whoever is reading them. The inventory's own cross-link confirms the
+  placement: *"Settings links across to Operations > System events"*.
+
+### §185.2 · People — three requirements are deliberately absent, and each is stated
+
+Its stated requirements are *"account list with role, status, last active; coach
+verification; client assignment; Wellness Partner onboarding and approval states"*.
+
+- **"last active" is not built.** Which signal makes a person active is the open population
+  question (data contract `:98`). METRIC-02 settled which events count for a **count**, not
+  what makes one individual active, so deriving a per-user recency from `workout_sessions`
+  would answer a question nobody asked.
+- **"coach verification" is not built.** No verification state exists in the schema. The
+  nearest columns are Stripe onboarding flags — a **payments** fact, not a verification
+  one — and relabelling them would invent a state machine.
+- **Partner approval states are not built.** `METRIC-05 = Option 2`: the total only. The
+  owner ruled the sub-count dropped and §77.3 already refused to invent the vocabulary.
+
+**Each absence is written on the card.** A blank where a requirement was is indistinguishable
+from an oversight; a sentence saying why is not.
+
+`onboarding_complete` is shown as *"onboarding incomplete"* and **never relabelled
+"status"**, which would imply a state machine the schema does not have.
+
+**PII is scoped to the section that is about it.** `admin_user_directory` (160) projects
+nine columns for the Users area and the design asks for an account list, so names appear in
+`#users`; the aggregate sections show counts only, and `avatar_url` is **not selected at
+all** — a column a page does not use should not cross the wire.
+
+### §185.3 · A third prose-sweep assertion of mine fired on its own disclaimer
+
+The METRIC-05 test swept the rendered text for `"approval state"` and failed — on the
+card's **own footnote saying approval states are not shown**. That is the third instance:
+§184.3 had the same thing with `latency`.
+
+**The pattern is now named.** A *"must not mention X"* assertion is the wrong shape whenever
+the page's job includes **saying that X is absent**. The right shape is *"must not show X as
+a labelled reading"*, because a tile label is an exact string. All three assertions are now
+written that way.
+
+A second test expected statements that live beside the data they qualify while every
+provider was denied. To an operator who cannot see an area at all, *"last active is not
+shown"* is noise — so the test authorizes the overview instead. The statements explain what
+an otherwise-populated card omits.
+
+### §185.4 · Verification
+
+QA frontier **178** (no migration) · Flutter **1834 / 5 skipped** (1822 → 1834) ·
+`dart analyze` **0 errors** · `ROUTE-G1` green · live security **993/993**.
+
+**Production was not contacted.**

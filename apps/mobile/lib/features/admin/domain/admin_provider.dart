@@ -85,3 +85,7 @@ final adminTrainingOverviewProvider = FutureProvider<AdminTrainingOverview?>(
 final adminWearableConnectionsProvider =
     FutureProvider<AdminWearableConnections?>((ref) async =>
         ref.watch(adminMetricsServiceProvider).getWearableConnections());
+
+final adminUserDirectoryProvider =
+    FutureProvider<List<AdminUserDirectoryEntry>?>((ref) async =>
+        ref.watch(adminMetricsServiceProvider).getUserDirectory());

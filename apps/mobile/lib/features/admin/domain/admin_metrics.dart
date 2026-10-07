@@ -559,6 +559,61 @@ class AdminWearableConnections {
   }
 }
 
+/// One row of `admin_user_directory` (migration 160) — exactly nine columns, and the
+/// Users area's authorized projection.
+///
+/// IT CARRIES NAME AND EMAIL, BY DESIGN AND BY GRANT. 160 projects precisely nine columns
+/// for the Users area, and the approved People page asks for *"account list with role,
+/// status, last active"*. So this is not an over-read — but it is PII, and a surface
+/// showing it should show only what that surface needs.
+///
+/// THERE IS NO `lastActive`. The design asks for it; which signal counts as "active" is
+/// the open population question (data contract `:98`), and METRIC-02's ruling settled
+/// which events count for a COUNT, not what makes one person active. Inventing a per-user
+/// recency from `workout_sessions` would answer a question nobody asked.
+class AdminUserDirectoryEntry {
+  const AdminUserDirectoryEntry({
+    required this.id,
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+    required this.role,
+    required this.membershipTier,
+    required this.onboardingComplete,
+    required this.createdAt,
+  });
+
+  final String? id;
+  final String? firstName;
+  final String? lastName;
+  final String? email;
+  final String? role;
+  final String? membershipTier;
+
+  /// The nearest thing the schema has to the design's "status" — and it is named as what
+  /// it is rather than relabelled "status", which would imply a state machine that does
+  /// not exist (§77.3).
+  final bool? onboardingComplete;
+  final DateTime? createdAt;
+
+  String get displayName {
+    final parts = [firstName, lastName].whereType<String>().where((s) => s.isNotEmpty);
+    return parts.isEmpty ? (email ?? 'unknown') : parts.join(' ');
+  }
+
+  static AdminUserDirectoryEntry fromRow(Map<String, dynamic> r) =>
+      AdminUserDirectoryEntry(
+        id: r['id'] as String?,
+        firstName: r['first_name'] as String?,
+        lastName: r['last_name'] as String?,
+        email: r['email'] as String?,
+        role: r['role'] as String?,
+        membershipTier: r['membership_tier'] as String?,
+        onboardingComplete: r['onboarding_complete'] as bool?,
+        createdAt: _date(r['created_at']),
+      );
+}
+
 // ── parsing ────────────────────────────────────────────────────────────────
 // PostgREST returns bigint and numeric as JSON numbers or strings depending on
 // magnitude and type. Each of these returns null for a null or unparseable

@@ -63,6 +63,8 @@ import '../../features/coach/presentation/coach_packages_screen.dart';
 import '../../features/admin/presentation/admin_dashboard_screen.dart';
 import '../../features/admin/presentation/admin_metrics_screen.dart';
 import '../../features/admin/presentation/admin_ecosystem_screen.dart';
+import '../../features/admin/presentation/admin_operations_screen.dart';
+import '../../features/admin/presentation/admin_people_screen.dart';
 import '../../features/admin/presentation/admin_trust_screen.dart';
 import '../../features/admin/presentation/observability_screen.dart';
 import '../../features/admin/presentation/exercise_review_screen.dart';
@@ -245,6 +247,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       // and a client gate that looks like the boundary is worse than none.
       GoRoute(path: '/admin-trust',    builder: (_, __) => const AdminTrustScreen()),
       GoRoute(path: '/admin-ecosystem', builder: (_, __) => const AdminEcosystemScreen()),
+      GoRoute(path: '/admin-operations', builder: (_, __) => const AdminOperationsScreen()),
+      GoRoute(path: '/admin-people',   builder: (_, __) => const AdminPeopleScreen()),
       GoRoute(path: '/admin-exercise-review', builder: (_, __) => const ExerciseReviewScreen()),
       GoRoute(path: '/content-center', builder: (_, __) => const ExerciseContentCenterScreen()),
       GoRoute(path: '/observability',  builder: (_, __) => const ObservabilityScreen()),

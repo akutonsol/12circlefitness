@@ -94,6 +94,26 @@ class AdminMetricsService {
         [for (final r in rows) Map<String, dynamic>.from(r)]);
   }
 
+  /// The Users-area account list. Returns null when the caller lacks `Users·view`, asked
+  /// rather than inferred from an empty read. `avatar_url` is in 160's projection and is
+  /// NOT selected — this page lists accounts, and a column a page does not use should not
+  /// cross the wire.
+  Future<List<AdminUserDirectoryEntry>?> getUserDirectory({int limit = 50}) async {
+    final permitted = await _db
+        .rpc('admin_can', params: {'p_area': 'Users', 'p_verb': 'view'});
+    if (permitted != true) return null;
+    final rows = await _db
+        .from('admin_user_directory')
+        .select('id, first_name, last_name, email, role, membership_tier, '
+            'onboarding_complete, created_at')
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return [
+      for (final r in rows)
+        AdminUserDirectoryEntry.fromRow(Map<String, dynamic>.from(r)),
+    ];
+  }
+
   Future<T?> _one<T>(
     String view,
     T Function(Map<String, dynamic>) parse,
