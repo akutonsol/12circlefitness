@@ -16045,3 +16045,81 @@ posture **39 pinned** · durability guard clean · manifest and frontier agreein
 **Production was not contacted. No guard or policy was weakened — 175 is strictly a
 tightening, and it closes a write path that the remediation itself would otherwise have
 opened.**
+
+---
+
+## §172 · `EC-03` — onboarding no longer marks itself complete after the save fails
+
+**This is the parent of the defect §170 fixed.** The registry names `EC-03` the parent of
+`CON-04`, `E-NUT-05`, `ERR-2` and `DAT-2`, and *"the reason `risk_*` is frequently null"* —
+the very NULL that `EC-04` then rendered to a coach as a green **LOW RISK** badge. With both
+fixed, the chain is closed at the point the data is lost and at the point its absence is
+displayed.
+
+### §172.1 · What the code did
+
+`_finish()` caught the final upsert and then **explicitly** wrote
+`{'onboarding_complete': true, 'onboarding_step': 0}`, with the comment *"so the user isn't
+looped back here on next login"*. The cost of not being looped back was everything the flow
+had collected: **PAR-Q answers, medical conditions, injuries, allergies, dietary
+restrictions, goal, experience and consent** — discarded, while the person was recorded as
+fully onboarded and **could never return to supply them**.
+
+**Being looped back is the correct outcome of an unsaved intake.** The data is genuinely
+missing and the flow is where it gets supplied. `_saveProgress`'s Phase 1 has already
+persisted `onboarding_step` with `onboarding_complete: false`, so the person **resumes where
+they were** rather than starting over — the original worry was already handled by code
+sitting forty lines above the workaround.
+
+### §172.2 · Two side effects that also ran over a failed save
+
+`ScoreEngine().assessmentComplete()` awarded a score for an assessment that **was not
+stored**, and `generate_client_plan` built a program from answers **the database never
+received**. Both sat after the catch and ran regardless. The catch now returns, so neither
+does, and `SEC-G7` asserts their position relative to it rather than trusting the ordering to
+survive the next edit.
+
+### §172.3 · The person is told, and can retry
+
+A **persistent banner**, not a SnackBar. The old behaviour's real problem was not only that
+the data was lost but that **nobody was told**, and a transient message for "none of your
+answers were saved" is a message that can be missed. The banner carries a `Retry` that calls
+`_finish()` again, because a dead end is only marginally better than a silent loss.
+
+### §172.4 · `SEC-G7`
+
+It asserts that **no catch block anywhere in the onboarding feature** sets
+`onboarding_complete: true`; that `_finish`'s catch **returns**, records `_saveError`, never
+touches the completion flag and never sets `_done`; that the score award and plan generation
+sit **after** the catch; and that the flow has a visible failed-save state with a retry. It
+carries a positive control on the scan and a self-check that the matcher can see a violating
+catch. Restoring the fail-open turns it red.
+
+**Its own first draft would not compile**: I declared `String get flowSource` inside
+`main()`, which Dart does not allow in a function body. Fixed to a local function.
+
+### §172.5 · What was NOT changed, and why
+
+`_saveProgress`'s Phase 2 is still `catch (_) {}`. That is the **progressive autosave**, and
+`_finish()`'s full upsert is its backstop — a step whose data was rejected mid-flow is retried
+in full at the end, where the failure is now surfaced rather than swallowed. Making the
+autosave itself interrupt the flow on every transient failure is a UX decision, not a
+correctness one, and it is recorded rather than taken.
+
+`CON-03` and `SEC-R2` — the serializer mismatch and the PAR-Q trigger throw, which are what
+*trigger* the fail-open today — are untouched. The fix is independent of why the save fails:
+whatever the cause, an unsaved intake is not a complete one.
+
+`MASTER_REMEDIATION_REGISTRY.md` was not modified; `EC-03`'s status line still reads
+`READY_TO_REMEDIATE`.
+
+### §172.6 · Verification
+
+Flutter **1789 passed / 5 skipped** (1782 → 1789) · `dart analyze` **0 errors** · live
+security **972/972 across 17 suites** · AI **49/49** · characterizations **17/17** · contract
+clean · QA frontier **175**.
+
+CI on `774e9cb` returned **static guards, Flutter, live QA suites and the negative control
+green**, so `ENG-02`, migration 175 and D17 are **VERIFIED IN CI**.
+
+**Production was not contacted.**

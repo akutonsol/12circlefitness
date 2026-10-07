@@ -214,8 +214,34 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
   /// existed — the client's work ended in a screen transition.
   bool _done = false;
 
+  /// EC-03 · set when the final save failed. While it is non-null the flow does NOT
+  /// present itself as complete, and the person keeps a Retry affordance.
+  String? _saveError;
+
+  /// EC-03 · ONBOARDING NO LONGER MARKS ITSELF COMPLETE AFTER THE SAVE FAILS.
+  ///
+  /// This handler used to catch the upsert and then explicitly write
+  /// `{'onboarding_complete': true, 'onboarding_step': 0}` — "so the user isn't looped
+  /// back here on next login". The cost of not being looped back was everything the
+  /// flow collected: PAR-Q answers, medical conditions, injuries, allergies, dietary
+  /// restrictions, goal, experience **and consent** were discarded, while the person
+  /// was recorded as fully onboarded and could never return to supply them.
+  ///
+  /// The registry names this the parent of CON-04, E-NUT-05, ERR-2 and DAT-2, and
+  /// "the reason `risk_*` is frequently null" — the same NULL that EC-04 then rendered
+  /// to the coach as a green LOW RISK badge (V5 §170).
+  ///
+  /// Being looped back is the CORRECT outcome of an unsaved intake: the data is
+  /// genuinely missing and the flow is where it gets supplied. `_saveProgress`'s
+  /// Phase 1 has already persisted `onboarding_step` with `onboarding_complete: false`
+  /// (see above), so the person resumes where they were rather than starting over.
+  ///
+  /// TWO SIDE EFFECTS ALSO MOVED BEHIND THE SUCCESS PATH. `assessmentComplete()`
+  /// awarded a score for an assessment that was not stored, and `generate_client_plan`
+  /// built a program from answers the database never received. Neither should run over
+  /// a failed save.
   Future<void> _finish() async {
-    setState(() => _saving = true);
+    setState(() { _saving = true; _saveError = null; });
     final uid = Supabase.instance.client.auth.currentUser?.id;
     if (uid != null) {
       _data.biggestChallenges = _challenges.toList();
@@ -223,15 +249,16 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
         await Supabase.instance.client
             .from('user_profiles')
             .upsert({'id': uid, ..._data.toSupabase()});
-      } catch (_) {
-        // Full save failed (e.g. missing columns) — at minimum mark onboarding done
-        // so the user isn't looped back here on next login.
-        try {
-          await Supabase.instance.client
-              .from('user_profiles')
-              .update({'onboarding_complete': true, 'onboarding_step': 0})
-              .eq('id', uid);
-        } catch (_) {}
+      } catch (e) {
+        // NOT marked complete. The intake is not finished, because it was not saved.
+        if (mounted) {
+          setState(() {
+            _saving = false;
+            _saveError = 'We could not save your answers. Nothing was lost on this '
+                'device — tap Retry to try again.';
+          });
+        }
+        return;
       }
       ScoreEngine().assessmentComplete(); // +25 (once)
       // Self/AI-Guided clients have no coach, so the system generates their plan
@@ -494,6 +521,44 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
               _Step11Page(data: _data, saving: _saving, onEnter: _finish),
             ],
           ),
+
+          // EC-03 · the failed-save state, which this flow previously did not have.
+          // It is a persistent banner rather than a SnackBar, because a transient
+          // message for "none of your answers were saved" is a message that can be
+          // missed — and the old behaviour's whole problem was that nobody was told.
+          if (_saveError != null)
+            Positioned(
+              left: 16, right: 16, bottom: 24,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A1416),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE8556D)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_saveError!,
+                          style: const TextStyle(
+                              color: Color(0xFFF07A8C), fontSize: 13, height: 1.4)),
+                      const SizedBox(height: 12),
+                      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                        TextButton(
+                          onPressed: _saving ? null : _finish,
+                          child: Text(_saving ? 'Saving…' : 'Retry',
+                              style: const TextStyle(
+                                  color: Color(0xFFF07A8C),
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ]),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
