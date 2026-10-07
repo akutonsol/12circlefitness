@@ -16588,3 +16588,48 @@ implemented a fail-closed behaviour that a clinical decision explicitly gates.
 
 **`MASTER_REMEDIATION_REGISTRY.md` was not edited**, so the contradiction remains exactly
 where it is for the owner to resolve.
+
+---
+
+## §180 · Frontier census — why the independent authorized P0 set is exhausted
+
+The directive requires that exhaustion be **proved**, not asserted. Every P0 still reading
+`READY_TO_REMEDIATE` was opened and read. The result is that the remaining ones are not
+available work, and each is unavailable for a *stated, citable* reason.
+
+| finding | why it is not available now |
+|---|---|
+| **`F-J-17`** · SEC-R2, the PAR-Q classifier throws | **Already fixed** — migration 126, four rungs green (code · QA · live `8 PASS/0 FAIL` · CI). Its own row says **"VERIFIED END-TO-END is absent … Step 4 is not authorized."** The one missing rung is explicitly unauthorized. |
+| **`F-J-07`** · SEC-R3, `build_workout` throws below the deload threshold | **Already fixed** — migration 127, the whole untyped-`text[]`-append class, FIXED ON QA. Same shape as F-J-17. |
+| **`EC-02`** · ERR-2, AI inputs degrade to empty | **`BLOCKED_DECISION` on `Q-5`**, a clinical/product call (§179). The source comment, `:709`, `:718`, `:3175` and `:3296` agree; the ERR-2 row is the outlier, and that contradiction is preserved rather than resolved. |
+| **`ENG-17`** · AI-4, the substrate is unpopulated | **`BLOCKED_DECISION`.** 0 intelligence profiles against 621 exercises, 0 graph nodes. |
+| **`ENG-25`/`ENG-26`** · equipment and warm-up vocabulary mismatch | Depends on `ENG-17` for any **non-vacuous** verification — the engine selects nothing regardless while the substrate is empty, so a live check would pass over nothing. The fix also requires ruling which vocabulary is canonical (`dumbbells` vs `dumbbell`), and §77.3's precedent is to refuse to invent one. |
+| **`ENG-01`** · `materialize_program_week` has no caller | Needs a **product surface** — where the affordance lives is a design decision, and the success message points at screens that do not have it. |
+| **`ENG-13`** · two of four regenerator actions unimplemented | Wave 5 engine work whose live verification depends on `ENG-17`. **Newly visible because of this run's fix** — recorded as `N1` in the owner pack rather than left silent. |
+| **`LRE-04`** · 15 migrations edited in place | `FIXED ON QA · VERIFIED LIVE` already. Its residual impact is that **production** cannot receive the corrections, and production is absolutely off-limits. |
+| **`LRE-07`** · Android release signed with the debug keystore | Release-channel and keystore work — an **account/release boundary**, gate `G-07`. |
+| **`EC-03`'s end-to-end rung** | The banner is reachable only at step 25 behind a private `_finish()`, and the flow's `_load()` needs Supabase. The repository's intake device tests mount **individual pages**, never the flow, so there is no precedent to reuse. Forcing it would mean **widening production API for a test** on the onboarding path. Recorded, not forced. |
+
+### §180.1 · What that leaves
+
+**Nothing in the independent authorized P0 set.** What remains is owner-gated (`Q-5`,
+`Q1`–`Q5` in the pack), explicitly unauthorized (F-J-17's Step 4), production-gated
+(`LRE-04`), account-gated (`LRE-07`), or dependent on a `BLOCKED_DECISION` for verification
+that would otherwise be vacuous (`ENG-17` → `ENG-25`/`ENG-26`/`ENG-13`).
+
+**Two findings were promoted to a complete ladder this run** — `ENG-02` (security class, all
+four rungs) and `EC-04` (error-contract class, all three including END-TO-END) — and two
+more were remediated with their class's remaining rung named: `I-COM-01` (complete) and
+`EC-03` (less the END-TO-END rung). `ENG-14` is resolved as a consequence.
+
+**The registry still reads `READY_TO_REMEDIATE` for all of them**, because it is outside
+this run's mutation boundary and `REMEDIATION_PROGRESS.md` may not lead it (§177.1). That is
+a documentation boundary, not an engineering one.
+
+### §180.2 · Final verification
+
+QA frontier **177** · live security **987/987 across 17 suites** · AI **49/49** ·
+characterizations **17/17** · contract clean on a 2-entry allowlist · Flutter **1795 / 5
+skipped** · every static guard green · **CI 7/7 on `cbc2ca7`**, including `ec04-e2e`.
+
+**Production was not contacted at any point in this run.**
