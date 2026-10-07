@@ -10,44 +10,74 @@ import { join } from 'node:path';
 
 const MIGRATIONS = 'supabase/migrations';
 
-// Views are not derived from DDL; a reference to one is not checked column-wise.
+// Views ARE derived from DDL. They did not used to be, and the inventory drifted.
 //
-// This inventory is hand-maintained (see the header: a view's column set comes
-// from a SELECT list, not DDL), so it has to be extended when a migration adds a
-// view. Verified against the live QA catalog 2026-09-27: `pg_class` holds exactly
-// these six views in `public`, no more and no fewer.
-export const VIEWS = new Set([
+// ── WHY THIS CHANGED, AND IT IS THE FINDING ─────────────────────────────────
+// This set was hand-maintained, with a header asserting "pg_class holds exactly
+// these six views in public, no more and no fewer" as verified on 2026-09-27.
+// Migrations 156-174 then added TWELVE `admin_*` views and none was added here, so
+// the guard reported a real, applied view as "referenced but does not exist" — a
+// FALSE POSITIVE that would have been resolved by deleting the reference to a view
+// that is genuinely there.
+//
+// A hardcoded list covers the objects someone remembered. D15 learned this and
+// switched to discovery (V5 §139.6); SEC-G4 learned it again this week. So the
+// inventory is now derived from the migration set, and `HAND_VERIFIED_FLOOR` is kept
+// only as a positive control: if discovery ever fails to find one of the views a
+// human confirmed against the live catalog, the derivation is broken and this module
+// refuses to load rather than reporting a clean schema.
+//
+// A VIEW'S COLUMNS ARE STILL NOT CHECKED HERE, which is unchanged: a view's column
+// set comes from a SELECT list, not DDL. That coverage lives where it can be exact —
+// D15 pins the admin overview views' column sets, and D16 asserts them against the
+// live QA database.
+const HAND_VERIFIED_FLOOR = new Set([
   'coach_client_workout_stats',
   'conversation_participant_profiles',
   'exercise_certifications',
   'exercises',
   'public_profiles',
-  // Added by migration 132 (Security Foundation Wave 1). The minimum-necessary
-  // team roster projection that replaced the team-lead arm of the user_profiles
-  // SELECT policy. Registering it here is inventory completeness only — it
-  // changes no security property of the view, which remains
-  // `security_invoker = off`, `security_barrier = true`, SELECT-only for
-  // `authenticated`, and gated by is_team_lead_of() requiring status = 'active'.
   'team_member_profiles',
-  // Added by migration 135 (V5 P1, QAX-SEC-09). The minimum-necessary event
-  // attendee projection that replaced the hosts_event_for() arm of the
-  // user_profiles SELECT policy. Registering it here is inventory completeness
-  // only — it changes no security property of the view, which is
-  // `security_invoker = off`, `security_barrier = true`, SELECT-only for
-  // `authenticated`, and gated by hosts_event_for().
-  //
-  // NOTE ON THE HEADER ABOVE: the "six views, verified against the live QA
-  // catalog 2026-09-27" statement predates this entry and is NOT re-asserted
-  // for it. Migration 135 has NOT been applied to any environment and no
-  // database was contacted; this entry is source-derived only.
   'event_attendee_profiles',
 ]);
+
+function deriveViews() {
+  const found = new Set();
+  for (const f of readdirSync(MIGRATIONS).filter((x) => x.endsWith('.sql')).sort()) {
+    const sql = stripComments(readFileSync(`${MIGRATIONS}/${f}`, 'utf8'));
+    for (const m of sql.matchAll(
+      /CREATE\s+(?:OR\s+REPLACE\s+)?(?:MATERIALIZED\s+)?VIEW\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?"?([a-z0-9_]+)"?/gi)) {
+      found.add(m[1].toLowerCase());
+    }
+    // A view may also be dropped; a dropped-and-not-recreated view must not linger.
+    for (const m of sql.matchAll(
+      /DROP\s+VIEW\s+(?:IF\s+EXISTS\s+)?(?:public\.)?"?([a-z0-9_]+)"?/gi)) {
+      found.delete(m[1].toLowerCase());
+    }
+  }
+  if (found.size === 0) {
+    throw new Error('schema.mjs: derived ZERO views from ' + MIGRATIONS +
+      ' — the derivation is broken, not the schema; refusing to load');
+  }
+  const missing = [...HAND_VERIFIED_FLOOR].filter((v) => !found.has(v));
+  if (missing.length) {
+    throw new Error('schema.mjs: view derivation did not find ' + missing.join(', ') +
+      ' — each was hand-verified against the live QA catalog, so the derivation is ' +
+      'broken. Refusing to load rather than report a schema that is missing views.');
+  }
+  return found;
+}
+
 
 // `.from()` names that are Storage buckets, not relations.
 export const STORAGE_BUCKETS = new Set(['avatars', 'exercise-media', 'progress-photos']);
 
 const stripComments = (sql) =>
   sql.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '');
+
+// Evaluated here, after stripComments exists — a `const` is not hoisted, and the
+// first draft of this derivation crashed on exactly that.
+export const VIEWS = deriveViews();
 
 function splitTopLevel(body) {
   const out = [];

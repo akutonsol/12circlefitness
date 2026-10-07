@@ -38,10 +38,36 @@ section('J-04A  who can read a decision trace');
   // The two POSITIVE arms that need a service key to arrange their fixtures — the
   // active coach, and `created_by` surviving the end of a relationship (M-1) —
   // are proved in supabase/tests/security/d05-intelligence-substrate.mjs §9.
+  // ── THE PRECONDITION IS "NO RELATIONSHIP THAT GRANTS ACCESS", NOT "NO ROW" ──
+  // This used to require zero rows of any kind, and failed on a relationship left at
+  // status `cancelled` by an earlier suite. That was an unsound precondition, not a
+  // security finding: the arm under test is `is_active_coach_of(subject_id)`
+  // (`128:93`), and that function is `status = 'active'` and nothing else
+  // (`100:21-35`, the single definition migrations 136/137 exist to keep from
+  // drifting). A cancelled relationship therefore grants exactly nothing, so its
+  // presence cannot invalidate the negative assertions below.
+  //
+  // THE NEGATIVE ASSERTIONS THEMSELVES ARE UNCHANGED. What narrows here is only the
+  // arrangement check — the claim "this coach has no access-granting relationship" —
+  // which is now exactly as strong as the predicate it has to rule out, and no
+  // stronger.
+  //
+  // Non-active rows are COUNTED AND REPORTED rather than ignored, so residue from
+  // another suite stays visible in the output instead of becoming invisible. This
+  // suite holds no service key by design, so it cannot delete them to arrange a clean
+  // world; depending on one would make it fragile by construction.
   const rel = await rest(coach, 'coach_client_relationships?select=coach_id,client_id,status');
-  const relCount = Array.isArray(rel.body) ? rel.body.length : -1;
-  invariant('the probe coach has no client relationships to justify access',
-    relCount === 0, `${relCount} relationship row(s) visible`);
+  const relRows = Array.isArray(rel.body) ? rel.body : null;
+  const active = relRows?.filter((r) => r.status === 'active') ?? null;
+  const inactive = relRows?.filter((r) => r.status !== 'active') ?? [];
+  invariant('the probe coach holds no ACTIVE client relationship, so nothing grants ' +
+    'it the is_active_coach_of read',
+    active !== null && active.length === 0,
+    `active=${active?.length ?? -1}` +
+    (inactive.length
+      ? `; ${inactive.length} non-active row(s) present and irrelevant to access ` +
+        `[${[...new Set(inactive.map((r) => r.status))].join(', ')}]`
+      : '; no other rows'));
 
   // Traces this coach AUTHORED are excluded, and only those. Under option (a)
   // the `created_by` arm (M-1) grants the creator a permanent read of their own

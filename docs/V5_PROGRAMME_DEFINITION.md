@@ -15764,3 +15764,85 @@ Flutter **1776 passed / 5 skipped** (1764 → 1776) · `dart analyze` clean · Q
 **174** · live security **957/957**.
 
 **Production was not contacted.**
+
+---
+
+## §169 · `I-COM-01` remediated, and two guards that were wrong in opposite directions
+
+### §169.1 · `I-COM-01` — a vendor could not list a single registration
+
+The registry carried this as **P0 · `READY_TO_REMEDIATE`**, and its live half was worse
+than "a demo fallback": `vendor_service.getRegistrations()` selected `ticket_code`, which
+**does not exist**. Confirmed against QA — PostgREST returns **400 `42703`** — so the read
+failed outright and **a vendor could not list any registration for their own event**. The
+member-side ticket screen had already been corrected to `qr_code`; this site was missed.
+
+**The column was DROPPED, not renamed, and that is the safer of the two fixes.** Nothing
+consumed it: the portal reads `checked_in_at` and the attendee profile, and `setCheckedIn`
+checks in **by registration id**, never by scanning. Meanwhile `qr_code` is
+`encode(gen_random_bytes(16),'hex')` (`001:285`) — the attendee's **ticket credential**.
+Renaming would have handed every attendee's ticket secret to a vendor payload with no use
+for it, on the one method whose stated purpose is to *narrow* columns. `K-04`, the paired
+half, was already closed (live `9/9`).
+
+**Two allowlists shrank, which is the last step of a fix and not a licence.** The contract
+guard's `known-violations.json` went **3 → 2 entries**, and the Dart-side `H-G1` phantom
+column map went **1 → 0**. Both are checked bidirectionally, so a stale excuse left behind
+after a fix fails the guard just as a new violation does — and both did fail until the
+entries were removed.
+
+### §169.2 · The contract guard was wrong in the FALSE-POSITIVE direction
+
+Its `VIEWS` inventory was **hand-maintained**, under a header asserting *"pg_class holds
+exactly these six views in `public`, no more and no fewer"* as verified on 2026-09-27.
+Migrations 156–174 then added **twelve** `admin_*` views and none was added there. So the
+guard reported `admin_incidents` — a real, applied view — as *"referenced but does not
+exist"*, and **CI failed on `582fc7d`** for exactly that.
+
+A false positive of this shape is more dangerous than a miss: the obvious way to make it
+green is to **delete the reference to a view that is genuinely there**.
+
+`VIEWS` is now **derived from the migration set** (7 hardcoded → **19 derived**), handling
+`CREATE OR REPLACE`, `MATERIALIZED`, `IF NOT EXISTS` and quoted identifiers, and removing
+anything later dropped. The hand-verified names are kept as `HAND_VERIFIED_FLOOR`, a
+**positive control**: if discovery ever fails to find one of them the module **refuses to
+load** rather than report a clean schema. Both controls were proved — an undiscoverable
+floor entry and a derivation that finds nothing each refuse to load. A view's *columns* are
+still not checked here, which is unchanged and deliberate: a view's column set comes from a
+SELECT list, and that coverage lives where it can be exact, in D15's column pins and D16's
+live assertions.
+
+**The process lesson is mine.** I pushed §168 having run `dart analyze` and the Flutter
+suite but **not** `npm run test:contract`, and that commit is the one that introduced the
+first literal `.from('admin_incidents')` the guard could see. The guard was already wrong;
+my push is what surfaced it, in CI rather than locally.
+
+### §169.3 · `J-04` was wrong in the FALSE-NEGATIVE direction — an unsound precondition
+
+`J-04` required the probe coach to hold **zero relationship rows of any kind**, and failed
+on one left at status `cancelled`. That was **not a security finding but an unsound
+arrangement check**: the arm under test is `is_active_coach_of(subject_id)` (`128:93`), and
+that function is `status = 'active'` and nothing else (`100:21-35` — the single definition
+migrations 136 and 137 exist precisely to stop drifting). **A cancelled relationship grants
+nothing**, so its presence cannot invalidate anything J-04 asserts.
+
+The precondition is now exactly as strong as the predicate it must rule out, and no
+stronger. **The negative assertions themselves are untouched.** Non-active rows are
+**counted and reported** rather than ignored, so another suite's residue stays visible in
+the output instead of becoming invisible — and this suite holds **no service key by
+design**, so it cannot delete them to arrange a clean world; depending on one would make it
+fragile by construction.
+
+**Verified in both directions, not assumed.** Flipping that row to `active` makes J-04 fail
+(`14/16` — the precondition *and* the downstream assertion that rests on it), and restoring
+it to `cancelled` returns `49/49`. So the narrowing did not cost the assertion its teeth.
+
+### §169.4 · Verification
+
+Live security **958/958 across 16 suites** · contract clean against a **2-entry** allowlist
+(was 3) · AI **49/49** · characterizations **17/17** · Flutter **1776 passed / 5 skipped** ·
+every static guard green · QA frontier **174**.
+
+**Production was not contacted. No guard was weakened: one was corrected in the
+false-positive direction and one in the false-negative, and each was re-proved by
+injection.**

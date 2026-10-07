@@ -55,8 +55,19 @@ class VendorService {
   Future<List<Map<String, dynamic>>> getRegistrations(String eventId) async {
     final registrations = List<Map<String, dynamic>>.from(await _db
         .from('event_registrations')
-        .select(
-            'id, status, checked_in_at, registered_at, ticket_code, user_id')
+        // I-COM-01 · `ticket_code` DOES NOT EXIST. The column is `qr_code`
+        // (`001:285`), so this read returned PostgREST 400 `42703` and the vendor
+        // could not list a single registration for their own event. The member-side
+        // ticket screen was corrected to `qr_code`; this site was missed.
+        //
+        // IT IS DROPPED RATHER THAN RENAMED, and that is the safer fix of the two.
+        // Nothing consumes it — the portal reads `checked_in_at` and the attendee
+        // profile, and `setCheckedIn` checks in by registration id, never by
+        // scanning. Meanwhile `qr_code` is `encode(gen_random_bytes(16),'hex')`: the
+        // attendee's ticket credential. Renaming would therefore hand every
+        // attendee's ticket secret to a vendor payload that has no use for it — a new
+        // disclosure on the one method whose stated job is to NARROW columns.
+        .select('id, status, checked_in_at, registered_at, user_id')
         .eq('event_id', eventId)
         .order('registered_at') as List);
     final attendeeIds = registrations

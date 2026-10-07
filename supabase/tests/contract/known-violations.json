@@ -21,11 +21,5 @@
       "finding": "I-LEG-03"
     }
   ],
-  "missingColumn": [
-    {
-      "table": "event_registrations",
-      "column": "ticket_code",
-      "finding": "I-COM-01"
-    }
-  ]
+  "missingColumn": []
 }

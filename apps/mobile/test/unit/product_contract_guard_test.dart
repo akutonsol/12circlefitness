@@ -315,12 +315,24 @@ void main() {
   //
   // Remove an entry when the column is added or its caller is corrected.
   group('H-G1 every column the client names has a backing migration', () {
-    const knownMissing = <String, String>{
-      // Event registration writes and reads `ticket_code`; the column is
-      // `qr_code`. The ticket screen catches the 400 and fabricates a
-      // "TKT-DEMO-…" ticket that was never persisted.
-      'event_registrations.ticket_code': 'H-02',
-    };
+    // EMPTY, and that is a remediation rather than a weakening.
+    //
+    // `event_registrations.ticket_code` (H-02 = I-COM-01) used to live here: the
+    // column does not exist — it is `qr_code` (`001:285`) — so the read returned
+    // PostgREST 400 `42703` and the vendor could not list a single registration for
+    // their own event. The member-side ticket screen had already been corrected; the
+    // vendor read at `vendor_service.dart` had not.
+    //
+    // The column was DROPPED from that select rather than renamed to `qr_code`.
+    // Nothing consumed it, and `qr_code` is `encode(gen_random_bytes(16),'hex')` —
+    // the attendee's ticket credential — so renaming would have handed every
+    // attendee's ticket secret to a vendor payload with no use for it, on the one
+    // method whose stated job is to narrow columns.
+    //
+    // This map being empty means the client names no column the schema lacks. A new
+    // entry needs a finding ID, and the assertion below still fails on any phantom
+    // column that is not listed.
+    const knownMissing = <String, String>{};
 
     test('the migration parser found a plausible schema', () {
       // A guard that silently parses nothing would pass forever.
