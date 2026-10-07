@@ -136,6 +136,14 @@ jobs:
           # that assumed single spaces, and the parser that skipped a table whose
           # identifiers are quoted (V5 §129.3, §139.3).
           node supabase/scripts/schema-facts.mjs --self-test
+          # The Admin Tier-3 token layer is GENERATED from the approved design
+          # authority — admin.tokens.css at commit 931218b, which lives on
+          # design/12circle-plus-admin-dashboard and is NOT an ancestor of this
+          # branch. This re-derives it and fails if the committed Dart drifts from
+          # the published CSS, so 126 design values cannot be edited by hand into
+          # becoming the new truth. It needs the design ref, which this job has
+          # because its checkout uses fetch-depth: 0.
+          node supabase/scripts/gen-admin-tokens.mjs --check
 
       - name: Function posture (definer search_path, anon EXECUTE)
         run: |

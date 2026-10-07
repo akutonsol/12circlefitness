@@ -454,12 +454,32 @@ void main() {
         dotAll: true,
       );
 
+      // ── ONE SANCTIONED EXCEPTION, AND IT IS NOT "KNOWN DEBT" ─────────────
+      // `admin_tokens.dart` is the Admin Tier-3 token layer: the very thing this
+      // guard's invariant wants presentation files to read FROM. It is not added
+      // to `known`, because `known` means "debt that may only shrink", and this
+      // file must not shrink — it must stay byte-identical to the approved design
+      // authority.
+      //
+      // The exemption is CONDITIONAL, so nobody can hand-write a palette and name
+      // it admin_tokens.dart to escape the rule: the file must carry the generated
+      // header AND name the design commit it was derived from, and CI separately
+      // re-derives it with `gen-admin-tokens.mjs --check`. If either marker is
+      // missing, the exemption does not apply and the file is reported.
+      bool isGeneratedTokenLayer(String name, String source) =>
+          name == 'admin_tokens.dart' &&
+          source.contains('GENERATED FILE — DO NOT EDIT BY HAND') &&
+          source.contains('admin.tokens.css') &&
+          source.contains('931218b');
+
       final found = <String>{};
       for (final file in presentationFiles) {
         final source = file.readAsStringSync();
         if (!palette.hasMatch(source)) continue;
         if (!source.contains(RegExp(r'Color\(0x[0-9a-fA-F]{8}\)'))) continue;
-        found.add(file.path.split('/').last);
+        final name = file.path.split('/').last;
+        if (isGeneratedTokenLayer(name, source)) continue;
+        found.add(name);
       }
 
       final added = found.difference(known);
@@ -490,12 +510,32 @@ void main() {
         r'class\s+(_?[A-Z]\w*)\s*\{[^}]*static\s+const\s+(?:Color\s+\w+|\w+)\s*=\s*Color\(0x',
         dotAll: true,
       );
+      // ── ONE SANCTIONED EXCEPTION, AND IT IS NOT "KNOWN DEBT" ─────────────
+      // `admin_tokens.dart` is the Admin Tier-3 token layer: the very thing this
+      // guard's invariant wants presentation files to read FROM. It is not added
+      // to `known`, because `known` means "debt that may only shrink", and this
+      // file must not shrink — it must stay byte-identical to the approved design
+      // authority.
+      //
+      // The exemption is CONDITIONAL, so nobody can hand-write a palette and name
+      // it admin_tokens.dart to escape the rule: the file must carry the generated
+      // header AND name the design commit it was derived from, and CI separately
+      // re-derives it with `gen-admin-tokens.mjs --check`. If either marker is
+      // missing, the exemption does not apply and the file is reported.
+      bool isGeneratedTokenLayer(String name, String source) =>
+          name == 'admin_tokens.dart' &&
+          source.contains('GENERATED FILE — DO NOT EDIT BY HAND') &&
+          source.contains('admin.tokens.css') &&
+          source.contains('931218b');
+
       final found = <String>{};
       for (final file in presentationFiles) {
         final source = file.readAsStringSync();
         if (!palette.hasMatch(source)) continue;
         if (!source.contains(RegExp(r'Color\(0x[0-9a-fA-F]{8}\)'))) continue;
-        found.add(file.path.split('/').last);
+        final name = file.path.split('/').last;
+        if (isGeneratedTokenLayer(name, source)) continue;
+        found.add(name);
       }
 
       expect(

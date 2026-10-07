@@ -105,6 +105,81 @@ void main() {
         reason: 'a provider must not construct a stand-in model');
   });
 
+  // ── SEC-G5 · raw hex in the Admin feature, as a SHRINKING allowlist ───────
+  // The Helix rule is that components consume semantic tokens and never raw hex.
+  // Three Admin screens predate the token layer and genuinely contain raw hex, so a
+  // flat ban would be red on arrival and would be deleted rather than obeyed. This
+  // is the SEC-G3 idiom instead: a per-file CEILING that may only fall. A new file
+  // gets no allowance, and an existing file cannot gain one colour.
+  group('SEC-G5 · raw hex ratchet', () {
+    // admin_tokens.dart is the Tier-3 token layer itself and is GENERATED from the
+    // published admin.tokens.css — hex is its entire purpose, and
+    // gen-admin-tokens.mjs --check already pins every value to the design commit.
+    const exempt = {'admin_tokens.dart'};
+    const ceiling = <String, int>{
+      'admin_dashboard_screen.dart': 12,
+      'observability_screen.dart': 8,
+      'exercise_review_screen.dart': 7,
+    };
+
+    int hexIn(String source) => source
+        .split('\n')
+        // Code only. The tile's doc comment QUOTES `Color(0xFFA855F7)` to explain
+        // what it is avoiding, and the first draft of the sibling guard failed on
+        // its own documentation for exactly this reason.
+        .map((l) => l.split('//').first)
+        .where((l) => RegExp(r'Color\(0x').hasMatch(l))
+        .length;
+
+    test('no Admin file exceeds its recorded raw-hex ceiling, and new files have '
+        'none at all', () {
+      final dir = Directory('lib/features/admin');
+      final files = dir
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart'))
+          .toList();
+      expect(files.length, greaterThanOrEqualTo(6),
+          reason: 'SEC-G5 scanned ${files.length} files — too few; a scan that '
+              'walks nothing reports every rule satisfied');
+
+      final violations = <String>[];
+      for (final f in files) {
+        final name = f.uri.pathSegments.last;
+        if (exempt.contains(name)) continue;
+        final count = hexIn(f.readAsStringSync());
+        final allowed = ceiling[name] ?? 0;
+        if (count > allowed) {
+          violations.add('$name: $count raw Color(0x…), ceiling $allowed');
+        }
+      }
+      expect(violations, isEmpty,
+          reason: 'read from AdminColors instead:\n${violations.join('\n')}');
+    });
+
+    test('the ratchet is honest: a ceiling that is now too generous must be lowered, '
+        'so a file that improved cannot silently regain room', () {
+      final stale = <String>[];
+      for (final e in ceiling.entries) {
+        final f = File('lib/features/admin/presentation/${e.key}');
+        if (!f.existsSync()) {
+          stale.add('${e.key}: allow-listed but absent — delete the entry');
+          continue;
+        }
+        final count = hexIn(f.readAsStringSync());
+        if (count < e.value) {
+          stale.add('${e.key}: now $count, ceiling still ${e.value} — lower it');
+        }
+      }
+      expect(stale, isEmpty, reason: stale.join('\n'));
+    });
+
+    test('the scan can actually see a violation', () {
+      expect(hexIn('const c = Color(0xFF123456);'), 1);
+      expect(hexIn('// const c = Color(0xFF123456);'), 0);
+    });
+  });
+
   test('METRIC-11 exposes no combined verdict, in Dart as in SQL', () {
     // The owner ruled the CI verdict and the gate verdict "must not be collapsed".
     // Comments NAME these forbidden getters in order to explain why they are absent,

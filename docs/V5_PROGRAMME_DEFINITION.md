@@ -15404,3 +15404,99 @@ suite clean · matrix **116/116** · register **20 entries** · function posture
 pending the next CI run.
 
 **Production was not contacted.**
+
+---
+
+## §164 · The Admin token layer, and a finding about where the design authority lives
+
+### §164.1 · THE FINDING — the published design authority is not on this branch
+
+Building the Admin UI needs the approved token values, so I went to read
+`docs/design/brand/tokens/admin.tokens.css`, which `COMPONENT-SPECS.md:14` cites as the
+source of **126 `--adm-*` tokens**.
+
+**It is not in the working tree, and `docs/design/brand/` does not exist on this branch.**
+
+The publication commit — `931218b`, *"docs(design): publish 12Circle+ admin dashboard
+authority"*, 27 artifacts verified byte-identical to source — is **not an ancestor of
+`HEAD`**. It lives only on `design/12circle-plus-admin-dashboard` (local and remote). The
+artifacts missing here are the ones several of this programme's claims rest on:
+`admin.tokens.css`, `admin.tokens.json`, `admin.contrast.md`,
+`brand/icons/admin-icon-inventory.md` and `admin-dashboard/RESPONSIVE.md`.
+
+**This bears directly on my own record.** §158's P5 correction and `BOUNDARIES G`'s
+dissolution were both made by reading those files — correctly, at a time when they were
+reachable — but the citations as written point at working-tree paths that resolve to
+nothing on `reconcile/12circle-integrated`. The readings stand; the *paths* were not
+branch-qualified, and a citation nobody can follow is a weak citation.
+
+**No merge was performed to fix this.** `git show 931218b:<path>` reads the authority
+directly, and pinning to a commit is a *stronger* citation than a working-tree path —
+immutable, and it cannot silently change under a later edit. The design branch's history
+is left untouched.
+
+### §164.2 · The token layer is generated, not transcribed
+
+`supabase/scripts/gen-admin-tokens.mjs` reads `admin.tokens.css` at `931218b` and emits
+`apps/mobile/lib/features/admin/presentation/admin_tokens.dart` — **126 tokens**, matching
+the count `COMPONENT-SPECS.md:14` states. Each one carries a doc comment quoting its exact
+source declaration, so any value traces to the design without leaving the file.
+
+**It is generated because I have already made the hand-transcription mistake once.**
+DESIGN-02's first draft mapped `border: 0` to `--adm-type-caption-tracking` because both
+happened to be `0` (§146). 126 values copied by hand is 126 chances to repeat it. A
+generator cannot, and `--check` — now wired into CI's static-guards job, which has the
+`fetch-depth: 0` checkout the design ref requires — makes a hand-edit of the output fail
+rather than quietly become the new truth.
+
+Two conversions are deliberately **not** attempted. Pixel tokens become `double`, because
+every Flutter dimension is one — fixed in the generator after `int` output failed at the
+call sites, rather than patched in at each use. But a `clamp()` gutter, an `em` tracking
+and a CSS font stack have **no Flutter equivalent**, so they are exposed verbatim under
+`AdminTokensRaw` rather than converted into a guess.
+
+### §164.3 · `AdminMetricTile` — the `A11` states a metric can be in
+
+Anatomy follows the published **Stat tile** and **Empty state** specs. The substance is
+that **a caller cannot render an absent metric without saying why it is absent**: there is
+no constructor taking a bare nullable, and `AdminMetricTile.of` requires `whenNull`.
+`notAuthorized` renders *"Not available to your role"* and `notRecorded` renders *"Not
+recorded"* — and the widget test asserts the unauthorized tile contains **no digit
+anywhere**, because a `0` there is a claim about a population the role may not query.
+
+A **measured zero is a value**, and the approved design states its wording outright —
+*"None"* · *"none raised"* · *"none open"*, *not* an empty panel (`STATE-SPECS-A11` §1) —
+so `zeroCopy` carries that and the tile still renders as a figure. An unknown month-on-month
+delta renders **nothing**; a flat month and an unmeasurable one are different claims.
+
+**The widget test found a real defect in my own widget.** The published Stat tile is
+`4px 1fr auto`, and an `auto` column sized by the absence copy **overflowed by 23px** at
+360px — a width `RESPONSIVE.md`'s ≤900px case makes ordinary. Fixed by flexing both
+columns with the label yielding first, since the figure is the point of the tile.
+
+### §164.4 · Two guards extended, neither weakened
+
+**`SEC-G5`** ratchets raw hex in the Admin feature as a **shrinking per-file ceiling**
+(`admin_dashboard_screen` 12 · `observability_screen` 8 · `exercise_review_screen` 7), the
+`SEC-G3` idiom. A flat ban would be red on arrival against three screens that predate the
+token layer, and a guard that is red on arrival gets deleted rather than obeyed. A new file
+gets **no** allowance, an existing file cannot gain one colour, and a second assertion
+fails if a ceiling becomes *too generous* — so a file that improved cannot silently regain
+room.
+
+**`H-D1`** (the existing private-palette ratchet) went red on `admin_tokens.dart`, and it
+was right to: the file does match "a class whose body is colour constants". But that file
+is the Tier-3 layer the invariant wants presentation files to read **from**, so it was
+exempted rather than added to `known` — `known` means *debt that may only shrink*, and this
+file must not shrink. **The exemption is conditional**: the file must carry the generated
+header, name `admin.tokens.css`, and name the commit `931218b`. Both conditions were
+verified by injection — stripping the header and altering the commit each turned the guard
+red — so a hand-written palette cannot escape the rule by taking the filename.
+
+### §164.5 · Verification
+
+Flutter **1744 passed / 5 skipped** (1729 → 1744). `dart analyze` clean across every file
+touched. Generator `--check` green at 126 tokens. Live security **954/954**. CI was green
+**6/6 on `7ae1df5`** before this work.
+
+**Production was not contacted. No guard and no evidence standard was weakened.**
