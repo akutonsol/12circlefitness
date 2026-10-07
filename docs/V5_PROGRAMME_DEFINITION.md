@@ -17459,3 +17459,91 @@ a code change is worth chasing down every time, and this one has a reason in the
 output.
 
 **Production was not contacted.**
+
+---
+
+## §190 · Frontier reassessment — P5's admin surface is closed, P6 is executed, and what remains is four boundaries
+
+### §190.1 · The surface inventory, counted from code rather than claimed
+
+Every `admin_*` **view** in the schema is read by the app. Twelve views, twelve readers, no
+orphans. Of the thirteen `admin_*` **functions**, nine are called and **four are not** — and
+each of the four is refused for a reason already on the record rather than left as a gap:
+
+| unreached function | why |
+|---|---|
+| `admin_create_program_template` | No approved screen carries an authoring affordance. The Ecosystem Programs table's only action is **"Open"**, and a read affordance is not an authoring one (§189.1). |
+| `admin_update_program_template` | Same. |
+| `admin_set_user_role` | **OWNER** — it gates on the legacy `is_admin()`, not the capability matrix. Wiring "Change role" means either a false affordance or widening `admin` granting to a support capability (§189.4, proved live in D18 §3). |
+| `admin_set_guardian_state` | **OWNER / DESIGN** — the control exists and satisfies `A10`; the approved Trust screen places no operator-facing affordance for it (§189.5). |
+
+**The inventory had a false negative first, and the method is the point.** Grepping the whole
+Dart tree showed only *two* unreached functions, because `admin_set_guardian_state` and
+`admin_set_user_role` appear in **comments** explaining why they are not called. Stripping
+comment lines gives four. An inventory that counts the prose about a gap as the closing of
+that gap is the same error `SEC-G9` made against its own documentation an hour earlier, and
+the same error the `#f08a9b` shell sweep made in §16x — a measurement that reads its own
+notes.
+
+### §190.2 · `P6 · TRUST` is executed, and its blocker is gone
+
+§182's table recorded **P6 as BLOCKED BY PREDECESSOR**, on *"P5's domain placements"*, with its
+design gate already satisfied and *"its entire data layer already exists"*. Both halves of that
+blocker have since cleared: Q6 was **closed by existing authority**, and P5's Control Center is
+built.
+
+`D11` scopes P6 to **three areas — Security · Incidents · Audit Logs**. All three are rendered
+sections of the Trust page (`#security`, `#incidents`, `#audit`), each reads the view published
+for it, and each of the three surfaces carries live D15 coverage (10 · 4 · 9 assertions
+referencing `admin_security_events`, `admin_incidents`, `admin_audit_events`). `A13·1` holds,
+`B-4` holds, and §19.3 is respected — the audit projection is deliberately incomplete *for its
+reader*, which is proved rather than assumed.
+
+**P6 · TRUST: EXECUTED.**
+
+### §190.3 · The traversal, restated
+
+| phase | status | what is reachable now | exact boundary |
+|---|---|---|---|
+| **P0 · GOVERNANCE** | **COMPLETE** | — | — |
+| **P1 · FOUNDATION / SECURITY** | partially executed, 3 of 4 rungs | **none** | **OWNER — `D-1`**, blocking `QAX-SEC-08`'s fourth rung *and nothing else* |
+| **P2 · DATA** | **COMPLETE** on all four rungs | — | — |
+| **P3 · BACKEND (wearable)** | **DEFERRED BY GOVERNING AUTHORITY** | **none** | `PD-G01` — *implementation NOT AUTHORIZED*; the standing instruction also forbids releasing it |
+| **P4 · CORE PRODUCT** | blocked by predecessor | **none** | P3 → `PD-G01` |
+| **P5 · ADMIN** | **substantially COMPLETE** — six pages, twelve views read, nine of thirteen write paths wired | **none without an owner decision** | the four of §190.1 — two OWNER, two no-affordance |
+| **P6 · TRUST** | **EXECUTED** (§190.2) | — | — |
+| **P7 · AI GUARDIAN** | **OWNER GATE** | **none** | the standing instruction *"keep P7 gated"* |
+| **P8 · MOBILE** | blocked by predecessor | **none** | P4 → P3 → `PD-G01`; `CONF-08` for wearable UX |
+| **P9 · INTEGRATION** | blocked by predecessor | **none** | P3–P8 upstream |
+| **P10 · QA & SUPPLY CHAIN** | **EXTERNAL / INFRASTRUCTURE** | **none** | the *"installation forbidden"* constraint; the standing instruction also forbids releasing it |
+
+**No phase has reachable work left that does not first require an owner decision, a governing
+authority release, or infrastructure this run is forbidden to touch.** That is a different
+claim from "P5 is exhausted", and it is the one §182's directive asked to be proved phase by
+phase.
+
+### §190.4 · Carried owner queue
+
+Unchanged from rev 3 except where this section moves an item:
+
+* **Q1** timezone for "today" — disclosed as UTC on the surface itself.
+* **Q2** whether coaches and partners count as active users.
+* **Q3** release `METRIC-11`'s CI ingestion (`P10` / `CONF-D9`).
+* **Q4** merge the design branch, or keep commit-pinned citations (54 resolve at `931218b`).
+* **Q5** the Phosphor dependency — 107 icons eventually, 1 today.
+* **Q6** — **closed by existing authority.**
+* **Q7** `D-1` — blocks `QAX-SEC-08`'s fourth rung only.
+* **Q8 · NEW — who may assign a role?** `admin_set_user_role` gates on `is_admin()` while
+  every other Admin surface gates on the matrix. Either the approved "Change role" control
+  stays unbuilt, or role assignment is widened to `Users·update` holders. **Proved live**
+  (D18 §3), so this is a decision and not a diagnosis.
+* **Q9 · NEW — where does Guardian disablement live?** `169` is the control `A10` requires and
+  it is gated to `trust_lead` alone; the approved Trust screen carries no affordance for it.
+* **Q10 · NEW — is a program-template authoring surface wanted?** Two RPCs exist; no approved
+  screen places a control.
+
+Debts **D1–D4** stand. `EC-03`'s END-TO-END rung is still unbuilt — the banner sits at step 25
+behind a private `_finish()`. The **`EC-02` registry contradiction** (`:709` `BLOCKED_DECISION`
+on Q-5 against `:782` *"lands now"*) remains **deliberately unreconciled** per §4-H.
+
+**Production was not contacted at any point in this run.**
