@@ -212,3 +212,33 @@ CAP-1-APPEAL : unchanged (deferred) — confirm? Y / N
 
 QA_DB_URL    : add as a CI secret? Y / N
 ```
+
+---
+---
+
+# PART II · 12CIRCLE+ WEBSITE WORKSTREAM — separate from the V5 implementation above
+
+> **Everything above this line is the EXISTING V5 IMPLEMENTATION package and is unchanged.**
+> This part exists only on branch `workstream/12c-plus-website`. Website blockers do not block V5,
+> and V5 blockers block the website only where named below.
+
+**Status:** assessed (read-only). **Stop condition met:** no website design, scope, hosting or domain exists,
+and none was invented. No website code has been written.
+
+- Assessment A–P: [`docs/website/12CIRCLE_PLUS_WEBSITE_WORKSTREAM_ASSESSMENT.md`](website/12CIRCLE_PLUS_WEBSITE_WORKSTREAM_ASSESSMENT.md)
+- Decisions WEB-OD-01…11: [`docs/website/12CIRCLE_PLUS_WEBSITE_DECISION_PACKAGE.md`](website/12CIRCLE_PLUS_WEBSITE_DECISION_PACKAGE.md)
+- Design brief (not a design): [`docs/website/12CIRCLE_PLUS_WEBSITE_DESIGN_BRIEF.md`](website/12CIRCLE_PLUS_WEBSITE_DESIGN_BRIEF.md)
+
+**Recommendation in one line:** a static, content-only, no-auth site on its own origin, linking to the
+app, with tokens generated from Helix. Start with the legal, support and deletion pages that REL-17 needs.
+
+**The four gating answers:** WEB-OD-01 (scope) · WEB-OD-02 (architecture) · WEB-OD-03 (domain; the same
+question as V5 PD-F04) · WEB-OD-05 (design authority).
+
+```
+WEB-OD-01 scope        : a / b / c
+WEB-OD-02 architecture : D1 / D2 / D3 / D4
+WEB-OD-03 domain       : ____________
+WEB-OD-05 design       : supply / commission / plain template approved for (a): Y / N
+(remaining WEB-OD-04, 06–11 on the decision package's response sheet)
+```
