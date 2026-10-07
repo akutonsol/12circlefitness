@@ -314,6 +314,73 @@ void main() {
     });
   });
 
+  group('a capability check that FAILS is not a denial (EC-G8)', () {
+    // The first version read the capability with `.valueOrNull ?? false`, so a FAILED
+    // check rendered "Read-only: resolving an incident requires Incidents · update" —
+    // telling an operator they lack a permission they may well hold. EC-G8 flagged it and
+    // was right: on a provider that does I/O, `.valueOrNull` turns "could not load" into
+    // the domain's empty value, which here is a denial.
+    List<Override> capability(AsyncValue<bool> v) => [
+          ..._denied,
+          adminIncidentsProvider.overrideWith((_) async => [
+                AdminIncident.fromRow(const {
+                  'id': 'i1',
+                  'summary': '38 failed sign-ins',
+                  'severity': 'Critical',
+                }),
+              ]),
+          if (v.hasError)
+            adminCanUpdateIncidentsProvider
+                .overrideWith((_) async => throw Exception('network'))
+          else
+            adminCanUpdateIncidentsProvider
+                .overrideWith((_) async => v.requireValue),
+        ];
+
+    testWidgets('a FAILED check says so, and does NOT claim the permission is missing',
+        (t) async {
+      await _pump(t, capability(const AsyncError('x', StackTrace.empty)));
+      expect(find.textContaining('could not be checked'), findsOneWidget);
+      expect(find.textContaining('this is not a denial'), findsOneWidget);
+      // The denial wording must be absent — that is the whole point.
+      expect(find.textContaining('requires Incidents · update'), findsNothing);
+      // And no action is offered on an unknown capability.
+      expect(find.text('Resolve'), findsNothing);
+    });
+
+    testWidgets('a GENUINE false still renders the approved read-only state', (t) async {
+      await _pump(t, capability(const AsyncData(false)));
+      expect(find.textContaining('requires Incidents · update'), findsOneWidget);
+      expect(find.textContaining('could not be checked'), findsNothing);
+    });
+
+    testWidgets('a GENUINE true still offers the action', (t) async {
+      await _pump(t, capability(const AsyncData(true)));
+      expect(find.text('Resolve'), findsOneWidget);
+      expect(find.textContaining('could not be checked'), findsNothing);
+    });
+  });
+
+  testWidgets('the Guardian section NAMES the figures the approved design asks for and no '
+      'surface produces, rather than leaving blanks', (t) async {
+    await _pump(t, [
+      ..._denied,
+      adminCanViewGuardianProvider.overrideWith((_) async => true),
+      adminGuardianStateProvider.overrideWith((_) async =>
+          AdminGuardianState.fromRow({'state': 'Active'})),
+    ]);
+    // The published section shows these; nothing in the schema produces them.
+    expect(find.textContaining('evaluation-engine state'), findsOneWidget);
+    expect(find.textContaining('median decision time'), findsOneWidget);
+    expect(find.textContaining('agents without a policy'), findsOneWidget);
+    // And none is estimated: no figure is presented under those names.
+    for (final l in ['Median decision time', 'Agents without a policy',
+                     'Evaluation engine', 'Last full evaluation']) {
+      expect(find.text(l), findsNothing,
+          reason: 'no "$l" reading may be shown — no surface produces it');
+    }
+  });
+
   testWidgets('the GUARDIAN remains read-only — A10 bars it from holding admin authority '
       'and nothing here re-states it', (t) async {
     await _pump(t, _denied);

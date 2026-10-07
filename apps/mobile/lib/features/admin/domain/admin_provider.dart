@@ -104,3 +104,17 @@ final adminPlatformSettingsProvider = FutureProvider<List<AdminPlatformSetting>?
 /// update — `Incidents·update` is held by `trust_lead` alone.
 final adminCanUpdateIncidentsProvider = FutureProvider<bool>(
     (ref) async => ref.watch(adminTrustServiceProvider).canUpdateIncidents());
+
+/// The OPEN moderation queue. Null means no `Community·view`; empty means authorized with
+/// nothing to moderate, which the design renders with its own "none open" wording.
+final adminOpenReportsProvider = FutureProvider<List<AdminContentReport>?>(
+    (ref) async => ref.watch(adminMetricsServiceProvider).getOpenReports());
+
+/// Whether the caller may moderate — `Community·update`, held by `content_editor`. Kept
+/// separate from the queue so the page can render the approved read-only state.
+final adminCanModerateProvider = FutureProvider<bool>(
+    (ref) async => ref.watch(adminMetricsServiceProvider).canModerate());
+
+/// Whether the caller may create an event — `Events·create`, held by `content_editor`.
+final adminCanCreateEventsProvider = FutureProvider<bool>(
+    (ref) async => ref.watch(adminMetricsServiceProvider).canCreateEvents());

@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'admin_tokens.dart';
 
@@ -125,3 +126,34 @@ class AdminPlaceholderRow extends StatelessWidget {
         ),
       );
 }
+
+/// Renders an action area according to a CAPABILITY CHECK THAT CAN ITSELF FAIL.
+///
+/// WHY THIS EXISTS. The first versions of the Trust, Ecosystem and event-authoring actions
+/// read their capability with `.valueOrNull ?? false`. `EC-G8` flagged it and was right:
+/// on a provider that does I/O — and `admin_can` is an RPC over the network — that
+/// converts *"could not load"* into the domain's empty value at the read site. Here the
+/// empty value is `false`, which the UI renders as **"Read-only: this requires X"**.
+///
+/// So a failed capability check told an operator they **lack a permission they may well
+/// hold**. That is the same defect as EC-04's green `LOW RISK` badge — "the read failed"
+/// and "the answer is no" rendered as one pixel — applied to authorization.
+///
+/// Four states, kept apart:
+///   * **loading** — the check has not answered yet;
+///   * **failed** — the check itself could not be made, which is NOT a denial;
+///   * **true** — the action;
+///   * **false** — the approved read-only state, which is a real answer.
+Widget adminCapabilityGate(
+  AsyncValue<bool> capability, {
+  required Widget Function() allowed,
+  required Widget denied,
+  String checking = 'Checking your permissions…',
+  String failed = 'Your permissions could not be checked. No action is offered, and this '
+      'is not a denial.',
+}) =>
+    capability.when(
+      loading: () => AdminFootnote(checking),
+      error: (_, __) => AdminFootnote(failed),
+      data: (can) => can ? allowed() : denied,
+    );

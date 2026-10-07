@@ -153,6 +153,77 @@ class AdminMetricsService {
     ];
   }
 
+  /// The OPEN moderation queue — `resolved_at IS NULL` is the queue, by 170's own
+  /// comment. `reporter_id` is deliberately NOT selected: judging a post does not require
+  /// knowing who reported it, and a queue that names reporters discourages reporting.
+  Future<List<AdminContentReport>?> getOpenReports({int limit = 50}) async {
+    final permitted = await _db
+        .rpc('admin_can', params: {'p_area': 'Community', 'p_verb': 'view'});
+    if (permitted != true) return null;
+    final rows = await _db
+        .from('content_reports')
+        .select('id, target_type, target_id, reason, created_at')
+        .isFilter('resolved_at', null)
+        .order('created_at', ascending: true)
+        .limit(limit);
+    return [
+      for (final r in rows) AdminContentReport.fromRow(Map<String, dynamic>.from(r)),
+    ];
+  }
+
+  Future<bool> canModerate() async {
+    final r = await _db
+        .rpc('admin_can', params: {'p_area': 'Community', 'p_verb': 'update'});
+    return r == true;
+  }
+
+  /// Hides or removes reported content through the governed path
+  /// (`admin_moderate_content`, 170), which is `SECURITY DEFINER`, re-checks
+  /// `admin_can('Community','update')` itself and **never writes `content`** — it changes
+  /// `moderation_state` and records who and why. The error is allowed to surface.
+  Future<void> moderate(String targetType, String targetId, String state,
+          {String? reason}) =>
+      _db.rpc('admin_moderate_content', params: {
+        'p_target_type': targetType,
+        'p_target_id': targetId,
+        'p_state': state,
+        if (reason != null) 'p_reason': reason,
+      });
+
+  Future<void> resolveReport(String reportId) =>
+      _db.rpc('admin_resolve_report', params: {'p_report_id': reportId});
+
+  Future<bool> canCreateEvents() async {
+    final r = await _db
+        .rpc('admin_can', params: {'p_area': 'Events', 'p_verb': 'create'});
+    return r == true;
+  }
+
+  /// Creates an event through the governed path (`admin_create_event`, 165), which is
+  /// `SECURITY DEFINER` and re-checks `admin_can('Events','create')` itself.
+  ///
+  /// IT TAKES DESCRIPTIVE FIELDS ONLY, and that is 165's design rather than this method's
+  /// convenience: the function's parameter list has no `price`, `is_free`, `status`,
+  /// `current_registered` or `vendor_id`. An Admin may describe an event; it may not price
+  /// one, publish one or assign it to a vendor. There is no parameter here because there
+  /// is none there.
+  Future<String?> createEvent({
+    required String title,
+    required DateTime eventDate,
+    String? description,
+    String? location,
+    int? maxCapacity,
+  }) async {
+    final id = await _db.rpc('admin_create_event', params: {
+      'p_title': title,
+      'p_event_date': eventDate.toIso8601String(),
+      if (description != null) 'p_description': description,
+      if (location != null) 'p_location': location,
+      if (maxCapacity != null) 'p_max_capacity': maxCapacity,
+    });
+    return id as String?;
+  }
+
   Future<T?> _one<T>(
     String view,
     T Function(Map<String, dynamic>) parse,

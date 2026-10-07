@@ -17137,3 +17137,104 @@ Flutter **1852 / 5 skipped** · `dart analyze` **0 errors** · QA frontier **178
 `f349bca` with the Settings page pushed and CI green through `a138c53`.
 
 **Production was not contacted.**
+
+---
+
+## §188 · The P5 write paths, and five guards that each caught something real
+
+### §188.1 · What was built
+
+- **The moderation queue** on Ecosystem `#community`. `resolved_at IS NULL` is the queue,
+  by 170's own comment. Actions are gated on `Community·update` (held by `content_editor`)
+  and sit behind confirm dialogs, as the inventory requires: *"row actions open confirm
+  dialogs for destructive changes."* **Hide** says the text *"is not altered or deleted"* —
+  true, because 170 never writes `content` — and **Dismiss** says the content *"is left
+  exactly as it is"*, so the two cannot be confused.
+  **The reporter is never named.** `content_reports.reporter_id` exists and the Admin policy
+  would return it, but judging a post does not require knowing who reported it, and a queue
+  that names reporters discourages reporting. The service does not select it. **No
+  reason-code enum is offered** either: 170's own column comment says *"FREE TEXT; a
+  reason-code list is owner vocabulary"*, which is the deferred `CAP-1-REASON`, so the
+  reporter's words are shown as written and the test asserts `Spam`, `Harassment`,
+  `Misinformation` and `Off-topic` appear nowhere.
+- **Create event** on Ecosystem `#events` — the approved screen carries *"Create event"*
+  twice. **Descriptive fields only**, and that is 165's rule rather than the form's
+  simplicity: the function accepts no `price`, `is_free`, `status`, `current_registered` or
+  `vendor_id`. The form offers no field for them **because the function has no parameter for
+  them**, and says so; a form collecting them would imply an authority that does not exist.
+- **The Guardian section now names what it cannot show.** The approved section displays
+  *Guardian health*, *Evaluation engine: Operating*, *Median decision time*, *Agents without
+  a policy*, *Last full evaluation* and a decisions-per-hour chart. `guardian_state` and
+  `governance_policy` back the state and the policy counts; **nothing produces the rest**,
+  so each is listed as not recorded and the test asserts no figure is shown under those
+  names. It also confirms §187's claim on evidence: the approved Guardian section carries
+  **no disable control**, so `A10`'s emergency disablement is satisfied by the governed path
+  existing, and its placement is simply not specified by this screen.
+
+### §188.2 · `EC-G8` caught a real defect of mine — a failed capability check read as a denial
+
+Every gated action first read its capability with `.valueOrNull ?? false`. `EC-G8` flagged
+it, and its stated reasoning is exactly right: *"on a provider that does I/O this converts
+'could not load' into the domain's empty value at the read site."*
+
+Here the empty value is `false`, and the UI renders `false` as **"Read-only: this requires
+Incidents · update"**. So **a failed `admin_can` RPC told an operator they lacked a
+permission they may well hold** — the same defect as EC-04's green `LOW RISK` badge, applied
+to authorization.
+
+`adminCapabilityGate` now keeps **four** states apart: checking · **could not be checked,
+which is not a denial** · allowed · genuinely denied. Asserted in all three directions: a
+failed check says so and the denial wording is **absent**, a genuine `false` still renders
+the approved read-only state, and a genuine `true` still offers the action.
+
+### §188.3 · `SEC-024` was blind to a grant written as a loop
+
+It flagged `admin_create_event` as *"called from lib/ but holds no EXECUTE grant after
+migration 116, so it will fail at runtime"*. **It does not.** Called live as a
+capability-less authenticated user it answers **403 / 42501 `not authorized: Events/create
+is required`** — reachable, and its own gate refusing correctly.
+
+The cause: 165 grants through a `format()` loop —
+`EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', f)` — and the guard's regex
+wanted a literal `GRANT EXECUTE ON FUNCTION public.x(...)`. **This is the loop-blindness
+class this programme already recorded**, when a scan reported 56 definer functions unpinned
+because `118:284` and `122:71` use `ALTER FUNCTION` loops.
+
+The detector now also reads the loop's **own literal array**, so nothing is inferred. **The
+assertion is unchanged** — a control proves an RPC granted nowhere still fails the guard.
+
+### §188.4 · `LIFE-G1` caught a real lifecycle bug
+
+The date picker called `setState` after an `await` with no mounted check. The dialog can be
+dismissed while the picker is open, and `setState` on a disposed element throws. Fixed with
+`ctx.mounted`.
+
+### §188.5 · A gap I created, and a mistake I made
+
+**`admin_resolve_report` had ZERO live coverage** in any suite — and the moderation queue
+calls it. `admin_moderate_content` is proved in D15 (§1292); its sibling was not. A D16
+section now proves the whole path: the open queue is `resolved_at IS NULL`; a role without
+`Community·update` is **refused, verified by re-reading `resolved_at`** rather than by the
+RPC status; a role with it succeeds and `resolved_by` records who; the report leaves the
+queue; and **resolving changes nothing about the content**, which is precisely what the
+Dismiss dialog promises.
+
+**And a mistake worth recording.** To undo a one-line control injection I ran
+`git checkout -- apps/mobile/lib/features/admin/data/admin_metrics_service.dart`, which
+discarded **six uncommitted methods** in that file along with the injection. I had used a
+`cp` backup for every other injection in this run and reached for `git checkout` once. They
+were restored from the edits, and `dart analyze` is what surfaced it immediately — but the
+lesson is the obvious one: `git checkout --` on a file with uncommitted work destroys it,
+and a backup copy costs nothing.
+
+### §188.6 · Verification
+
+Flutter **1869 / 5 skipped** (1861 → 1869) · `dart analyze` **0 errors** · QA frontier
+**178**.
+
+`f349bca`'s CI has **every job green except `ec04-e2e`, which is still running** — which
+confirms §187.4's diagnosis rather than contradicting it: that commit predates the
+provider-override fix, so the probe is still making real network calls. The fix is in this
+commit.
+
+**Production was not contacted.**

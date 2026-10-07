@@ -659,6 +659,43 @@ class AdminPlatformSetting {
       );
 }
 
+/// One open report from the moderation queue (`content_reports`, migration 170).
+///
+/// THE REPORTER IS NOT CARRIED. `content_reports.reporter_id` exists and the Admin read
+/// policy would return it, but a moderator does not need to know WHO reported a post in
+/// order to judge the post — and a queue that names reporters is a queue that discourages
+/// reporting. The service selects the columns below and leaves `reporter_id` in the
+/// database. Minimum necessary, as with `avatar_url` on the People page.
+///
+/// THE REASON IS FREE TEXT AND STAYS THAT WAY. 170's own column comment is explicit —
+/// *"FREE TEXT; a reason-code list is owner vocabulary"* — which is `CAP-1-REASON`,
+/// deferred. So this carries whatever the reporter wrote and offers no enum.
+class AdminContentReport {
+  const AdminContentReport({
+    required this.id,
+    required this.targetType,
+    required this.targetId,
+    required this.reason,
+    required this.createdAt,
+  });
+
+  final String? id;
+
+  /// `post` or `comment` (170's CHECK).
+  final String? targetType;
+  final String? targetId;
+  final String? reason;
+  final DateTime? createdAt;
+
+  static AdminContentReport fromRow(Map<String, dynamic> r) => AdminContentReport(
+        id: r['id'] as String?,
+        targetType: r['target_type'] as String?,
+        targetId: r['target_id'] as String?,
+        reason: r['reason'] as String?,
+        createdAt: _date(r['created_at']),
+      );
+}
+
 // ── parsing ────────────────────────────────────────────────────────────────
 // PostgREST returns bigint and numeric as JSON numbers or strings depending on
 // magnitude and type. Each of these returns null for a null or unparseable

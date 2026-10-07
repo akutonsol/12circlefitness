@@ -193,6 +193,20 @@ class AdminTrustScreen extends ConsumerWidget {
           _countTile('Policies active', policies,
               (l) => l.whereType<AdminGovernancePolicy>().where((p) => p.isActive).length,
               zeroCopy: 'None'),
+          // THE APPROVED SECTION ASKS FOR MORE THAN EXISTS, and each absence is named.
+          // The published Guardian section shows "Guardian health", "Evaluation engine:
+          // Operating", "Median decision time", "Agents without a policy", "Last full
+          // evaluation" and a decisions-by-hour chart. `guardian_state` and
+          // `governance_policy` back the state and the policy counts; the rest has no
+          // surface, and a blank where a figure was is indistinguishable from an
+          // oversight.
+          const AdminFootnote(
+              'Not recorded: evaluation-engine state, median decision time, agents '
+              'without a policy, last full evaluation, decisions per hour. No surface '
+              'produces them and none is estimated here.'),
+          // A10 requires that emergency disablement be POSSIBLE; it does not place the
+          // control here, and the approved Trust screen carries none. Re-stating the
+          // Guardian goes through admin_set_guardian_state, gated AI Guardian·manage.
           const AdminFootnote(
               'Autonomy is re-stated through the governed write path only. Nothing is '
               'changed from this screen.'),
@@ -246,20 +260,33 @@ class AdminTrustScreen extends ConsumerWidget {
         data: (items) {
           if (items == null) return const AdminNote('Not available to your role');
           if (items.isEmpty) return const AdminNote('none open');
-          final writable = canUpdate.valueOrNull ?? false;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final i in items.take(10))
-                _IncidentRow(incident: i, canUpdate: writable),
-              const AdminFootnote(
-                  'Evidence and actor identity are withheld from this layer (B-4).'),
-              // THE APPROVED READ-ONLY STATE, for a role that may view and not update.
-              // It is stated rather than left to be inferred from a missing button.
-              if (!writable)
+          // The capability check can itself FAIL, and a failure is not a denial —
+          // see [adminCapabilityGate]. `.valueOrNull ?? false` used to collapse the
+          // two, telling an operator they lacked a permission they might hold.
+          return adminCapabilityGate(
+            canUpdate,
+            allowed: () => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final i in items.take(10))
+                  _IncidentRow(incident: i, canUpdate: true),
+                const AdminFootnote(
+                    'Evidence and actor identity are withheld from this layer (B-4).'),
+              ],
+            ),
+            denied: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final i in items.take(10))
+                  _IncidentRow(incident: i, canUpdate: false),
+                const AdminFootnote(
+                    'Evidence and actor identity are withheld from this layer (B-4).'),
+                // The approved read-only state, stated rather than inferred from a
+                // missing button.
                 const AdminFootnote(
                     'Read-only: resolving an incident requires Incidents · update.'),
-            ],
+              ],
+            ),
           );
         },
       ),

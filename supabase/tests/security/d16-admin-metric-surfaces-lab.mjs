@@ -47,6 +47,7 @@ async function run() {
   beginSuite();
   const victim = await signIn('victim');
   const vUid = await uidOf('victim');
+  const attackerUid = await uidOf('attacker');
   let created = { ws: [], reg: [], pay: [], fx: [], pod: [] };
 
   // Fixtures are deleted by MARKER first, so a crashed earlier run cannot leave rows
@@ -60,6 +61,7 @@ async function run() {
     await svc(`accountability_pods?name=eq.QA-D16-POD`, { method: 'DELETE' });
     await svc(`coach_client_relationships?request_message=eq.QA-D16-CCR`, { method: 'DELETE' });
     await svc(`release_status?release_version=like.QA-D16*`, { method: 'DELETE' });
+    await svc(`content_reports?reason=eq.QA-D16 moderation probe`, { method: 'DELETE' });
   };
 
   try {
@@ -232,7 +234,7 @@ async function run() {
     // proved by inserting a relationship for a real coach and watching it move.
     const coachUid = await uidOf('coach');
     const ccr = await svc('coach_client_relationships', { method: 'POST', body: {
-      coach_id: coachUid, client_id: await uidOf('attacker'), status: 'active',
+      coach_id: coachUid, client_id: attackerUid, status: 'active',
       initiated_by: coachUid, request_message: 'QA-D16-CCR' } });
     check('arranged: a real coach holds an active client relationship', ccr.status < 300,
       `status=${ccr.status}`);
@@ -531,6 +533,75 @@ async function run() {
     check('an admin-layer caller CANNOT flip a recorded CI verdict (asserted by ' +
           're-reading the row, never by the PATCH status)',
       relStill.ci_status === 'Passing', `status=${relPatch.status} still ${relStill.ci_status}`);
+
+    // ── 8c · the MODERATION QUEUE's resolve path, which had NO live coverage ──
+    // `admin_moderate_content` is proved in D15 (§1292). `admin_resolve_report` had
+    // ZERO references in any suite — and the Ecosystem moderation queue now calls it, so
+    // a UI was shipping against an unproven write path. That is the gap this closes.
+    section('moderation · admin_resolve_report, gated and non-destructive');
+    const postRow = ONE((await svc('community_posts?select=id,moderation_state&limit=1')).body);
+    check('arranged: QA holds a community post to report', Boolean(postRow.id),
+      `post=${postRow.id}`);
+
+    const mkReport = async () => {
+      await svc(`content_reports?target_id=eq.${postRow.id}`, { method: 'DELETE' });
+      const r = await svc('content_reports', { method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: { reporter_id: attackerUid, target_type: 'post', target_id: postRow.id,
+                reason: 'QA-D16 moderation probe' } });
+      return ONE(r.body).id;
+    };
+    const reportId = await mkReport();
+    check('arranged: an OPEN report exists', Boolean(reportId), `report=${reportId}`);
+
+    // `resolved_at IS NULL` IS the queue, by 170's own comment.
+    const openNow = await svc('content_reports?resolved_at=is.null&select=id');
+    check('the OPEN queue is `resolved_at IS NULL`, and the new report is in it',
+      n(openNow.body) >= 1, `open=${n(openNow.body)}`);
+
+    // DENIAL FIRST, and asserted by re-reading the row. `viewer` holds Community·view
+    // and NOT Community·update, so the resolve must be refused — and a PostgREST status
+    // alone proves nothing about whether the row changed.
+    await assign(vUid, 'viewer');
+    const denied = await rpc(victim, 'admin_resolve_report', { p_report_id: reportId });
+    const afterDenied = ONE((await svc(
+      `content_reports?id=eq.${reportId}&select=resolved_at,resolved_by`)).body);
+    check('a role WITHOUT Community·update cannot resolve a report — verified by ' +
+          're-reading resolved_at, not by the RPC status',
+      afterDenied.resolved_at === null && afterDenied.resolved_by === null,
+      `status=${denied.status} resolved_at=${JSON.stringify(afterDenied.resolved_at)}`);
+
+    // GRANT. content_editor holds Community·update in the approved matrix.
+    await assign(vUid, 'content_editor');
+    const granted = await rpc(victim, 'admin_resolve_report', { p_report_id: reportId });
+    const afterGranted = ONE((await svc(
+      `content_reports?id=eq.${reportId}&select=resolved_at,resolved_by`)).body);
+    check('a role WITH Community·update resolves it, and resolved_by records WHO did',
+      granted.status < 300 && afterGranted.resolved_at !== null &&
+      afterGranted.resolved_by === vUid,
+      `status=${granted.status} resolved_at=${afterGranted.resolved_at !== null} ` +
+      `resolved_by=${afterGranted.resolved_by === vUid}`);
+
+    const goneFromQueue = await svc(
+      `content_reports?resolved_at=is.null&select=id&id=eq.${reportId}`);
+    check('…and the report LEAVES the open queue',
+      n(goneFromQueue.body) === 0, `still open=${n(goneFromQueue.body)}`);
+
+    // THE CLAIM THE UI MAKES, PROVED. The Dismiss dialog tells the moderator "the
+    // reported content is left exactly as it is". If resolving also moderated, that
+    // sentence would be false.
+    const postAfter = ONE((await svc(
+      `community_posts?id=eq.${postRow.id}&select=moderation_state,moderated_by,content`)).body);
+    check('resolving a report changes NOTHING about the content — the moderation state, ' +
+          'the moderator and the text are all untouched, which is what the Dismiss ' +
+          'dialog promises',
+      postAfter.moderation_state === postRow.moderation_state &&
+      postAfter.moderated_by === null,
+      `state=${postAfter.moderation_state} (was ${postRow.moderation_state}) ` +
+      `moderated_by=${JSON.stringify(postAfter.moderated_by)}`);
+
+    await svc(`content_reports?target_id=eq.${postRow.id}`, { method: 'DELETE' });
+    await assign(vUid, 'viewer');
 
     // ── 9 · no metric view discloses an individual ────────────────────────
     section('disclosure · the aggregates carry no identifier');

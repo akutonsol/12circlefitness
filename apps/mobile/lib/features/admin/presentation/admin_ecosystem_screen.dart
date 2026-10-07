@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/admin_metrics.dart';
 import '../domain/admin_provider.dart';
+import '../../../core/observability/app_failure.dart';
 import 'admin_chrome.dart';
 import 'admin_metric_tile.dart';
 import 'admin_tokens.dart';
@@ -62,6 +63,8 @@ class AdminEcosystemScreen extends ConsumerWidget {
               _overview(ref),
               const SizedBox(height: AdminDims.space6),
               _community(ref),
+              const SizedBox(height: AdminDims.space6),
+              _moderationQueue(ref),
               const SizedBox(height: AdminDims.space6),
               _events(ref),
               const SizedBox(height: AdminDims.space6),
@@ -148,11 +151,62 @@ class AdminEcosystemScreen extends ConsumerWidget {
         ],
       );
 
+  /// The moderation queue the design names on `#community`.
+  ///
+  /// `resolved_at IS NULL` IS the queue, by 170's own comment. The actions are gated on
+  /// `Community·update` — held by `content_editor` — and the approved read-only state is
+  /// rendered and STATED for anyone else. The inventory requires the shape: *"row actions
+  /// open confirm dialogs for destructive changes"*, and hiding or removing a member's
+  /// post is destructive.
+  Widget _moderationQueue(WidgetRef ref) {
+    final async = ref.watch(adminOpenReportsProvider);
+    final canModerate = ref.watch(adminCanModerateProvider);
+    return AdminCard(
+      title: 'Moderation queue',
+      child: async.when(
+        loading: () => const AdminNote('Loading…'),
+        error: (_, __) => const AdminNote('Unavailable'),
+        data: (reports) {
+          if (reports == null) return const AdminNote('Not available to your role');
+          if (reports.isEmpty) return const AdminNote('none open');
+          Widget queue(bool writable) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AdminMetricTile.value(label: 'Open reports', value: reports.length),
+              const SizedBox(height: AdminDims.space4),
+              for (final r in reports.take(10))
+                _ReportRow(report: r, canModerate: writable),
+              // The reported CONTENT is not shown here, and that is deliberate: 170's
+              // moderation path never writes `content`, and a queue that reproduced the
+              // reported text would republish it to every moderator before anyone had
+              // judged it.
+              const AdminFootnote(
+                  'The reported text is not reproduced here. Reasons are as the reporter '
+                  'wrote them — there is no reason-code list, which is owner vocabulary.'),
+              if (!writable)
+                const AdminFootnote(
+                    'Read-only: moderating content requires Community · update.'),
+            ],
+          );
+          // A failed capability check is NOT a denial — see [adminCapabilityGate].
+          return adminCapabilityGate(
+            canModerate,
+            allowed: () => queue(true),
+            denied: queue(false),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _events(WidgetRef ref) => _area<AdminEventsOverview>(
         'Events',
         ref.watch(adminEventsOverviewProvider),
         const ['Events', 'Attendance rate'],
         (m) => [
+          // "Create event" is on the approved Ecosystem screen, so the action exists —
+          // gated on Events·create, which content_editor holds.
+          const _CreateEventAction(),
           AdminMetricTile.of('Events', m.eventsTotal,
               whenNull: MetricAbsence.notAuthorized, zeroCopy: 'None'),
           AdminMetricTile.of('Registrations · 30 d', m.registrations30d,
@@ -235,4 +289,331 @@ class AdminEcosystemScreen extends ConsumerWidget {
               'and wait on PD-G01 — nothing here estimates them.'),
         ],
       );
+}
+
+
+/// One open report. Carries the destructive actions only for a caller holding
+/// `Community·update`, and only behind a confirm dialog that names what will change.
+class _ReportRow extends ConsumerWidget {
+  const _ReportRow({required this.report, required this.canModerate});
+
+  final AdminContentReport report;
+  final bool canModerate;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final when = report.createdAt?.toIso8601String().split('T').first;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AdminDims.space3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  [
+                    if (report.targetType != null) report.targetType!,
+                    if (when != null) when,
+                  ].join(' · '),
+                  style: const TextStyle(
+                    color: AdminColors.colorTextPrimary,
+                    fontSize: AdminDims.typeSmallSize,
+                  ),
+                ),
+                // The reporter's own words, shown as written and never mapped to an enum.
+                Text(report.reason ?? 'no reason given',
+                    style: const TextStyle(
+                      color: AdminColors.colorTextSubtle,
+                      fontSize: AdminDims.typeCaptionSize,
+                    )),
+              ],
+            ),
+          ),
+          if (canModerate && report.id != null && report.targetId != null) ...[
+            _action(context, ref, 'Hide', 'hidden'),
+            _action(context, ref, 'Dismiss', null),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _action(BuildContext context, WidgetRef ref, String label, String? state) =>
+      SizedBox(
+        height: AdminDims.sizeControl, // 44px, RESPONSIVE.md
+        child: TextButton(
+          onPressed: () => _confirm(context, ref, label, state),
+          style: TextButton.styleFrom(
+            foregroundColor: state == null
+                ? AdminColors.colorTextMuted
+                : AdminColors.colorStatusWarningText,
+            minimumSize: const Size(AdminDims.sizeControl, AdminDims.sizeControl),
+          ),
+          child: Text(label,
+              style: const TextStyle(
+                fontSize: AdminDims.typeCaptionSize,
+                fontWeight: FontWeight.w500,
+              )),
+        ),
+      );
+
+  Future<void> _confirm(
+      BuildContext context, WidgetRef ref, String label, String? state) async {
+    final destructive = state != null;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AdminColors.colorBgSurface,
+        title: Text(destructive ? 'Hide this content?' : 'Dismiss this report?',
+            style: const TextStyle(
+                color: AdminColors.colorTextPrimary,
+                fontSize: AdminDims.typeCardTitleSize)),
+        content: Text(
+          destructive
+              // Says exactly what changes and what does not. 170 never writes `content`.
+              ? 'The ${report.targetType ?? 'content'} will be hidden from everyone except '
+                  'its author and the Community admins. Its text is not altered or '
+                  'deleted, and the change is audited.'
+              : 'The report is marked resolved. The reported '
+                  '${report.targetType ?? 'content'} is left exactly as it is.',
+          style: const TextStyle(
+              color: AdminColors.colorTextSecondary,
+              fontSize: AdminDims.typeSmallSize),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel',
+                style: TextStyle(color: AdminColors.colorTextMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(destructive ? 'Hide' : 'Dismiss',
+                style: const TextStyle(
+                    color: AdminColors.colorBrandAccent,
+                    fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final svc = ref.read(adminMetricsServiceProvider);
+    try {
+      if (destructive) {
+        await svc.moderate(report.targetType!, report.targetId!, state);
+      }
+      await svc.resolveReport(report.id!);
+      ref.invalidate(adminOpenReportsProvider);
+      ref.invalidate(adminCommunityOverviewProvider);
+    } catch (e, st) {
+      // Reported, not shown raw (ERR-G2), and never silent — a moderation action that
+      // was refused must not read as one that succeeded.
+      reportError('admin_ecosystem.moderate', e, st, {
+        'report_id': report.id,
+        'target_type': report.targetType,
+        'state': state,
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AdminColors.colorBgRaised,
+          content: Text(
+              'That action was not applied. You may not have permission, or the report '
+              'has changed. Nothing was altered.',
+              style: TextStyle(color: AdminColors.colorStatusDangerText)),
+        ));
+      }
+    }
+  }
+}
+
+
+/// The approved screen's "Create event" action.
+///
+/// DESCRIPTIVE FIELDS ONLY, and that is the governed path's rule rather than this form's
+/// simplicity: `admin_create_event` (165) accepts title, date, description, location,
+/// end date, cover image, host and capacity — and deliberately NOT `price`, `is_free`,
+/// `status`, `current_registered` or `vendor_id`. An Admin may describe an event; pricing,
+/// publishing and vendor assignment are not Admin acts. The form offers no field for them
+/// because the function has no parameter for them, and a form that collected them would
+/// imply an authority that does not exist.
+class _CreateEventAction extends ConsumerWidget {
+  const _CreateEventAction();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return adminCapabilityGate(
+      ref.watch(adminCanCreateEventsProvider),
+      denied: const AdminFootnote(
+          'Read-only: creating an event requires Events · create.'),
+      allowed: () => _button(context, ref),
+    );
+  }
+
+  Widget _button(BuildContext context, WidgetRef ref) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: SizedBox(
+        height: AdminDims.sizeControl, // 44px, RESPONSIVE.md
+        child: TextButton(
+          onPressed: () => _open(context, ref),
+          style: TextButton.styleFrom(
+            foregroundColor: AdminColors.colorBrandAccent,
+            minimumSize: const Size(AdminDims.sizeControl, AdminDims.sizeControl),
+          ),
+          child: const Text('Create event',
+              style: TextStyle(
+                fontSize: AdminDims.typeCaptionSize,
+                fontWeight: FontWeight.w500,
+              )),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _open(BuildContext context, WidgetRef ref) async {
+    final title = TextEditingController();
+    final location = TextEditingController();
+    final capacity = TextEditingController();
+    DateTime? when;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          backgroundColor: AdminColors.colorBgSurface,
+          title: const Text('Create event',
+              style: TextStyle(
+                  color: AdminColors.colorTextPrimary,
+                  fontSize: AdminDims.typeCardTitleSize)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: title,
+                style: const TextStyle(
+                    color: AdminColors.colorTextPrimary,
+                    fontSize: AdminDims.typeSmallSize),
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  labelStyle: TextStyle(color: AdminColors.colorTextMuted),
+                ),
+              ),
+              TextField(
+                controller: location,
+                style: const TextStyle(
+                    color: AdminColors.colorTextPrimary,
+                    fontSize: AdminDims.typeSmallSize),
+                decoration: const InputDecoration(
+                  labelText: 'Location',
+                  labelStyle: TextStyle(color: AdminColors.colorTextMuted),
+                ),
+              ),
+              TextField(
+                controller: capacity,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(
+                    color: AdminColors.colorTextPrimary,
+                    fontSize: AdminDims.typeSmallSize),
+                decoration: const InputDecoration(
+                  labelText: 'Capacity',
+                  labelStyle: TextStyle(color: AdminColors.colorTextMuted),
+                ),
+              ),
+              const SizedBox(height: AdminDims.space6),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                        when == null
+                            ? 'No date chosen'
+                            : when!.toIso8601String().split('T').first,
+                        style: const TextStyle(
+                            color: AdminColors.colorTextSecondary,
+                            fontSize: AdminDims.typeSmallSize)),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: now,
+                        firstDate: now,
+                        lastDate: DateTime(now.year + 3),
+                      );
+                      // `ctx.mounted` first. LIFE-G1 caught this calling setState after
+                      // an await with no check — the dialog can be dismissed while the
+                      // date picker is open, and setState on a disposed element throws.
+                      if (picked != null && ctx.mounted) {
+                        setState(() => when = picked);
+                      }
+                    },
+                    child: const Text('Choose date',
+                        style: TextStyle(color: AdminColors.colorBrandAccent)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AdminDims.space4),
+              // Says what an Admin may NOT set, so its absence is not read as a
+              // missing field.
+              const Text(
+                  'Price, free/paid, publication status and vendor are not set here — '
+                  'the governed path accepts none of them.',
+                  style: TextStyle(
+                      color: AdminColors.colorTextSubtle,
+                      fontSize: AdminDims.typeCaptionSize)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel',
+                  style: TextStyle(color: AdminColors.colorTextMuted)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Create',
+                  style: TextStyle(
+                      color: AdminColors.colorBrandAccent,
+                      fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    final t = title.text.trim();
+    // The governed path requires a title and a date; the form does not pretend otherwise.
+    if (t.isEmpty || when == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AdminColors.colorBgRaised,
+          content: Text('An event needs a title and a date. Nothing was created.',
+              style: TextStyle(color: AdminColors.colorStatusWarningText)),
+        ));
+      }
+      return;
+    }
+    try {
+      await ref.read(adminMetricsServiceProvider).createEvent(
+            title: t,
+            eventDate: when!,
+            location: location.text.trim().isEmpty ? null : location.text.trim(),
+            maxCapacity: int.tryParse(capacity.text.trim()),
+          );
+      ref.invalidate(adminEventsOverviewProvider);
+    } catch (e, st) {
+      reportError('admin_ecosystem.createEvent', e, st, {'title': t});
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AdminColors.colorBgRaised,
+          content: Text(
+              'The event was not created. You may not have permission. Nothing was '
+              'saved.',
+              style: TextStyle(color: AdminColors.colorStatusDangerText)),
+        ));
+      }
+    }
+  }
 }

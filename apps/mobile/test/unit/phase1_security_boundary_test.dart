@@ -399,6 +399,33 @@ void main() {
             .allMatches(sql)) {
           grantedLater.add(m.group(1)!);
         }
+
+        // A GRANT MADE THROUGH A format() LOOP IS STILL A GRANT, and the literal regex
+        // above cannot see one. Migration 165 grants its four admin write paths with
+        //
+        //   FOREACH f IN ARRAY ARRAY['public.admin_create_event(...)', …] LOOP
+        //     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', f);
+        //
+        // so `admin_create_event` read as ungranted and this guard reported it would
+        // "fail at runtime". It does not: called live as a capability-less authenticated
+        // user it answers 403 / 42501 "not authorized: Events/create is required" — it is
+        // reachable and its own gate refuses. This is the loop-blindness class this
+        // programme already recorded once, when a scan reported 56 definer functions
+        // unpinned because 118:284 and 122:71 use ALTER FUNCTION loops.
+        //
+        // THE ASSERTION IS UNCHANGED. A function that holds no grant anywhere still
+        // fails; only the places a grant may be written are read correctly. The function
+        // name is taken from the loop's own literal array, so nothing is inferred.
+        final loopGrantsExecute = RegExp(
+                r"EXECUTE\s+format\(\s*'GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+%s\s+TO\s+authenticated'",
+                caseSensitive: false)
+            .hasMatch(sql);
+        if (loopGrantsExecute) {
+          for (final m in RegExp(r"'public\.([a-z_0-9]+)\s*\(")
+              .allMatches(sql)) {
+            grantedLater.add(m.group(1)!);
+          }
+        }
       }
 
       final missing = called.difference(allowed).difference(grantedLater).toList()..sort();
