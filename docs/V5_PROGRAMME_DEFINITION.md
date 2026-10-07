@@ -16472,3 +16472,73 @@ fixture than overriding one provider, and it touches the onboarding path. It is 
 as remaining authorized frontier rather than claimed.
 
 **Production was not contacted.**
+
+---
+
+## §178 · The probe that asserted more than it could prove
+
+§177 added a device probe for EC-04's end-to-end rung, and its first version contained
+the exact defect this programme keeps finding — **in the artifact written to prevent it.**
+
+### §178.1 · A semantics check with no semantics
+
+The probe walked `binding.rootPipelineOwner.semanticsOwner.rootSemanticsNode`. Under the
+test binding **that is null**, so the walk returned an **empty label list**. Two of its
+three assertions were of the form *"the tree does not contain 'low risk'"* — and an empty
+list satisfies those perfectly.
+
+**Only the non-vacuity guard stopped it reading as a pass.** I had written
+`expect(joined, isNotEmpty, reason: 'no semantics were produced at all, so this proves
+nothing')` on the general principle, not because I suspected this bug, and it is the sole
+reason the failure was legible rather than silent. That guard earned its place.
+
+### §178.2 · Split by what each environment can actually answer
+
+**The accessibility guarantee moved to the host.** The semantics tree is readable in
+`flutter_test` through `find.bySemanticsLabel` and `tester.getSemantics` — the accessors
+`fit032_needs_you_device_test.dart` already proved in this repository, which I should have
+read before inventing a tree walk. On the host it runs on **every** `flutter test`, it is
+debuggable, and it was verified by injection: restoring the green `LOW RISK` default turns
+it red.
+
+**The device probe keeps only what hardware can answer.** `NOT ASSESSED` is a longer
+string than the `LOW RISK` it replaced, and the host harness renders in Ahem where every
+glyph is a full em square (the F-24 class) — so it cannot say whether the label still fits
+its pill at the real font and a real device pixel ratio. A clipped badge would put EC-04's
+fix back where it started: a coach unable to read that nobody assessed the client. An
+overflow is explicitly **not** drained there; it is the defect the probe exists to detect.
+
+The CI job was renamed from *"real semantics tree"* to *"real font, real dpr"*, because a
+job name that overstates what it checks is the same defect in prose.
+
+### §178.3 · Why this matters beyond one test
+
+The accessibility assertion is now **stronger**, not weaker: it runs on every push instead
+of only in a device job, and it is provable locally. The move was not a retreat from the
+claim — a screen reader is still asserted to be told the assessment is absent — it was a
+move to where the claim can be checked.
+
+The harness's discrimination pass remains, and still behaves correctly on this host:
+**exit 2, `INFRASTRUCTURE FAILURE: the probe never ran`**, because there is no `Xcode.app`
+here (§177.5).
+
+### §178.4 · EC-04's ladder is complete
+
+CI on `b9d7fa1` returned **7/7 green including `ec04-e2e`**, and the probe's own markers
+prove it was not a vacuous pass:
+
+```
+EC04-MARKER mounted=client_detail
+EC04-MARKER fits=1 dpr=1.0 badge=82.3x13.0
+EC04-MARKER assessed_low=rendered
+EC04-MARKER assessed_high=rendered
+── EC-04 END-TO-END: PASS ·  mounted=1  fits=1  assessed_controls=2
+```
+
+The driver reached the real client-detail surface, the unassessed badge measured
+**82.3 × 13.0** at the device's own dpr without overflowing, and both control states still
+rendered. So `EC-04` now holds **every rung its class requires** — FIXED IN CODE ·
+VERIFIED IN CI (a test asserting the failure path) · **VERIFIED END-TO-END** — and the only
+thing standing between it and `VERIFIED_CLOSED` is the registry mutation boundary (§177.1).
+
+**Flutter 1795 / 5 skipped** (1791 → 1795). **Production was not contacted.**
