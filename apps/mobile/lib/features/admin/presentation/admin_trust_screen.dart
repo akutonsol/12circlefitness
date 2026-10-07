@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/observability/app_failure.dart';
+
 import '../domain/admin_metrics.dart';
 import '../domain/admin_provider.dart';
 import '../domain/admin_trust.dart';
@@ -18,19 +20,31 @@ import 'admin_tokens.dart';
 /// before/after"*, and every one is read from a surface migrations 156/159/160/163/169
 /// already publish — nothing new was added to the schema for this screen.
 ///
-/// IT IS READ-ONLY, AND THAT IS A DESIGN RULE, NOT AN OMISSION. `CONF-D5`'s drawer footer
-/// is explicit — *"Actions open the item. Nothing is changed from this screen."* There is
-/// no write path on this widget at all, which is the cheapest way to honour that: the
-/// Guardian can only be re-stated through `admin_set_guardian_state`, which is gated
-/// `AI Guardian·manage` and is not called here. `A10` also bars the Guardian from holding
-/// admin authority, so a Trust page that could flip it would be the wrong shape.
+/// A CORRECTION TO §183. This page was first shipped as read-only on the stated grounds
+/// that it was *"a design rule"*, citing `CONF-D5`'s drawer footer — *"Actions open the
+/// item. Nothing is changed from this screen."* **That was wrong about the page.** That
+/// footer governs the attention-queue DRAWER, and the approved Trust screen itself
+/// contains action controls: `Resolve` appears three times, alongside `Investigate` and
+/// *"Assign, change status, add…"*. `Read-only` is listed in the inventory as one of the
+/// **states** designed for Trust, Operations and Settings — a state for a role that may
+/// view and not update, not a property of the surface.
+///
+/// So incident resolution is implemented, and the read-only state is rendered for anyone
+/// without `Incidents·update` — a capability `trust_lead` holds alone. The inventory's
+/// Interactions section requires the shape: *"row actions open confirm dialogs for
+/// destructive changes."*
+///
+/// THE GUARDIAN REMAINS READ-ONLY HERE, and that one IS a rule: `A10` bars the Guardian
+/// from holding admin authority, re-stating it goes through `admin_set_guardian_state`
+/// gated `AI Guardian·manage`, and nothing on this page calls it.
 ///
 /// WHAT IT REFUSES TO DO, each a defect this programme has already paid for once:
 ///   * it never resolves `subject_pseudonym` — §19.3, and the model gives it no way to;
 ///   * it never presents an unrecorded Guardian state as `Active` — that is EC-04's
 ///     coercion applied to a safety control;
 ///   * it states `A13·1` on the audit section rather than implying a complete ledger;
-///   * loading, error, "no capability" and "nothing recorded" are four distinct states.
+///   * loading, error, "no capability" and "nothing recorded" are four distinct states;
+///   * it never presents a write as having happened when the governed path refused it.
 class AdminTrustScreen extends ConsumerWidget {
   const AdminTrustScreen({super.key});
 
@@ -223,6 +237,7 @@ class AdminTrustScreen extends ConsumerWidget {
   // ── #incidents ──────────────────────────────────────────────────────────
   Widget _incidents(WidgetRef ref) {
     final async = ref.watch(adminIncidentsProvider);
+    final canUpdate = ref.watch(adminCanUpdateIncidentsProvider);
     return AdminCard(
       title: 'Incidents',
       child: async.when(
@@ -231,16 +246,19 @@ class AdminTrustScreen extends ConsumerWidget {
         data: (items) {
           if (items == null) return const AdminNote('Not available to your role');
           if (items.isEmpty) return const AdminNote('none open');
+          final writable = canUpdate.valueOrNull ?? false;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (final i in items.take(10))
-                AdminMetricTile.text(
-                  label: i.summary ?? 'Incident',
-                  display: i.severity ?? '—',
-                ),
+                _IncidentRow(incident: i, canUpdate: writable),
               const AdminFootnote(
                   'Evidence and actor identity are withheld from this layer (B-4).'),
+              // THE APPROVED READ-ONLY STATE, for a role that may view and not update.
+              // It is stated rather than left to be inferred from a missing button.
+              if (!writable)
+                const AdminFootnote(
+                    'Read-only: resolving an incident requires Incidents · update.'),
             ],
           );
         },
@@ -273,6 +291,153 @@ class AdminTrustScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+}
+
+/// One incident. Carries the resolve action only for a caller holding
+/// `Incidents·update`, and only behind a confirm dialog — the inventory's Interactions
+/// section requires that shape, and recording a resolution is not undoable from here.
+class _IncidentRow extends ConsumerWidget {
+  const _IncidentRow({required this.incident, required this.canUpdate});
+
+  final AdminIncident incident;
+  final bool canUpdate;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final resolved = incident.resolution != null;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AdminDims.space3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(incident.summary ?? 'Incident',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AdminColors.colorTextPrimary,
+                      fontSize: AdminDims.typeSmallSize,
+                    )),
+                Text(
+                  [
+                    if (incident.severity != null) incident.severity!,
+                    if (incident.scope != null) incident.scope!,
+                    if (resolved) 'resolved',
+                  ].join(' · '),
+                  style: const TextStyle(
+                    color: AdminColors.colorTextSubtle,
+                    fontSize: AdminDims.typeCaptionSize,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (canUpdate && !resolved && incident.id != null)
+            SizedBox(
+              height: AdminDims.sizeControl, // 44px, RESPONSIVE.md
+              child: TextButton(
+                onPressed: () => _confirm(context, ref),
+                style: TextButton.styleFrom(
+                  foregroundColor: AdminColors.colorBrandAccent,
+                  minimumSize:
+                      const Size(AdminDims.sizeControl, AdminDims.sizeControl),
+                ),
+                child: const Text('Resolve',
+                    style: TextStyle(
+                      fontSize: AdminDims.typeCaptionSize,
+                      fontWeight: FontWeight.w500,
+                    )),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirm(BuildContext context, WidgetRef ref) async {
+    final controller = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AdminColors.colorBgSurface,
+        title: const Text('Record a resolution',
+            style: TextStyle(
+                color: AdminColors.colorTextPrimary,
+                fontSize: AdminDims.typeCardTitleSize)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(incident.summary ?? 'Incident',
+                style: const TextStyle(
+                    color: AdminColors.colorTextSecondary,
+                    fontSize: AdminDims.typeSmallSize)),
+            const SizedBox(height: AdminDims.space6),
+            TextField(
+              controller: controller,
+              maxLines: 3,
+              style: const TextStyle(
+                  color: AdminColors.colorTextPrimary,
+                  fontSize: AdminDims.typeSmallSize),
+              decoration: const InputDecoration(
+                hintText: 'What resolved it',
+                hintStyle: TextStyle(color: AdminColors.colorTextMuted),
+              ),
+            ),
+            const SizedBox(height: AdminDims.space4),
+            const Text('This is recorded against the incident and audited. It cannot be '
+                'undone from this screen.',
+                style: TextStyle(
+                    color: AdminColors.colorTextSubtle,
+                    fontSize: AdminDims.typeCaptionSize)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel',
+                style: TextStyle(color: AdminColors.colorTextMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Record',
+                style: TextStyle(
+                    color: AdminColors.colorBrandAccent,
+                    fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final text = controller.text.trim();
+    if (text.isEmpty) return;
+    try {
+      await ref.read(adminTrustServiceProvider).resolveIncident(incident.id!, text);
+      ref.invalidate(adminIncidentsProvider);
+    } catch (e, st) {
+      // THE FAILURE IS SHOWN, AND THE DETAIL GOES TO THE SINK. The governed path
+      // re-checks the capability itself and raises 42501; swallowing that into a silent
+      // no-op would let an operator believe a resolution was recorded when it was refused
+      // — EC-03's defect applied to a write.
+      //
+      // The operator gets a STABLE SENTENCE, not `$e`. ERR-G2 caught the first version
+      // interpolating the raw exception, and it was right to: a Postgres error can carry
+      // SQL, identifiers and internal detail, and it tells an operator nothing they can
+      // act on. The diagnosable half goes to EC-01's `reportError` sink instead.
+      reportError('admin_trust.resolveIncident', e, st,
+          {'incident_id': incident.id});
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AdminColors.colorBgRaised,
+          content: Text(
+              'The resolution was not recorded. You may not have permission, or the '
+              'incident has changed. Nothing was saved.',
+              style: TextStyle(color: AdminColors.colorStatusDangerText)),
+        ));
+      }
+    }
   }
 }
 

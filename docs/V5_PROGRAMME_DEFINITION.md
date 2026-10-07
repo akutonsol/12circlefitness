@@ -17051,3 +17051,89 @@ QA frontier **178** (no migration for any of the six pages) · Flutter **1845 / 
 at the last clear run.
 
 **Production was not contacted.**
+
+---
+
+## §187 · A design rule I got wrong, the write path it was hiding, and a probe that had been phoning QA
+
+### §187.1 · CORRECTION — Trust is not read-only "by design rule"
+
+§183 shipped the Trust page read-only and justified it as *"a design rule, not an
+omission"*, citing `CONF-D5`'s drawer footer: *"Actions open the item. Nothing is changed
+from this screen."*
+
+**That footer governs the attention-queue DRAWER, not the page.** The approved Trust screen
+contains action controls — `Resolve` appears **three times**, alongside `Investigate` and
+*"Assign, change status, add…"* — and the inventory lists `Read-only` among the **states
+designed** for Trust, Operations and Settings. It is a state for a role that may view and
+not update, **not a property of the surface**. The Interactions section also requires the
+shape: *"row actions open confirm dialogs for destructive changes."*
+
+So I had generalised one component's rule into a page-wide claim, and the claim was wrong.
+
+### §187.2 · The write path, implemented as the design has it
+
+Incident resolution now runs through `admin_update_incident_response` (164), which is
+`SECURITY DEFINER` and **re-checks `admin_can('Incidents','update')` itself** — so the
+client-side gate is convenience and never the boundary. `Incidents·update` is held by
+`trust_lead` **alone** in the approved matrix, so most operators see the read-only state,
+and that state is **stated** (*"Read-only: resolving an incident requires Incidents ·
+update"*) rather than left to be inferred from a missing button.
+
+The action is behind a confirm dialog that says the record **cannot be undone from this
+screen**, an already-resolved incident offers no action, an empty resolution is not
+submitted, and the control meets the 44px target.
+
+**The Guardian remains read-only, and that one IS a rule.** `A10` bars the Guardian from
+holding admin authority; re-stating it goes through `admin_set_guardian_state` gated
+`AI Guardian·manage`, and nothing on the page calls it. The test asserts no
+`Disable Guardian` / `Enable Guardian` / `Set state` control exists.
+
+### §187.3 · `ERR-G2` caught a raw exception on its way to an operator
+
+My first failure handler interpolated the exception: `'The resolution was not recorded: $e'`.
+`ERR-G2` failed, and it was right — a Postgres error can carry SQL, identifiers and internal
+detail, and it tells an operator nothing they can act on.
+
+Split as EC-01 intended: the operator gets a **stable sentence** ending *"Nothing was
+saved"*, and the detail goes to `reportError('admin_trust.resolveIncident', …)` with the
+incident id. A test proves **all three** halves — the message appears, `42501` and
+`PostgrestException` appear **nowhere on screen**, and the sink captured exactly one failure
+carrying both the error and the incident it concerned. Letting the refusal pass silently
+would be EC-03's defect applied to a write.
+
+Making that testable required one production change: `AdminTrustService` resolved
+`Supabase.instance.client` **in its constructor**, so a fake overriding one method still
+threw inside `super()`. The client is now resolved lazily. **A service that cannot be
+substituted cannot have its failure path tested, and the failure path is the one that
+matters here.**
+
+### §187.4 · The EC-04 probe had been making real network calls, and CI cancelled it
+
+The `ec04-e2e` job was **CANCELLED at 25 minutes** on `3b76981`. A cancelled job is **not a
+pass**, and the timing shows it was not variance:
+
+| commit | EC-04 job duration |
+|---|---|
+| `b9d7fa1` | 2m 10s |
+| `f059752` | 2m 08s |
+| `a08346b` | 1m 48s |
+| `a138c53` | **8m 02s** |
+| `3b76981` | **cancelled at 25m 20s** |
+
+**The cause was my probe overriding only `clientDetailProvider`.** The screen also reads
+`clientHasPaidPlanProvider`, `clientScheduleProvider`, `clientScoreProvider` and
+`myProgramsProvider`, and those were making **real network calls to QA from inside a device
+test**. All five are now overridden in both the device probe and its host sibling.
+
+**Raising the timeout alone would have hidden that.** A probe whose purpose is to measure a
+badge at the real font and dpr has no business touching the network, and one that does is
+neither fast nor deterministic. The limit was also lifted 25 → 30 to match `uix1-e2e`, as
+headroom for a cold Linux desktop build — not as the fix.
+
+### §187.5 · Verification
+
+Flutter **1852 / 5 skipped** · `dart analyze` **0 errors** · QA frontier **178** · remote at
+`f349bca` with the Settings page pushed and CI green through `a138c53`.
+
+**Production was not contacted.**

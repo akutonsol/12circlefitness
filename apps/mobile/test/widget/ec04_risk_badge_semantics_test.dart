@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:circle_fitness/features/coach/domain/coach_ecosystem_provider.dart';
+import 'package:circle_fitness/features/coach/domain/package_provider.dart';
+import 'package:circle_fitness/features/scoring/domain/score_provider.dart';
 import 'package:circle_fitness/features/dashboard/presentation/client_detail_screen.dart';
 
 /// EC-04 · what a coach using a SCREEN READER is told about an unassessed client.
@@ -30,9 +32,21 @@ Map<String, dynamic> _profile({String? riskLevel}) => {
 
 Future<void> _mount(WidgetTester t, {String? riskLevel}) async {
   await t.pumpWidget(ProviderScope(
+    // EVERY provider the screen reads is overridden, not just the one under test.
+    //
+    // THE FIRST VERSION OVERRODE ONLY clientDetailProvider, and the others then made REAL
+    // NETWORK CALLS to QA from inside a device probe. The job's duration escalated
+    // 2m -> 8m -> past its 25-minute timeout, which cancelled it — and a cancelled job is
+    // not a pass. Raising the timeout would have hidden the cause: a probe whose purpose
+    // is to measure a badge at the real font and dpr has no business touching the
+    // network, and one that does is neither fast nor deterministic.
     overrides: [
       clientDetailProvider(_clientId)
           .overrideWith((ref) async => _profile(riskLevel: riskLevel)),
+      clientHasPaidPlanProvider(_clientId).overrideWith((ref) async => false),
+      clientScheduleProvider(_clientId).overrideWith((ref) async => null),
+      clientScoreProvider(_clientId).overrideWith((ref) async => null),
+      myProgramsProvider.overrideWith((ref) async => const <Map<String, dynamic>>[]),
     ],
     child: const MaterialApp(
       home: ClientDetailScreen(clientId: _clientId, clientName: 'Probe Client'),

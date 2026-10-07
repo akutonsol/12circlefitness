@@ -98,3 +98,9 @@ final adminAdministratorCountProvider = FutureProvider<int?>(
 
 final adminPlatformSettingsProvider = FutureProvider<List<AdminPlatformSetting>?>(
     (ref) async => ref.watch(adminMetricsServiceProvider).getPlatformSettings());
+
+/// Whether the caller may resolve an incident. Separate from the incident LIST so the
+/// Trust page can render the approved read-only state for a role that may view but not
+/// update — `Incidents·update` is held by `trust_lead` alone.
+final adminCanUpdateIncidentsProvider = FutureProvider<bool>(
+    (ref) async => ref.watch(adminTrustServiceProvider).canUpdateIncidents());

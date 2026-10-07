@@ -15,10 +15,16 @@ import '../domain/admin_trust.dart';
 ///   * `null`           → the caller lacks the capability
 ///   * `[]` / an empty model → authorized, nothing recorded
 class AdminTrustService {
-  AdminTrustService({SupabaseClient? client})
-      : _db = client ?? Supabase.instance.client;
+  AdminTrustService({SupabaseClient? client}) : _injected = client;
 
-  final SupabaseClient _db;
+  final SupabaseClient? _injected;
+
+  /// Resolved LAZILY. The constructor used to read `Supabase.instance.client` eagerly,
+  /// which made the class impossible to subclass in a test — `Supabase.instance` throws
+  /// before initialization, so a fake that overrides one method still blew up in
+  /// `super()`. A service that cannot be substituted cannot have its failure path tested,
+  /// and the failure path is the one that matters here.
+  SupabaseClient get _db => _injected ?? Supabase.instance.client;
 
   Future<bool> _can(String area, String verb) async {
     final r = await _db.rpc('admin_can', params: {'p_area': area, 'p_verb': verb});
@@ -77,6 +83,22 @@ class AdminTrustService {
         AdminGovernancePolicy.fromRow(Map<String, dynamic>.from(r)),
     ];
   }
+
+  /// Whether this caller may RESOLVE an incident. `Incidents·update` is held by
+  /// `trust_lead` alone in the approved matrix, so most operators see the read-only state.
+  Future<bool> canUpdateIncidents() => _can('Incidents', 'update');
+
+  /// Records a resolution against an incident through the governed write path
+  /// (`admin_update_incident_response`, migration 164), which is `SECURITY DEFINER` and
+  /// re-checks `admin_can('Incidents','update')` ITSELF — so the client gate below is
+  /// convenience, never the boundary. It raises `42501` if the caller lacks the
+  /// capability, and that error is allowed to surface rather than being swallowed into a
+  /// `false`: a write that did not happen must not read as one that did.
+  Future<void> resolveIncident(String incidentId, String resolution) =>
+      _db.rpc('admin_update_incident_response', params: {
+        'p_incident_id': incidentId,
+        'p_resolution': resolution,
+      });
 
   /// Whether this caller may read the Guardian state at all, so the UI can distinguish
   /// "you may not see this" from "nothing is recorded" — the two cases

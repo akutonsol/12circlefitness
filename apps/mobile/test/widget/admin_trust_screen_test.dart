@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:circle_fitness/core/observability/app_failure.dart';
+import 'package:circle_fitness/features/admin/data/admin_trust_service.dart';
 import 'package:circle_fitness/features/admin/domain/admin_metrics.dart';
 import 'package:circle_fitness/features/admin/domain/admin_provider.dart';
 import 'package:circle_fitness/features/admin/domain/admin_trust.dart';
+import 'package:circle_fitness/features/admin/presentation/admin_tokens.dart';
 import 'package:circle_fitness/features/admin/presentation/admin_trust_screen.dart';
 
 /// V5 §183 — P6 · Trust. The sections are the published ones; these tests cover the
@@ -32,6 +35,7 @@ final _denied = <Override>[
   adminSecurityEventsProvider.overrideWith((_) async => null),
   adminIncidentsProvider.overrideWith((_) async => null),
   adminAuditEventsProvider.overrideWith((_) async => null),
+  adminCanUpdateIncidentsProvider.overrideWith((_) async => false),
 ];
 
 String _allText(WidgetTester t) =>
@@ -202,14 +206,125 @@ void main() {
     expect(find.text('Authentication events'), findsOneWidget);
   });
 
-  testWidgets('the page is READ-ONLY — it states so, and carries no control that could '
-      'change anything', (t) async {
+  group('incident resolution · the approved Resolve action, capability-gated', () {
+    // §183 first shipped this page as read-only "by design rule", citing CONF-D5's
+    // drawer footer. That was wrong about the PAGE: the approved Trust screen contains
+    // Resolve, Investigate and "Assign, change status, add…", and `Read-only` is one of
+    // the STATES designed for Trust — a state for a role that may view and not update.
+    List<Override> withIncident({required bool canUpdate, String? resolution}) => [
+          ..._denied,
+          adminCanUpdateIncidentsProvider.overrideWith((_) async => canUpdate),
+          adminIncidentsProvider.overrideWith((_) async => [
+                AdminIncident.fromRow({
+                  'id': 'i1',
+                  'summary': '38 failed sign-ins',
+                  'severity': 'Critical',
+                  'scope': 'Security',
+                  if (resolution != null) 'resolution': resolution,
+                }),
+              ]),
+        ];
+
+    testWidgets('a role WITHOUT Incidents·update gets no action and is told why — the '
+        'approved read-only state, stated rather than inferred from a missing button',
+        (t) async {
+      await _pump(t, withIncident(canUpdate: false));
+      expect(find.text('Resolve'), findsNothing);
+      expect(find.textContaining('requires Incidents · update'), findsOneWidget);
+    });
+
+    testWidgets('a role WITH Incidents·update gets the action', (t) async {
+      await _pump(t, withIncident(canUpdate: true));
+      expect(find.text('Resolve'), findsOneWidget);
+      expect(find.textContaining('requires Incidents · update'), findsNothing);
+    });
+
+    testWidgets('an ALREADY-resolved incident offers no action, so a resolution cannot '
+        'be recorded twice', (t) async {
+      await _pump(t, withIncident(canUpdate: true, resolution: 'rotated the key'));
+      expect(find.text('Resolve'), findsNothing);
+      expect(find.textContaining('resolved'), findsWidgets);
+    });
+
+    testWidgets('the action opens a CONFIRM dialog — the Interactions section requires '
+        'one — and says the record cannot be undone from here', (t) async {
+      await _pump(t, withIncident(canUpdate: true));
+      await t.tap(find.text('Resolve'));
+      await t.pumpAndSettle();
+      expect(find.text('Record a resolution'), findsOneWidget);
+      expect(find.textContaining('cannot be undone from this screen'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
+      // Cancel leaves nothing behind.
+      await t.tap(find.text('Cancel'));
+      await t.pumpAndSettle();
+      expect(find.text('Record a resolution'), findsNothing);
+    });
+
+    testWidgets('an EMPTY resolution is not submitted — the governed path rejects a blank '
+        'and the dialog should not ask it to', (t) async {
+      await _pump(t, withIncident(canUpdate: true));
+      await t.tap(find.text('Resolve'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Record'));
+      await t.pumpAndSettle();
+      // No crash, no snackbar: the submit was simply not attempted.
+      expect(find.textContaining('was not recorded'), findsNothing);
+    });
+
+    testWidgets('a REFUSED write is surfaced AND reported — the operator is told nothing '
+        'was saved, and the raw exception goes to the sink rather than the screen',
+        (t) async {
+      final captured = <AppFailure>[];
+      setFailureSink(captured.add);
+      addTearDown(resetFailureSink);
+
+      await _pump(t, [
+        ...withIncident(canUpdate: true),
+        // The service throws, exactly as the governed path does with 42501 when the
+        // caller lacks Incidents·update. The RPC re-checks the capability itself, so the
+        // client gate is convenience and this is the real boundary being refused.
+        adminTrustServiceProvider.overrideWithValue(_RefusingTrustService()),
+      ]);
+      await t.tap(find.text('Resolve'));
+      await t.pumpAndSettle();
+      await t.enterText(find.byType(TextField), 'rotated the key');
+      await t.tap(find.text('Record'));
+      await t.pumpAndSettle();
+
+      // 1 · the operator is TOLD, and told that nothing was saved.
+      expect(find.textContaining('was not recorded'), findsOneWidget);
+      expect(find.textContaining('Nothing was saved'), findsOneWidget);
+      // 2 · the raw exception is NOT on screen (ERR-G2).
+      final text = _allText(t);
+      expect(text.contains('42501'), isFalse, reason: 'raw error on screen: $text');
+      expect(text.contains('PostgrestException'), isFalse);
+      // 3 · but it IS diagnosable — the sink has it, with the incident it concerned.
+      expect(captured, hasLength(1));
+      expect(captured.single.origin, 'admin_trust.resolveIncident');
+      expect(captured.single.error.toString(), contains('42501'));
+      expect(captured.single.context?['incident_id'], 'i1');
+    });
+
+    testWidgets('the action meets the 44px touch target RESPONSIVE.md requires', (t) async {
+      await _pump(t, withIncident(canUpdate: true));
+      final box = t.getSize(find
+          .ancestor(of: find.text('Resolve'), matching: find.byType(SizedBox))
+          .first);
+      expect(box.height, AdminDims.sizeControl);
+    });
+  });
+
+  testWidgets('the GUARDIAN remains read-only — A10 bars it from holding admin authority '
+      'and nothing here re-states it', (t) async {
     await _pump(t, _denied);
     expect(find.textContaining('Nothing is changed from this screen'), findsWidgets);
     expect(find.byType(Switch), findsNothing);
     expect(find.byType(Checkbox), findsNothing);
-    expect(find.byType(TextField), findsNothing);
-    expect(find.byType(ElevatedButton), findsNothing);
+    // No Guardian control: re-stating it goes through admin_set_guardian_state, gated
+    // AI Guardian·manage, which this page never calls.
+    for (final l in ['Disable Guardian', 'Enable Guardian', 'Set state']) {
+      expect(find.text(l), findsNothing);
+    }
   });
 
   testWidgets('B-4 holds: no withheld incident field can reach the screen', (t) async {
@@ -228,4 +343,16 @@ void main() {
     expect(text.contains('evidence and actor identity are withheld'), isTrue);
     expect(text.contains('actor_identity'), isFalse);
   });
+}
+
+
+/// Refuses the write the way the governed path does: `admin_update_incident_response` is
+/// SECURITY DEFINER and raises `42501` itself when `Incidents·update` is absent, so the
+/// client-side gate is convenience and this is the boundary that actually holds.
+class _RefusingTrustService extends AdminTrustService {
+  _RefusingTrustService() : super(client: null);
+
+  @override
+  Future<void> resolveIncident(String incidentId, String resolution) =>
+      Future.error(Exception('42501: not authorized: Incidents/update is required'));
 }
