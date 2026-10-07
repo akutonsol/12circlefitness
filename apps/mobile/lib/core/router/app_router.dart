@@ -61,6 +61,7 @@ import '../../features/compliance/presentation/compliance_dashboard_screen.dart'
 import '../../features/coach/presentation/program_builder_screen.dart';
 import '../../features/coach/presentation/coach_packages_screen.dart';
 import '../../features/admin/presentation/admin_dashboard_screen.dart';
+import '../../features/admin/presentation/admin_metrics_screen.dart';
 import '../../features/admin/presentation/observability_screen.dart';
 import '../../features/admin/presentation/exercise_review_screen.dart';
 import '../../features/vendor/presentation/vendor_portal_screen.dart';
@@ -232,6 +233,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/reset-password', builder: (_, __) => const ResetPasswordScreen()),
       GoRoute(path: '/intake',         builder: (_, __) => const IntakeFlowScreen()),
       GoRoute(path: '/admin-dashboard',builder: (_, __) => const AdminDashboardScreen()),
+      // V5 §167 · the owner-approved Admin metrics (migrations 171-174). Additive:
+      // the legacy /admin-dashboard console is untouched. Not role-gated here on
+      // purpose — every surface it reads gates on admin_can server-side, and a
+      // client-side check that looks like the boundary is worse than none.
+      GoRoute(path: '/admin-metrics',  builder: (_, __) => const AdminMetricsScreen()),
       GoRoute(path: '/admin-exercise-review', builder: (_, __) => const ExerciseReviewScreen()),
       GoRoute(path: '/content-center', builder: (_, __) => const ExerciseContentCenterScreen()),
       GoRoute(path: '/observability',  builder: (_, __) => const ObservabilityScreen()),

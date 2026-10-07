@@ -77,16 +77,30 @@ void main() {
     // Two ARE the defect class — they render a missing figure as 0 on the legacy
     // console. They are debt in surfaces this work did not build, and rewriting
     // another screen's data handling is a product decision, not a QA repair.
+    // ANCHORED ON THE CODE, NOT THE LINE NUMBER. The first version keyed these by
+    // `path:line`, and adding one navigation tile higher up the dashboard file
+    // shifted two of them and turned this test red for no substantive reason. A
+    // guard whose anchors move when unrelated lines are inserted trains people to
+    // re-pin it rather than read it. The key is now the file plus the exact
+    // offending expression, which is precise and does not drift.
     const knownCoercions = <String, String>{
-      'lib/features/admin/data/platform_settings_service.dart:13':
+      "platform_settings_service.dart|double.tryParse('\${row?['value'] ?? ''}') ?? 0.10":
           'config default, matches create-checkout:259 — not a display coercion',
-      'lib/features/admin/presentation/admin_dashboard_screen.dart:414':
+      'admin_dashboard_screen.dart|valueOrNull ?? 0.10':
           'config default, same 0.10 fallback as the server',
-      'lib/features/admin/presentation/observability_screen.dart:62':
+      'observability_screen.dart|(v as num?)?.toInt() ?? 0':
           'DEBT — legacy observability figures render 0 when absent',
-      'lib/features/admin/presentation/admin_dashboard_screen.dart:224':
+      'admin_dashboard_screen.dart|(stats[k] as num?)?.toInt() ?? 0':
           'DEBT — legacy admin_platform_stats figures render 0 when absent',
     };
+
+    bool isKnown(String path, String code) {
+      final base = path.split('/').last;
+      return knownCoercions.keys.any((k) {
+        final i = k.indexOf('|');
+        return k.substring(0, i) == base && code.contains(k.substring(i + 1));
+      });
+    }
 
     final offenders = <String>[];
     for (final e in discovered.entries) {
@@ -97,9 +111,8 @@ void main() {
         final code = line.split('//').first;
         if (RegExp(r'\?\?\s*0(\.0)?\b').hasMatch(code) ||
             RegExp(r'\?\?\s*0\.\d+\b').hasMatch(code)) {
-          final site = '${e.key}:${i + 1}';
-          if (knownCoercions.containsKey(site)) continue;
-          offenders.add('$site: ${line.trim()}');
+          if (isKnown(e.key, code)) continue;
+          offenders.add('${e.key}:${i + 1}: ${line.trim()}');
         }
       }
     }
@@ -107,20 +120,21 @@ void main() {
         reason: 'a null here means "unauthorized" or "not recorded", never zero.\n'
             '${offenders.join('\n')}');
 
-    // THE RATCHET. A recorded site that no longer coerces must be deleted from the
-    // list, so the allowlist cannot drift into a general licence.
+    // THE RATCHET. A recorded expression that no longer appears anywhere must be
+    // deleted, so the allowlist cannot drift into a general licence.
     final stale = <String>[];
-    for (final site in knownCoercions.keys) {
-      final parts = site.split(':');
-      final path = parts.first;
-      final lineNo = int.parse(parts.last);
-      final src = discovered[path];
-      if (src == null) { stale.add('$site — file gone, delete the entry'); continue; }
-      final lines = src.split('\n');
-      if (lineNo > lines.length) { stale.add('$site — line gone'); continue; }
-      final code = lines[lineNo - 1].split('//').first;
-      if (!RegExp(r'\?\?\s*0(\.\d+)?\b').hasMatch(code)) {
-        stale.add('$site — no longer coerces; remove it from knownCoercions');
+    for (final k in knownCoercions.keys) {
+      final i = k.indexOf('|');
+      final base = k.substring(0, i);
+      final expr = k.substring(i + 1);
+      final match = discovered.entries
+          .where((e) => e.key.split('/').last == base)
+          .where((e) => e.value
+              .split('\n')
+              .map((l) => l.split('//').first)
+              .any((c) => c.contains(expr)));
+      if (match.isEmpty) {
+        stale.add('$base no longer contains `$expr` — remove it from knownCoercions');
       }
     }
     expect(stale, isEmpty, reason: stale.join('\n'));

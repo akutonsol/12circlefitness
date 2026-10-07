@@ -15623,3 +15623,66 @@ agreeing at 000–174 · `dart analyze` clean on every file touched.
 
 CI was green **6/6 on `91acaad`**. **Production was not contacted. No guard and no evidence
 standard was weakened; two guards were made stricter.**
+
+---
+
+## §167 · The metrics are reachable, and a fourth guard earned its keep
+
+`AdminMetricsScreen` hosts the panel at `/admin-metrics`, with the entry point on the
+existing admin console (*"Platform Metrics"*). The §9 pipeline's **UI CONSUMPTION** rung is
+now closed for every implemented metric decision: source → definition → authorization →
+view → capability → **UI** → live → regression → CI.
+
+**A new route rather than a change to the legacy console.** `/admin-dashboard` is the
+pre-token screen with its own private palette; mounting a token-styled panel inside it
+would produce one screen in two visual languages, and restyling it is a product decision,
+not something to do in passing. §12's rule is additive extension, so the legacy console
+gains exactly one navigation tile and nothing else.
+
+### §167.1 · `ROUTE-G1` caught the route as orphaned, and was right
+
+The route shipped with **no way in**, and the existing orphan-route guard failed
+immediately. A route no user can reach is not UI consumption — it is a widget with a URL.
+Fixed by adding the entry tile, not by exempting the route.
+
+**That is the fourth existing guard to catch something real in this run**, after
+`SEC-018`'s descendants in D15 (the column pins), `H-D1` (the private-palette ratchet), and
+`SEC-G4` itself. None was weakened to make the run green.
+
+### §167.2 · Why the route is deliberately not role-gated on the client
+
+`app_router.dart` does not role-gate any admin route, and this one does not either. The
+enforcement that matters is server-side: every surface the page reads gates on `admin_can`
+inside the view's own `WHERE`, so a caller without the capability receives **no row**
+however they arrived.
+
+A client-side check would be defence in depth, but it would also be **the only check a
+reader sees**, and a client gate that *looks* like the boundary is worse than none — it
+invites the next person to treat it as sufficient. What a non-admin actually sees is every
+card reading *"Not available to your role"*, which is true, is the correct `A11` state, and
+is asserted by a widget test that also requires **no digit to appear anywhere** on the
+page. A second test proves an authorized caller *does* see figures, so the denial test is
+not passing for want of any data path at all.
+
+### §167.3 · My own guard was brittle, and fixing it is the finding
+
+`SEC-G4`'s pre-existing-coercion allowlist keyed its entries by `path:line`. Adding one
+navigation tile higher up `admin_dashboard_screen.dart` shifted two of them and turned the
+test red **for no substantive reason**. A guard whose anchors move when unrelated lines are
+inserted teaches people to re-pin it rather than read it, which is how a ratchet quietly
+becomes a rubber stamp.
+
+The entries are now keyed by **file plus the exact offending expression** — precise, and
+immune to line drift. Both directions were re-proved after the change: a new `?? 0` in a
+covered file turns it red, and *fixing* an allow-listed site without deleting its entry
+also turns it red.
+
+### §167.4 · Verification
+
+Flutter **1764 passed / 5 skipped** (1760 → 1764) · `dart analyze` zero errors · live
+security **957/957** · every static guard green · QA frontier **174**.
+
+CI was green **6/6 on `91acaad`**, and `b69b0c0` was green on static guards, Flutter, live
+QA suites, the negative control and UIX-1 at the time this was written.
+
+**Production was not contacted.**

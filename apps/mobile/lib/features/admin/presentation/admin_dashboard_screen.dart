@@ -86,6 +86,17 @@ class AdminDashboardScreen extends ConsumerWidget {
                         const SizedBox(height: 20),
                         _CommissionCard(),
                         const SizedBox(height: 16),
+                        // V5 §167 · the way in to the owner-approved metric
+                        // surfaces (migrations 171-174). A route with no entry
+                        // point is not UI consumption, which ROUTE-G1 caught when
+                        // /admin-metrics was first registered.
+                        _AdminActionTile(
+                          icon: Icons.query_stats_rounded,
+                          title: 'Platform Metrics',
+                          subtitle: 'Activity, people, community, events, revenue, release',
+                          onTap: () => context.push('/admin-metrics'),
+                        ),
+                        const SizedBox(height: 12),
                         _AdminActionTile(
                           icon: Icons.rule_folder_rounded,
                           title: 'Global Library Review',
