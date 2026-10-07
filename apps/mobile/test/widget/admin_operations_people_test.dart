@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,13 +20,48 @@ Future<void> _pump(WidgetTester t, Widget screen, List<Override> o) async {
   await t.pump();
 }
 
+/// Like [_pump], but gives the ASYNC CAPABILITY PROVIDERS time to answer.
+///
+/// [_pump] advances one frame, which is enough for a `FutureProvider` whose body returns a
+/// value synchronously but NOT for `adminCanUpdateUsersProvider` — on frame one it is
+/// still loading, and an action gated on it correctly renders nothing. Asserting the
+/// action's absence there would prove only that the test was early. The in-flight test
+/// below deliberately keeps the one-frame state and says so.
+Future<void> _pumpSettled(WidgetTester t, Widget screen, List<Override> o) async {
+  await t.binding.setSurfaceSize(const Size(500, 4000));
+  addTearDown(() => t.binding.setSurfaceSize(null));
+  await t.pumpWidget(ProviderScope(overrides: o, child: MaterialApp(home: screen)));
+  for (var i = 0; i < 4; i++) {
+    await t.pump(const Duration(milliseconds: 50));
+  }
+}
+
 final _denied = <Override>[
   adminReleaseStatusProvider.overrideWith((_) async => null),
   adminWearableConnectionsProvider.overrideWith((_) async => null),
   adminSecurityEventsProvider.overrideWith((_) async => null),
   adminUserOverviewProvider.overrideWith((_) async => null),
   adminUserDirectoryProvider.overrideWith((_) async => null),
+  // §189. An un-overridden capability provider does not fail the test — it makes a real
+  // network call to QA, which is how EC-04 went from 2 minutes to a 25-minute cancel.
+  adminCanUpdateUsersProvider.overrideWith((_) async => false),
 ];
+
+/// One directory row built from a MAP, so the test drives the same `fromRow` parser the
+/// service uses rather than a hand-built object the parser never sees.
+List<Override> _withUsers(List<Map<String, Object?>> rows, {bool canEdit = false}) => [
+      adminUserDirectoryProvider.overrideWith(
+          (_) async => [for (final r in rows) AdminUserDirectoryEntry.fromRow(r)]),
+      adminCanUpdateUsersProvider.overrideWith((_) async => canEdit),
+    ];
+
+const _row = {
+  'id': 'u1',
+  'first_name': 'Probe',
+  'last_name': 'Member',
+  'email': 'probe@qa.invalid',
+  'role': 'client',
+};
 
 String _allText(WidgetTester t) =>
     t.widgetList<Text>(find.byType(Text)).map((w) => w.data ?? '').join(' | ');
@@ -230,6 +266,107 @@ void main() {
       expect(find.text('Probe Member'), findsOneWidget);
       expect(find.textContaining('client · core · onboarding incomplete'), findsOneWidget);
     });
+
+    // ── §189 · "Edit profile", and the one action deliberately absent ─────────
+    testWidgets('a role with Users·view but not Users·update sees the rows and no action, '
+        'and is told which capability is missing', (t) async {
+      await _pumpSettled(t, const AdminPeopleScreen(), [..._denied, ..._withUsers(const [_row])]);
+      expect(find.text('Probe Member'), findsOneWidget);
+      expect(find.text('Edit profile'), findsNothing);
+      expect(_allText(t).contains('requires Users · update'), isTrue);
+    });
+
+    testWidgets('Users·update turns the action on', (t) async {
+      await _pumpSettled(t, const AdminPeopleScreen(),
+          [..._denied, ..._withUsers(const [_row], canEdit: true)]);
+      expect(find.text('Edit profile'), findsOneWidget);
+      expect(_allText(t).contains('requires Users · update'), isFalse);
+    });
+
+    testWidgets('"Change role" is NOT offered beside it — the approved menu lists it, but '
+        'admin_set_user_role gates on is_admin() and not on the capability matrix, so '
+        'wiring it to Users·update would widen who may grant admin', (t) async {
+      await _pumpSettled(t, const AdminPeopleScreen(),
+          [..._denied, ..._withUsers(const [_row], canEdit: true)]);
+      final text = _allText(t);
+      expect(text.contains('Change role'), isFalse, reason: text);
+      // Nor any of the other row actions the approved menu carries but no governed path
+      // accepts from this screen.
+      for (final absent in ['Suspend', 'Change plan', 'Change payout', 'Deactivate']) {
+        expect(text.contains(absent), isFalse, reason: 'offers "$absent" with no backing');
+      }
+    });
+
+    testWidgets('the form is name-only and SAYS so, so its narrowness is not read as a '
+        'missing field — and it states that clearing a box cannot blank a name', (t) async {
+      await _pumpSettled(t, const AdminPeopleScreen(),
+          [..._denied, ..._withUsers(const [_row], canEdit: true)]);
+      await t.tap(find.text('Edit profile'));
+      await t.pumpAndSettle();
+      expect(find.text('First name'), findsOneWidget);
+      expect(find.text('Last name'), findsOneWidget);
+      final text = _allText(t);
+      expect(text.contains('Name only.'), isTrue, reason: text);
+      expect(text.contains('cannot blank a name'), isTrue, reason: text);
+      // The dialog must not offer a field 161 has no parameter for.
+      for (final absent in ['Email', 'Role', 'Tier', 'Plan']) {
+        expect(find.widgetWithText(TextField, absent), findsNothing,
+            reason: 'offers a $absent field with no governed path');
+      }
+    });
+
+    testWidgets('saving with nothing changed reports that nothing was saved, rather than '
+        'claiming a success it did not perform', (t) async {
+      await _pumpSettled(t, const AdminPeopleScreen(),
+          [..._denied, ..._withUsers(const [_row], canEdit: true)]);
+      await t.tap(find.text('Edit profile'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Save'));
+      await t.pumpAndSettle();
+      // No service call is made at all, so this reaches the message without a fake:
+      // the unchanged-field check happens BEFORE the RPC. If it did not, this test would
+      // throw on the real client instead of finding the sentence.
+      expect(find.text('Nothing was changed, so nothing was saved.'), findsOneWidget);
+    });
+
+    // THE REGRESSION THIS FILE'S ONE-FRAME PUMP CAUGHT. The first version of §189 put
+    // `adminCapabilityGate` around the whole directory, so while the `Users·update` check
+    // was still in flight the gate's honest "Checking your permissions…" replaced EVERY
+    // ROW — hiding records `Users·view` had already authorized, on the strength of a
+    // pending answer about a different verb. This test pumps exactly ONE frame, which is
+    // the state that defect lived in, and asserts the rows are there anyway.
+    testWidgets('a capability check still IN FLIGHT does not hide data the operator is '
+        'already authorized to see — and does not announce a denial either', (t) async {
+      await t.binding.setSurfaceSize(const Size(500, 4000));
+      addTearDown(() => t.binding.setSurfaceSize(null));
+      await t.pumpWidget(ProviderScope(
+        overrides: [
+          ..._denied,
+          adminUserDirectoryProvider.overrideWith(
+              (_) async => [AdminUserDirectoryEntry.fromRow(_row)]),
+          // Never completes: the capability answer is permanently pending.
+          adminCanUpdateUsersProvider.overrideWith((_) => Completer<bool>().future),
+        ],
+        child: const MaterialApp(home: AdminPeopleScreen()),
+      ));
+      // Enough frames for the DIRECTORY to resolve, while the capability stays pending.
+      for (var i = 0; i < 4; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(find.text('Probe Member'), findsOneWidget);
+      // No action, because no answer — and no claim of a denial.
+      expect(find.text('Edit profile'), findsNothing);
+      expect(_allText(t).contains('requires Users · update'), isFalse,
+          reason: 'a pending check must not render as a denial');
+    });
+
+    testWidgets('the action meets the 44px touch target', (t) async {
+      await _pumpSettled(t, const AdminPeopleScreen(),
+          [..._denied, ..._withUsers(const [_row], canEdit: true)]);
+      final size = t.getSize(find.ancestor(
+          of: find.text('Edit profile'), matching: find.byType(TextButton)).first);
+      expect(size.height, greaterThanOrEqualTo(44.0));
+    });
   });
 }
 
@@ -243,5 +380,6 @@ abstract final class AdminAuditEventStub {
         'occurred_at': '2026-10-07T03:00:00Z',
         'outcome': 'success',
         'category': c,
-      });
+    
+  });
 }

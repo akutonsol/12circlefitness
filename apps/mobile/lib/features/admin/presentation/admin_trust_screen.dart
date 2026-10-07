@@ -260,33 +260,21 @@ class AdminTrustScreen extends ConsumerWidget {
         data: (items) {
           if (items == null) return const AdminNote('Not available to your role');
           if (items.isEmpty) return const AdminNote('none open');
-          // The capability check can itself FAIL, and a failure is not a denial —
-          // see [adminCapabilityGate]. `.valueOrNull ?? false` used to collapse the
-          // two, telling an operator they lacked a permission they might hold.
-          return adminCapabilityGate(
+          // THE INCIDENTS THEMSELVES ARE NOT GATED ON `update`. They are read under
+          // `Incidents·view`, and they used to sit inside an `adminCapabilityGate` keyed on
+          // `Incidents·update` — so a pending or failed answer about a DIFFERENT VERB
+          // blanked every incident. §189 found the same shape on People and on the events
+          // directory. The rows render in all four states; only the action depends on the
+          // answer, and a failed check still gets its sentence. See [adminGatedList].
+          return adminGatedList(
             canUpdate,
-            allowed: () => Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final i in items.take(10))
-                  _IncidentRow(incident: i, canUpdate: true),
-                const AdminFootnote(
-                    'Evidence and actor identity are withheld from this layer (B-4).'),
-              ],
-            ),
-            denied: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final i in items.take(10))
-                  _IncidentRow(incident: i, canUpdate: false),
-                const AdminFootnote(
-                    'Evidence and actor identity are withheld from this layer (B-4).'),
-                // The approved read-only state, stated rather than inferred from a
-                // missing button.
-                const AdminFootnote(
-                    'Read-only: resolving an incident requires Incidents · update.'),
-              ],
-            ),
+            denied: 'Read-only: resolving an incident requires Incidents · update.',
+            rows: (canAct) => [
+              for (final i in items.take(10))
+                _IncidentRow(incident: i, canUpdate: canAct),
+              const AdminFootnote(
+                  'Evidence and actor identity are withheld from this layer (B-4).'),
+            ],
           );
         },
       ),

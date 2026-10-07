@@ -19,7 +19,7 @@
 // placed in the Security area. If the card leaked that figure to a Users-only role
 // it would be an indirect read of the audit population. `support` holds Users·view
 // and NOT Security·view in the approved matrix, so that role is the test.
-import { IDENT, signIn, rest, mutate, svc, check, checkNoWrite,
+import { IDENT, signIn, rest, mutate, rpc, svc, check, checkNoWrite,
          section, summary, beginSuite, n } from './lib.mjs';
 
 const ONE = (b) => (Array.isArray(b) ? b[0] : b) || {};

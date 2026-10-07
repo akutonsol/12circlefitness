@@ -128,6 +128,7 @@ const SUITES = [
   ['D15   admin surface access (156-170)',  './d15-admin-surface-access-lab.mjs'],
   ['D16   authorized metric surfaces (171-176)', './d16-admin-metric-surfaces-lab.mjs'],
   ['D17   weekly_feedback subject (175-177)',   './d17-weekly-feedback-subject-integrity.mjs'],
+  ['D18   governed admin edit paths (161/165)', './d18-admin-write-paths.mjs'],
 ];
 
 let totalFailures = 0;

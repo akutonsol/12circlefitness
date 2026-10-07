@@ -157,3 +157,73 @@ Widget adminCapabilityGate(
       error: (_, __) => AdminFootnote(failed),
       data: (can) => can ? allowed() : denied,
     );
+
+/// WHY THERE IS NO `quiet` VARIANT OF THE GATE, which §189 tried to add and `EC-G7`
+/// rejected. A repeated row action cannot print "Checking your permissions…" twenty times,
+/// so the obvious move was a flag that rendered the two non-answer states as nothing. That
+/// introduces `error: (…) => SizedBox.shrink()` — the exact RC-C shape `EC-G7` ratchets,
+/// where a failure and an empty state render identically. The guard was right, and raising
+/// its baseline to accommodate this would have been weakening a guard to go green.
+///
+/// A ROW SLOT NEEDS NO GATE. The decision is made ONCE by the parent, which holds the
+/// `AsyncValue`, and each row receives a plain `bool` — so there is no per-row error branch
+/// to be silent in. The parent then owes [adminGatedList] around the list, which is
+/// where a failed check gets its sentence. `SEC-G9` enforces that pairing, because the
+/// arrangement is only honest while something is still speaking.
+
+/// Renders a ROW LIST whose actions depend on a capability, keeping all four states apart
+/// without ever hiding the rows.
+///
+/// WHY THIS EXISTS, AND WHY IT IS NOT A `.valueOrNull` READ. §189 needed a row list whose
+/// per-row action appears only for a confirmed `·update`, and tried three shapes that three
+/// different guards rejected — each correctly:
+///
+///   * **`adminCapabilityGate` around the list** (`SEC-G9`). A gate chooses between two
+///     widgets, so its honest *"Checking your permissions…"* REPLACED EVERY ROW — hiding
+///     records a `·view` capability had already authorized because an answer about a
+///     different verb had not arrived. The emptiness then reads as *"there is nothing
+///     here"*: the false zero this programme exists to prevent, reached through
+///     authorization instead of through a `?? 0`.
+///   * **a `quiet` flag on the gate** (`EC-G7`). Silencing the two non-answer states
+///     introduces `error: (…) => SizedBox.shrink()`, the RC-C shape where a failure and an
+///     empty state render identically.
+///   * **`capability.valueOrNull == true` in the parent** (`EC-G8`). `admin_can` is an RPC,
+///     so it does I/O, and that read collapses *"could not ask"* into *"no"* at the call
+///     site. EC-G8's own note refuses the escape hatch in terms: the indistinguishability
+///     *"is the argument for a typed error state, not a bigger allowlist"*.
+///
+/// So the decision is made ONCE, in a single `when` whose **error arm renders the rows AND
+/// states the failure**. Nothing is silent, nothing is hidden, and no state is collapsed:
+///
+///   * **loading** — rows, no action, nothing said; there is no answer yet and the action
+///     has simply not appeared.
+///   * **failed** — rows, no action, and the sentence that this is NOT a denial.
+///   * **false** — rows, no action, and the approved read-only state naming the capability.
+///   * **true** — rows, with the action.
+Widget adminGatedList(
+  AsyncValue<bool> capability, {
+  required List<Widget> Function(bool canAct) rows,
+  required String denied,
+}) =>
+    capability.when(
+      loading: () => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: rows(false),
+      ),
+      error: (_, __) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ...rows(false),
+          const AdminFootnote(
+              'Your permissions could not be checked. No action is offered, and this is '
+              'not a denial.'),
+        ],
+      ),
+      data: (can) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ...rows(can),
+          if (!can) AdminFootnote(denied),
+        ],
+      ),
+    );

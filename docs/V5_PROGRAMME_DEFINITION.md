@@ -17238,3 +17238,224 @@ provider-override fix, so the probe is still making real network calls. The fix 
 commit.
 
 **Production was not contacted.**
+
+---
+
+## §189 · The last two authorized edit paths, a defect in three screens, and the one control the matrix cannot gate
+
+### §189.1 · What was reachable, and what the approved screens actually authorize
+
+§188 closed with four write RPCs applied to QA and callable by nobody. The question was not
+which of them to wire but which the **published design authorizes a control for**, because an
+RPC is permission to build and a screen is the instruction to build it.
+
+Reading the approved screens at `931218b` settles all four:
+
+| RPC | Approved affordance | Verdict |
+|---|---|---|
+| `admin_update_event` | Ecosystem → Event detail → **"Edit event"** | **BUILT** |
+| `admin_update_user_name` | People → row → **"Edit profile"** | **BUILT** |
+| `admin_create_program_template` / `admin_update_program_template` | Ecosystem → Programs table → the only action is **"Open"** | **NOT BUILT** — there is no authoring affordance on any approved screen. The RPC exists; the design does not place a control. Building one would invent product behaviour. |
+| `admin_set_user_role` | People → row → **"Change role"** | **NOT BUILT** — see §189.4 |
+
+So **two** were built, and the two that were not are each refused for a different and
+recorded reason. The Programs table's single `Open` action is worth stating plainly: a
+read affordance is not an authoring affordance, and the RPC's existence does not supply the
+missing screen.
+
+### §189.2 · The Events directory needed no schema
+
+"Edit event" needs a subject, and the Ecosystem page showed only `admin_events_overview` —
+an aggregate. The directory the approved screen lists was therefore missing, and the
+instinct was to publish a view for it. **No surface was added.** `156:45` already grants
+
+```sql
+FOR SELECT TO authenticated USING (public.admin_can('Events', 'view'))
+```
+
+on `public.events`, so an `Events·view` holder reads every event, **drafts and cancelled
+included** — which is exactly the population an operator needs and the member-facing
+policies exclude.
+
+Three designed columns have no backing, and each is **named rather than filled**:
+
+* **"Type"** (Workshop / Social / Class) — `public.events` has no type column at all
+  (`001:264`; the only later addition is `vendor_id` at `020:8`). There is no field for it.
+* **"Status"** — the column exists, defaults to `'upcoming'` and carries **no CHECK**, so it
+  does not hold the design's Scheduled / Full / Live / Draft / Cancelled vocabulary. It is
+  surfaced **as recorded**. Mapping it onto the five designed labels would have invented a
+  state machine.
+* **Event revenue** — the approved screen gates it behind *"Needs the Finance viewer role"*,
+  a Monetization capability this card does not test. `price` and `is_free` are therefore
+  **not selected**, and the query names its columns explicitly rather than using `select()`
+  — a bare `select()` under an `Events·view` gate would have routed a monetary figure around
+  its own gate.
+
+The read **asks** `admin_can('Events','view')` before querying, because `156:45` is an RLS
+policy and a filtered SELECT is not an error: PostgREST answers `200 []`, which would have
+rendered an unauthorized read as the approved screen's own *"No events in this range."*
+
+### §189.3 · A defect that was in three screens, two of them before this section
+
+Both new controls were first built by wrapping their list in `adminCapabilityGate`. The
+People widget test — which pumps **one frame** — failed, and not for the reason it looked
+like.
+
+`adminCapabilityGate` is honest: while a check is in flight it renders *"Checking your
+permissions…"*, and when the check itself fails it says the permission **could not be read
+and that this is not a denial** — the `EC-G8` lesson. But a gate **chooses between two
+widgets**, so wrapped around a list that sentence **replaces every row**. The consequence:
+
+* rows authorized by `·view` disappeared because an answer about `·update` had not arrived;
+* a single failed `admin_can` RPC emptied a card that had already loaded its data;
+* and that emptiness reads as *"there is nothing here"* — **the false zero this programme
+  exists to prevent, arrived at through authorization instead of through a `?? 0`.**
+
+Having named it, I went looking, and it was **already shipped twice**: the moderation queue
+(§188) and the Trust incidents card (§183) both put the gate around their rows. Three
+surfaces, one shape.
+
+**Three fixes were attempted and three different guards rejected the first three.** Writing
+that sequence down matters more than the final shape, because each rejection was correct and
+I would have shipped each one:
+
+1. **A `quiet` flag on the gate**, silencing the two non-answer states so the sentence would
+   not print twenty times. **`EC-G7` rejected it**: `quiet` introduces
+   `error: (…) => SizedBox.shrink()`, the exact RC-C shape where a failure and an empty
+   state render identically. Raising EC-G7's baseline from 16 to 17 would have been
+   weakening a guard to go green.
+2. **`capability.valueOrNull == true` in the parent**, with the rows taking a plain bool and
+   the explanation moving beside the list as `adminCapabilityNote`. **`EC-G8` rejected it**,
+   and its own note refuses the escape hatch in terms: `.valueOrNull` is RC-C *"wherever the
+   provider does I/O"* — `admin_can` is an RPC — and the indistinguishability *"is the
+   argument for a typed error state, not a bigger allowlist"*.
+3. **Removing the gate and saying nothing.** The **Trust `EC-G8` widget test failed**, and
+   was right to: that turned a failed check from a *false denial* into *silence*, which is
+   the softer version of the same bug.
+
+The shape that survives is **`adminGatedList`** — one `when`, four arms, and an **error arm
+that renders the rows AND states the failure**. Nothing is hidden, nothing is silent, no
+state is collapsed, and there is no `.valueOrNull` anywhere in the admin layer's capability
+reads. All four surfaces (People, the events directory, the moderation queue, Trust
+incidents) now route through it.
+
+**`SEC-G9`** ratchets it, in seven assertions that between them close every shape above:
+
+* **the ban** — no `adminCapabilityGate(` call may contain a `for (` in its argument list,
+  since the rows only vanish if they are *inside* a branch. An action never needs one, which
+  is why this is a ban and not a heuristic.
+* **the second ban** — no capability may be read with `.valueOrNull`, which is shape 2.
+* **self-consistency instead of a count.** The first version demanded "at least four gate
+  calls" as non-vacuity; the fix legitimately reduced them to one, so a floor would have
+  failed for the right code and then been lowered to whatever the code happened to do, which
+  is not a check. The brace matcher must instead find **exactly as many calls as a plain
+  substring scan** — the shape that caught `ERR-G1` reading 65 substrings against 64 regex
+  matches. That cannot drift.
+* **two controls**, one per ban, and the second earned its place immediately: `can\w*` is
+  **case-sensitive**, so it never matched `adminCanUpdateUsersProvider` and the scan was
+  passing on zero matches while a real collapsed read sat in the tree. `SEC-G6` had the
+  identical defect, where `[Nn]ot\s*[Aa]ssessed` is case-insensitive only on its first
+  letters and failed against `NOT ASSESSED`. The names are now listed explicitly, because a
+  case-insensitive `can` swallows `cannot` and `canvas`.
+* **a pairing assertion** — a surface handing a capability bool to its rows must route
+  through `adminGatedList`, or the bans could be satisfied by deleting the explanation along
+  with the wrapper.
+* **and an assertion about the helper itself**, because the pairing check only proves it is
+  *used*: `adminGatedList`'s error arm must still contain `rows(false)` **and** the words
+  *"not a denial"*. That is the whole difference from the gate it replaced, and a future
+  edit could quietly remove either.
+
+**The guard also flagged its own documentation first.** Scanning raw lines, it matched the
+comments *explaining* the collapsed read. That is the third time this run has made the same
+mistake — three prose assertions fired on my own disclaimers, and the rule named then was
+that *"must not mention X"* is wrong when the text's job includes saying X is absent. It
+applies to static guards identically: a guard that judges the explanation of a defect instead
+of the defect makes the defect harder to document. The scan now skips comment lines, and
+**asserts that it skips them**, since that skip is load-bearing rather than cosmetic.
+
+### §189.4 · The one control the capability matrix cannot gate — proved, not inferred
+
+The approved People row menu lists **"Change role"**, and `admin_set_user_role` exists. It is
+not wired, and the reason is an authorization boundary rather than a wiring gap:
+
+**`admin_set_user_role` (`115:363`) gates on the legacy `is_admin()`** — a
+`user_profiles.role = 'admin'` test — **and not on the capability matrix** that gates
+`admin_can(...)` and therefore every other Admin surface, including the rename action built
+beside it.
+
+Wiring the control to `Users·update` has only two outcomes, and both are the owner's call:
+
+1. the control renders **enabled** for a `Users·update` holder who is then refused `42501` —
+   a false affordance; or
+2. role assignment is **widened** to every holder of `Users·update`, which makes granting
+   `admin` reachable from a support capability. That is a privilege-escalation decision.
+
+This was read off the source, and **source-reading is how three earlier claims in this
+programme turned out to be wrong**, so D18 §3 proves it live instead: the *same role*, in the
+*same session*, renames a user successfully (`204`, `first_name` changed) and is refused the
+role change (`403`, `role` unmoved, **no partial escalation**). If that pair ever stops
+holding, the finding is stale and the question has moved.
+
+### §189.5 · `A10` is NOT an open boundary — correcting §188's closing note
+
+§188 closed by recording Guardian emergency disablement as a genuine new boundary, on the
+grounds that `A10` requires it be possible and the approved Trust screen carries no control.
+**The first half of that is wrong.** Migration `169` already *is* that control:
+
+> `'V5 §150 · the emergency Guardian disablement control A10 names as a product requirement.'`
+
+It is `SECURITY DEFINER`, gated on `admin_can('AI Guardian','manage')` — which the approved
+matrix grants to **`trust_lead` alone** — requires `auth.uid()` so no agent can reach it, and
+requires a reason to disable. `A10`'s requirement is **met**. What remains is narrower and
+genuinely open: the approved Trust screen places **no** operator-facing control, and adding
+one would be a new placement. That is the boundary, and it is a design question, not a
+capability gap.
+
+### §189.6 · Evidence
+
+**D18 · governed admin edit paths — 23/23 live against QA.** Every assertion is
+BEFORE → ATTEMPT → AFTER → ASSERT against the stored row, because a PostgREST RPC returns
+`204` whether it saved, refused silently, or did nothing.
+
+* `Events·update` is the gate, proved with `support` — which holds `Users·update` and **no
+  Events verb** — rather than with `content_editor`, which holds `create` and `update` both
+  and so cannot distinguish them.
+* **A null argument cannot blank a column.** This is the assertion the edit form stands on:
+  the form sends `null` for every field the operator did not touch, and if a null blanked its
+  column that design would silently erase three fields on every save.
+* An Admin **cannot re-price or free** an event through this path — attempted, and the stored
+  `price` and `is_free` are unmoved.
+* Negative capacity refused; a non-existent event refused.
+* The rename records **`changed_columns` and no delta**, and **no stored audit value contains
+  the name that was written** — the values would re-identify the pseudonymous subject of that
+  very row.
+* Neither path is reachable without a session (`401`), asserted with the **anon key** rather
+  than `Bearer null`, which would have been a malformed-token test proving something weaker.
+
+**A contract fact the suite got wrong first, and now asserts.** `161` declares
+`p_user_id, p_first_name, p_last_name` with **no DEFAULTs**, so a caller omitting one does
+not get a field-level complaint — PostgREST cannot resolve the signature and answers **404**,
+which reads like *"no such function"*. My first draft omitted `p_last_name` and scored four
+spurious failures that looked like a broken gate. The Dart caller already passed all three;
+the test did not. It is now an assertion rather than a workaround.
+
+**D16 · 109/109** (was 99 and ABORTING). `aee8568`'s CI failed on exactly that abort — the
+authored `admin_resolve_report` section was committed with `rpc` missing from its import list,
+and the runner **refused to score 989 passing assertions as a pass while one suite did not
+finish**. An abort is an incomplete run, not a green one; that reporting is why this was
+caught rather than absorbed.
+
+Flutter **1891 passed / 5 skipped** (1869 → 1891) · `dart analyze` **0 errors** · live
+**1023/1023 across 18 suites** · all nine static guards exit 0 · QA frontier **178** (no
+migration was added for this section).
+
+Per-surface: Ecosystem **30**, People **19**, Trust **25**, `SEC-G9` **7** — and `EC-G7` /
+`EC-G8` back at their recorded baselines with **no baseline raised**.
+
+**D-02 reported 40/40 here against CI's 39/39, and the drift is declared rather than
+mysterious:** its public-signup probe prints `SKIP` when Supabase answers `429` on the email
+rate limit. CI was rate-limited; the local run was not. An assertion count that moves without
+a code change is worth chasing down every time, and this one has a reason in the suite's own
+output.
+
+**Production was not contacted.**

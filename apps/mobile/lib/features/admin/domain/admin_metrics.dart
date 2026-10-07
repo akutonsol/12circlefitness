@@ -718,3 +718,78 @@ DateTime? _date(Object? v) {
   if (v is DateTime) return v;
   return DateTime.tryParse(v.toString());
 }
+
+/// One row of the approved Ecosystem screen's Events directory.
+///
+/// WHY THIS IS NOT A VIEW. The directory needs no new surface: migration 156:45 already
+/// grants `FOR SELECT TO authenticated USING (admin_can('Events','view'))` on
+/// `public.events`, so an Events·view holder reads every event — drafts and cancelled
+/// included. A dedicated aggregate view would have been the wrong instrument anyway:
+/// `admin_events_overview` answers "how many", and this answers "which one", which is
+/// what an edit action needs.
+///
+/// TWO COLUMNS OF THE APPROVED TABLE HAVE NO BACKING, and both are named rather than
+/// filled:
+///   · "Type" (Workshop/Social/Class) — `public.events` has no type column at all
+///     (001:264, and the only later addition is `vendor_id` at 020:8). There is no
+///     [type] field here because there is nothing to read.
+///   · "Status" — the column exists, but it defaults to `'upcoming'` and carries no
+///     CHECK, so it does not hold the design's Scheduled/Full/Live/Draft/Cancelled
+///     vocabulary. [status] is therefore whatever is RECORDED, surfaced verbatim.
+///     Mapping it onto the five designed labels would be inventing a state machine.
+///
+/// PRICE AND REVENUE ARE NOT SELECTED. `price` and `is_free` exist on the table, and the
+/// approved screen gates event revenue behind "Needs the Finance viewer role" — a
+/// Monetization capability this read does not test. Selecting them under an Events·view
+/// gate would route a monetary figure around its own gate, so the query names its columns
+/// explicitly instead of `select()`.
+class AdminEventRow {
+  const AdminEventRow({
+    required this.id,
+    required this.title,
+    required this.location,
+    required this.eventDate,
+    required this.endDate,
+    required this.hostName,
+    required this.maxCapacity,
+    required this.currentRegistered,
+    required this.status,
+    required this.description,
+  });
+
+  final String? id;
+  final String? title;
+  final String? location;
+  final DateTime? eventDate;
+  final DateTime? endDate;
+  final String? hostName;
+  final int? maxCapacity;
+  final int? currentRegistered;
+
+  /// As recorded — see the class note. Never relabelled.
+  final String? status;
+  final String? description;
+
+  /// Null when EITHER side is missing, which is the three-state rule applied to a
+  /// derived figure: an event with no recorded capacity has no occupancy, and 0 % would
+  /// be a measurement nobody took.
+  double? get occupancy {
+    final cap = maxCapacity;
+    final reg = currentRegistered;
+    if (cap == null || reg == null || cap <= 0) return null;
+    return reg / cap;
+  }
+
+  static AdminEventRow fromRow(Map<String, dynamic> r) => AdminEventRow(
+        id: r['id'] as String?,
+        title: r['title'] as String?,
+        location: r['location'] as String?,
+        eventDate: _date(r['event_date']),
+        endDate: _date(r['end_date']),
+        hostName: r['host_name'] as String?,
+        maxCapacity: (r['max_capacity'] as num?)?.toInt(),
+        currentRegistered: (r['current_registered'] as num?)?.toInt(),
+        status: r['status'] as String?,
+        description: r['description'] as String?,
+      );
+}

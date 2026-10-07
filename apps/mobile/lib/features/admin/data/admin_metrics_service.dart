@@ -224,6 +224,106 @@ class AdminMetricsService {
     return id as String?;
   }
 
+  /// The approved Ecosystem screen's Events directory.
+  ///
+  /// EXPLICIT COLUMNS, NOT `select()`. The table carries `price` and `is_free`, and the
+  /// approved screen gates event revenue behind the Finance viewer role — a Monetization
+  /// capability this read does not test. A bare `select()` under an Events·view gate
+  /// would hand a monetary figure to a role that was never granted it, so every column
+  /// is named. See [AdminEventRow] for the two designed columns that have no backing.
+  ///
+  /// NO `status` FILTER. Drafts and cancelled events are exactly what an operator needs
+  /// to find, and 156:45 already permits reading them; filtering to 'upcoming' here
+  /// would hide the rows the directory exists to show.
+  /// ASKS FIRST, exactly as [getUserDirectory] does and for the same reason: 156:45 is
+  /// an RLS policy, and a SELECT it filters out is not an error — PostgREST answers
+  /// `200 []`. Inferring authorization from an empty list would render an unauthorized
+  /// read as the approved screen's "No events in this range", which is a confident lie.
+  /// So `admin_can('Events','view')` is asked, and null means NO CAPABILITY while empty
+  /// means authorized with nothing to show.
+  Future<List<AdminEventRow>?> eventDirectory({int limit = 50}) async {
+    final permitted = await _db
+        .rpc('admin_can', params: {'p_area': 'Events', 'p_verb': 'view'});
+    if (permitted != true) return null;
+    final rows = await _db
+        .from('events')
+        .select('id,title,location,event_date,end_date,host_name,'
+            'max_capacity,current_registered,status,description')
+        .order('event_date', ascending: false)
+        .limit(limit);
+    return [
+      for (final r in rows) AdminEventRow.fromRow(Map<String, dynamic>.from(r)),
+    ];
+  }
+
+  Future<bool> canUpdateEvents() async {
+    final r = await _db
+        .rpc('admin_can', params: {'p_area': 'Events', 'p_verb': 'update'});
+    return r == true;
+  }
+
+  /// Edits an event through the governed path (`admin_update_event`, 165), which is
+  /// `SECURITY DEFINER` and re-checks `admin_can('Events','update')` itself.
+  ///
+  /// WHY A NULL ARGUMENT IS NOT AN ERASURE. 165 coalesces every field against the
+  /// existing column, so omitting one leaves it alone — the function cannot blank a
+  /// value it was not asked to change. That makes the caller's duty the opposite of
+  /// the usual one: it must send `null` for an untouched field rather than echoing
+  /// back what it last read, because echoing a stale read is how a concurrent edit
+  /// gets silently reverted.
+  ///
+  /// The same exclusions as [createEvent] apply and for the same reason: 165's
+  /// parameter list carries no `price`, `is_free`, `status`, `current_registered` or
+  /// `vendor_id`. An Admin may re-describe an event; it may not re-price or publish one.
+  Future<void> updateEvent({
+    required String eventId,
+    String? title,
+    String? description,
+    String? location,
+    DateTime? eventDate,
+    int? maxCapacity,
+  }) =>
+      _db.rpc('admin_update_event', params: {
+        'p_event_id': eventId,
+        if (title != null) 'p_title': title,
+        if (description != null) 'p_description': description,
+        if (location != null) 'p_location': location,
+        if (eventDate != null) 'p_event_date': eventDate.toIso8601String(),
+        if (maxCapacity != null) 'p_max_capacity': maxCapacity,
+      });
+
+  Future<bool> canUpdateUsers() async {
+    final r = await _db
+        .rpc('admin_can', params: {'p_area': 'Users', 'p_verb': 'update'});
+    return r == true;
+  }
+
+  /// Renames a user through the governed path (`admin_update_user_name`, 161), which is
+  /// `SECURITY DEFINER` and re-checks `admin_can('Users','update')` itself.
+  ///
+  /// THIS IS THE WHOLE OF "Edit profile" THAT A BACKEND EXISTS FOR. The approved People
+  /// screen's row menu also offers "Change role", and that action is deliberately absent
+  /// here: `admin_set_user_role` (115:363) gates on the legacy `is_admin()` — a
+  /// `user_profiles.role = 'admin'` test — and NOT on the capability matrix that every
+  /// other Admin surface, including this method, is gated by. Offering it beside this
+  /// one would either show an enabled control to a `Users·update` holder who will be
+  /// refused, or require widening role assignment to those holders. Which of those is
+  /// correct is an authorization decision, not a wiring detail.
+  ///
+  /// 161 refuses a blank name and a name over 100 characters, and records only the
+  /// CHANGED COLUMN NAMES — never the values, which would re-identify the pseudonymous
+  /// subject of its own audit row.
+  Future<void> updateUserName({
+    required String userId,
+    String? firstName,
+    String? lastName,
+  }) =>
+      _db.rpc('admin_update_user_name', params: {
+        'p_user_id': userId,
+        'p_first_name': firstName,
+        'p_last_name': lastName,
+      });
+
   Future<T?> _one<T>(
     String view,
     T Function(Map<String, dynamic>) parse,

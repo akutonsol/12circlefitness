@@ -118,3 +118,24 @@ final adminCanModerateProvider = FutureProvider<bool>(
 /// Whether the caller may create an event — `Events·create`, held by `content_editor`.
 final adminCanCreateEventsProvider = FutureProvider<bool>(
     (ref) async => ref.watch(adminMetricsServiceProvider).canCreateEvents());
+
+/// Whether the caller may edit an event — `Events·update`.
+///
+/// SEPARATE FROM [adminCanCreateEventsProvider] ON PURPOSE. The approved matrix grades
+/// `create` and `update` independently, so a role may be able to describe a new event and
+/// not re-describe an existing one, or the reverse. Reusing one flag for both would make
+/// the UI assert a capability nobody granted.
+final adminCanUpdateEventsProvider = FutureProvider<bool>(
+    (ref) async => ref.watch(adminMetricsServiceProvider).canUpdateEvents());
+
+/// The Events directory the approved Ecosystem screen lists.
+///
+/// Null means no `Events·view`; empty means authorized with no events in range,
+/// which the approved screen words as "No events in this range." The distinction is the
+/// three-state rule: an unauthorized read must not render as "no events".
+final adminEventDirectoryProvider = FutureProvider<List<AdminEventRow>?>(
+    (ref) async => ref.watch(adminMetricsServiceProvider).eventDirectory());
+
+/// Whether the caller may rename a user — `Users·update`.
+final adminCanUpdateUsersProvider = FutureProvider<bool>(
+    (ref) async => ref.watch(adminMetricsServiceProvider).canUpdateUsers());

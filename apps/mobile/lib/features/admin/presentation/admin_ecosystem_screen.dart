@@ -52,6 +52,7 @@ class AdminEcosystemScreen extends ConsumerWidget {
           onRefresh: () async {
             ref.invalidate(adminCommunityOverviewProvider);
             ref.invalidate(adminEventsOverviewProvider);
+            ref.invalidate(adminEventDirectoryProvider);
             ref.invalidate(adminTrainingOverviewProvider);
             ref.invalidate(adminRevenueOverviewProvider);
             ref.invalidate(adminWearableConnectionsProvider);
@@ -67,6 +68,8 @@ class AdminEcosystemScreen extends ConsumerWidget {
               _moderationQueue(ref),
               const SizedBox(height: AdminDims.space6),
               _events(ref),
+              const SizedBox(height: AdminDims.space6),
+              const _EventsDirectory(),
               const SizedBox(height: AdminDims.space6),
               _training(ref),
               const SizedBox(height: AdminDims.space6),
@@ -169,13 +172,20 @@ class AdminEcosystemScreen extends ConsumerWidget {
         data: (reports) {
           if (reports == null) return const AdminNote('Not available to your role');
           if (reports.isEmpty) return const AdminNote('none open');
-          Widget queue(bool writable) => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+          // THE DEFECT §189 NAMED WAS HERE FIRST. This queue — including its count — is
+          // read under `Community·view`, and it used to sit inside an
+          // `adminCapabilityGate` keyed on `Community·update`. A pending or failed
+          // moderation-capability check therefore blanked the whole queue. The rows render
+          // in all four states now; only the row actions depend on the answer. See
+          // [adminGatedList].
+          return adminGatedList(
+            canModerate,
+            denied: 'Read-only: moderating content requires Community · update.',
+            rows: (canAct) => [
               AdminMetricTile.value(label: 'Open reports', value: reports.length),
               const SizedBox(height: AdminDims.space4),
               for (final r in reports.take(10))
-                _ReportRow(report: r, canModerate: writable),
+                _ReportRow(report: r, canModerate: canAct),
               // The reported CONTENT is not shown here, and that is deliberate: 170's
               // moderation path never writes `content`, and a queue that reproduced the
               // reported text would republish it to every moderator before anyone had
@@ -183,16 +193,7 @@ class AdminEcosystemScreen extends ConsumerWidget {
               const AdminFootnote(
                   'The reported text is not reproduced here. Reasons are as the reporter '
                   'wrote them — there is no reason-code list, which is owner vocabulary.'),
-              if (!writable)
-                const AdminFootnote(
-                    'Read-only: moderating content requires Community · update.'),
             ],
-          );
-          // A failed capability check is NOT a denial — see [adminCapabilityGate].
-          return adminCapabilityGate(
-            canModerate,
-            allowed: () => queue(true),
-            denied: queue(false),
           );
         },
       ),
@@ -616,4 +617,296 @@ class _CreateEventAction extends ConsumerWidget {
       }
     }
   }
+}
+
+
+/// The approved Ecosystem screen's Events directory, and the "Edit event" action that
+/// its Event detail panel carries.
+///
+/// WHY THE LIST EXISTS AT ALL. `admin_update_event` (165) has been applied since §18x and
+/// nothing could reach it: the page showed only `admin_events_overview`, an aggregate, and
+/// an edit action needs a subject. The directory is the missing half, and it needed no
+/// schema — 156:45 already grants a full `events` read to `Events·view`.
+///
+/// THREE DESIGNED COLUMNS ARE NAMED RATHER THAN FILLED. "Type" has no column at all,
+/// "Status" exists but holds no ruled vocabulary, and event revenue sits behind the
+/// Finance viewer role, which this card does not test — so it is not read. See
+/// [AdminEventRow].
+///
+/// THE EDIT FORM SENDS ONLY WHAT CHANGED. 165 coalesces each argument against the stored
+/// column, so an omitted field is left alone. Echoing back every field — including the
+/// ones the operator never touched — would make this form silently revert a concurrent
+/// edit, so each controller is compared against what was read and unchanged fields are
+/// sent as null.
+class _EventsDirectory extends ConsumerWidget {
+  const _EventsDirectory();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(adminEventDirectoryProvider);
+    final canEdit = ref.watch(adminCanUpdateEventsProvider);
+    return AdminCard(
+      title: 'Events directory',
+      child: async.when(
+        loading: () => const AdminNote('Loading…'),
+        error: (_, __) => const AdminNote('Unavailable'),
+        data: (events) {
+          if (events == null) return const AdminNote('Not available to your role');
+          // The approved screen's own empty wording. It is only reachable once the
+          // capability has been confirmed, so it cannot stand in for a denial.
+          if (events.isEmpty) {
+            return const AdminNote('No events in this range.');
+          }
+          // THE GATE WRAPS EACH ROW'S ACTION, NOT THE ROWS. Wrapping the list meant
+          // that while the `Events·update` check was in flight, "Checking your
+          // permissions…" replaced every event — hiding records `Events·view` had already
+          // authorized, on the strength of a pending answer about a different verb.
+          // ONE decision, in one `when`, for all four states — and the rows render in
+          // every one of them. See [adminGatedList].
+          return adminGatedList(
+            canEdit,
+            denied: 'Read-only: editing an event requires Events · update.',
+            rows: (canAct) => [
+              for (final e in events.take(10)) _EventRow(event: e, canEdit: canAct),
+              const AdminFootnote(
+                  'Status is shown as recorded. The design\'s Scheduled/Full/Live/'
+                  'Draft/Cancelled labels are not a vocabulary this column holds, and '
+                  'event type has no column at all.'),
+              const AdminFootnote(
+                  'Price, publication status and vendor are not editable here — the '
+                  'governed path accepts none of them. Event revenue needs the '
+                  'Finance viewer role and is not read on this card.'),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _EventRow extends ConsumerWidget {
+  const _EventRow({required this.event, required this.canEdit});
+
+  final AdminEventRow event;
+
+  /// A confirmed `true` from the parent — never a collapsed error. The card states a failed
+  /// check once via [adminGatedList]; this flag only decides whether a button draws.
+  final bool canEdit;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final when = event.eventDate;
+    final cap = event.maxCapacity;
+    final reg = event.currentRegistered;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AdminDims.space3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(event.title ?? 'Untitled',
+                    style: const TextStyle(
+                        color: AdminColors.colorTextPrimary,
+                        fontSize: AdminDims.typeSmallSize,
+                        fontWeight: FontWeight.w500)),
+                Text(
+                    [
+                      // Each absence is stated, never filled with a plausible blank.
+                      when == null
+                          ? 'No date recorded'
+                          : when.toIso8601String().split('T').first,
+                      event.location ?? 'No location recorded',
+                      event.status ?? 'No status recorded',
+                      // Registered/capacity is only a pair when BOTH are recorded.
+                      if (reg != null && cap != null)
+                        '$reg / $cap registered'
+                      else if (reg != null)
+                        '$reg registered · no capacity recorded'
+                      else
+                        'Registrations not recorded',
+                    ].join(' · '),
+                    style: const TextStyle(
+                        color: AdminColors.colorTextMuted,
+                        fontSize: AdminDims.typeCaptionSize)),
+              ],
+            ),
+          ),
+          if (canEdit)
+            SizedBox(
+              height: AdminDims.sizeControl,
+              child: TextButton(
+                onPressed: event.id == null ? null : () => _edit(context, ref),
+                style: TextButton.styleFrom(
+                  foregroundColor: AdminColors.colorBrandAccent,
+                  minimumSize:
+                      const Size(AdminDims.sizeControl, AdminDims.sizeControl),
+                ),
+                child: const Text('Edit event',
+                    style: TextStyle(fontSize: AdminDims.typeCaptionSize)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _edit(BuildContext context, WidgetRef ref) async {
+    final title = TextEditingController(text: event.title ?? '');
+    final location = TextEditingController(text: event.location ?? '');
+    final capacity = TextEditingController(
+        text: event.maxCapacity == null ? '' : '${event.maxCapacity}');
+    DateTime? when = event.eventDate;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          backgroundColor: AdminColors.colorBgSurface,
+          title: const Text('Edit event',
+              style: TextStyle(
+                  color: AdminColors.colorTextPrimary,
+                  fontSize: AdminDims.typeCardTitleSize)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _field(title, 'Title'),
+              _field(location, 'Location'),
+              _field(capacity, 'Capacity', number: true),
+              const SizedBox(height: AdminDims.space6),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                        when == null
+                            ? 'No date recorded'
+                            : when!.toIso8601String().split('T').first,
+                        style: const TextStyle(
+                            color: AdminColors.colorTextSecondary,
+                            fontSize: AdminDims.typeSmallSize)),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final base = when ?? DateTime.now();
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: base,
+                        // An existing event may legitimately be in the past, so the
+                        // lower bound is the event itself, not today — unlike the create
+                        // form, where a past date would be a new mistake.
+                        firstDate: base.isBefore(DateTime(2020))
+                            ? DateTime(2020)
+                            : DateTime(base.year - 3),
+                        lastDate: DateTime(DateTime.now().year + 3),
+                      );
+                      // `ctx.mounted` before setState after an await — LIFE-G1.
+                      if (picked != null && ctx.mounted) {
+                        setState(() => when = picked);
+                      }
+                    },
+                    child: const Text('Change date',
+                        style: TextStyle(color: AdminColors.colorBrandAccent)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AdminDims.space4),
+              const Text(
+                  'Price, free/paid, publication status and vendor are not set here — '
+                  'the governed path accepts none of them. Clearing a field leaves it '
+                  'unchanged; it cannot blank a value.',
+                  style: TextStyle(
+                      color: AdminColors.colorTextSubtle,
+                      fontSize: AdminDims.typeCaptionSize)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel',
+                  style: TextStyle(color: AdminColors.colorTextMuted)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Save',
+                  style: TextStyle(
+                      color: AdminColors.colorBrandAccent,
+                      fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+
+    // ONLY WHAT CHANGED. See the class note: a field echoed back unchanged would let this
+    // form revert someone else's concurrent edit.
+    final newTitle = _changed(title.text, event.title);
+    final newLocation = _changed(location.text, event.location);
+    final parsedCap = int.tryParse(capacity.text.trim());
+    final newCap = parsedCap == event.maxCapacity ? null : parsedCap;
+    final newWhen = when == event.eventDate ? null : when;
+
+    if (newTitle == null &&
+        newLocation == null &&
+        newCap == null &&
+        newWhen == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AdminColors.colorBgRaised,
+          content: Text('Nothing was changed, so nothing was saved.',
+              style: TextStyle(color: AdminColors.colorTextSecondary)),
+        ));
+      }
+      return;
+    }
+
+    try {
+      await ref.read(adminMetricsServiceProvider).updateEvent(
+            eventId: event.id!,
+            title: newTitle,
+            location: newLocation,
+            eventDate: newWhen,
+            maxCapacity: newCap,
+          );
+      ref.invalidate(adminEventDirectoryProvider);
+      ref.invalidate(adminEventsOverviewProvider);
+    } catch (e, st) {
+      // The detail goes to the error sink, never into the sentence the operator reads —
+      // ERR-G2. And the sentence does not claim the write was saved.
+      reportError('admin_ecosystem.updateEvent', e, st, {'event': event.id});
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AdminColors.colorBgRaised,
+          content: Text(
+              'The event was not updated. You may not have permission. Nothing was '
+              'saved.',
+              style: TextStyle(color: AdminColors.colorStatusDangerText)),
+        ));
+      }
+    }
+  }
+
+  /// Null when the field is unchanged OR emptied — 165 treats null as "leave alone", and
+  /// it refuses a blank title anyway, so an emptied box is not a request to erase.
+  static String? _changed(String raw, String? was) {
+    final v = raw.trim();
+    if (v.isEmpty) return null;
+    return v == (was ?? '') ? null : v;
+  }
+
+  static Widget _field(TextEditingController c, String label,
+          {bool number = false}) =>
+      TextField(
+        controller: c,
+        keyboardType: number ? TextInputType.number : null,
+        style: const TextStyle(
+            color: AdminColors.colorTextPrimary, fontSize: AdminDims.typeSmallSize),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: AdminColors.colorTextMuted),
+        ),
+      );
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,7 +33,20 @@ final _denied = <Override>[
   adminOpenReportsProvider.overrideWith((_) async => null),
   adminCanModerateProvider.overrideWith((_) async => false),
   adminCanCreateEventsProvider.overrideWith((_) async => false),
+  // EVERY provider the screen reads is overridden, including the two added in §189. A
+  // provider left unmocked does not fail the test — it makes a REAL network call to QA,
+  // which is how the EC-04 job went from 2 minutes to a 25-minute cancellation.
+  adminEventDirectoryProvider.overrideWith((_) async => null),
+  adminCanUpdateEventsProvider.overrideWith((_) async => false),
 ];
+
+/// One directory row, built from a map so the test exercises the same `fromRow` parser the
+/// service uses rather than a hand-built object the parser never sees.
+List<Override> _withEvents(List<Map<String, Object?>> rows, {bool canEdit = false}) => [
+      adminEventDirectoryProvider.overrideWith(
+          (_) async => [for (final r in rows) AdminEventRow.fromRow(r)]),
+      adminCanUpdateEventsProvider.overrideWith((_) async => canEdit),
+    ];
 
 String _allText(WidgetTester t) =>
     t.widgetList<Text>(find.byType(Text)).map((w) => w.data ?? '').join(' | ');
@@ -337,5 +351,134 @@ void main() {
     expect(find.text('Payments with no recorded split'), findsOneWidget);
     expect(find.text('Payments with no recorded rate'), findsOneWidget);
   });
-}
 
+  // ── §189 · the Events directory and its Edit action ──────────────────────
+  testWidgets('a role without Events·view is told so — an empty directory is NEVER used '
+      'to mean "not authorized"', (t) async {
+    await _pump(t, _denied);
+    // The card renders, and its body is the denial rather than the design's empty wording.
+    expect(find.text('EVENTS DIRECTORY'), findsOneWidget);
+    expect(_allText(t).contains('No events in this range.'), isFalse);
+  });
+
+  testWidgets('authorized with nothing to show uses the approved empty wording, which is '
+      'only reachable AFTER the capability was confirmed', (t) async {
+    await _pump(t, [..._denied, ..._withEvents(const [])]);
+    expect(find.text('No events in this range.'), findsOneWidget);
+  });
+
+  testWidgets('a role with Events·view but not Events·update sees the rows and no Edit '
+      'action, and is told which capability is missing', (t) async {
+    await _pump(t, [
+      ..._denied,
+      ..._withEvents(const [
+        {'id': 'e1', 'title': 'Autumn workshop', 'location': 'Studio 2',
+         'event_date': '2027-03-01T10:00:00Z', 'max_capacity': 120,
+         'current_registered': 88, 'status': 'upcoming'},
+      ]),
+    ]);
+    expect(find.text('Autumn workshop'), findsOneWidget);
+    expect(find.text('Edit event'), findsNothing);
+    expect(_allText(t).contains('requires Events · update'), isTrue);
+  });
+
+  testWidgets('Events·update turns the action on', (t) async {
+    await _pump(t, [
+      ..._denied,
+      ..._withEvents(const [
+        {'id': 'e1', 'title': 'Autumn workshop', 'location': 'Studio 2',
+         'event_date': '2027-03-01T10:00:00Z', 'max_capacity': 120,
+         'current_registered': 88, 'status': 'upcoming'},
+      ], canEdit: true),
+    ]);
+    expect(find.text('Edit event'), findsOneWidget);
+    expect(_allText(t).contains('requires Events · update'), isFalse);
+  });
+
+  testWidgets('an unrecorded field is NAMED, never filled with a plausible blank — and a '
+      'registration count without a capacity does not become an occupancy', (t) async {
+    await _pump(t, [
+      ..._denied,
+      ..._withEvents(const [
+        {'id': 'e2', 'title': 'Desk mobility', 'location': null,
+         'event_date': null, 'max_capacity': null, 'current_registered': 0,
+         'status': null},
+      ]),
+    ]);
+    final text = _allText(t);
+    for (final phrase in ['No date recorded', 'No location recorded',
+                          'No status recorded', 'no capacity recorded']) {
+      expect(text.contains(phrase), isTrue, reason: 'missing "$phrase" in: $text');
+    }
+    // 0 registered with no capacity must not render as an occupancy percentage.
+    expect(RegExp(r'\d+\s*/\s*\d+').hasMatch(text), isFalse, reason: text);
+    expect(AdminEventRow.fromRow(const {'current_registered': 0}).occupancy, isNull);
+  });
+
+  testWidgets('the directory states what is NOT editable and what it does not read, so '
+      'the gaps are not read as missing fields', (t) async {
+    await _pump(t, [
+      ..._denied,
+      ..._withEvents(const [
+        {'id': 'e1', 'title': 'Autumn workshop', 'status': 'upcoming'},
+      ], canEdit: true),
+    ]);
+    final text = _allText(t);
+    expect(text.contains('Status is shown as recorded'), isTrue, reason: text);
+    expect(text.contains('event type has no column at all'), isTrue, reason: text);
+    expect(text.contains('Finance viewer role'), isTrue, reason: text);
+  });
+
+  // ── §189 · a pending capability check must not hide authorized data ───────
+  //
+  // THE DEFECT THESE TWO TESTS PIN. `adminCapabilityGate` renders an honest "Checking your
+  // permissions…" while a check is in flight. Wrapped around a LIST, that sentence replaces
+  // every row — so a pending answer about `·update` blanked records `·view` had already
+  // authorized. The events directory shipped with it in §189 and the moderation queue had
+  // carried it since §188. Each test keeps its capability permanently pending, which is
+  // exactly the state the defect lived in.
+  Future<void> pending(WidgetTester t, List<Override> o) async {
+    await t.binding.setSurfaceSize(const Size(500, 4000));
+    addTearDown(() => t.binding.setSurfaceSize(null));
+    await t.pumpWidget(ProviderScope(
+      overrides: o, child: const MaterialApp(home: AdminEcosystemScreen())));
+    for (var i = 0; i < 4; i++) {
+      await t.pump(const Duration(milliseconds: 50));
+    }
+  }
+
+  testWidgets('events · a pending Events·update check leaves the rows visible, offers no '
+      'action, and claims no denial', (t) async {
+    await pending(t, [
+      ..._denied,
+      adminEventDirectoryProvider.overrideWith((_) async => [
+            AdminEventRow.fromRow(const {
+              'id': 'e1', 'title': 'Autumn workshop', 'status': 'upcoming'}),
+          ]),
+      adminCanUpdateEventsProvider.overrideWith((_) => Completer<bool>().future),
+    ]);
+    expect(find.text('Autumn workshop'), findsOneWidget);
+    expect(find.text('Edit event'), findsNothing);
+    final text = _allText(t);
+    expect(text.contains('requires Events · update'), isFalse, reason: text);
+    expect(text.contains('Checking your permissions'), isFalse, reason: text);
+  });
+
+  testWidgets('moderation · a pending Community·update check leaves the queue and its '
+      'count visible — the rows are read under Community·view', (t) async {
+    await pending(t, [
+      ..._denied,
+      adminOpenReportsProvider.overrideWith((_) async => [
+            AdminContentReport.fromRow(const {
+              'id': 'r1', 'target_type': 'post', 'target_id': 'p1',
+              'reason': 'QA probe reason'}),
+          ]),
+      adminCanModerateProvider.overrideWith((_) => Completer<bool>().future),
+    ]);
+    expect(find.text('Open reports'), findsOneWidget);
+    expect(find.text('1'), findsWidgets);
+    final text = _allText(t);
+    expect(text.contains('requires Community · update'), isFalse, reason: text);
+    expect(text.contains('Checking your permissions'), isFalse, reason: text);
+  });
+}

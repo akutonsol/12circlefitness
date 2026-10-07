@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/admin_metrics.dart';
 import '../domain/admin_provider.dart';
+import '../../../core/observability/app_failure.dart';
 import 'admin_chrome.dart';
 import 'admin_metric_tile.dart';
 import 'admin_tokens.dart';
@@ -98,10 +99,23 @@ class AdminPeopleScreen extends ConsumerWidget {
             data: (rows) {
               if (rows == null) return const AdminNote('Not available to your role');
               if (rows.isEmpty) return const AdminNote('None');
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final u in rows.take(20)) _UserRow(entry: u),
+              // THE GATE WRAPS THE ACTION, NOT THE DATA — and that distinction cost a
+              // test. Putting `adminCapabilityGate` around the whole list meant that
+              // while the `Users·update` check was in flight, the gate's honest
+              // "Checking your permissions…" replaced EVERY ROW — hiding records the
+              // operator was already authorized to see by `Users·view`, on the strength
+              // of a pending answer about a different verb. Each row now gates its own
+              // trailing action, so a slow or failed `update` check can cost the button
+              // and never the data.
+              // ONE decision, in one `when`, for all four states — and the rows render in
+              // every one of them. See [adminGatedList] for the three shapes this
+              // replaced and the guard that rejected each.
+              return adminGatedList(
+                ref.watch(adminCanUpdateUsersProvider),
+                denied: 'Read-only: editing a profile requires Users · update.',
+                rows: (canAct) => [
+                  for (final u in rows.take(20))
+                    _UserRow(entry: u, canEdit: canAct),
                 ],
               );
             },
@@ -213,13 +227,32 @@ class AdminPeopleScreen extends ConsumerWidget {
 /// One account. Shows the name, the role and whether onboarding finished — named as what
 /// it is rather than relabelled "status", which would imply a state machine the schema
 /// does not have.
-class _UserRow extends StatelessWidget {
-  const _UserRow({required this.entry});
+/// One directory row, and the approved People screen's "Edit profile" action.
+///
+/// WHAT "Edit profile" MEANS HERE, AND WHAT IT DOES NOT. The only governed write that
+/// touches a profile from the Admin layer is `admin_update_user_name` (161), gated on
+/// `Users·update` like this row. So the action renames; it does not edit a plan, a payout
+/// or a tier, because no governed path accepts those from here.
+///
+/// "CHANGE ROLE" IS ABSENT ON PURPOSE, and this is the one omission worth stating in code
+/// rather than leaving as a gap. The approved row menu lists it, and
+/// `admin_set_user_role` exists (115:363) — but it gates on the legacy `is_admin()`, a
+/// `user_profiles.role = 'admin'` test, and NOT on the capability matrix that gates this
+/// row and every other Admin surface. Rendering it beside this action would either show
+/// an enabled control to a `Users·update` holder who will be refused 42501, or require
+/// widening role assignment to every holder of `Users·update`. The second is a
+/// privilege-escalation decision; neither is a wiring detail, so the control waits.
+class _UserRow extends ConsumerWidget {
+  const _UserRow({required this.entry, required this.canEdit});
 
   final AdminUserDirectoryEntry entry;
 
+  /// A confirmed `true` from the parent — never a collapsed error. The parent states the
+  /// failure once via [adminGatedList]; this flag only decides whether a button draws.
+  final bool canEdit;
+
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
         padding: const EdgeInsets.symmetric(vertical: AdminDims.space3),
         child: Row(
           children: [
@@ -248,7 +281,126 @@ class _UserRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (canEdit)
+              SizedBox(
+                height: AdminDims.sizeControl,
+                child: TextButton(
+                  onPressed: entry.id == null ? null : () => _rename(context, ref),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AdminColors.colorBrandAccent,
+                    minimumSize:
+                        const Size(AdminDims.sizeControl, AdminDims.sizeControl),
+                  ),
+                  child: const Text('Edit profile',
+                      style: TextStyle(fontSize: AdminDims.typeCaptionSize)),
+                ),
+              ),
           ],
+        ),
+      );
+
+  Future<void> _rename(BuildContext context, WidgetRef ref) async {
+    final first = TextEditingController(text: entry.firstName ?? '');
+    final last = TextEditingController(text: entry.lastName ?? '');
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AdminColors.colorBgSurface,
+        title: const Text('Edit profile',
+            style: TextStyle(
+                color: AdminColors.colorTextPrimary,
+                fontSize: AdminDims.typeCardTitleSize)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _field(first, 'First name'),
+            _field(last, 'Last name'),
+            const SizedBox(height: AdminDims.space4),
+            // Says what this form is NOT, so its narrowness is not read as a bug.
+            const Text(
+                'Name only. Role, plan, tier and payout details are not changed here — '
+                'no governed path accepts them from this screen. Clearing a box leaves '
+                'that name unchanged; it cannot blank a name.',
+                style: TextStyle(
+                    color: AdminColors.colorTextSubtle,
+                    fontSize: AdminDims.typeCaptionSize)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel',
+                style: TextStyle(color: AdminColors.colorTextMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Save',
+                style: TextStyle(
+                    color: AdminColors.colorBrandAccent,
+                    fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    // 161 coalesces each argument, so null means "leave this name alone". Sending back an
+    // unchanged name would be harmless to the row but would pad the audit trail with a
+    // changed-column list the operator did not change.
+    final newFirst = _changed(first.text, entry.firstName);
+    final newLast = _changed(last.text, entry.lastName);
+    if (newFirst == null && newLast == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AdminColors.colorBgRaised,
+          content: Text('Nothing was changed, so nothing was saved.',
+              style: TextStyle(color: AdminColors.colorTextSecondary)),
+        ));
+      }
+      return;
+    }
+
+    try {
+      await ref.read(adminMetricsServiceProvider).updateUserName(
+            userId: entry.id!,
+            firstName: newFirst,
+            lastName: newLast,
+          );
+      ref.invalidate(adminUserDirectoryProvider);
+    } catch (e, st) {
+      // The names are NOT put in the error payload. 161 refuses to record them in its own
+      // audit row because the values re-identify a pseudonymous subject, and an error
+      // sink is not a weaker place to leak them.
+      reportError('admin_people.updateUserName', e, st, {'user': entry.id});
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AdminColors.colorBgRaised,
+          content: Text(
+              'The profile was not updated. You may not have permission. Nothing was '
+              'saved.',
+              style: TextStyle(color: AdminColors.colorStatusDangerText)),
+        ));
+      }
+    }
+  }
+
+  /// Null when unchanged or emptied — 161 refuses a blank name, so an emptied box is not
+  /// a request to erase one.
+  static String? _changed(String raw, String? was) {
+    final v = raw.trim();
+    if (v.isEmpty) return null;
+    return v == (was ?? '') ? null : v;
+  }
+
+  static Widget _field(TextEditingController c, String label) => TextField(
+        controller: c,
+        style: const TextStyle(
+            color: AdminColors.colorTextPrimary, fontSize: AdminDims.typeSmallSize),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: AdminColors.colorTextMuted),
         ),
       );
 }
