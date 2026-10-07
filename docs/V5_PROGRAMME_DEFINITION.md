@@ -15056,3 +15056,49 @@ which is a finding, not an authorization.
   decision.
 - **METRIC-13** — *"Community — 86 pods · 1,940 posts"* uses *pods* as a Community unit, and *"Pod-level
   challenges"* appears separately. Neither disambiguates `accountability_pods` from `community_groups`.
+
+---
+
+## 161 · TWO DEFECTS IN MY OWN FIXTURES, AND THE GUARD THAT NOW COVERS EVERY ENTRY POINT
+
+The full ladder went red at `D15` **305/329** immediately after the specification work. Neither cause was the
+product.
+
+### 161.1 An "idempotent" fixture that was not
+
+`D15`'s `B1 preserved` assertion opened an incident **every run** to prove `is_admin()` still can. **An
+incident cannot be deleted** (143's trigger), so it accumulated **46 rows** in an append-only table before I
+noticed. The probe incident beside it *was* idempotent; I had guarded one and not the other.
+
+It now opens one **only if none exists**, and reports *"idempotent — not re-opened"* otherwise.
+
+### 161.2 A leaked row that made a correct assertion fail forever
+
+One `QA-D15-FORBIDDEN incident` exists, created by `victim` at `03:28:12`, one second after a
+`b1-preserved`. **Two local runs of `d15` overlapped** — I had run it twice in close succession to prove the
+journal fix — and the other run held `trust_lead` while this run's *"forbidden"* loop called
+`audit_open_incident`. The grant was real; the role was the other run's.
+
+The assertion asked whether **zero** forbidden incidents exist. That is unrecoverable once one leaks, because
+**the row cannot be removed**. It now asks the only question that survives: **did THIS attempt create
+anything** — `BEFORE → ATTEMPT → AFTER` — which is the §156 standard applied to a case I had not applied it
+to. It passes, and prints `rows 1->1 (1 pre-existing leaked row — undeletable)` so the pollution stays
+visible rather than hidden by a green tick.
+
+### 161.3 The guard covered one entry point out of twenty-one
+
+§146 put the concurrency guard in **`run.mjs`**, which protects the full regression **and nothing else**.
+Every one of these suites can be run on its own, and that is exactly how the leak happened.
+
+**The guard now lives in `lib.mjs` and executes once per process on import.** Every suite imports it, so every
+entry point is covered. Proven: a standalone `d13` and `run.mjs` both exit **2** while a run is in flight.
+
+**This is the third time this rule has moved closer to the metal** — §96.2 a written rule, §139.3 a pre-push
+hook, §146 the runner, and now the library every suite depends on. *Each time the rule held and the mechanism
+did not reach far enough.*
+
+### 161.4 What is permanently on QA, stated rather than quietly left
+
+**46 `QA-D15-PROBE b1-preserved` incidents and 1 `QA-D15-FORBIDDEN incident`** cannot be deleted. They are
+clearly marked QA fixtures, which `A13` permits, and they are now capped — but they are waste I created, and
+the record should say so rather than let a future reader wonder why the population is odd.

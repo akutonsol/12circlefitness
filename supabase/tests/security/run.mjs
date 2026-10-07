@@ -25,7 +25,6 @@
 // (`gh run list --branch <branch> --limit 1`). A red result from a collision is
 // indistinguishable at a glance from a real regression, which is the whole reason
 // this warning is here rather than in a commit message.
-import { execFileSync } from 'node:child_process';
 import { results, beginSuite } from './lib.mjs';
 
 // ⚠ REFUSES TO START WHILE CI IS RUNNING THE SAME SUITES AGAINST THE SAME QA PROJECT.
@@ -45,39 +44,9 @@ import { results, beginSuite } from './lib.mjs';
 // because a CLI is missing is worse than the problem it prevents.
 //
 //   ALLOW_CONCURRENT_QA_RUN=1 node supabase/tests/security/run.mjs   # deliberate
-function refuseIfCiRunning() {
-  if (process.env.ALLOW_CONCURRENT_QA_RUN === '1') return;
-  if (process.env.CI) return;                       // this IS the CI runner
-  let branch, raw;
-  try {
-    branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-    raw = execFileSync('gh', ['run', 'list', '--branch', branch, '--limit', '10',
-      '--json', 'status,databaseId,headSha'],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-  } catch {
-    console.log('  (could not check for in-flight CI — proceeding)');
-    return;
-  }
-  let live = [];
-  try {
-    live = JSON.parse(raw).filter((r) =>
-      ['queued', 'in_progress', 'requested', 'waiting', 'pending'].includes(r.status));
-  } catch { return; }
-  if (!live.length) return;
-  console.error(`\n  ✋ REFUSING TO RUN — CI is executing on "${branch}":`);
-  for (const r of live) console.error(`     run ${r.databaseId}  ${String(r.headSha).slice(0, 7)}  ${r.status}`);
-  console.error(`
-  Both would arrange the SAME fixtures against the SAME QA project. V5 §95 produced
-  four failures that read like an authorization hole and were not; §146 produced a
-  J-04 failure in a suite the change never touched.
+// The concurrency guard now lives in lib.mjs, so it protects EVERY suite — including
+// a suite run on its own, which is how the §161 fixture leak happened.
 
-  Wait for it, or override deliberately:
-      ALLOW_CONCURRENT_QA_RUN=1 node supabase/tests/security/run.mjs
-`);
-  process.exit(2);
-}
-refuseIfCiRunning();
 
 const SUITES = [
   ['D-01  coach_client_relationships', './d01-coach-client-relationships.mjs'],

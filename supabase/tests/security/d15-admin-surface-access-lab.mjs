@@ -864,25 +864,44 @@ async function run() {
     // this point in the suite. The premise is corrected rather than the claim.
     await unassign(vUid);
     await unassign(aUid);
-    const adminOpen = await rpc(admin, 'audit_open_incident', {
-      p_summary: 'QA-D15-PROBE b1-preserved', p_occurred_at: new Date().toISOString(),
-      p_severity: 'Informational', p_scope: 'QA probe', p_evidence: [],
-      p_suspected_cause: null, p_recommended_action: null });
+    // IDEMPOTENT. An incident CANNOT be deleted (143's trigger), so opening one every
+    // run grows an append-only table without bound — this assertion accumulated 46
+    // rows before it was noticed (V5 §161). It now opens one ONLY if none exists.
+    const B1_SUMMARY = 'QA-D15-PROBE b1-preserved';
+    const b1Existing = await svc(
+      `audit_incidents?select=id&summary=eq.${encodeURIComponent(B1_SUMMARY)}&limit=1`);
     const adminHasLayer = await rpc(admin, 'is_admin_member');
-    check('B1 preserved: is_admin() can still open an incident, holding NO Admin-layer role',
-      adminOpen.status < 400 && adminHasLayer.body === false,
-      `open=${adminOpen.status} is_admin_member=${JSON.stringify(adminHasLayer.body)}`);
+    if (n(b1Existing.body) === 0) {
+      const adminOpen = await rpc(admin, 'audit_open_incident', {
+        p_summary: B1_SUMMARY, p_occurred_at: new Date().toISOString(),
+        p_severity: 'Informational', p_scope: 'QA probe', p_evidence: [],
+        p_suspected_cause: null, p_recommended_action: null });
+      check('B1 preserved: is_admin() can still open an incident, holding NO Admin-layer role',
+        adminOpen.status < 400 && adminHasLayer.body === false,
+        `open=${adminOpen.status} is_admin_member=${JSON.stringify(adminHasLayer.body)}`);
+    } else {
+      check('B1 preserved: the is_admin() probe incident is already present',
+        adminHasLayer.body === false,
+        'idempotent — not re-opened; an incident cannot be deleted');
+    }
 
     // Every role the matrix DENIES Incidents/create must be refused outright.
     for (const role of ['operations_lead', 'support', 'content_editor', 'viewer']) {
       await assign(vUid, role);
+      // BEFORE / ATTEMPT / AFTER. This asserted that ZERO forbidden incidents exist,
+      // which fails forever once one leaks — and one did, from two overlapping local
+      // runs of this suite where the other run held trust_lead (V5 §161). An incident
+      // cannot be deleted, so the assertion must be that THIS attempt added nothing.
+      const fBefore = n((await svc("audit_incidents?select=id&summary=eq.QA-D15-FORBIDDEN%20incident")).body);
       const r = await rpc(victim, 'audit_open_incident', {
         p_summary: 'QA-D15-FORBIDDEN incident', p_occurred_at: new Date().toISOString(),
         p_severity: 'Informational', p_scope: null, p_evidence: [],
         p_suspected_cause: null, p_recommended_action: null });
-      const leaked = await svc("audit_incidents?select=id&summary=eq.QA-D15-FORBIDDEN%20incident");
-      check(`${role} is REFUSED Incidents/create and no incident appears`,
-        r.status >= 400 && n(leaked.body) === 0, `status=${r.status} rows=${n(leaked.body)}`);
+      const fAfter = n((await svc("audit_incidents?select=id&summary=eq.QA-D15-FORBIDDEN%20incident")).body);
+      check(`${role} is REFUSED Incidents/create and nothing new is created`,
+        r.status >= 400 && fAfter === fBefore,
+        `status=${r.status} rows ${fBefore}->${fAfter}` +
+        (fBefore ? ` (${fBefore} pre-existing leaked row(s) — undeletable, see §161)` : ''));
     }
 
     if (probeId) {

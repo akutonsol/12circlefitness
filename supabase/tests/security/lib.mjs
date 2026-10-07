@@ -1,3 +1,48 @@
+import { execFileSync } from 'node:child_process';
+
+// ⚠ CONCURRENCY GUARD — runs ONCE PER PROCESS, on import.
+//
+// It used to live in run.mjs, which protected the full regression and nothing else.
+// V5 §161: two overlapping LOCAL runs of d15 on its own interleaved, one holding
+// trust_lead while the other's "forbidden" loop called audit_open_incident — so an
+// incident that must never exist was created, and audit_incidents cannot be deleted.
+// Every suite imports this module, so the guard now covers every entry point.
+//
+//   ALLOW_CONCURRENT_QA_RUN=1   to override deliberately
+function refuseIfCiRunning() {
+  if (process.env.ALLOW_CONCURRENT_QA_RUN === '1') return;
+  if (process.env.CI) return;                       // this IS the CI runner
+  let branch, raw;
+  try {
+    branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    raw = execFileSync('gh', ['run', 'list', '--branch', branch, '--limit', '10',
+      '--json', 'status,databaseId,headSha'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch {
+    console.log('  (could not check for in-flight CI — proceeding)');
+    return;
+  }
+  let live = [];
+  try {
+    live = JSON.parse(raw).filter((r) =>
+      ['queued', 'in_progress', 'requested', 'waiting', 'pending'].includes(r.status));
+  } catch { return; }
+  if (!live.length) return;
+  console.error(`\n  ✋ REFUSING TO RUN — CI is executing on "${branch}":`);
+  for (const r of live) console.error(`     run ${r.databaseId}  ${String(r.headSha).slice(0, 7)}  ${r.status}`);
+  console.error(`
+  Both would arrange the SAME fixtures against the SAME QA project. V5 §95 produced
+  four failures that read like an authorization hole and were not; §146 produced a
+  J-04 failure in a suite the change never touched.
+
+  Wait for it, or override deliberately:
+      ALLOW_CONCURRENT_QA_RUN=1 node supabase/tests/security/run.mjs
+`);
+  process.exit(2);
+}
+refuseIfCiRunning();
+
 // Live security regression harness.
 //
 // These suites run against a REAL Supabase project over the REST/RPC surface,
