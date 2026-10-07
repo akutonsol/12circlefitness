@@ -89,3 +89,12 @@ final adminWearableConnectionsProvider =
 final adminUserDirectoryProvider =
     FutureProvider<List<AdminUserDirectoryEntry>?>((ref) async =>
         ref.watch(adminMetricsServiceProvider).getUserDirectory());
+
+final adminRoleCapabilitiesProvider = FutureProvider<List<AdminRoleCapability>?>(
+    (ref) async => ref.watch(adminMetricsServiceProvider).getRoleCapabilities());
+
+final adminAdministratorCountProvider = FutureProvider<int?>(
+    (ref) async => ref.watch(adminMetricsServiceProvider).getAdministratorCount());
+
+final adminPlatformSettingsProvider = FutureProvider<List<AdminPlatformSetting>?>(
+    (ref) async => ref.watch(adminMetricsServiceProvider).getPlatformSettings());

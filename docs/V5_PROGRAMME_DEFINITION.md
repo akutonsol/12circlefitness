@@ -16990,3 +16990,64 @@ QA frontier **178** (no migration) · Flutter **1834 / 5 skipped** (1822 → 183
 `dart analyze` **0 errors** · `ROUTE-G1` green · live security **993/993**.
 
 **Production was not contacted.**
+
+---
+
+## §186 · P5 · Settings — the design kept where nothing backs it
+
+Settings has the longest published section list of the six pages, and **most of it has no
+surface behind it.** `BOUNDARIES F` rules the posture: *"Designs kept. Approved design
+requirement; implementation/architecture capability required."* So every section is present,
+and each unbacked one carries **its own specific reason** rather than being dropped — which
+would make the product smaller to fit the architecture — or filled with invented fields,
+which would assert a schema nobody designed.
+
+**Backed, and built:**
+
+- **`#roles`** — `admin_role_capabilities`, which is **the `CONF-D7` artifact itself**.
+  Migration 155 records *"Owner (Julia) approved the complete 85-cell / 425-grant
+  authorization policy"*, so this section renders **the governing policy**, not a
+  description of it: the grant total, the role count, the area count and a per-role grant
+  count. A per-role figure matters because a role quietly losing grants would otherwise hide
+  inside a total — and the card states that a disagreement with
+  `validate-admin-capability-matrix.mjs` would mean the policy had **drifted**.
+- **`#users` (Administrators)** — `admin_role_assignments`.
+- **`#platform` (General)** — `platform_settings`, a generic key/value store. Values are
+  shown **as stored**: `0.10` is not reformatted to `10%`, because the table declares no
+  unit and a settings page that parsed values would assert a schema it does not have.
+
+**Not backed, each stating its own absence:** `#organization` — **there is no organization
+table at all**, and choosing its fields is a product decision — plus `#notifications`,
+*AI & intelligence*, `#privacy`, `#security` and `#billing` configuration, which have a store
+but **no vocabulary**; §77.3's precedent is to refuse to invent one. The test asserts the
+reasons are **distinct**, so a shared placeholder cannot masquerade as seven findings, and
+that no invented organization field (`Organization name`, `Address`, `Legal entity`,
+`Tax ID`, `Logo`) appears.
+
+**No aggregate migration was written for any of it**, and no vocabulary invented. The page is
+**read-only**: a settings write would need its own authorization review against the matrix,
+and none is authorized here.
+
+### §186.1 · P5's six published pages now exist
+
+| IA page | route | backing |
+|---|---|---|
+| Dashboard | `/admin-metrics` | metrics 171–178 + the attention queue |
+| People | `/admin-people` | 160 directory + 166/172/176 overview |
+| Ecosystem | `/admin-ecosystem` | 156/157/166/170/171/172/178 |
+| Trust | `/admin-trust` | 156/159/160/163/167/169 |
+| Operations | `/admin-operations` | 173/174 + 157 + 159 |
+| Settings | `/admin-settings` | 155/156 matrix + `platform_settings` |
+
+Every page is read-only, gates nothing client-side (authorization is `admin_can` server-side
+on every surface), keeps *"not available to your role"* and *"not recorded"* distinct, and
+**states each requirement it does not serve** instead of leaving a blank that reads as an
+oversight.
+
+### §186.2 · Verification
+
+QA frontier **178** (no migration for any of the six pages) · Flutter **1845 / 5 skipped**
+(1834 → 1845) · `dart analyze` **0 errors** · `ROUTE-G1` green · live security **993/993**
+at the last clear run.
+
+**Production was not contacted.**

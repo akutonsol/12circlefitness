@@ -614,6 +614,51 @@ class AdminUserDirectoryEntry {
       );
 }
 
+/// The approved authorization matrix as the Admin layer may read it
+/// (`admin_role_capabilities`, gated `Roles·view` by 156).
+///
+/// This is the `CONF-D7` artifact — migration 155 records *"Owner (Julia) approved the
+/// complete 85-cell / 425-grant authorization policy"* — so the Settings `#roles` section
+/// renders the governing policy itself rather than a description of it.
+class AdminRoleCapability {
+  const AdminRoleCapability({
+    required this.adminRole,
+    required this.area,
+    required this.verb,
+  });
+
+  final String? adminRole;
+  final String? area;
+  final String? verb;
+
+  static AdminRoleCapability fromRow(Map<String, dynamic> r) => AdminRoleCapability(
+        adminRole: r['admin_role'] as String?,
+        area: r['area'] as String?,
+        verb: r['verb'] as String?,
+      );
+}
+
+/// One `platform_settings` key. A generic key/value store, so the model carries the key
+/// and the value AS TEXT and interprets neither — a settings page that parsed values
+/// would be asserting a schema the table does not have.
+class AdminPlatformSetting {
+  const AdminPlatformSetting({
+    required this.key,
+    required this.value,
+    required this.updatedAt,
+  });
+
+  final String? key;
+  final String? value;
+  final DateTime? updatedAt;
+
+  static AdminPlatformSetting fromRow(Map<String, dynamic> r) => AdminPlatformSetting(
+        key: r['key'] as String?,
+        value: r['value'] as String?,
+        updatedAt: _date(r['updated_at']),
+      );
+}
+
 // ── parsing ────────────────────────────────────────────────────────────────
 // PostgREST returns bigint and numeric as JSON numbers or strings depending on
 // magnitude and type. Each of these returns null for a null or unparseable

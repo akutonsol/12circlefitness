@@ -114,6 +114,45 @@ class AdminMetricsService {
     ];
   }
 
+  /// The approved capability matrix, gated `Roles·view` (156). Returns null when the
+  /// caller lacks it, asked rather than inferred from an empty read.
+  Future<List<AdminRoleCapability>?> getRoleCapabilities() async {
+    final permitted = await _db
+        .rpc('admin_can', params: {'p_area': 'Roles', 'p_verb': 'view'});
+    if (permitted != true) return null;
+    final rows = await _db
+        .from('admin_role_capabilities')
+        .select('admin_role, area, verb')
+        .order('area', ascending: true);
+    return [
+      for (final r in rows) AdminRoleCapability.fromRow(Map<String, dynamic>.from(r)),
+    ];
+  }
+
+  /// Role ASSIGNMENTS — who holds an Admin role. Gated `Roles·view` (156).
+  Future<int?> getAdministratorCount() async {
+    final permitted = await _db
+        .rpc('admin_can', params: {'p_area': 'Roles', 'p_verb': 'view'});
+    if (permitted != true) return null;
+    final rows = await _db.from('admin_role_assignments').select('user_id');
+    return rows.length;
+  }
+
+  /// `platform_settings`, gated `Configuration·view`. The store is generic key/value, so
+  /// the values are carried as text and interpreted nowhere.
+  Future<List<AdminPlatformSetting>?> getPlatformSettings() async {
+    final permitted = await _db
+        .rpc('admin_can', params: {'p_area': 'Configuration', 'p_verb': 'view'});
+    if (permitted != true) return null;
+    final rows = await _db
+        .from('platform_settings')
+        .select('key, value, updated_at')
+        .order('key', ascending: true);
+    return [
+      for (final r in rows) AdminPlatformSetting.fromRow(Map<String, dynamic>.from(r)),
+    ];
+  }
+
   Future<T?> _one<T>(
     String view,
     T Function(Map<String, dynamic>) parse,
