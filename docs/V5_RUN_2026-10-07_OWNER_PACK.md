@@ -1,5 +1,10 @@
 # V5 autonomous run — 2026-10-07 — consolidated owner pack
 
+**Third revision.** A full eleven-phase V5 traversal (§182) replaced the earlier P0-only
+census and added the two items below, **Q6** and **Q7** — the single gates on the only two
+phases that are partially executed. It also found **two recorded gates already satisfied**;
+see §0b.
+
 **Second revision.** The first version of this pack carried twelve items. **Six are now
 closed** — by existing authority, by measuring the published artifacts, or because I had
 re-asked something already answered. They are listed in §0 so the same questions are not
@@ -20,6 +25,17 @@ a valid answer.
 | **B2 · should an unknown coaching mode require approval?** | Resolved by **authority**, then fixed (§175.1, migration 177). `product-bible:111` forbids bypassing the matrix for coach-guided clients, `:116` forbids a claim it cannot ground, `decision-log:18` licenses auto-apply **only** for AI/self-guided, and `MASTER_PRODUCT_DECISIONS:63` says of this very function that silently disabling the matrix is *"a hard-constraint violation… **No decision needed**"*. |
 | **C2 · the untokenised severity colour** | Resolved by measuring the package (§176). The approved screens hold **zero `var(--adm-*)` references and 447 literal hex values**; `admin.tokens.css` is **derived from** them and **normalises** — `#f07a8c` ×80 vs `#f08a9b` ×15, six danger-tint alphas collapsed to one, `11px` chosen over `11.5px` as a scale step. Reading from the tokens is **conformance**, not deviation. §168.2 corrected. |
 | **A1 · METRIC-02's weekly window** | **Superseded, and I asked the wrong question.** The data contract (`:98`) names the sub-questions the definition must settle, and the week is not among them. See **Q1** and **Q2**, which are. |
+
+---
+
+## 0b · CLOSED by the phase traversal (§182.1, §182.2)
+
+| was | why it is closed |
+|---|---|
+| **`CONF-D7`** — the Admin role matrix, recorded as P5's gate and as *"the largest security specification gap"* | **Satisfied and implemented.** Migration **155**'s header records *"Owner (Julia) approved the complete 85-cell / 425-grant authorization policy"*. The matrix is seeded at **116 rows** with its authority named, `validate-admin-capability-matrix.mjs` holds it there, and D14 proves all **425** combinations. Every surface in this programme gates on it. |
+| **Trust IA** — recorded as P5's gate and as P6's blocker (*"the surface with NO approved design"*) | **Satisfied.** The design publication postdates §97.2 and contains an authoritative six-item IA plus a **286 KB Trust screen** with named sections (`#overview`, `#ai-guardian`, `#security`, `#incidents`, `#audit`, `#trust-system`) and stated data requirements — **all four of which already have shipped surfaces** from the CONF-D8 work. |
+
+So **P5's four recorded gates are now one**, and **P6 is no longer blocked on design**.
 
 ---
 
@@ -48,6 +64,18 @@ that one card.
 `design/12circle-plus-admin-dashboard` is **not an ancestor of this branch**. The token
 layer is generated from it by `git show`, four documents carry a provenance block, and a
 guard fails CI on any design citation that resolves nowhere. **Blocks:** nothing.
+
+**Q6 · The nine domain placements — the SOLE remaining gate on P5.** *(§182.1)*
+You reaffirmed the **six-item IA** and the **twelve domains** separately; reaffirming both
+does not map one onto the other, and every navigation dropdown is closed in all four
+screens. **Blocks:** the remaining Control Center scope, and therefore P6 → P7 behind it.
+**Does not block:** anything already built — the metric surfaces, the token layer, the
+panel, the attention queue and `/admin-metrics` are all live and CI-verified without it.
+
+**Q7 · `D-1` — the SEC-W1 negative-control reconstruction mechanism.** *(§182)*
+`§16.1` lists it under *"What remains owner-controlled"*, blocking *"QAX-SEC-08's fourth
+rung — **and nothing else**"*. Three of its four rungs are held. **Blocks:** one rung of one
+P1 finding. **Does not block:** any other P1 work, and nothing downstream.
 
 **Q5 · Add a Phosphor icon dependency?** The inventory names **107 icons** across the Admin
 pages. My implemented surface uses **one**, substituted with a Material fill-weight
