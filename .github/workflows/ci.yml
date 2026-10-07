@@ -647,6 +647,48 @@ jobs:
   #  on live-qa's `creds` output, which reports whether a credential EXISTS and
   #  never its value. No service-role key: every fixture write is performed by a
   #  committed QA-only is_demo identity under the RLS that already governs it.
+  # EC-04 — the risk badge's END-TO-END rung. QA_CLOSURE_STANDARD §2's
+  #  "Error contract / false success" class requires VERIFIED END-TO-END for any
+  #  user-facing success state, and SEC-G6 only supplies the static CI rung.
+  #
+  #  The reason this is not ceremony: the fix distinguishes "unassessed" from "low risk"
+  #  by COLOUR and by LABEL, and a screen reader conveys no colour. If the label did not
+  #  reach the platform accessibility tree, EC-04's harm — a coach told a client is low
+  #  risk when nobody assessed them — would persist for exactly the users least able to
+  #  notice it. Only a device run can read the real semantics tree.
+  #
+  #  It touches NO backend and signs nothing in: the probe overrides
+  #  clientDetailProvider with an in-memory profile, so there is no fixture to retire and
+  #  this job needs no credential gate. It therefore does not depend on live-qa.
+  ec04-e2e:
+    name: EC-04 — risk badge end-to-end (real semantics tree)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Linux desktop toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev xvfb \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libsecret-1-dev
+
+      - name: flutter pub get
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      # The harness refuses to report success unless the probe's markers appear, so a
+      # toolchain failure exits as INFRASTRUCTURE (2) and can never be read as evidence.
+      - name: EC-04 — drive the badge and read the accessibility tree
+        run: xvfb-run -a apps/mobile/tool/negative_control/ec04_risk_badge_e2e.sh
+
   uix1-e2e:
     name: UIX-1 — booking surface end-to-end (real route, real paywall)
     runs-on: ubuntu-latest

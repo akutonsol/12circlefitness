@@ -16387,3 +16387,88 @@ the source screens. No owner decision, no design decision, nothing to merge.
 Still genuinely open and unchanged: whether to **merge the design branch** (the artifacts
 remain reachable only at `931218b`), and the **Phosphor icon dependency**, which is a
 package decision rather than a visual one.
+
+---
+
+## §177 · Where remediation state may legitimately be recorded — and the rung EC-04 was missing
+
+### §177.1 · The progress board cannot record these either
+
+The directive asked whether any artifact other than the protected registry can record the
+four remediations' state. **The answer is no, and the reason is in the artifact itself.**
+`REMEDIATION_PROGRESS.md` opens with:
+
+> *"A status change here must be accompanied by the matching change in
+> `MASTER_REMEDIATION_REGISTRY.md` … **This board never leads the registry.**"*
+
+So writing closures there would break its own governing rule, not satisfy it. The
+legitimate record is **evidence without a status assertion** — which is what §169–§176
+already are. Nothing further is needed, and nothing further may be written.
+
+### §177.2 · Reading the closure classes changed two of the four verdicts
+
+`QA_CLOSURE_STANDARD` §2 scores by **class**, not uniformly, and checking each finding's
+class against what I had actually produced found a real gap:
+
+| finding | class | required rungs | state |
+|---|---|---|---|
+| `ENG-02` | Security / authorization | code · QA · **live** · CI | **all met** — 175 at frontier, D17 22/22, CI green `774e9cb` + `a50a490` |
+| `I-COM-01` | Data contract / schema | code · QA · CI *with the allowlist entry removed* · live where a read path exists | **all met** — allowlist 3→2 bidirectionally, corrected read returns 200 live, CI green `f1eac8c` |
+| `EC-04` | Error contract / false success | code · CI *asserting the failure path* · **VERIFIED END-TO-END** for a user-facing success state | **rung missing** |
+| `EC-03` | Error contract / false success | same | **rung missing** |
+
+I had reported both EC findings as remediated and CI-verified. That is true and it is not
+the whole ladder: their class requires an end-to-end rung, and the risk badge and the
+intake flow are both **user-facing states**.
+
+### §177.3 · Why that rung is not ceremony for EC-04
+
+The fix distinguishes *unassessed* from *low risk* by **colour and by label**. **A screen
+reader conveys no colour.** If the label did not reach the platform accessibility tree, the
+defect would persist for precisely the users least able to notice it — and EC-04's harm is
+a coach being told a client is low risk when nobody assessed them. Only a device run can
+read the real semantics tree; the host harness renders in Ahem and reports no platform
+semantics.
+
+So `integration_test/ec04_risk_badge_device_test.dart` mounts the real
+`ClientDetailScreen` with `clientDetailProvider` overridden to a `risk_level`-less profile,
+then asserts the visible label, that the pill does not clip at the real font and dpr, and
+**that the accessibility tree contains "not assessed" and does not contain "low risk"**.
+Two control cases assert an assessed `low` and `high` still render, so the fix is shown to
+have preserved the states it was not meant to change. Nothing is signed in and no backend
+is touched.
+
+### §177.4 · The harness refuses to report success over an infrastructure failure
+
+`ec04_risk_badge_e2e.sh` follows `uix1_booking_e2e.sh`: the probe emits `EC04-MARKER`
+lines, and the harness **exits 2 as an INFRASTRUCTURE failure** if they are absent, rather
+than reporting a pass or an EC-04 regression. A zero exit alone is not accepted either —
+every marker must be present, or the assertions did not execute the paths they claim to.
+A green exit over a screen nobody mounted is the most expensive kind of false evidence.
+
+**This was verified on this machine, and it refused correctly.** See below.
+
+### §177.5 · INFRASTRUCTURE BLOCKER — the device rung cannot be verified on this host
+
+`xcode-select -p` is `/Library/Developer/CommandLineTools` and **there is no `Xcode.app`**,
+so `xcrun` cannot find `xcodebuild` and the macOS desktop target cannot build here. The
+probe therefore cannot be run locally, and **installing Xcode is not something this run
+can or should do** — it needs the owner's machine and password.
+
+Running the harness anyway produced exactly the right outcome: **exit 2,
+`INFRASTRUCTURE FAILURE: the probe never ran — toolchain or device error, not an EC-04
+result.`** It reported neither a pass nor a regression. That is the discrimination pass
+working, proved against a real toolchain failure rather than a simulated one.
+
+CI has the Linux desktop target with `xvfb` and already runs this class of probe, so the
+new `ec04-e2e` job carries the rung. **The blocker is local only; it blocks nothing in
+CI.**
+
+### §177.6 · What remains for EC-03
+
+EC-03's end-to-end rung is **not** built. Its user-facing state is the intake flow's
+failed-save banner, which needs a driver that makes the save genuinely fail — a harder
+fixture than overriding one provider, and it touches the onboarding path. It is recorded
+as remaining authorized frontier rather than claimed.
+
+**Production was not contacted.**
