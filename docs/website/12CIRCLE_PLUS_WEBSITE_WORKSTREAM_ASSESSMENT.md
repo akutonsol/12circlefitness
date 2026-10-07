@@ -1,5 +1,7 @@
 # 12Circle+ public website — workstream assessment (read-only)
 
+> **Superseded in part by [`12CIRCLE_PLUS_WEBSITE_OWNER_DIRECTION.md`](12CIRCLE_PLUS_WEBSITE_OWNER_DIRECTION.md) (2026-10-07).** Accepted as the discovery baseline. Owner direction: a public site exists with the broader scope Claude Design is designing (WEB-OD-01). Claude Design is the design authority (WEB-OD-05). WEB-OD-02/03 stay open. The §F "minimum viable site" and §P "first buildable unit" scope advice is withdrawn.
+
 | | |
 |---|---|
 | Date | 2026-10-07 |

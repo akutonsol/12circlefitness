@@ -1,5 +1,7 @@
 # 12Circle+ public website — consolidated owner decision package
 
+> **Superseded in part by [`12CIRCLE_PLUS_WEBSITE_OWNER_DIRECTION.md`](12CIRCLE_PLUS_WEBSITE_OWNER_DIRECTION.md) (2026-10-07).** WEB-OD-01 is settled (a site exists, with broad scope). WEB-OD-05 is assigned to Claude Design. The "(a) now", "commission" and "plain template" recommendations are withdrawn. All other decisions are re-batched after design reconciliation.
+
 Companion to [`12CIRCLE_PLUS_WEBSITE_WORKSTREAM_ASSESSMENT.md`](12CIRCLE_PLUS_WEBSITE_WORKSTREAM_ASSESSMENT.md).
 Each decision is stated once, with a recommendation. **None has been taken on the owner's behalf.**
 These are website-only decisions. They do not block V5, and V5 decisions block them only where a row

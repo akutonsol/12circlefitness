@@ -222,23 +222,22 @@ QA_DB_URL    : add as a CI secret? Y / N
 > This part exists only on branch `workstream/12c-plus-website`. Website blockers do not block V5,
 > and V5 blockers block the website only where named below.
 
-**Status:** assessed (read-only). **Stop condition met:** no website design, scope, hosting or domain exists,
-and none was invented. No website code has been written.
+**Status (owner direction 2026-10-07, [`docs/website/12CIRCLE_PLUS_WEBSITE_OWNER_DIRECTION.md`](website/12CIRCLE_PLUS_WEBSITE_OWNER_DIRECTION.md)):**
 
-- Assessment A–P: [`docs/website/12CIRCLE_PLUS_WEBSITE_WORKSTREAM_ASSESSMENT.md`](website/12CIRCLE_PLUS_WEBSITE_WORKSTREAM_ASSESSMENT.md)
-- Decisions WEB-OD-01…11: [`docs/website/12CIRCLE_PLUS_WEBSITE_DECISION_PACKAGE.md`](website/12CIRCLE_PLUS_WEBSITE_DECISION_PACKAGE.md)
-- Design brief (not a design): [`docs/website/12CIRCLE_PLUS_WEBSITE_DESIGN_BRIEF.md`](website/12CIRCLE_PLUS_WEBSITE_DESIGN_BRIEF.md)
+| Track | Status |
+|---|---|
+| Discovery | COMPLETE |
+| Architecture | RECOMMENDATION PREPARED (WEB-OD-02 open; not approved) |
+| Design | CLAUDE DESIGN IN PROGRESS (WEB-OD-05 assigned) |
+| Implementation | WAITING FOR APPROVED DESIGN / AUTHORITY |
+| Domain | UNRESOLVED (WEB-OD-03, tied to PD-F04) |
+| Hosting | UNRESOLVED |
+| Backend | NOT REQUIRED by the current recommendation |
+| Legal / support pages | REQUIRED FOR RELEASE; content authority still required |
 
-**Recommendation in one line:** a static, content-only, no-auth site on its own origin, linking to the
-app, with tokens generated from Helix. Start with the legal, support and deletion pages that REL-17 needs.
+WEB-OD-01 is settled: a public 12Circle+ website exists, with the broader scope Claude Design is designing. The four
+legal and support pages are minimum release infrastructure, not the whole site. No website code exists. Nothing is deployed.
 
-**The four gating answers:** WEB-OD-01 (scope) · WEB-OD-02 (architecture) · WEB-OD-03 (domain; the same
-question as V5 PD-F04) · WEB-OD-05 (design authority).
-
-```
-WEB-OD-01 scope        : a / b / c
-WEB-OD-02 architecture : D1 / D2 / D3 / D4
-WEB-OD-03 domain       : ____________
-WEB-OD-05 design       : supply / commission / plain template approved for (a): Y / N
-(remaining WEB-OD-04, 06–11 on the decision package's response sheet)
-```
+- Owner direction and status: [`docs/website/12CIRCLE_PLUS_WEBSITE_OWNER_DIRECTION.md`](website/12CIRCLE_PLUS_WEBSITE_OWNER_DIRECTION.md)
+- Discovery baseline A–P: [`docs/website/12CIRCLE_PLUS_WEBSITE_WORKSTREAM_ASSESSMENT.md`](website/12CIRCLE_PLUS_WEBSITE_WORKSTREAM_ASSESSMENT.md)
+- Decisions: [`docs/website/12CIRCLE_PLUS_WEBSITE_DECISION_PACKAGE.md`](website/12CIRCLE_PLUS_WEBSITE_DECISION_PACKAGE.md). Open decisions are re-batched into one package after the Claude Design package is reconciled.

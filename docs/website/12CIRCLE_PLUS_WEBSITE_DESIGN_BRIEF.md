@@ -1,5 +1,7 @@
 # 12Circle+ public website — design brief
 
+> **Superseded in part by [`12CIRCLE_PLUS_WEBSITE_OWNER_DIRECTION.md`](12CIRCLE_PLUS_WEBSITE_OWNER_DIRECTION.md) (2026-10-07).** **This brief is not a commission and not design authority.** Claude Design owns the website design. This file remains only as the constraint list engineering checks the approved package against. Its "deliverables requested" section is not a request.
+
 **This is a brief, not a design.** No layouts, screens or visual decisions were invented. It
 records the inputs a designer is bound by and the outputs the build needs. Scope depends on
 **WEB-OD-01** ([decision package](12CIRCLE_PLUS_WEBSITE_DECISION_PACKAGE.md)).
