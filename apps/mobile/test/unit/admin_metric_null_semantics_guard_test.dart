@@ -46,21 +46,84 @@ void main() {
   });
 
   test('no file in the Admin metric layer defaults a metric to zero', () {
+    // DISCOVERED, NOT LISTED. The first version of this test scanned three
+    // hard-coded files and therefore did NOT see admin_metrics_panel.dart, which
+    // arrived later carrying three `?? 0` uses — two of which would have rendered
+    // "0 / 6" CI checks and "0 pass of 15" gates from figures that were simply not
+    // recorded. A hardcoded list covers the files someone remembered; §139.6 again.
+    final discovered = <String, String>{
+      for (final f in Directory(root)
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart')))
+        f.path: f.readAsStringSync(),
+    };
+    expect(discovered.length, greaterThanOrEqualTo(6),
+        reason: 'SEC-G4 discovered ${discovered.length} Dart files under $root — '
+            'too few; a scan that walks nothing reports every file clean');
+
+    // ── PRE-EXISTING, RECORDED, AND THIS LIST MAY ONLY SHRINK ───────────────
+    // Making the scan discover files immediately surfaced four `?? 0` uses in admin
+    // surfaces that predate the metric layer. They are NOT waved through: each is
+    // named with what it is, and the second assertion below fails if any of them is
+    // fixed without being removed from here, so the list cannot quietly become
+    // permission to add more.
+    //
+    // Two are deliberate configuration defaults, not display coercions: 0.10 is the
+    // marketplace commission fallback the SERVER also applies
+    // (create-checkout/index.ts:259 reads `marketplace_commission_rate ?? 0.10`), so
+    // the client agreeing with it is correct.
+    //
+    // Two ARE the defect class — they render a missing figure as 0 on the legacy
+    // console. They are debt in surfaces this work did not build, and rewriting
+    // another screen's data handling is a product decision, not a QA repair.
+    const knownCoercions = <String, String>{
+      'lib/features/admin/data/platform_settings_service.dart:13':
+          'config default, matches create-checkout:259 — not a display coercion',
+      'lib/features/admin/presentation/admin_dashboard_screen.dart:414':
+          'config default, same 0.10 fallback as the server',
+      'lib/features/admin/presentation/observability_screen.dart:62':
+          'DEBT — legacy observability figures render 0 when absent',
+      'lib/features/admin/presentation/admin_dashboard_screen.dart:224':
+          'DEBT — legacy admin_platform_stats figures render 0 when absent',
+    };
+
     final offenders = <String>[];
-    for (final e in sources.entries) {
+    for (final e in discovered.entries) {
       final lines = e.value.split('\n');
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
         // Comments discuss `?? 0` at length on purpose; only code counts.
         final code = line.split('//').first;
-        if (RegExp(r'\?\?\s*0(\.0)?\b').hasMatch(code)) {
-          offenders.add('${files[e.key]}:${i + 1}: ${line.trim()}');
+        if (RegExp(r'\?\?\s*0(\.0)?\b').hasMatch(code) ||
+            RegExp(r'\?\?\s*0\.\d+\b').hasMatch(code)) {
+          final site = '${e.key}:${i + 1}';
+          if (knownCoercions.containsKey(site)) continue;
+          offenders.add('$site: ${line.trim()}');
         }
       }
     }
     expect(offenders, isEmpty,
         reason: 'a null here means "unauthorized" or "not recorded", never zero.\n'
             '${offenders.join('\n')}');
+
+    // THE RATCHET. A recorded site that no longer coerces must be deleted from the
+    // list, so the allowlist cannot drift into a general licence.
+    final stale = <String>[];
+    for (final site in knownCoercions.keys) {
+      final parts = site.split(':');
+      final path = parts.first;
+      final lineNo = int.parse(parts.last);
+      final src = discovered[path];
+      if (src == null) { stale.add('$site — file gone, delete the entry'); continue; }
+      final lines = src.split('\n');
+      if (lineNo > lines.length) { stale.add('$site — line gone'); continue; }
+      final code = lines[lineNo - 1].split('//').first;
+      if (!RegExp(r'\?\?\s*0(\.\d+)?\b').hasMatch(code)) {
+        stale.add('$site — no longer coerces; remove it from knownCoercions');
+      }
+    }
+    expect(stale, isEmpty, reason: stale.join('\n'));
   });
 
   test('every numeric field on every metric model stays nullable', () {

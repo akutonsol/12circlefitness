@@ -144,6 +144,12 @@ jobs:
           # becoming the new truth. It needs the design ref, which this job has
           # because its checkout uses fetch-depth: 0.
           node supabase/scripts/gen-admin-tokens.mjs --check
+          # Every cited design artifact must be readable by whoever reads the doc.
+          # COMPONENT-SPECS cited admin.tokens.css for weeks while docs/design/brand/
+          # did not exist on this branch — true when written, unfollowable after, and
+          # nothing noticed (V5 §164.1). A citation that points off this branch must
+          # name the commit it points at.
+          node supabase/scripts/check-design-citations.mjs
 
       - name: Function posture (definer search_path, anon EXECUTE)
         run: |

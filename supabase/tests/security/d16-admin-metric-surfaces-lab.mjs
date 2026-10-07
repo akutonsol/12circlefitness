@@ -341,10 +341,28 @@ async function run() {
     // to make a dashboard look finished, this assertion is what catches it.
     const relEmpty = await view(victim, 'admin_release_status');
     const relAll = await svc('release_status?select=id');
-    check('METRIC-11 · the registry is EMPTY and the card renders A11 — no release ' +
-          'was invented to populate it',
-      relEmpty.rows === 0 && n(relAll.body) === 0,
-      `view rows=${relEmpty.rows} table rows=${n(relAll.body)}`);
+    check('METRIC-11 · the registry is EMPTY — no release was invented to populate it',
+      n(relAll.body) === 0, `table rows=${n(relAll.body)}`);
+
+    // ── 174's ROW SHAPE IS PART OF THE CONTRACT ───────────────────────────
+    // 173 returned no row both when the caller lacked System·view and when nothing
+    // was recorded, so a client had to guess which, and would necessarily mislabel
+    // one of them. 174 separates the cases the way 172 already does for METRIC-02.
+    check('METRIC-11 · an AUTHORIZED caller with nothing recorded gets exactly ONE ' +
+          'row, not zero — so the card can say "not recorded" instead of guessing ' +
+          'at a permission failure that did not happen',
+      relEmpty.rows === 1, `rows=${relEmpty.rows} status=${relEmpty.status}`);
+    const allNull = Object.entries(relEmpty.row || {}).filter(([, v]) => v !== null);
+    check('METRIC-11 · every column of that row is NULL, so it carries no claim ' +
+          'about any release',
+      relEmpty.rows === 1 && allNull.length === 0,
+      `non-null columns=[${allNull.map((x) => x[0]).join(',')}]`);
+    await unassign(vUid);
+    const relDenied = await view(victim, 'admin_release_status');
+    check('METRIC-11 · an UNASSIGNED caller still gets NO row — the all-NULL row is ' +
+          'for the authorized-but-empty case only, and is not a disclosure',
+      relDenied.rows === 0, `rows=${relDenied.rows}`);
+    await assign(vUid, 'viewer');
 
     // THE ANTI-FABRICATION CONSTRAINTS MUST ACTUALLY REFUSE. A CHECK nobody has
     // tried to violate is a comment.

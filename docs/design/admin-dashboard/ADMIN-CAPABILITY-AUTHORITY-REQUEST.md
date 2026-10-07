@@ -1,5 +1,21 @@
 # ADMIN CAPABILITY MATRIX — DESIGN-AUTHORITY INPUT REQUEST
 
+> **PROVENANCE — where the cited design artifacts actually are.** The approved
+> 12Circle+ design authority was published by commit **`931218b`** on the branch
+> **`design/12circle-plus-admin-dashboard`**, which is **not an ancestor of
+> `reconcile/12circle-integrated`**. So `admin.tokens.css`, `admin.tokens.json`,
+> `admin.contrast.md`, `admin-icon-inventory.md`, `RESPONSIVE.md`, `SCREEN-INVENTORY.md`,
+> `COMPONENTS.md` and the `screens/` sources named below are **not in this branch's
+> working tree**. Read any of them with:
+>
+> ```
+> git show 931218b:docs/design/brand/tokens/admin.tokens.css
+> ```
+>
+> Every citation in this document was made against that commit. `check-design-citations.mjs`
+> enforces this note's presence — see V5 §165.
+
+
 **This is a request for data, not a design question.** Engineering has implemented the mechanism and
 cannot proceed without the values. **Nothing here proposes, defaults or suggests a value.**
 

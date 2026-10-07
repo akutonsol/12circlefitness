@@ -327,6 +327,14 @@ class AdminReleaseStatus {
   bool get hasGateVerdict =>
       gateVerdict != null && gateSource != null && gateRecordedAt != null;
 
+  /// True for the all-NULL row migration 174 returns to an AUTHORIZED caller when
+  /// no release has been recorded. It is how a client tells "nothing is recorded"
+  /// from "you may not see this" — the latter is no row at all, i.e. a null model.
+  /// Without the distinction the card must either claim a permission failure that
+  /// did not happen, or report an absence of data to someone who simply lacks the
+  /// capability. Both are confident falsehoods.
+  bool get isUnrecorded => releaseVersion == null && environment == null;
+
   static AdminReleaseStatus fromRow(Map<String, dynamic> r) =>
       AdminReleaseStatus(
         releaseVersion: r['release_version'] as String?,

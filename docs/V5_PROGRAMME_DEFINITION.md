@@ -15500,3 +15500,126 @@ touched. Generator `--check` green at 126 tokens. Live security **954/954**. CI 
 **6/6 on `7ae1df5`** before this work.
 
 **Production was not contacted. No guard and no evidence standard was weakened.**
+
+---
+
+## §165 · Every cited design artifact must be readable by whoever reads the citation
+
+§164.1 found that `COMPONENT-SPECS.md:14` cites `admin.tokens.css` while
+`docs/design/brand/` does not exist on this branch. The citation was true when written
+and unfollowable afterwards, and **nothing detected the difference**. To a later reader a
+citation that cannot be followed is indistinguishable from one that was never checked.
+
+`supabase/scripts/check-design-citations.mjs` makes the class impossible to reintroduce.
+A cited design artifact must resolve **in the working tree**, or **at the pinned design
+commit `931218b` with the citing document naming that commit**, so the reader knows where
+to look. Anything else fails. It refuses to run at all if the design ref is unreachable,
+rather than reporting every citation valid.
+
+**Its own first draft under-detected, and that is the finding.** Matching only full paths,
+it found **six** citations across 114 documents and declared them all fine — while a plain
+grep showed `admin.contrast.md` alone named in five. Almost every real citation here is a
+bare backticked filename (`` `admin.tokens.css` ``, `` `RESPONSIVE.md` ``), so a path-only
+matcher reported **OK over nothing** — the §139.3 failure, committed *inside the guard
+written to stop that failure*. With bare-filename detection added (restricted to design
+basenames absent from this tree, so generic names like `README.md` cannot match
+everything), it found **17 dangling citations across 4 documents**.
+
+Those four documents now carry a provenance block naming the commit, the branch, and the
+`git show` command. **54 citations now resolve** — 5 in tree, 49 at the commit — with zero
+unresolvable and zero unqualified. Verified by removing a provenance line, which turns it
+red. Wired into CI's static-guards job.
+
+---
+
+## §166 · The metrics on screen, and three defects the UI work surfaced
+
+`AdminMetricsPanel` renders all eleven implemented metric decisions as six area cards on
+the published Card and Stat tile anatomy, consuming the providers from §163.3.
+
+### §166.1 · An ambiguity that only building the UI exposed — migration 174
+
+173's `admin_release_status` returned **no row** in two unrelated cases: the caller lacks
+`System·view`, *or* the caller is authorized and nothing has been recorded. A client cannot
+tell them apart, so it must either claim a permission failure that did not happen or report
+missing data to someone who simply lacks the capability. **Both are confident falsehoods**,
+and no test caught it because every assertion so far was about the empty case alone.
+
+172's METRIC-02 already had the right contract, so 174 brings METRIC-11 into line:
+
+| state | shape |
+|---|---|
+| not authorized | **no row** |
+| authorized, nothing recorded | **one row, every column NULL** |
+| authorized, recorded | one row per current release |
+
+A `LEFT JOIN` against a one-row anchor produces the all-NULL row; the `WHERE` still gates
+on `admin_can`, so nothing leaks. D16 asserts all three cases, including that an
+**unassigned** caller still receives no row — the all-NULL row is for the
+authorized-but-empty case only.
+
+### §166.2 · My own panel contained the exact defect SEC-G4 exists to prevent
+
+The panel shipped three `?? 0` uses, and **SEC-G4 did not see them, because it scanned
+three hard-coded files.** A hardcoded list covers the files someone remembered (§139.6).
+Two were real: `'${m.ciChecksPassed ?? 0} / ${m.ciChecksTotal}'` would render **"0 / 6"**
+when the passed count was merely unrecorded — asserting every check failed — and the gate
+tally would render **"0 pass · 0 partial · 0 fail of 15"**, a statement about the ledger
+nobody made. Both now render **all figures or none**. The third was a visibility test,
+rewritten explicitly so it cannot be mistaken for coercion.
+
+SEC-G4 now **discovers** every Dart file under the Admin feature, and discovery immediately
+surfaced **four pre-existing coercions** in surfaces this work did not build. They are
+recorded, not waved through:
+
+- **two are configuration defaults, not display coercions** — `?? 0.10` is the marketplace
+  commission fallback the **server also applies** (`create-checkout/index.ts:259`), so the
+  client agreeing with it is correct;
+- **two are genuine debt** — `observability_screen:62` and `admin_dashboard_screen:224`
+  render a missing figure as `0` on the legacy console. Rewriting another screen's data
+  handling is a product decision, not a QA repair.
+
+The allowlist **may only shrink**: a second assertion fails if a listed site stops
+coercing without being deleted, so it cannot drift into a general licence. Verified by
+injection — a `?? 0` added to the panel turns it red.
+
+### §166.3 · Two harness defects of mine, and one widget defect
+
+The panel's first test harness put a `Column` in a fixed-height box and **overflowed by
+330px**. The panel deliberately does not own scrolling — two panels on one page would fight
+for it — so the *harness* was wrong, and now supplies the scroll view as the hosting screen
+must. A loading test used `Future.delayed(30s)` and failed on a **pending timer**, for a
+reason unrelated to what it asserted; a never-completing `Completer` replaced it.
+
+Earlier, the tile's own test caught a real widget defect: the published `4px 1fr auto` Stat
+tile **overflowed by 23px at 360px** once the absence copy sized the `auto` column.
+
+### §166.4 · What the panel refuses to do
+
+- **No synthesised release verdict.** The test asserts the words `BLOCKED`, `Releasable`,
+  `Not releasable` and `Overall` appear nowhere, because CI and the gate ledger disagree and
+  a third verdict would be one neither authority gave.
+- **No invented demographic bucket.** The reconciliation row appears only when someone is
+  genuinely outside the approved buckets, labelled *"Outside the approved buckets"* — and
+  the test asserts the string `60+` never appears. Hiding the row would make the panel
+  misstate its own total; naming it `60+` would invent the bucket the owner ruled out.
+- **No approval sub-count** for METRIC-05 — the test asserts "awaiting" and "approval"
+  appear nowhere.
+- **No approximated FX.** Without a recorded rate the row reads *"Not recorded"*; with one,
+  the rate is shown **with its date**, so the figure is datable.
+- **Loading and error are not absences.** They render as their own states, so a dropped
+  connection can never be read as a permission boundary.
+- **Incompleteness is disclosed.** When any qualifying payment has no recorded rate, the
+  card shows how many — the commission figure is a floor, and an operator reading it as a
+  total would be wrong.
+
+### §166.5 · Verification at frontier 174
+
+QA frontier **174** · live security **957/957 across 16 suites** (D16 **89/89**, D15
+**353/353**) · Flutter **1760 passed / 5 skipped** (1744 → 1760) · AI **49/49** ·
+characterizations **17/17** · contract clean · matrix **116/116** · design citations
+**54 resolved, 0 dangling** · tokens **126/126** at `931218b` · manifest and frontier
+agreeing at 000–174 · `dart analyze` clean on every file touched.
+
+CI was green **6/6 on `91acaad`**. **Production was not contacted. No guard and no evidence
+standard was weakened; two guards were made stricter.**

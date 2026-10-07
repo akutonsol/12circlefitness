@@ -1,5 +1,21 @@
 # `DESIGN-01` — THE TWO UNDESIGNED `A11` STATES
 
+> **PROVENANCE — where the cited design artifacts actually are.** The approved
+> 12Circle+ design authority was published by commit **`931218b`** on the branch
+> **`design/12circle-plus-admin-dashboard`**, which is **not an ancestor of
+> `reconcile/12circle-integrated`**. So `admin.tokens.css`, `admin.tokens.json`,
+> `admin.contrast.md`, `admin-icon-inventory.md`, `RESPONSIVE.md`, `SCREEN-INVENTORY.md`,
+> `COMPONENTS.md` and the `screens/` sources named below are **not in this branch's
+> working tree**. Read any of them with:
+>
+> ```
+> git show 931218b:docs/design/brand/tokens/admin.tokens.css
+> ```
+>
+> Every citation in this document was made against that commit. `check-design-citations.mjs`
+> enforces this note's presence — see V5 §165.
+
+
 **`A11` requires eleven screen states. `SCREEN-INVENTORY.md` delivers ten** — Loading · Empty · Error ·
 Permission-denied · Degraded across all six pages, plus Unavailable · Stale · Offline · Skeleton · Read-only,
 with dedicated *"State system"* panels on People, Trust, Operations and Settings.

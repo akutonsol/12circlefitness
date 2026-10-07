@@ -126,7 +126,7 @@ const SUITES = [
   // asserting the class rather than a sample (QA_CLOSURE_STANDARD §5.2).
   ['D14   admin capability matrix (425)',   './d14-admin-capability-matrix-lab.mjs'],
   ['D15   admin surface access (156-170)',  './d15-admin-surface-access-lab.mjs'],
-  ['D16   authorized metric surfaces (171-173)', './d16-admin-metric-surfaces-lab.mjs'],
+  ['D16   authorized metric surfaces (171-174)', './d16-admin-metric-surfaces-lab.mjs'],
 ];
 
 let totalFailures = 0;
