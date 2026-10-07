@@ -25,28 +25,34 @@ import 'admin_tokens.dart';
 ///     from this screen."*;
 ///   * a 44px touch target (`--adm-size-control`) per `RESPONSIVE.md`.
 ///
-/// TWO DEVIATIONS FROM THE OBSERVED DESIGN, NAMED RATHER THAN HIDDEN.
+/// ON THE TOKENS THIS USES, AND A CORRECTION (V5 §176).
 ///
-/// 1. **Badge colour.** `COMPONENT-SPECS` › Severity badge records the observed colour
-///    as `#f08a9b`, marked with no token. That value appears **nowhere** in
-///    `admin.tokens.css` — it is untokenised. This uses `--adm-color-status-danger-text`
-///    (`#f07a8c`) instead, for two reasons: the Helix rule forbids a component holding
-///    raw hex, and `admin.contrast.md` publishes a **measured 7.4:1** ratio for the
-///    token while `#f08a9b` carries no measurement at all. The two are visually
-///    near-identical. The discrepancy is recorded in V5 §168, not resolved by
-///    declaring the design wrong.
+/// `COMPONENT-SPECS` › Severity badge observes `#f08a9b` with no token, and
+/// `admin.tokens.css` publishes `#f07a8c`. §168 recorded using the token as a
+/// **deviation** from the design. Measuring the published package shows that was wrong,
+/// and the opposite is true:
 ///
-/// 2. **Icon.** The specification names `ph-fill ph-warning-circle` from the Phosphor
-///    set. **The app does not depend on Phosphor** — `pubspec.yaml` carries only
-///    `cupertino_icons` — so a Material fill-weight equivalent is substituted. This is
-///    a substitution, not fidelity, and adding an icon dependency is not a decision to
-///    take in passing.
+///   * the approved screens contain **zero `var(--adm-*)` references** and 447 literal
+///     hex values, so `admin.tokens.css` is DERIVED FROM them, not consumed by them;
+///   * `#f07a8c` appears **80×** across Trust and Operations and `#f08a9b` **15×**;
+///   * the danger TINT collapses **six** screen alphas into one token;
+///   * the overline SIZE picks `11px` (2 uses) over `11.5px` (11 uses), because 11 is a
+///     round step on a type scale.
 ///
-/// Two further untokenised values are followed where they are safe and recorded where
-/// they are not: the badge's `11.5px` font size has no token (the nearest are 11px and
-/// 12px), and its `0.08em` tracking is not the `0.12em` overline token. The nearest
-/// published token is used for the size, and the tracking is expressed as the exact
-/// `0.08em` the design specifies, computed from the font size.
+/// So the token set is a deliberate NORMALISATION of ad-hoc literals, and reading from it
+/// is conformance to the design authority's own intent — matching a raw literal would be
+/// conformance to pre-normalisation noise. `admin.contrast.md` also publishes a measured
+/// **7.4:1** for the token and measures none of the literals. Hence
+/// [AdminColors.colorStatusDangerText], [AdminDims.typeOverlineSize] and the danger tint,
+/// with no hex here at all.
+///
+/// ONE GENUINE SUBSTITUTION REMAINS. The specification names `ph-fill ph-warning-circle`
+/// from the Phosphor set, and **the app does not depend on Phosphor** — `pubspec.yaml`
+/// carries only `cupertino_icons` — so a Material fill-weight equivalent stands in. That
+/// is a substitution, not fidelity, and adding an icon dependency is not a decision to
+/// take in passing. The badge's `0.08em` tracking is also not the `0.12em` overline
+/// token, so it is expressed as the exact `0.08em` the design specifies, computed from
+/// the token font size.
 class AdminAttentionQueue extends ConsumerWidget {
   const AdminAttentionQueue({super.key});
 
@@ -220,8 +226,8 @@ class _SeverityBadge extends StatelessWidget {
             severity,
             style: TextStyle(
               color: _severityColor(severity),
-              // The spec's 11.5px has no token; typeOverlineSize (11px) is the
-              // nearest published value. Deviation recorded in V5 §168.
+              // typeOverlineSize (11px) is the token the design set NORMALISED the
+              // screens' 11.5px to — see the class doc and V5 §176. Not a deviation.
               fontSize: AdminDims.typeOverlineSize,
               fontWeight: FontWeight.w600, // --adm-font-weight-semibold
               letterSpacing: AdminDims.typeOverlineSize * 0.08, // the spec's 0.08em

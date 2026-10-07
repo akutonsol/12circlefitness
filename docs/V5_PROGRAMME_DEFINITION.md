@@ -16324,3 +16324,66 @@ at 000–177 · function posture **39 pinned, 55 migrations**.
 
 **Production was not contacted. 177 is strictly a tightening: it removes an auto-apply
 path that the product bible forbids and grants none.**
+
+---
+
+## §176 · The design reconciliation — and a correction to §168.2
+
+§168.2 recorded the Critical badge colour as a **deviation** from the approved design:
+`COMPONENT-SPECS` observes `#f08a9b`, the token set publishes `#f07a8c`, and I used the
+token. §164.5's owner pack carried it as a design-authority question.
+
+**Measuring the published package rather than reasoning about it reverses that
+characterisation.** It was not a deviation. It was conformance.
+
+### §176.1 · What the package actually is
+
+The approved screens contain **zero `var(--adm-*)` references and 447 literal hex values**
+in the Control Center page alone. The screens do **not** consume `admin.tokens.css`;
+`admin.tokens.css` is **derived from them**. It is a *normalised* design system extracted
+from screens that were authored with ad-hoc literals — and the normalisation is visible
+in three independent places:
+
+| property | what the screens contain | what the token publishes |
+|---|---|---|
+| danger text | `#f07a8c` **×80** (Trust, Operations) · `#f08a9b` **×15** (mostly Control Center) | `#f07a8c` |
+| danger tint | **six** alphas — `0.08 · 0.16 · 0.2 · 0.3 · 0.35 · 0.45` | one — `rgba(232,85,109,0.14)` |
+| overline size | `11.5px` ×11 · `11px` ×2 | `11px` |
+
+The colour case normalises to the **majority** literal; the tint case collapses a **spread
+of six** to one; the size case picks the **minority** literal because `11px` is a round
+step on a type scale and `11.5px` is not. So the token set is not a transcription and not
+a majority vote — it is a deliberate normalisation.
+
+**Therefore conforming to the tokens is conforming to the design authority's own
+intent, and matching a raw literal would be conforming to pre-normalisation noise.** Every
+token choice this run made — `colorStatusDangerText`, `typeOverlineSize`, the tint — is
+corrected from "a named deviation" to "the canonical value". The Helix rule and the design
+authority agree here; they were never in tension.
+
+`admin.contrast.md` reinforces it: it publishes a **measured 7.4:1** ratio for the token
+and measures none of the literals.
+
+### §176.2 · A false "zero result" of my own, in a one-off command
+
+My first sweep for `#f08a9b` across the 28 published files reported **zero hits**, and I
+nearly wrote that COMPONENT-SPECS cited a value its own source did not contain — an
+accusation against my own evidence that would have been wrong.
+
+The cause: `for f in $(git ls-tree …)` word-splits on spaces, and every screen is named
+like `12Circle Admin Control Center.dc.html`. The loop never opened the files that hold the
+colour. **This is the §139.3 class again — reporting clean over nothing — committed by me
+in an ad-hoc shell command**, which is precisely the kind of place the repository's own
+guards carry canaries and a one-off does not. The finding was recovered only because the
+result disagreed with a document I had derived from the same source, and I checked the
+disagreement instead of believing the newer number.
+
+### §176.3 · What this closes
+
+**The severity-colour question leaves the owner queue**, resolved by evidence: the token is
+the design authority's canonical value, and the literals are pre-normalisation drift inside
+the source screens. No owner decision, no design decision, nothing to merge.
+
+Still genuinely open and unchanged: whether to **merge the design branch** (the artifacts
+remain reachable only at `931218b`), and the **Phosphor icon dependency**, which is a
+package decision rather than a visual one.
