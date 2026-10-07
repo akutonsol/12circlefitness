@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/admin_metrics_service.dart';
+import '../data/admin_trust_service.dart';
 import '../data/admin_service.dart';
 import 'admin_metrics.dart';
+import 'admin_trust.dart';
 
 final adminServiceProvider = Provider<AdminService>((ref) => AdminService());
 
@@ -49,3 +51,29 @@ final adminReleaseStatusProvider = FutureProvider<AdminReleaseStatus?>(
 /// literal copy rather than as a blank panel.
 final adminIncidentsProvider = FutureProvider<List<AdminIncident>?>(
     (ref) async => ref.watch(adminMetricsServiceProvider).getIncidents());
+
+// ── V5 §183 · Trust (P6) ────────────────────────────────────────────────────
+// Null means "no capability for this area"; an empty list means authorized with
+// nothing recorded. The service asks admin_can rather than inferring a permission
+// from an empty read.
+
+final adminTrustServiceProvider =
+    Provider<AdminTrustService>((ref) => AdminTrustService());
+
+final adminAuditEventsProvider = FutureProvider<List<AdminAuditEvent>?>(
+    (ref) async => ref.watch(adminTrustServiceProvider).getAuditEvents());
+
+final adminSecurityEventsProvider = FutureProvider<List<AdminAuditEvent>?>(
+    (ref) async => ref.watch(adminTrustServiceProvider).getSecurityEvents());
+
+final adminGuardianStateProvider = FutureProvider<AdminGuardianState?>(
+    (ref) async => ref.watch(adminTrustServiceProvider).getGuardianState());
+
+/// Separate from [adminGuardianStateProvider] on purpose: that provider returns null
+/// for BOTH "no capability" and "nothing recorded", and the Trust page must say which.
+final adminCanViewGuardianProvider = FutureProvider<bool>(
+    (ref) async => ref.watch(adminTrustServiceProvider).canViewGuardian());
+
+final adminGovernancePoliciesProvider =
+    FutureProvider<List<AdminGovernancePolicy>?>((ref) async =>
+        ref.watch(adminTrustServiceProvider).getGovernancePolicies());

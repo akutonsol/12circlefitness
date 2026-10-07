@@ -34,7 +34,18 @@ import 'package:flutter_test/flutter_test.dart';
 /// already closed and recorded (F-15, §3o). Widening this guard to catch them
 /// would need product copy that does not exist, which is OD-8's ruling.
 void main() {
-  final decl = RegExp(r'Future<(bool|int|double)>\s+(\w+)\([^)]*\)\s*async\s*\{');
+  // Matches an `async { … }` body OR an expression body (`=> …`).
+  //
+  // THE REGEX USED TO REQUIRE `async {`, AND THAT WAS AN EVASION PATH. A
+  // `Future<bool> canViewGuardian() => _can(...);` is a query returning bool that the
+  // detector could not inspect at all — so anyone could step outside ERR-G1 by using an
+  // expression body, without intending to. The self-consistency assertion below is what
+  // caught it: the substring count found 65 declarations and the regex found 64.
+  //
+  // An expression body cannot contain a `catch` block, so widening adds no false
+  // positive; it closes the hole in what the detector can SEE.
+  final decl = RegExp(
+      r'Future<(bool|int|double)>\s+(\w+)\([^)]*\)\s*(?:async\s*\{|=>)');
   final masks = RegExp(r'catch\s*\([^)]*\)\s*\{\s*return\s+(false|0|0\.0)\s*;');
   const question = ['has', 'is', 'get', 'count', 'fetch', 'load', 'check',
                     'current', 'total'];

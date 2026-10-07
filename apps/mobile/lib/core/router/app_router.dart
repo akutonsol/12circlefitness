@@ -62,6 +62,7 @@ import '../../features/coach/presentation/program_builder_screen.dart';
 import '../../features/coach/presentation/coach_packages_screen.dart';
 import '../../features/admin/presentation/admin_dashboard_screen.dart';
 import '../../features/admin/presentation/admin_metrics_screen.dart';
+import '../../features/admin/presentation/admin_trust_screen.dart';
 import '../../features/admin/presentation/observability_screen.dart';
 import '../../features/admin/presentation/exercise_review_screen.dart';
 import '../../features/vendor/presentation/vendor_portal_screen.dart';
@@ -238,6 +239,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       // purpose — every surface it reads gates on admin_can server-side, and a
       // client-side check that looks like the boundary is worse than none.
       GoRoute(path: '/admin-metrics',  builder: (_, __) => const AdminMetricsScreen()),
+      // V5 §183 · P6 · Trust. Read-only, and not role-gated here for the reason the
+      // sibling route records: every surface it reads gates on admin_can server-side,
+      // and a client gate that looks like the boundary is worse than none.
+      GoRoute(path: '/admin-trust',    builder: (_, __) => const AdminTrustScreen()),
       GoRoute(path: '/admin-exercise-review', builder: (_, __) => const ExerciseReviewScreen()),
       GoRoute(path: '/content-center', builder: (_, __) => const ExerciseContentCenterScreen()),
       GoRoute(path: '/observability',  builder: (_, __) => const ObservabilityScreen()),

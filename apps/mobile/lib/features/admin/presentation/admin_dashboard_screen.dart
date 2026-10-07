@@ -90,6 +90,15 @@ class AdminDashboardScreen extends ConsumerWidget {
                         // surfaces (migrations 171-174). A route with no entry
                         // point is not UI consumption, which ROUTE-G1 caught when
                         // /admin-metrics was first registered.
+                        // V5 §183 · the way in to Trust. ROUTE-G1 fails on a route
+                        // with no entry point, and it is right to.
+                        _AdminActionTile(
+                          icon: Icons.verified_user_outlined,
+                          title: 'Trust',
+                          subtitle: 'AI Guardian, security, incidents, audit logs',
+                          onTap: () => context.push('/admin-trust'),
+                        ),
+                        const SizedBox(height: 12),
                         _AdminActionTile(
                           icon: Icons.query_stats_rounded,
                           title: 'Platform Metrics',

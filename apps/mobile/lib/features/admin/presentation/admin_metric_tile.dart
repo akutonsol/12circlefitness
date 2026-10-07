@@ -170,12 +170,22 @@ class AdminMetricTile extends StatelessWidget {
               ),
             )
           else ...[
-            Text(
-              _valueText,
-              style: const TextStyle(
-                color: AdminColors.colorTextPrimary,
-                fontSize: AdminDims.typeCardTitleSize,
-                fontWeight: FontWeight.w500,
+            // FLEXIBLE, like the absence branch beside it. §164.3 made the absence text
+            // flexible and left this one fixed, so a long pre-formatted value — a
+            // sentence passed to AdminMetricTile.text — overflowed by 288px the first
+            // time the Trust page used one. A tile is a single row by design, so the
+            // value ellipsises rather than wrapping; PROSE does not belong in a tile at
+            // all, and the caller that triggered this was corrected too.
+            Flexible(
+              child: Text(
+                _valueText,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  color: AdminColors.colorTextPrimary,
+                  fontSize: AdminDims.typeCardTitleSize,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
             if (delta != null) ...[

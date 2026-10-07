@@ -1,0 +1,85 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../domain/admin_trust.dart';
+
+/// V5 §183 — reads for the Trust area, over surfaces 156/159/163/169 already publish.
+///
+/// EVERY METHOD ASKS `admin_can` BEFORE READING, for the reason §168.1 established: these
+/// views gate inside their own `WHERE`, so an uncapable caller and an empty population
+/// both come back as `[]`. Those are different facts — one is an authorization outcome,
+/// the other is the design's zero state — and a list read cannot tell them apart.
+/// `admin_can(text, text)` is `SECURITY DEFINER` with `EXECUTE` granted to `authenticated`
+/// (`153:127`) and D13 proves it for every area/verb pair, so the capability is ASKED FOR
+/// rather than inferred from emptiness.
+///
+///   * `null`           → the caller lacks the capability
+///   * `[]` / an empty model → authorized, nothing recorded
+class AdminTrustService {
+  AdminTrustService({SupabaseClient? client})
+      : _db = client ?? Supabase.instance.client;
+
+  final SupabaseClient _db;
+
+  Future<bool> _can(String area, String verb) async {
+    final r = await _db.rpc('admin_can', params: {'p_area': area, 'p_verb': verb});
+    return r == true;
+  }
+
+  /// The curated audit projection. `A13·1` excludes the caller's own `admin_action`
+  /// rows, so this list is deliberately incomplete FOR ITS READER — see
+  /// [AdminAuditEvent.a13Note], which the surface must show rather than implying a
+  /// complete ledger.
+  Future<List<AdminAuditEvent>?> getAuditEvents({int limit = 50}) async {
+    if (!await _can('Audit logs', 'view')) return null;
+    final rows = await _db
+        .from('admin_audit_events')
+        .select()
+        .order('occurred_at', ascending: false)
+        .limit(limit);
+    return [
+      for (final r in rows) AdminAuditEvent.fromRow(Map<String, dynamic>.from(r)),
+    ];
+  }
+
+  /// Authentication, authorization denials, admin actions and audit reads — the four
+  /// categories 159 projects under the Security area per ruling `B-1`.
+  Future<List<AdminAuditEvent>?> getSecurityEvents({int limit = 50}) async {
+    if (!await _can('Security', 'view')) return null;
+    final rows = await _db
+        .from('admin_security_events')
+        .select()
+        .order('occurred_at', ascending: false)
+        .limit(limit);
+    return [
+      for (final r in rows) AdminAuditEvent.fromRow(Map<String, dynamic>.from(r)),
+    ];
+  }
+
+  /// The singleton Guardian state. Returns null for "no capability" AND for "nothing
+  /// recorded" — and the caller must not conflate either with `Active`. 169 creates the
+  /// row EMPTY on purpose, so "not recorded" is the normal early condition.
+  Future<AdminGuardianState?> getGuardianState() async {
+    if (!await _can('AI Guardian', 'view')) return null;
+    final row = await _db.from('guardian_state').select().maybeSingle();
+    if (row == null) return null;
+    return AdminGuardianState.fromRow(Map<String, dynamic>.from(row));
+  }
+
+  Future<List<AdminGovernancePolicy>?> getGovernancePolicies({int limit = 100}) async {
+    if (!await _can('AI Guardian', 'view')) return null;
+    final rows = await _db
+        .from('governance_policy')
+        .select()
+        .order('code', ascending: true)
+        .limit(limit);
+    return [
+      for (final r in rows)
+        AdminGovernancePolicy.fromRow(Map<String, dynamic>.from(r)),
+    ];
+  }
+
+  /// Whether this caller may read the Guardian state at all, so the UI can distinguish
+  /// "you may not see this" from "nothing is recorded" — the two cases
+  /// [getGuardianState] collapses into null.
+  Future<bool> canViewGuardian() => _can('AI Guardian', 'view');
+}

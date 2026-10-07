@@ -16756,3 +16756,84 @@ allowlist · Flutter **1799 / 5 skipped** · `dart analyze` **0 errors** · ever
 green.
 
 **Production was not contacted.**
+
+---
+
+## §183 · Q6 closed by existing authority, and P6 · Trust implemented
+
+### §183.1 · The five-point authority check
+
+| # | required | established by |
+|---|---|---|
+| 1 | the authoritative six-page IA and the `Page → Section` mapping | **`CONF-D1`, answered at §91.1** — *"the adopted Admin IA is six items: Dashboard · People · Ecosystem · Trust · Operations · Settings"* — and **`931218b:SCREEN-INVENTORY.md`**, which carries an explicit `Page → Top-level nav → Sections` table and states *"the older eight-item navigation in the build spec … is **historical and is not used**"*. `PROVENANCE.md` classes the six pages *"Design authority. Not modified by this handoff"* |
+| 2 | `METRIC-19 = Option 3` | `V5_METRIC_DECISION_SHEET.md:268` records METRIC-19 as *"new, from the design package's own boundary list"* (i.e. from `BOUNDARIES B`), and `:279` records **"RESOLVED 2026-10-07 · METRIC-19 = Option 3 — out of scope for V1. Nothing authored."** Ledgered at §162 |
+| 3 | all 17 matrix areas have a home | enumerated in `V5_Q6_DOMAIN_PLACEMENT_RECONCILIATION.md` §2 against the published section lists. **Areas with no home: NONE.** Three carry a deliberate dual home — operational view plus configuration surface — which the inventory confirms is intentional: *"Settings links across to Operations > System events, Trust > Authorization and Trust > AI Guardian"* |
+| 4 | no mapping needs a new product / authorization / security / architecture decision | **verified mechanically.** Every Admin surface in migrations 150–178 gates on `admin_can(area, verb)` and **nothing else** — a sweep for page- or IA-based gating found **zero** across all of them. Placement is navigation; authorization is per-area and page-independent, governed by the approved matrix (155). So a placement cannot move an authorization boundary |
+| 5 | §97.4/§10457 is **superseded**, not merely contradicted | §97.4 states each gate as a **missing-artifact condition**, not a decision: Trust's IA — *"**No supplied screen is a Trust surface**"*; the placements — *"every dropdown is **closed in all four screens**"*; `CONF-D6` — *"a raster image contains pixels, **not a token contract**"*. Each condition names what is absent. The publication of **2026-10-04** supplies each one: a 286 KB Trust page, **six** screens with their sections **written out**, and an actual token contract (`admin.tokens.css`/`.json`/`contrast.md`). A gap closes when the artifact it names exists — that is supersession by the record's own terms, not reinterpretation |
+
+**`Q6` — CLOSED BY EXISTING AUTHORITY.** No placement was implemented and no mapping
+inferred; §2 of the reconciliation cites the artifact for every row.
+
+### §183.2 · P6 · Trust — built on surfaces that already existed
+
+The published page's data requirements are *"AI Guardian actions and autonomy; auth and
+authorisation events; incidents; immutable audit log with before/after"*. **No schema was
+added**: `guardian_state` + `governance_policy` (163/167/169), `admin_security_events` (159),
+`admin_incidents` (160) and `admin_audit_events` (156) already serve all four.
+
+`AdminTrustScreen` renders the six published sections in the published order — `#overview` ·
+`#ai-guardian` · `#security` (incl. `#sec-authz`) · `#incidents` · `#audit` ·
+`#trust-system` — at `/admin-trust`, with an entry tile on the console.
+
+**Three properties it is built to keep, each one a defect already paid for elsewhere:**
+
+- **A pseudonym is never resolved.** §19.3 rules that no standing party may resolve one.
+  `AdminAuditEvent` carries `subject_pseudonym` as an opaque string with **no** field,
+  getter or method that could resolve it, and the row renders it **truncated** and labelled
+  *"subject …"* — so the rendered string cannot even be pasted back as a lookup key.
+- **An unrecorded Guardian state is not `Active`.** `guardian_state` starts EMPTY, so "no
+  row" is the normal early condition. `guardianIsHealthy` returns **null** for "cannot say"
+  — never a boolean guess — and an unrecognised state outside `A5` is not healthy either.
+  Rendering "Active" there would be EC-04's coercion applied to a safety control.
+  "No capability" and "nothing recorded" are read from **separate providers** so the page
+  can say which.
+- **`A13·1` is stated, not implied.** The audit projection excludes the reader's own
+  `admin_action` rows, so the ledger is deliberately incomplete *for whoever is reading it*.
+  The section carries that sentence, because absence here is not evidence of absence.
+
+It is **read-only by construction** — no write path on the widget at all — which is how
+`CONF-D5`'s *"Nothing is changed from this screen"* is honoured, and consistent with `A10`
+barring the Guardian from holding admin authority. The test asserts no `Switch`,
+`Checkbox`, `TextField` or `ElevatedButton` exists.
+
+### §183.3 · Two defects the Trust build exposed
+
+**`AdminMetricTile`'s value text was not flexible.** §164.3 made the *absence* text
+flexible and left this branch fixed, so the first long pre-formatted value — a Guardian
+disablement reason — **overflowed by 288px**. The tile now ellipsises its value like the
+branch beside it. And the caller was corrected too: **a reason is prose, not a stat**, so
+it renders as a wrapping footnote. A truncated disablement reason is the one thing on that
+card that must not be clipped.
+
+**`ERR-G1`'s detector had an evasion path, and its self-consistency assertion found it.**
+Its declaration regex required `async {`, so
+`Future<bool> canViewGuardian() => _can(...)` — a query returning `bool` — was **invisible
+to it**. The guard's own check (*"the regex agrees with a count computed without it"*) caught
+the discrepancy: 65 declarations by substring, 64 by regex. The regex now matches an
+expression body too, which **closes the hole in what the detector can see** rather than
+reshaping my code to hide from it. An expression body cannot contain a `catch`, so no false
+positive is added, and a control proves it still catches a real masking query.
+
+**The test harness needed a tall viewport**, because the page is a `ListView` and builds
+lazily — the first draft could not see the Audit or State-system sections and read as *"the
+A13 note is missing"*. Fixed with surface size, **not** by relaxing finders with
+`skipOffstage: false`, which would assert against widgets no operator ever sees.
+
+### §183.4 · Verification
+
+QA frontier **178** (no migration needed) · live security **993/993 across 17 suites** · AI
+**49/49** · characterizations **17/17** · contract clean · Flutter **1813 / 5 skipped**
+(1799 → 1813) · `dart analyze` **0 errors** · design citations **0 dangling** · tokens
+**126/126** · `ROUTE-G1` green.
+
+**Production was not contacted.**
