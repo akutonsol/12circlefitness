@@ -127,7 +127,7 @@ const SUITES = [
   ['D14   admin capability matrix (425)',   './d14-admin-capability-matrix-lab.mjs'],
   ['D15   admin surface access (156-170)',  './d15-admin-surface-access-lab.mjs'],
   ['D16   authorized metric surfaces (171-176)', './d16-admin-metric-surfaces-lab.mjs'],
-  ['D17   weekly_feedback subject (175)',   './d17-weekly-feedback-subject-integrity.mjs'],
+  ['D17   weekly_feedback subject (175-177)',   './d17-weekly-feedback-subject-integrity.mjs'],
 ];
 
 let totalFailures = 0;

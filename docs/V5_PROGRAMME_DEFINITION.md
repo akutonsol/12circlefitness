@@ -16235,3 +16235,92 @@ QA frontier **176** · live security **980/980 across 17 suites** (D16 **97/97**
 
 **Production was not contacted. No assertion was relaxed — two were made measurable, and one
 detector was narrowed to the case it can actually judge.**
+
+---
+
+## §175 · Two "architecture questions" that the record already answered
+
+§171 escalated both of these. Re-reading the governing record rather than my own summary
+of it shows **neither is an owner decision**. They are now closed, and removed from the
+owner queue.
+
+### §175.1 · `B2` — the approval matrix must not be bypassed by an unknown mode
+
+D17 found `needs_approval` returning **NULL** — not false, not true — when the subject's
+coaching mode cannot be established, by SQL three-valued logic. Every consumer treats
+null as falsy, so **the change auto-applied without sign-off**. §171.5 recorded that as a
+product decision.
+
+It is not one. **§172's own citation was where the answer was sitting:**
+
+- `product-bible.md:111` — AI may NOT *"Bypass the coach approval matrix for coach-guided
+  clients."*
+- `product-bible.md:54` — AI *"steps back for the human on anything consequential."*
+- `product-bible.md:116` — AI may NOT *"Make a claim it cannot ground; if data is missing,
+  it says so."*
+- `decision-log.md:18` — *"Coaches approve consequential changes (approval matrix by
+  mode). … Minor changes auto-apply **for AI/self-guided** to avoid friction."*
+- `MASTER_PRODUCT_DECISIONS:63`, **on this very function** — an unwritten `subject_id`
+  *"silently disables the approval matrix, which is a **hard-constraint violation**, not a
+  feature gap. **No decision needed**; it is a P0 defect."*
+
+Auto-apply is licensed for `self_guided` and `ai_guided` — the vocabulary is ruled by
+`CHECK (coaching_mode IN ('self_guided','ai_guided','coach_guided'))` (`007:7`) — and for
+nothing else. **A client whose mode is unknown may be coach-guided**, so applying a
+consequential change without sign-off risks exactly the bypass `:111` forbids. This is the
+same hard-constraint violation ENG-02 was, one layer down.
+
+Migration **177** fixes it. **Exactly one case changes:** an unestablished mode, a
+non-CONTINUE action and no injury rule goes from `NULL` (falsy → applied) to **`true`**
+(requires sign-off). `coach_guided`, `self_guided`, `ai_guided` and the injury arm are
+untouched, and `CONTINUE` already evaluated to `false` because `NULL and false` is `false`.
+`needs_approval` is now a **total boolean**.
+
+**The body was reproduced programmatically from 127, not retyped** — a long engine
+function copied by hand is a transcription defect waiting to happen — with `SET
+search_path` restated as I-MIG-03 / CRC-07 require.
+
+D17 proves it did not trade a bypass for a flood: a `self_guided` and an `ai_guided`
+client still **auto-apply** a minor change, and an **injury still requires approval in
+every mode**, which is the rule my own fixture tripped over at §171.4.
+
+### §175.2 · `B1` — the multi-assignment subject is not a choice, it is an incoherent state
+
+§171.3 asked which subject owns the feedback of a program with several active assignments.
+The evidence settles it:
+
+- **`generate_client_plan` (`121:221`) inserts a fresh program and then exactly ONE
+  assignment** for the calling member. A generated plan is therefore **1:1 with its client
+  by construction** — and generated plans are what the continuous-coaching screen operates
+  on.
+- `weekly_feedback` is `unique (program_id, week)`. **A template assigned to N clients
+  cannot have one feedback row per week for all of them**, whichever subject were chosen.
+
+So there are not two viable models to choose between; there is one coherent shape and one
+state the table cannot represent. 175's refusal to guess is correct, and the useful
+artifact is not a question but an **invariant that makes the incoherent state visible if it
+ever occurs**: every row must either carry a subject, or belong to a program with genuinely
+≠1 active assignments, so a null is always *explained*. D17 asserts it against a
+**non-empty population containing both** a derived subject and an explained null, so it
+cannot pass over nothing.
+
+### §175.3 · A process defect of mine — schema ahead of its test
+
+**CI failed on `10e2663`** in the live lane, and the failing assertion was my own §171 one,
+which asserted `needs_approval` is null. It is null no longer: I had applied **177 to QA
+before committing the test change that matches it**, so CI checked out the pre-177 suite
+and ran it against a post-177 database.
+
+The manifest guard protects the *declared frontier* against this skew. Nothing protected
+*test expectations*, and nothing can in general — the lesson is procedural: **apply a
+migration and commit its test change together**, because the moment QA moves, every
+not-yet-updated run disagrees, including a re-run of an older commit.
+
+### §175.4 · Verification
+
+QA frontier **177** · live security **987/987 across 17 suites** (**D17 22/22**) · AI
+**49/49** · characterizations **17/17** · contract clean · manifest and frontier agreeing
+at 000–177 · function posture **39 pinned, 55 migrations**.
+
+**Production was not contacted. 177 is strictly a tightening: it removes an auto-apply
+path that the product bible forbids and grants none.**

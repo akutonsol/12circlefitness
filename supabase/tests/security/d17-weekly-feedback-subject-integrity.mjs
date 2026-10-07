@@ -201,31 +201,98 @@ async function run() {
           'action, so the approval matrix is no longer silently disabled',
       bodyOne.needs_approval === true && bodyOne.action !== 'CONTINUE',
       `needs_approval=${JSON.stringify(bodyOne.needs_approval)} action=${JSON.stringify(bodyOne.action)}`);
-    // THE CONTRAST, and a finding inside it. The undecidable program reports
-    // coaching_mode "unknown", which is the degenerate answer ENG-02 described — and
-    // `needs_approval` comes back **null**, not false.
+    // ── 177 · THE CONTRAST, AND THE APPROVAL MATRIX FAILING CLOSED ────────
+    // The undecidable program reports coaching_mode "unknown", which is the degenerate
+    // answer ENG-02 described — and it now requires APPROVAL rather than returning the
+    // NULL that every consumer read as "apply it".
     //
-    // That is SQL three-valued logic, not a typo: `v_mode` is NULL, so
-    // `(NULL = 'coach_guided' and action <> 'CONTINUE')` is NULL, and `NULL or false`
-    // is NULL (`127:188`). The author's expression reads as boolean and is not one
-    // whenever the subject is undecidable.
-    //
-    // It is asserted AS NULL rather than quietly coalesced, because that is what the
-    // RPC actually returns and a test that says otherwise is a worse artifact than the
-    // defect. Behaviourally null and false are the same to every consumer — Dart and
-    // JS both treat null as falsy — so there is no live hole beyond the question of
-    // what the answer OUGHT to be when nobody knows whose program this is. Recorded in
-    // V5 §171 as an owner question; this suite does not decide it, and does not change
-    // the engine to suit its own expectations.
-    check('the UNDECIDABLE program reports coaching_mode "unknown" and does NOT ' +
-          'approve, so the contrast above is evidence rather than coincidence — and ' +
-          'needs_approval is NULL there, which is three-valued logic, not false',
-      bodyTwo.coaching_mode === 'unknown' && !bodyTwo.needs_approval,
-      `coaching_mode=${JSON.stringify(bodyTwo.coaching_mode)} ` +
+    // §171.5 recorded that NULL as an owner question. It was not one: auto-apply is
+    // licensed for self_guided and ai_guided and nothing else (`decision-log.md:18`),
+    // and a client whose mode is unknown MAY be coach-guided — so applying a
+    // consequential change without sign-off risks exactly the bypass
+    // `product-bible.md:111` forbids. Migration 177 fixes it, fails closed, and makes
+    // the field a total boolean.
+    check('METRIC-ENG · the UNDECIDABLE program still reports coaching_mode "unknown", ' +
+          'so the contrast above is evidence rather than coincidence',
+      bodyTwo.coaching_mode === 'unknown',
+      `coaching_mode=${JSON.stringify(bodyTwo.coaching_mode)}`);
+    check('177 · an unestablished coaching mode now REQUIRES approval for a ' +
+          'consequential action — it no longer returns NULL, which every consumer read ' +
+          'as "apply it without sign-off"',
+      bodyTwo.needs_approval === true,
       `needs_approval=${JSON.stringify(bodyTwo.needs_approval)} ` +
-      '(null is expected: see the comment above and V5 §171)');
+      `action=${JSON.stringify(bodyTwo.action)}`);
+    check('177 · needs_approval is a TOTAL boolean — never null, whatever the mode',
+      typeof bodyOne.needs_approval === 'boolean' &&
+      typeof bodyTwo.needs_approval === 'boolean',
+      `derived=${JSON.stringify(bodyOne.needs_approval)} ` +
+      `undecidable=${JSON.stringify(bodyTwo.needs_approval)}`);
+
+    // AUTO-APPLY MUST STILL WORK FOR THE TWO MODES IT IS LICENSED FOR, or 177 has
+    // traded a bypass for a flood of needless approvals.
+    for (const mode of ['self_guided', 'ai_guided']) {
+      await svc(`user_profiles?id=eq.${victimUid}`,
+        { method: 'PATCH', body: { coaching_mode: mode } });
+      const ev = await rpc(coach, 'evaluate_week', { p_program_id: pOne, p_week: 1 });
+      check(`177 · a ${mode} client still AUTO-APPLIES a minor change — the licence ` +
+            'decision-log.md:18 grants is intact',
+        (ev.body || {}).needs_approval === false,
+        `needs_approval=${JSON.stringify((ev.body || {}).needs_approval)} ` +
+        `mode=${JSON.stringify((ev.body || {}).coaching_mode)}`);
+    }
+    // And the injury arm still approves in EVERY mode, which is the rule my first
+    // fixture tripped over (§171.4).
+    await svc(`user_profiles?id=eq.${victimUid}`,
+      { method: 'PATCH', body: { coaching_mode: 'self_guided' } });
+    await svc(`weekly_feedback?program_id=eq.${pOne}`,
+      { method: 'PATCH', body: { pain: ['knee'] } });
+    const evInjury = await rpc(coach, 'evaluate_week', { p_program_id: pOne, p_week: 1 });
+    check('177 · an INJURY still requires approval even for a self_guided client — ' +
+          '"injury needs approval in every mode" survived the change',
+      (evInjury.body || {}).needs_approval === true,
+      `needs_approval=${JSON.stringify((evInjury.body || {}).needs_approval)}`);
+
     await svc(`user_profiles?id=eq.${victimUid}`,
       { method: 'PATCH', body: { coaching_mode: priorMode ?? null } });
+
+    // ── 5c · B1 RESOLVED BY EVIDENCE, AND NOW A MONITORED INVARIANT ───────
+    // V5 §171.3 recorded "which subject owns a multi-assignment program's feedback" as
+    // an architecture question. The evidence answers it, and it is not a choice:
+    //
+    //   * `generate_client_plan` (`121:221`) inserts a FRESH program and then EXACTLY
+    //     ONE assignment for the calling member, so a generated plan is 1:1 with its
+    //     client by construction — and generated plans are what this screen operates on;
+    //   * `weekly_feedback` is `unique (program_id, week)`. A template assigned to N
+    //     clients cannot have one feedback row per week for all of them, whichever
+    //     subject were chosen. The ambiguous state is INCOHERENT for this table, not a
+    //     model to pick between.
+    //
+    // So 175's refusal is right, and the useful artifact is not an owner question but an
+    // invariant that makes the incoherent state visible if it ever occurs. Every row
+    // must either carry a subject, or belong to a program that genuinely has ≠1 active
+    // assignments — in which case the NULL is explained rather than a defect.
+    section('B1 · every feedback row has a subject, or an explained absence');
+    const allFb = (await svc('weekly_feedback?select=program_id,subject_id')).body || [];
+    const assigns = (await svc(
+      'workout_program_assignments?status=eq.active&select=program_id,client_id')).body || [];
+    const activeCount = {};
+    for (const a of assigns) activeCount[a.program_id] = (activeCount[a.program_id] || 0) + 1;
+    const unexplained = allFb.filter((f) =>
+      f.subject_id === null && activeCount[f.program_id] === 1);
+    check('no feedback row has an UNEXPLAINED null subject — a null is only ever ' +
+          'accompanied by a program with zero or several active assignments',
+      unexplained.length === 0,
+      `rows=${allFb.length} unexplained=${unexplained.length} ` +
+      `(ambiguous programs are expected to carry nulls)`);
+    // NON-VACUITY. This suite arranged both an explained null and a derived subject, so
+    // the population is not empty and the assertion is not passing over nothing.
+    check('…and the invariant was checked against a NON-EMPTY population containing ' +
+          'both a derived subject and an explained null',
+      allFb.length >= 2 &&
+      allFb.some((f) => f.subject_id !== null) &&
+      allFb.some((f) => f.subject_id === null),
+      `rows=${allFb.length} derived=${allFb.filter((f) => f.subject_id !== null).length} ` +
+      `null=${allFb.filter((f) => f.subject_id === null).length}`);
 
     // ── 6 · the service path is untouched ─────────────────────────────────
     section('the internal path still writes freely');
