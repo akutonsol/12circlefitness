@@ -93,6 +93,13 @@ class AdminDashboardScreen extends ConsumerWidget {
                         // V5 §183 · the way in to Trust. ROUTE-G1 fails on a route
                         // with no entry point, and it is right to.
                         _AdminActionTile(
+                          icon: Icons.hub_outlined,
+                          title: 'Ecosystem',
+                          subtitle: 'Community, events, training, monetization, wearables',
+                          onTap: () => context.push('/admin-ecosystem'),
+                        ),
+                        const SizedBox(height: 12),
+                        _AdminActionTile(
                           icon: Icons.verified_user_outlined,
                           title: 'Trust',
                           subtitle: 'AI Guardian, security, incidents, audit logs',

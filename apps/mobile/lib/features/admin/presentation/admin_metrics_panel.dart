@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/admin_metrics.dart';
 import '../domain/admin_provider.dart';
 import 'admin_attention_queue.dart';
+import 'admin_chrome.dart';
 import 'admin_metric_tile.dart';
 import 'admin_tokens.dart';
 
@@ -76,7 +77,7 @@ class AdminMetricsPanel extends ConsumerWidget {
     ];
   }
 
-  Widget _activity(WidgetRef ref) => _AdminCard(
+  Widget _activity(WidgetRef ref) => AdminCard(
         title: 'Activity',
         child: _async<AdminActivityOverview>(
           ref.watch(adminActivityOverviewProvider),
@@ -113,7 +114,7 @@ class AdminMetricsPanel extends ConsumerWidget {
       );
 
   // ── METRIC-03 · METRIC-05 · METRIC-17 ─────────────────────────────────────
-  Widget _people(WidgetRef ref) => _AdminCard(
+  Widget _people(WidgetRef ref) => AdminCard(
         title: 'People',
         child: _async<AdminUserOverview>(
           ref.watch(adminUserOverviewProvider),
@@ -156,7 +157,7 @@ class AdminMetricsPanel extends ConsumerWidget {
       );
 
   // ── METRIC-13 ─────────────────────────────────────────────────────────────
-  Widget _community(WidgetRef ref) => _AdminCard(
+  Widget _community(WidgetRef ref) => AdminCard(
         title: 'Community',
         child: _async<AdminCommunityOverview>(
           ref.watch(adminCommunityOverviewProvider),
@@ -178,7 +179,7 @@ class AdminMetricsPanel extends ConsumerWidget {
       );
 
   // ── METRIC-14 ─────────────────────────────────────────────────────────────
-  Widget _events(WidgetRef ref) => _AdminCard(
+  Widget _events(WidgetRef ref) => AdminCard(
         title: 'Events',
         child: _async<AdminEventsOverview>(
           ref.watch(adminEventsOverviewProvider),
@@ -204,7 +205,7 @@ class AdminMetricsPanel extends ConsumerWidget {
       );
 
   // ── METRIC-06a · METRIC-06b ───────────────────────────────────────────────
-  Widget _revenue(WidgetRef ref) => _AdminCard(
+  Widget _revenue(WidgetRef ref) => AdminCard(
         title: 'Revenue',
         child: _async<AdminRevenueOverview>(
           ref.watch(adminRevenueOverviewProvider),
@@ -276,7 +277,7 @@ class AdminMetricsPanel extends ConsumerWidget {
       : AdminMetricTile.text(label: label, display: display);
 
   // ── METRIC-11 ─────────────────────────────────────────────────────────────
-  Widget _release(WidgetRef ref) => _AdminCard(
+  Widget _release(WidgetRef ref) => AdminCard(
         title: 'QA & release',
         child: _async<AdminReleaseStatus>(
           ref.watch(adminReleaseStatusProvider),
@@ -358,7 +359,7 @@ class AdminMetricsPanel extends ConsumerWidget {
               AdminMetricTile.absent(
                   label: l, absence: MetricAbsence.notAuthorized)
             else
-              _PlaceholderRow(label: l, text: state.copy),
+              AdminPlaceholderRow(label: l, text: state.copy),
         ],
       );
 }
@@ -372,69 +373,4 @@ enum _A11 {
   final String copy;
 }
 
-/// Loading and error rows. Deliberately NOT an [AdminMetricTile], because those two
-/// states are not metric absences — conflating them would let a transient network
-/// failure be read as a permission boundary.
-class _PlaceholderRow extends StatelessWidget {
-  const _PlaceholderRow({required this.label, required this.text});
 
-  final String label;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: AdminDims.space7),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(label,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      color: AdminColors.colorTextSecondary,
-                      fontSize: AdminDims.typeSmallSize)),
-            ),
-            Text(text,
-                style: const TextStyle(
-                    color: AdminColors.colorTextSubtle,
-                    fontSize: AdminDims.typeSmallSize)),
-          ],
-        ),
-      );
-}
-
-/// `COMPONENT-SPECS.md` › Card.
-class _AdminCard extends StatelessWidget {
-  const _AdminCard({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(
-            vertical: AdminDims.space10, horizontal: AdminDims.space8),
-        decoration: BoxDecoration(
-          color: AdminColors.colorBgSurface,
-          borderRadius: BorderRadius.circular(AdminDims.radiusXl),
-          // `--adm-shadow-edge`: inset 0 0 0 1px rgba(255,255,255,0.08). Flutter has
-          // no inset box-shadow, so the published value is expressed as the border it
-          // actually draws — a 1px hairline in --adm-color-line-default — rather than
-          // approximated with an outer shadow that would look nothing like it.
-          border: Border.all(color: AdminColors.colorLineDefault, width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(title.toUpperCase(),
-                style: const TextStyle(
-                  color: AdminColors.colorTextMuted,
-                  fontSize: AdminDims.typeOverlineSize,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 1.32, // --adm-type-overline-tracking: 0.12em @ 11px
-                )),
-            const SizedBox(height: AdminDims.space4),
-            child,
-          ],
-        ),
-      );
-}

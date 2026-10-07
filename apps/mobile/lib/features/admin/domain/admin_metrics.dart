@@ -493,6 +493,72 @@ class AdminIncident {
       );
 }
 
+/// `admin_training_overview` (migration 156) — raw counts, no derived rate.
+class AdminTrainingOverview {
+  const AdminTrainingOverview({
+    required this.programsTotal,
+    required this.workoutsTotal,
+    required this.sessionsTotal,
+    required this.logsTotal,
+  });
+
+  final int? programsTotal;
+  final int? workoutsTotal;
+  final int? sessionsTotal;
+  final int? logsTotal;
+
+  static AdminTrainingOverview fromRow(Map<String, dynamic> r) =>
+      AdminTrainingOverview(
+        programsTotal: _int(r['programs_total']),
+        workoutsTotal: _int(r['workouts_total']),
+        sessionsTotal: _int(r['sessions_total']),
+        logsTotal: _int(r['logs_total']),
+      );
+}
+
+/// Wearable CONNECTION counts, from `admin_integration_connections` (157).
+///
+/// THE CONNECTION HALF ONLY, AND THAT IS A RULING NOT A SHORTCUT. The data contract
+/// splits this tile: *"its connection half is buildable now from `user_integrations`; its
+/// ingestion-health half depends on `WI-13` and waits for `PD-G01`"*. So there is no
+/// latency, no sync status and no error count here — `PD-G01` is `APPROVED — FUTURE BUILD ·
+/// implementation NOT AUTHORIZED`, and inventing a health figure would cross it.
+///
+/// NO IDENTIFIER REACHES THE CLIENT. The view projects `user_id`, which an Admin holding
+/// `Wearable intelligence·view` is authorized to read — but this page needs counts, so the
+/// service selects `provider, connected` ONLY and the identifier never leaves the
+/// database. Minimum necessary, rather than "authorized therefore fetched".
+/// NOT a row-parsed model, and that is why its fields are non-nullable. It is COMPUTED
+/// from rows the client already holds, so "unavailable" is expressed by the whole model
+/// being null — a count derived from a list in hand cannot itself be unknown. Every model
+/// that parses a surface row keeps `int?`, because there null means "you may not see this"
+/// or "nothing was recorded"; see [AdminActivityOverview].
+class AdminWearableConnections {
+  const AdminWearableConnections({required this.byProvider, required this.connectedTotal});
+
+  /// provider → number of CONNECTED rows. A provider the vocabulary does not know is
+  /// still counted: `user_integrations.provider` is `TEXT NOT NULL` with no CHECK
+  /// (`011:32`), so an unexpected value is reachable and dropping it would understate
+  /// connections.
+  final Map<String, int> byProvider;
+  final int connectedTotal;
+
+  static AdminWearableConnections fromRows(List<Map<String, dynamic>> rows) {
+    final by = <String, int>{};
+    var total = 0;
+    for (final r in rows) {
+      if (r['connected'] != true) continue;
+      final p = (r['provider'] as String?) ?? 'unrecognised';
+      // `update(..., ifAbsent:)` rather than `(by[p] ?? 0) + 1`: a map accumulator is
+      // not a metric coercion, but writing it with `?? 0` puts the shape SEC-G4 hunts
+      // into a file whose whole point is that the shape is absent.
+      by.update(p, (v) => v + 1, ifAbsent: () => 1);
+      total++;
+    }
+    return AdminWearableConnections(byProvider: by, connectedTotal: total);
+  }
+}
+
 // ── parsing ────────────────────────────────────────────────────────────────
 // PostgREST returns bigint and numeric as JSON numbers or strings depending on
 // magnitude and type. Each of these returns null for a null or unparseable

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/admin_metrics.dart';
 import '../domain/admin_provider.dart';
+import 'admin_chrome.dart';
 import 'admin_tokens.dart';
 
 /// `DESIGN-01` §1 — the `critical-incident` state, implemented.
@@ -66,16 +67,16 @@ class AdminAttentionQueue extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(adminIncidentsProvider);
-    return _Card(
+    return AdminCard(
       title: 'Needs your attention',
       child: async.when(
-        loading: () => const _Note('Loading…'),
-        error: (_, __) => const _Note('Unavailable'),
+        loading: () => const AdminNote('Loading…'),
+        error: (_, __) => const AdminNote('Unavailable'),
         data: (items) {
           // Null and empty are different facts, and the service distinguishes them by
           // asking admin_can rather than inferring a permission from an empty list.
-          if (items == null) return const _Note('Not available to your role');
-          if (items.isEmpty) return const _Note(zeroCopy);
+          if (items == null) return const AdminNote('Not available to your role');
+          if (items.isEmpty) return const AdminNote(zeroCopy);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -253,50 +254,4 @@ Color _severityTint(String? severity) => switch (severity) {
       _ => AdminColors.colorBgInset,
     };
 
-class _Note extends StatelessWidget {
-  const _Note(this.text);
 
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: AdminDims.space6),
-        child: Text(text,
-            style: const TextStyle(
-              color: AdminColors.colorTextMuted,
-              fontSize: AdminDims.typeSmallSize,
-            )),
-      );
-}
-
-class _Card extends StatelessWidget {
-  const _Card({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(
-            vertical: AdminDims.space10, horizontal: AdminDims.space8),
-        decoration: BoxDecoration(
-          color: AdminColors.colorBgSurface,
-          borderRadius: BorderRadius.circular(AdminDims.radiusXl),
-          border: Border.all(color: AdminColors.colorLineDefault, width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(title.toUpperCase(),
-                style: const TextStyle(
-                  color: AdminColors.colorTextMuted,
-                  fontSize: AdminDims.typeOverlineSize,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: AdminDims.typeOverlineSize * 0.12,
-                )),
-            const SizedBox(height: AdminDims.space4),
-            child,
-          ],
-        ),
-      );
-}

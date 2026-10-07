@@ -16837,3 +16837,81 @@ QA frontier **178** (no migration needed) · live security **993/993 across 17 s
 **126/126** · `ROUTE-G1` green.
 
 **Production was not contacted.**
+
+---
+
+## §184 · P5 · Ecosystem, and the chrome that had been written three times
+
+### §184.1 · Shared chrome, extracted before it was written seven times
+
+`AdminCard`, `AdminNote`, `AdminFootnote` and `AdminPlaceholderRow` now live in
+`admin_chrome.dart`. They had been written **three times under three names** —
+`_AdminCard` in the metrics panel, `_Card` in the attention queue and again in Trust —
+and the approved IA has **six pages**, so the remaining four would have copied them
+again. Three copies of a card is tolerable; seven is how one page quietly stops matching
+`COMPONENT-SPECS` while the others still do. All 50 existing Admin widget assertions pass
+unchanged against the extracted versions.
+
+`AdminNote` takes its copy from the caller on purpose: the approved zero wording differs
+by surface — *"None"* · *"none raised"* · *"none open"* — and a widget that picked one
+would impose it everywhere.
+
+### §184.2 · The Ecosystem page
+
+Sections in the published order: `#overview` · `#community` · `#events` · `#training` ·
+`#monetization` · `#wearables`, at `/admin-ecosystem` with a console entry. **No schema
+was added** — every requirement reads a surface 156/157/166/170/171/172/178 already
+publishes.
+
+**Two things it deliberately does not show, each a ruling rather than a gap:**
+
+- **Wearable sync health.** The data contract splits that tile — *"its connection half is
+  buildable now from `user_integrations`; its ingestion-health half depends on `WI-13` and
+  waits for `PD-G01`"* — and `PD-G01` is `APPROVED — FUTURE BUILD · implementation NOT
+  AUTHORIZED`. Connections are counted; no latency, sync status or error rate is invented,
+  and **the card says so** so the absence is not read as an oversight. The test asserts no
+  tile is *labelled* `Latency`, `Sync status`, `Last sync`, `Ingestion errors` or
+  `Sync health`.
+- **A training completion rate.** The design asks for *"training content and completion"*;
+  `admin_training_overview` publishes raw counts and **no ruled denominator exists**. Counts
+  are shown and the card states that no rate is derived.
+
+**No aggregate migration was written for the wearable counts, deliberately.**
+`user_integrations` holds **0 rows on QA**, so a new aggregate view could only have been
+verified vacuously — the defect this programme keeps finding. Instead the service selects
+`provider, connected` **only** from the existing view, so `user_id` — which an Admin
+holding `Wearable intelligence·view` is authorized to read — **never leaves the database**
+for a page that needs counts. Minimum necessary, rather than "authorized therefore
+fetched". An unrecognised provider is still counted (`provider` is `TEXT NOT NULL` with no
+CHECK at `011:32`), because dropping it would understate connections.
+
+### §184.3 · SEC-G4 fired on correct code, and the narrowing is the finding
+
+The guard flagged `AdminWearableConnections` twice: a non-nullable `connectedTotal`, and a
+`(by[p] ?? 0) + 1` accumulator.
+
+**It could not tell two situations apart** — the same shape as §174.3, where it fired on
+four D15 sites that were never blind. A model built by `fromRow` **mirrors a surface**,
+where null means *"you may not see this"* or *"nothing was recorded"*. A model **computed
+from rows the client already holds** expresses unavailability by being null itself; a count
+derived from a list in hand cannot be unknown.
+
+So the nullable-field check is now **scoped to row-parsed models**, judged per class by
+whether the body declares `fromRow(Map<String, dynamic>`. The accumulator was rewritten as
+`update(..., ifAbsent:)` — a map accumulator is not a metric coercion, but writing it with
+`?? 0` puts the hunted shape into the one file whose point is that the shape is absent.
+
+**Both directions were proved, and the first control was wrong.** Injecting
+`final int x = 0;` did **not** fire the guard — correctly, because a field with an
+initializer is not the defect shape — and I nearly accepted that as "the guard lost its
+teeth". The real shape is dropping the `?`: `final int? usersTotal;` →
+`final int usersTotal;` **fires it**, while the computed model's non-nullable field
+**stays quiet**. A control that tests the wrong shape is worse than no control, because it
+answers confidently.
+
+### §184.4 · Verification
+
+QA frontier **178** (no migration) · Flutter **1822 / 5 skipped** (1813 → 1822) ·
+`dart analyze` **0 errors** · live security **993/993** · `ROUTE-G1` green.
+
+**Production was not contacted.**

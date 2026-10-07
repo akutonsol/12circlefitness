@@ -5,6 +5,7 @@ import '../domain/admin_metrics.dart';
 import '../domain/admin_provider.dart';
 import '../domain/admin_trust.dart';
 import 'admin_metric_tile.dart';
+import 'admin_chrome.dart';
 import 'admin_tokens.dart';
 
 /// V5 §183 — P6 · Trust.
@@ -87,7 +88,7 @@ class AdminTrustScreen extends ConsumerWidget {
     final canGuardian = ref.watch(adminCanViewGuardianProvider);
     final incidents = ref.watch(adminIncidentsProvider);
     final security = ref.watch(adminSecurityEventsProvider);
-    return _Card(
+    return AdminCard(
       title: 'Overview',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -110,11 +111,11 @@ class AdminTrustScreen extends ConsumerWidget {
   static Widget _guardianHealthTile(
       AsyncValue<AdminGuardianState?> g, AsyncValue<bool> can) {
     return g.when(
-      loading: () => const _Note('Loading…'),
-      error: (_, __) => const _Note('Unavailable'),
+      loading: () => const AdminNote('Loading…'),
+      error: (_, __) => const AdminNote('Unavailable'),
       data: (state) => can.when(
-        loading: () => const _Note('Loading…'),
-        error: (_, __) => const _Note('Unavailable'),
+        loading: () => const AdminNote('Loading…'),
+        error: (_, __) => const AdminNote('Unavailable'),
         data: (permitted) {
           if (!permitted) {
             return const AdminMetricTile.absent(
@@ -140,8 +141,8 @@ class AdminTrustScreen extends ConsumerWidget {
     String? zeroCopy,
   }) =>
       async.when(
-        loading: () => _PlaceholderRow(label: label, text: 'Loading…'),
-        error: (_, __) => _PlaceholderRow(label: label, text: 'Unavailable'),
+        loading: () => AdminPlaceholderRow(label: label, text: 'Loading…'),
+        error: (_, __) => AdminPlaceholderRow(label: label, text: 'Unavailable'),
         data: (list) => list == null
             ? AdminMetricTile.absent(
                 label: label, absence: MetricAbsence.notAuthorized)
@@ -154,7 +155,7 @@ class AdminTrustScreen extends ConsumerWidget {
     final g = ref.watch(adminGuardianStateProvider);
     final can = ref.watch(adminCanViewGuardianProvider);
     final policies = ref.watch(adminGovernancePoliciesProvider);
-    return _Card(
+    return AdminCard(
       title: 'AI Guardian',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -170,7 +171,7 @@ class AdminTrustScreen extends ConsumerWidget {
           // why a safety control was switched off.
           g.maybeWhen(
             data: (s) => (s?.isDisabled ?? false)
-                ? _Footnote('Disabled because: ${s!.reason ?? 'no reason recorded'}')
+                ? AdminFootnote('Disabled because: ${s!.reason ?? 'no reason recorded'}')
                 : const SizedBox.shrink(),
             orElse: () => const SizedBox.shrink(),
           ),
@@ -178,7 +179,7 @@ class AdminTrustScreen extends ConsumerWidget {
           _countTile('Policies active', policies,
               (l) => l.whereType<AdminGovernancePolicy>().where((p) => p.isActive).length,
               zeroCopy: 'None'),
-          const _Footnote(
+          const AdminFootnote(
               'Autonomy is re-stated through the governed write path only. Nothing is '
               'changed from this screen.'),
         ],
@@ -189,16 +190,16 @@ class AdminTrustScreen extends ConsumerWidget {
   // ── #security, incl. #sec-authz ─────────────────────────────────────────
   Widget _security(WidgetRef ref) {
     final async = ref.watch(adminSecurityEventsProvider);
-    return _Card(
+    return AdminCard(
       title: 'Security',
       child: async.when(
-        loading: () => const _Note('Loading…'),
-        error: (_, __) => const _Note('Unavailable'),
+        loading: () => const AdminNote('Loading…'),
+        error: (_, __) => const AdminNote('Unavailable'),
         data: (events) {
           if (events == null) {
-            return const _Note('Not available to your role');
+            return const AdminNote('Not available to your role');
           }
-          if (events.isEmpty) return const _Note('none raised');
+          if (events.isEmpty) return const AdminNote('none raised');
           final denials =
               events.where((e) => e.category == 'authorization_denial').length;
           final auth = events.where((e) => e.category == 'authentication').length;
@@ -222,14 +223,14 @@ class AdminTrustScreen extends ConsumerWidget {
   // ── #incidents ──────────────────────────────────────────────────────────
   Widget _incidents(WidgetRef ref) {
     final async = ref.watch(adminIncidentsProvider);
-    return _Card(
+    return AdminCard(
       title: 'Incidents',
       child: async.when(
-        loading: () => const _Note('Loading…'),
-        error: (_, __) => const _Note('Unavailable'),
+        loading: () => const AdminNote('Loading…'),
+        error: (_, __) => const AdminNote('Unavailable'),
         data: (items) {
-          if (items == null) return const _Note('Not available to your role');
-          if (items.isEmpty) return const _Note('none open');
+          if (items == null) return const AdminNote('Not available to your role');
+          if (items.isEmpty) return const AdminNote('none open');
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -238,7 +239,7 @@ class AdminTrustScreen extends ConsumerWidget {
                   label: i.summary ?? 'Incident',
                   display: i.severity ?? '—',
                 ),
-              const _Footnote(
+              const AdminFootnote(
                   'Evidence and actor identity are withheld from this layer (B-4).'),
             ],
           );
@@ -250,23 +251,23 @@ class AdminTrustScreen extends ConsumerWidget {
   // ── #audit ──────────────────────────────────────────────────────────────
   Widget _audit(WidgetRef ref) {
     final async = ref.watch(adminAuditEventsProvider);
-    return _Card(
+    return AdminCard(
       title: 'Audit logs',
       child: async.when(
-        loading: () => const _Note('Loading…'),
-        error: (_, __) => const _Note('Unavailable'),
+        loading: () => const AdminNote('Loading…'),
+        error: (_, __) => const AdminNote('Unavailable'),
         data: (events) {
-          if (events == null) return const _Note('Not available to your role');
+          if (events == null) return const AdminNote('Not available to your role');
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (events.isEmpty)
-                const _Note('none raised')
+                const AdminNote('none raised')
               else
                 for (final e in events.take(15)) _EventRow(event: e),
               // A13·1 IS STATED, NOT IMPLIED. This ledger is incomplete for whoever is
               // reading it, so absence here is not evidence of absence.
-              const _Footnote(AdminAuditEvent.a13Note),
+              const AdminFootnote(AdminAuditEvent.a13Note),
             ],
           );
         },
@@ -334,109 +335,21 @@ class _TrustSystemPanel extends StatelessWidget {
   const _TrustSystemPanel();
 
   @override
-  Widget build(BuildContext context) => _Card(
+  Widget build(BuildContext context) => AdminCard(
         title: 'State system',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: const [
-            _Footnote('Loading · Unavailable · Not available to your role · '
+            AdminFootnote('Loading · Unavailable · Not available to your role · '
                 'Not recorded · Read-only'),
-            _Footnote('"Not available to your role" and "Not recorded" are different '
+            AdminFootnote('"Not available to your role" and "Not recorded" are different '
                 'findings and are never shown interchangeably.'),
-            _Footnote('This page is read-only. Nothing is changed from this screen.'),
+            AdminFootnote('This page is read-only. Nothing is changed from this screen.'),
           ],
         ),
       );
 }
 
-class _Footnote extends StatelessWidget {
-  const _Footnote(this.text);
 
-  final String text;
 
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: AdminDims.space4),
-        child: Text(text,
-            style: const TextStyle(
-              color: AdminColors.colorTextSubtle,
-              fontSize: AdminDims.typeCaptionSize,
-            )),
-      );
-}
 
-class _Note extends StatelessWidget {
-  const _Note(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: AdminDims.space6),
-        child: Text(text,
-            style: const TextStyle(
-              color: AdminColors.colorTextMuted,
-              fontSize: AdminDims.typeSmallSize,
-            )),
-      );
-}
-
-class _PlaceholderRow extends StatelessWidget {
-  const _PlaceholderRow({required this.label, required this.text});
-
-  final String label;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: AdminDims.space7),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(label,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      color: AdminColors.colorTextSecondary,
-                      fontSize: AdminDims.typeSmallSize)),
-            ),
-            Text(text,
-                style: const TextStyle(
-                    color: AdminColors.colorTextSubtle,
-                    fontSize: AdminDims.typeSmallSize)),
-          ],
-        ),
-      );
-}
-
-/// `COMPONENT-SPECS` › Card.
-class _Card extends StatelessWidget {
-  const _Card({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(
-            vertical: AdminDims.space10, horizontal: AdminDims.space8),
-        decoration: BoxDecoration(
-          color: AdminColors.colorBgSurface,
-          borderRadius: BorderRadius.circular(AdminDims.radiusXl),
-          border: Border.all(color: AdminColors.colorLineDefault, width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(title.toUpperCase(),
-                style: const TextStyle(
-                  color: AdminColors.colorTextMuted,
-                  fontSize: AdminDims.typeOverlineSize,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: AdminDims.typeOverlineSize * 0.12,
-                )),
-            const SizedBox(height: AdminDims.space4),
-            child,
-          ],
-        ),
-      );
-}

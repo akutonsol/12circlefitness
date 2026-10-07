@@ -140,18 +140,38 @@ void main() {
     expect(stale, isEmpty, reason: stale.join('\n'));
   });
 
-  test('every numeric field on every metric model stays nullable', () {
-    // A non-nullable `int count;` forces a default at construction, and the only
-    // available default is a lie.
+  test('every numeric field on a ROW-PARSED metric model stays nullable', () {
+    // A non-nullable `int count;` on a row-parsed model forces a default at
+    // construction, and the only available default is a lie.
+    //
+    // SCOPED TO ROW-PARSED MODELS, and the scope is the point. A model built by
+    // `fromRow` mirrors a surface, where null means "you may not see this" or "nothing
+    // was recorded". A model COMPUTED from rows the client already holds — `fromRows`,
+    // plural — expresses unavailability by being null itself; a count derived from a
+    // list in hand cannot be unknown, so demanding `int?` there would be the §174.3
+    // mistake again: a detector firing on correct code because it cannot tell two
+    // situations apart.
     final bad = <String>[];
-    final lines = sources['models']!.split('\n');
-    for (var i = 0; i < lines.length; i++) {
-      final code = lines[i].split('//').first.trim();
-      final m = RegExp(r'^final\s+(int|double|num)\s+(\w+)\s*;').firstMatch(code);
-      if (m != null) bad.add('admin_metrics.dart:${i + 1}: ${m.group(0)}');
+    final src = sources['models']!;
+    // Split into class bodies so each field is judged against its own class.
+    final classes = RegExp(r'\nclass\s+(\w+)\s*\{').allMatches(src).toList();
+    for (var c = 0; c < classes.length; c++) {
+      final name = classes[c].group(1)!;
+      final start = classes[c].end;
+      final end = c + 1 < classes.length ? classes[c + 1].start : src.length;
+      final body = src.substring(start, end);
+      final rowParsed = body.contains('fromRow(Map<String, dynamic>');
+      if (!rowParsed) continue;
+      final lines = body.split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        final code = lines[i].split('//').first.trim();
+        final m = RegExp(r'^final\s+(int|double|num)\s+(\w+)\s*;').firstMatch(code);
+        if (m != null) bad.add('$name.${m.group(2)} — ${m.group(0)}');
+      }
     }
     expect(bad, isEmpty,
-        reason: 'these fields cannot represent "unavailable":\n${bad.join('\n')}');
+        reason: 'these row-parsed fields cannot represent "unavailable":\n'
+            '${bad.join('\n')}');
   });
 
   test('the service returns nullable models, so a missing row stays missing', () {

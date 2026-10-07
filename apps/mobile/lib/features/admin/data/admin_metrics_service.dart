@@ -77,6 +77,23 @@ class AdminMetricsService {
     ];
   }
 
+  Future<AdminTrainingOverview?> getTrainingOverview() async =>
+      _one('admin_training_overview', AdminTrainingOverview.fromRow);
+
+  /// Wearable CONNECTION counts. Selects `provider, connected` only — the view also
+  /// projects `user_id`, which this page does not need, so the identifier never leaves
+  /// the database. Returns null when the caller lacks `Wearable intelligence·view`,
+  /// asked rather than inferred from an empty read.
+  Future<AdminWearableConnections?> getWearableConnections() async {
+    final permitted = await _db.rpc('admin_can',
+        params: {'p_area': 'Wearable intelligence', 'p_verb': 'view'});
+    if (permitted != true) return null;
+    final rows = await _db.from('admin_integration_connections')
+        .select('provider, connected');
+    return AdminWearableConnections.fromRows(
+        [for (final r in rows) Map<String, dynamic>.from(r)]);
+  }
+
   Future<T?> _one<T>(
     String view,
     T Function(Map<String, dynamic>) parse,

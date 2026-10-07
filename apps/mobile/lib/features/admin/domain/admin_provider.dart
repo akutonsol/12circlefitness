@@ -77,3 +77,11 @@ final adminCanViewGuardianProvider = FutureProvider<bool>(
 final adminGovernancePoliciesProvider =
     FutureProvider<List<AdminGovernancePolicy>?>((ref) async =>
         ref.watch(adminTrustServiceProvider).getGovernancePolicies());
+
+final adminTrainingOverviewProvider = FutureProvider<AdminTrainingOverview?>(
+    (ref) async => ref.watch(adminMetricsServiceProvider).getTrainingOverview());
+
+/// Connection counts only — the ingestion-health half waits on WI-13 under PD-G01.
+final adminWearableConnectionsProvider =
+    FutureProvider<AdminWearableConnections?>((ref) async =>
+        ref.watch(adminMetricsServiceProvider).getWearableConnections());
