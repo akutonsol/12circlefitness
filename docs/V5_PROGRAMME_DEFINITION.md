@@ -15925,3 +15925,123 @@ contract-guard derivation and the `I-COM-01` remediation are **VERIFIED IN CI**.
 
 **Production was not contacted. No guard was weakened; one was added and two were corrected
 against their own defects.**
+
+---
+
+## §171 · `ENG-02` — and the hole that fixing it would have opened
+
+The registry records `ENG-02` as **P0 · `READY_TO_REMEDIATE`**: one unwritten column,
+`weekly_feedback.subject_id`, silently disabling four systems — `predict_client` always
+`no_data`, `assemble_weekly_review` always `no_feedback`, `needs_approval` **never firing**
+for coach-guided clients, and `decision_traces.subject_id` stamped NULL so a subject can
+never read the trace of their own program change.
+
+### §171.1 · The fix is server-side, because the call site does not know the subject
+
+The registry says *"fix the writer"*. The writer cannot: `continuous_coaching_screen`
+submits feedback for a **program** the coach picked from `getMyPrograms()`, and no client is
+selected anywhere on that screen. `workout_programs` has **no subject column at all** —
+only `coach_id` — so the subject exists only in `workout_program_assignments`.
+
+Migration **175** therefore derives it in a `BEFORE INSERT OR UPDATE` trigger, following
+138's `enforce_registration_integrity` pattern exactly: `SECURITY INVOKER`, a service-role
+passthrough at `auth.uid() IS NULL`, and frozen columns restored from `OLD` rather than
+rejected. One trigger covers every writer, including writers that do not exist yet.
+
+### §171.2 · THE FINDING — the obvious fix would have opened a write path
+
+Migration 117 split 094's `FOR ALL` policy because *"weekly_feedback's FOR ALL policy let
+the subject DELETE their own feedback"*. It removed DELETE. **It left the subject arm on
+UPDATE**:
+
+```
+weekly fb update · USING / WITH CHECK (subject_id = auth.uid() OR <the program's coach>)
+```
+
+That arm has been **dead code ever since**, for exactly one reason: `subject_id` was always
+NULL, so no subject could ever match it. **Writing `subject_id` wakes it** — over a row
+containing `coach_note`, the coach's written assessment of that person. The naive ENG-02 fix
+would have handed every client row-level UPDATE over their own coach's notes, and 117 could
+not have caught it: the arm was unreachable when 117 was written.
+
+So the freeze ships **in the same migration** as the derivation. `coach_note` is restored
+from `OLD` for any caller who is not the program's coach, while `client_note` stays
+writable — the freeze discriminates by actor, and D17 proves all three directions: the
+subject cannot tamper, the subject can still write their own note, the coach can still
+revise theirs. `program_id`, `week`, and an already-derived `subject_id` are frozen for
+everyone.
+
+**Every denial is asserted by re-reading the row.** The tampering PATCH returns **204** —
+a column freeze never errors, it silently preserves `OLD` — so a status code proves nothing
+here at all.
+
+### §171.3 · What 175 refuses to decide
+
+A program may carry **several** active assignments, while `weekly_feedback` is
+`unique (program_id, week)`: one row per program-week for what could be many clients. **Which
+subject owns that row is a modelling question the governing artifacts do not answer**, and
+175 does not answer it either. The derivation fires only when there is **exactly one** active
+assignment and leaves `subject_id` NULL otherwise — the same discipline as METRIC-06b's
+missing commission rates. Guessing would decide, silently, whose body a coaching decision was
+made about. D17 proves the refusal for both the two-assignment and the zero-assignment case,
+rather than assuming it.
+
+### §171.4 · The remediation is proved END TO END, not by a populated column
+
+A populated column is not a working system. `evaluate_week` (`127:161`) reads
+`coaching_mode` through `fb.subject_id`, so the two cases are run side by side over the same
+RPC:
+
+| program | `coaching_mode` | `needs_approval` |
+|---|---|---|
+| one active assignment, subject `coach_guided` | **`coach_guided`** | **`true`** |
+| two active assignments, subject undecidable | `unknown` | *null* |
+
+**The approval matrix fires again.** If the derivation had achieved nothing useful, both rows
+would read the same.
+
+**My first fixture made the contrast invisible, and the contrast assertion caught it.** I
+reported `pain`, which is the top-priority branch — and `needs_approval` is
+`(coach_guided and action <> CONTINUE) OR (rules && INJURY_ADAPTATION)` (`127:188`), because
+*"injury needs approval in every mode"*. An injury approves whatever the mode is, so the
+undecidable program returned `true` as well. The code was right and fail-safe; the fixture
+chose the one branch where the coaching mode cannot be the variable. Replaced with low
+adherence, which isolates it.
+
+### §171.5 · A finding recorded rather than resolved — `needs_approval` is NULL, not false
+
+For the undecidable program `needs_approval` comes back **null**. That is SQL three-valued
+logic, not a typo: `v_mode` is NULL, so `(NULL = 'coach_guided' and …)` is NULL and
+`NULL or false` is NULL. **An expression that reads as boolean is not one whenever the
+subject is undecidable.**
+
+D17 asserts it **as null** rather than coalescing it quietly, because that is what the RPC
+returns and a test that says otherwise is a worse artifact than the defect. Behaviourally
+null and false are identical to every consumer — Dart and JS both treat null as falsy — so
+there is no live hole beyond the real question: **what should the answer be when nobody knows
+whose program this is?** Requiring approval would be fail-closed and is arguably right; it is
+also a product decision about whether an undecidable subject blocks a program change, and it
+is **accumulated for the owner, not taken here**. The engine was not edited to match a test's
+expectations.
+
+### §171.6 · A process note
+
+`min(uuid)` does not exist in PostgreSQL, so 175's first apply failed at the backfill
+(`SQLSTATE 42883`). I had already bumped the declared frontier to 175, and **reverted it
+immediately** rather than leave a declared-but-unapplied migration on record — the manifest
+would have reported green over a state that did not exist. Replaced with
+`(array_agg(…))[1]`, read only when the count is 1. The migration is idempotent by
+construction, which is why a partial apply was recoverable.
+
+`MASTER_REMEDIATION_REGISTRY.md` was not modified; `ENG-02`'s status line still reads
+`READY_TO_REMEDIATE` and this section is the record.
+
+### §171.7 · Verification
+
+QA frontier **175** · live security **972/972 across 17 suites** (958 → 972; **D17 15/15**) ·
+AI **49/49** · characterizations **17/17** · contract clean on a 2-entry allowlist · function
+posture **39 pinned** · durability guard clean · manifest and frontier agreeing at 000–175.
+
+**Production was not contacted. No guard or policy was weakened — 175 is strictly a
+tightening, and it closes a write path that the remediation itself would otherwise have
+opened.**
