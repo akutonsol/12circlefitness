@@ -59,6 +59,7 @@ async function run() {
     await svc(`fx_rates?source=eq.QA-D16-FIXTURE`, { method: 'DELETE' });
     await svc(`accountability_pods?name=eq.QA-D16-POD`, { method: 'DELETE' });
     await svc(`coach_client_relationships?request_message=eq.QA-D16-CCR`, { method: 'DELETE' });
+    await svc(`release_status?release_version=like.QA-D16*`, { method: 'DELETE' });
   };
 
   try {
@@ -70,7 +71,7 @@ async function run() {
     await unassign(vUid);
     for (const v of ['admin_activity_overview', 'admin_user_overview',
                      'admin_events_overview', 'admin_community_overview',
-                     'admin_revenue_overview']) {
+                     'admin_revenue_overview', 'admin_release_status']) {
       const r = await view(victim, v);
       check(`${v} yields ZERO rows to an unassigned caller`, r.rows === 0,
         `status=${r.status} rows=${r.rows}`);
@@ -82,6 +83,8 @@ async function run() {
       const r = await view(victim, v);
       check(`${v} answers a Viewer`, r.rows === 1, `status=${r.status} rows=${r.rows}`);
     }
+    // admin_release_status is EXPECTED EMPTY and is asserted separately in §8b:
+    // it has no ingestion producer, so "a Viewer sees one row" would be false.
 
     // ── 2 · METRIC-02 · the two bases, and the authorization split ─────────
     section('METRIC-02 · Session and sign-in, separately gated');
@@ -329,11 +332,97 @@ async function run() {
     check('an admin-layer caller CANNOT delete a recorded FX rate',
       n(survives) === 1, `status=${wDel.status} rows surviving=${n(survives)}`);
 
+    // ── 8b · METRIC-11 · two verdicts that must not be collapsed ──────────
+    section('METRIC-11 · CI and the V5 gate ledger, separately and with provenance');
+    // THE EMPTY STATE IS THE CURRENT TRUTH, SO IT IS ASSERTED RATHER THAN ASSUMED.
+    // No ingestion producer exists: the egress/webhook path at data-contract :220 is
+    // gated on P10 and CONF-D9, neither released. A Viewer therefore sees NO ROW,
+    // and the card renders its approved A11 state. If someone later seeds this table
+    // to make a dashboard look finished, this assertion is what catches it.
+    const relEmpty = await view(victim, 'admin_release_status');
+    const relAll = await svc('release_status?select=id');
+    check('METRIC-11 · the registry is EMPTY and the card renders A11 — no release ' +
+          'was invented to populate it',
+      relEmpty.rows === 0 && n(relAll.body) === 0,
+      `view rows=${relEmpty.rows} table rows=${n(relAll.body)}`);
+
+    // THE ANTI-FABRICATION CONSTRAINTS MUST ACTUALLY REFUSE. A CHECK nobody has
+    // tried to violate is a comment.
+    const badProv = await svc('release_status', { method: 'POST', body: {
+      release_version: 'QA-D16-1', environment: 'staging', ci_status: 'Passing' } });
+    check('METRIC-11 · a CI verdict WITHOUT its source and timestamp is REFUSED by ' +
+          'the database, not merely discouraged',
+      badProv.status >= 400, `status=${badProv.status}`);
+    const badVocab = await svc('release_status', { method: 'POST', body: {
+      release_version: 'QA-D16-2', environment: 'staging', gate_verdict: 'BLOCKED',
+      gate_source: 'x', gate_recorded_at: new Date().toISOString() } });
+    check('METRIC-11 · a gate verdict outside the ruled PASS/PARTIAL/FAIL vocabulary ' +
+          'is REFUSED — no state vocabulary is invented at write time',
+      badVocab.status >= 400, `status=${badVocab.status}`);
+    const badCounts = await svc('release_status', { method: 'POST', body: {
+      release_version: 'QA-D16-3', environment: 'staging', gate_verdict: 'FAIL',
+      gate_source: 'x', gate_recorded_at: new Date().toISOString(),
+      gates_pass: 5, gates_partial: 2, gates_fail: 8, gates_total: 99 } });
+    check('METRIC-11 · a gate tally that does not reconcile to its total is REFUSED',
+      badCounts.status >= 400, `status=${badCounts.status}`);
+
+    // NOW RECORD A REAL, CITABLE DISAGREEMENT and prove both halves survive it.
+    const now = new Date().toISOString();
+    const rel = await svc('release_status', { method: 'POST', body: {
+      release_version: 'QA-D16-REL', environment: 'QA-D16-env', is_current: true,
+      ci_status: 'Passing', ci_checks_passed: 6, ci_checks_total: 6,
+      ci_source: 'QA-D16 fixture', ci_recorded_at: now,
+      gate_verdict: 'FAIL', gates_pass: 5, gates_partial: 2, gates_fail: 8,
+      gates_total: 15, gate_source: 'QA-D16 fixture', gate_recorded_at: now } });
+    check('arranged: a release recording CI Passing AND gate FAIL', rel.status < 300,
+      `status=${rel.status}`);
+    const relRow = (await view(victim, 'admin_release_status')).row;
+    check('METRIC-11 · a System-holding role reads the recorded release',
+      relRow.release_version === 'QA-D16-REL', `version=${relRow.release_version}`);
+    check('METRIC-11 · BOTH verdicts reach the surface and the DISAGREEMENT survives ' +
+          'intact — CI Passing beside gate FAIL, which is the real current state',
+      relRow.ci_status === 'Passing' && relRow.gate_verdict === 'FAIL',
+      `ci=${relRow.ci_status} gate=${relRow.gate_verdict}`);
+    check('METRIC-11 · each verdict carries its OWN source and timestamp',
+      relRow.ci_source !== null && relRow.ci_recorded_at !== null &&
+      relRow.gate_source !== null && relRow.gate_recorded_at !== null,
+      `ci=(${relRow.ci_source}, ${relRow.ci_recorded_at !== null}) ` +
+      `gate=(${relRow.gate_source}, ${relRow.gate_recorded_at !== null})`);
+    // THE COLLAPSE THE OWNER FORBADE, asserted structurally rather than trusted.
+    const collapsed = Object.keys(relRow).filter((k) =>
+      /^(overall|combined|release)_?(status|state|verdict|badge)$/.test(k) ||
+      k === 'is_blocked' || k === 'is_releasable');
+    check('METRIC-11 · NO column combines the two verdicts — the owner ruled they ' +
+          '"must not be collapsed", and a single badge column would assert a release ' +
+          'verdict neither authority gave',
+      collapsed.length === 0, `collapsing columns=[${collapsed.join(',')}]`);
+    // One current release per environment, enforced not hoped for.
+    const dupe = await svc('release_status', { method: 'POST', body: {
+      release_version: 'QA-D16-DUPE', environment: 'QA-D16-env', is_current: true } });
+    check('METRIC-11 · a SECOND current release for the same environment is REFUSED',
+      dupe.status >= 400, `status=${dupe.status}`);
+
+    // The 158 posture, again: a read surface refuses mutation.
+    const relBefore = await svc('release_status?select=id');
+    const relIns = await mutate(victim, 'release_status', 'POST', {
+      release_version: 'QA-D16-FORBIDDEN', environment: 'x' });
+    const relAfter = await svc('release_status?select=id');
+    checkNoWrite('an admin-layer caller CANNOT record a release status', {
+      before: n(relBefore.body), after: n(relAfter.body), status: relIns.status,
+      detail: 'a release verdict the Admin layer could write is one it could invent' });
+    const relPatch = await mutate(victim,
+      'release_status?release_version=eq.QA-D16-REL', 'PATCH', { ci_status: 'Failing' });
+    const relStill = ONE((await svc(
+      'release_status?release_version=eq.QA-D16-REL&select=ci_status')).body);
+    check('an admin-layer caller CANNOT flip a recorded CI verdict (asserted by ' +
+          're-reading the row, never by the PATCH status)',
+      relStill.ci_status === 'Passing', `status=${relPatch.status} still ${relStill.ci_status}`);
+
     // ── 9 · no metric view discloses an individual ────────────────────────
     section('disclosure · the aggregates carry no identifier');
     for (const v of ['admin_activity_overview', 'admin_user_overview',
                      'admin_events_overview', 'admin_community_overview',
-                     'admin_revenue_overview']) {
+                     'admin_revenue_overview', 'admin_release_status']) {
       const row = (await view(victim, v)).row;
       const leaks = Object.entries(row).filter(([k, val]) =>
         typeof val === 'string' &&

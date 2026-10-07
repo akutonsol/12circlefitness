@@ -15286,3 +15286,121 @@ pinned, no anon or PUBLIC EXECUTE** · migration manifest and frontier agreeing 
 durability guard reports no unrecorded regression.
 
 **Production was not contacted at any point.** Every figure above was measured against QA.
+
+---
+
+## §163 · METRIC-11, and the Dart half of the metric contract
+
+### §163.1 · METRIC-11 = Option 3 — what was built and what was deliberately not
+
+The owner ruled *"show both CI status and V5 release-gate status, clearly labelled …
+These are intentionally separate states and must not be collapsed."* Migration **173**
+adds `release_status` and the `System·view`-gated `admin_release_status`.
+
+**The ruling answers the narrow question and does not release the architecture item.**
+`V5_ADMIN_DASHBOARD_DATA_CONTRACT:219` posed exactly one owner question — *"whether the
+card reflects the V5 gate ledger, CI status, or both"*. That is now answered: both. The
+line immediately below it, `:220`, records a separate **C · ARCHITECTURE** item —
+*"ingesting CI results requires an egress or webhook path"* — citing `P10`'s unresolved
+*"installation forbidden"* constraint and stating it is *"not released here"*. `CONF-D9`
+is likewise unreleased. So 173 builds **the recorded surface and no ingestion producer**:
+no egress, no webhook, no credential, no third party. The registry starts **empty**, and
+D16 asserts that it is empty — because the honest rendering of "not ingested" is the
+approved `A11` state, and a seeded row would make the dashboard look finished while
+asserting a release verdict nobody gave.
+
+173 also supplies the artifact `:221` recorded as missing — *"there is no release/version
+registry in the database"* — **without** deciding what sources the version string. The
+column exists; whoever records a row supplies the value and must name its source.
+
+### §163.2 · The collapse is prevented structurally, not by convention
+
+There is deliberately **no** `overall_status`, `is_blocked`, `is_releasable` or combined
+badge column — in SQL **or** in Dart. A column like that is the collapse the ruling
+forbids, and it would also assert a release verdict from two authorities that **currently
+disagree**: CI is green 6/6 while §20.3 records **5 PASS · 2 PARTIAL · 8 FAIL of 15**.
+The disagreement is the finding. D16 enumerates the view's columns and fails on any name
+matching that shape; the Flutter guard does the same over the model source.
+
+Three CHECK constraints carry the governance rather than leaving it to callers:
+
+- **provenance** — a verdict may not exist without the source that asserted it and the
+  moment it was asserted. *"Never fabricate a value where the underlying source is
+  unavailable"* is thereby a schema property, not a convention someone has to remember.
+- **vocabulary** — `gate_verdict` is restricted to `PASS`/`PARTIAL`/`FAIL`, the words
+  §20.3 actually uses. `environment` and `ci_status` get **no** CHECK: the design
+  evidences exactly one environment (*"staging"*) and one build word (*"Passing"*), and
+  inventing `'production'` or `'failing'` to fill a constraint would invent a state
+  vocabulary — which §77.3 already refused to do for `approval_status`. **A wrong CHECK
+  is worse than an absent one.**
+- **reconciliation** — a gate tally must add up to its total, the discipline METRIC-17's
+  buckets follow.
+
+D16 proves each one **refuses** a violating write (400/400/400), that a second current
+release per environment is refused (409), and that an admin-layer caller can neither
+record nor flip a verdict — the latter asserted by **re-reading the row**, never by the
+PATCH status.
+
+### §163.3 · The Dart layer, and the one-character defect it is built against
+
+The ten metric surfaces had **no UI consumer**: `admin_service.dart` called only
+`admin_platform_stats()`, which is gated on `is_admin()` alone — one cross-area gate for
+every figure. §9's pipeline requires a UI-consumption rung, so this run added
+`admin_metrics.dart` (models), `admin_metrics_service.dart` (per-area view reads) and six
+nullable providers.
+
+**Everything in that layer exists to keep three states apart**, because the SQL
+deliberately distinguishes them:
+
+| state | meaning |
+|---|---|
+| **missing row** | the caller holds no capability for the area |
+| **null column** | the caller is not authorized for *that figure* — how METRIC-02 keeps a `Users`-only role out of the Security-owned sign-in basis |
+| **zero** | a real, measured zero |
+
+A single `?? 0` collapses all three. For METRIC-02 that is an indirect statement about an
+audit population the role may not query; for METRIC-06 it fabricates a monetary value the
+owner's calculation forbids; for METRIC-14 it turns *"nobody registered"* into *"nobody
+turned up"*. So `gbpFrom()` returns **null** without a recorded rate and there is no
+fallback rate anywhere; `attendanceRatePct` stays null with nothing to divide; and
+`netPlatformCents` is read, never recomputed in Dart, because two authorities for one
+figure is how they drift apart.
+
+**18 behavioural assertions** cover this, the sharpest being that **a real zero is not
+absence** — a role measuring zero sign-ins still *has* the basis. An `isAvailable` helper
+written as `value != null && value != 0` passes every naive test and fails that one.
+
+### §163.4 · SEC-G4 — a ratchet, with its negative controls proven
+
+The behavioural tests prove today's behaviour; the defect they guard against is **one
+character away at all times**. `SEC-G4`
+(`admin_metric_null_semantics_guard_test.dart`, 5 assertions) scans the layer's source
+for `?? 0`, for non-nullable numeric fields, for `.single()` in place of `maybeSingle()`,
+for non-nullable providers, for a provider constructing a stand-in model, and for a
+combined METRIC-11 verdict. It carries a positive control — it **fails** if a scanned file
+reads empty or if a string it must find is missing — because three checkers in this
+programme have already reported success from nothing (§139.3).
+
+It was then verified by injection rather than trusted: `?? 0`, a non-nullable `int` field,
+and an `isReleasable` getter were each introduced in turn and the guard went **red for
+each**, with the source restored byte-for-byte afterwards.
+
+**The guard's own first draft was wrong and the guard caught it.** It matched the
+*comments* in `admin_metrics.dart` that name the forbidden getters in order to explain
+why they are absent. That is a scan defect, not a code defect, and it was fixed by
+reading code only — the same correction `schema-facts.mjs` required at §139.
+
+### §163.5 · Verification at frontier 173
+
+QA frontier **173** · live security **954/954 across 16 suites** (934 → 954: D16 **86/86**,
+and D15 rose 347 → **353** on its own, because its view-discovery sweep found
+`admin_release_status` the moment it existed — the §139.6 design working) · Flutter **1729
+passed / 5 skipped** (1706 → 1729) · AI **49/49** · characterizations **17/17** · contract
+suite clean · matrix **116/116** · register **20 entries** · function posture **39 pinned**
+· manifest and frontier agreeing at 000–173 · durability guard clean.
+
+**CI was green 6/6 on `a0a55fa`** before 173 was authored, so METRIC-02, 03, 06a, 06b, 13,
+14 and 17 are at **VERIFIED IN CI**. METRIC-11 and the Dart layer are at **VERIFIED LIVE**
+pending the next CI run.
+
+**Production was not contacted.**
