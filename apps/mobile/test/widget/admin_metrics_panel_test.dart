@@ -214,7 +214,12 @@ void main() {
   });
 
   group('METRIC-06 · incompleteness is disclosed, FX is never approximated', () {
-    AdminRevenueOverview rev({int missing = 0, bool fx = false}) =>
+    AdminRevenueOverview rev({
+      int missing = 0,
+      bool fx = false,
+      int other = 0,
+      int payoutMissing = 0,
+    }) =>
         AdminRevenueOverview.fromRow({
           'gross_coaching_cents': 13000,
           'platform_commission_cents': 500,
@@ -223,6 +228,18 @@ void main() {
           'commission_rate_missing': missing,
           'amount_missing': 0,
           'excluded_non_coaching': 2,
+          'stream_coach_cents': 12000,
+          'stream_coach_plan_cents': 4900,
+          'stream_self_guided_cents': 0,
+          'stream_ai_guided_cents': 0,
+          'stream_event_ticket_cents': 9900,
+          'stream_package_cents': 1000,
+          'stream_other_cents': other,
+          'stream_other_count': other > 0 ? 1 : 0,
+          'paid_total_cents': 27800 + other,
+          'coach_payout_cents': 0,
+          'platform_fee_cents': 0,
+          'payout_missing': payoutMissing,
           if (fx) 'fx_usd_gbp_rate': 0.79,
           if (fx) 'fx_as_of': '2026-10-07',
           if (fx) 'fx_source': 'owner-recorded',
@@ -258,6 +275,43 @@ void main() {
       await _pump(t, [...allDenied,
         adminRevenueOverviewProvider.overrideWith((_) async => rev(missing: 3))]);
       expect(find.text('Payments with no recorded rate'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
+    });
+
+    testWidgets('each stream is labelled in the design\'s words and shown separately, '
+        'because the Dashboard requires "revenue by stream"', (t) async {
+      await _pump(t, [...allDenied,
+        adminRevenueOverviewProvider.overrideWith((_) async => rev())]);
+      expect(find.text('Stream · coaching'), findsOneWidget);
+      expect(find.text('Stream · event tickets'), findsOneWidget);
+      expect(find.text('Stream · session packages'), findsOneWidget);
+      expect(find.text('USD 120.00'), findsOneWidget);  // coaching
+      expect(find.text('USD 99.00'), findsOneWidget);   // event tickets
+    });
+
+    testWidgets('an UNRECOGNISED stream is shown, not hidden — understating revenue is '
+        'the one direction a money figure must not be wrong by accident', (t) async {
+      await _pump(t, [...allDenied,
+        adminRevenueOverviewProvider.overrideWith((_) async => rev(other: 2500))]);
+      expect(find.text('Stream · unrecognised'), findsOneWidget);
+      expect(find.text('USD 25.00'), findsOneWidget);
+      expect(rev(other: 2500).streamsReconcile, isTrue);
+    });
+
+    testWidgets('with every stream recognised, no unrecognised row appears', (t) async {
+      await _pump(t, [...allDenied,
+        adminRevenueOverviewProvider.overrideWith((_) async => rev())]);
+      expect(find.text('Stream · unrecognised'), findsNothing);
+    });
+
+    testWidgets('the recorded split is shown, and an incomplete one is disclosed',
+        (t) async {
+      await _pump(t, [...allDenied,
+        adminRevenueOverviewProvider.overrideWith(
+            (_) async => rev(payoutMissing: 3))]);
+      expect(find.text('Paid to coaches'), findsOneWidget);
+      expect(find.text('Platform fee'), findsOneWidget);
+      expect(find.text('Payments with no recorded split'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
     });
 

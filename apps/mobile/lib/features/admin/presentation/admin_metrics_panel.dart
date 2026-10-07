@@ -225,6 +225,24 @@ class AdminMetricsPanel extends ConsumerWidget {
                 AdminMetricTile.of(
                     'Payments with no recorded rate', m.commissionRateMissing,
                     whenNull: MetricAbsence.notAuthorized),
+              // REVENUE BY STREAM (approved design, Dashboard). The vocabulary is
+              // iterated, not hard-coded, so a seventh stream appears the day the
+              // surface reports one.
+              for (final e in m.streams.entries)
+                _moneyTile('Stream · ${_streamLabel(e.key)}', money(e.value)),
+              // Shown only when non-zero, and labelled as what it is. `payments.kind`
+              // has no CHECK constraint, so this is reachable — and hiding it would
+              // understate revenue, the one direction a money figure must not be wrong.
+              // Explicit, not `?? 0` — a visibility test must not read as coercing an
+              // absent figure to zero, and SEC-G4 caught me reintroducing exactly that.
+              if (m.streamOtherCents != null && m.streamOtherCents! > 0)
+                _moneyTile('Stream · unrecognised', money(m.streamOtherCents)),
+              // THE SPLIT, as recorded. Never derived.
+              _moneyTile('Paid to coaches', money(m.coachPayoutCents)),
+              _moneyTile('Platform fee', money(m.platformFeeCents)),
+              if (m.payoutMissing != null && m.payoutMissing! > 0)
+                AdminMetricTile.of('Payments with no recorded split', m.payoutMissing,
+                    whenNull: MetricAbsence.notAuthorized),
               // METRIC-06a. No GBP figure exists without a recorded rate, and none
               // is approximated.
               if (m.hasRecordedFx)
@@ -238,6 +256,19 @@ class AdminMetricsPanel extends ConsumerWidget {
           },
         ),
       );
+
+  /// The design names these as streams; the database names them in the
+  /// `create-checkout:52` vocabulary. This maps one to the other and invents no new
+  /// stream — an unrecognised key is shown as itself rather than guessed at.
+  static String _streamLabel(String kind) => const {
+        'coach': 'coaching',
+        'coach_plan': 'coach plans',
+        'self_guided': 'self-guided',
+        'ai_guided': 'AI-guided',
+        'event_ticket': 'event tickets',
+        'package': 'session packages',
+      }[kind] ??
+      kind;
 
   static Widget _moneyTile(String label, String? display) => display == null
       ? AdminMetricTile.absent(

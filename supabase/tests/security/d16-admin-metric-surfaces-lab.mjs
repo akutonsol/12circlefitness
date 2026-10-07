@@ -355,6 +355,44 @@ async function run() {
       num(p4.gross_coaching_cents) === num(p3.gross_coaching_cents),
       `${p3.gross_coaching_cents} -> ${p4.gross_coaching_cents}`);
 
+    // ── 178 · REVENUE BY STREAM, and the split as recorded ────────────────
+    // The approved design requires both (SCREEN-INVENTORY "Data each page needs"):
+    // "revenue by stream" on the Dashboard and "payouts, commission" on Ecosystem.
+    // The fixtures above already placed one payment in each of four streams, so these
+    // assertions run against a genuinely multi-stream population rather than one kind.
+    const st = (await view(victim, 'admin_revenue_overview')).row;
+    check('178 · each stream is summed SEPARATELY — a coach payment does not land in ' +
+          'the event_ticket column',
+      num(st.stream_coach_cents) === 12000 &&      // 5000 rated + 7000 unrated
+      num(st.stream_event_ticket_cents) === 9900 &&
+      num(st.stream_coach_plan_cents) === 4900,
+      `coach=${st.stream_coach_cents} ticket=${st.stream_event_ticket_cents} ` +
+      `coach_plan=${st.stream_coach_plan_cents}`);
+    check('178 · the six named streams plus `other` RECONCILE to the paid total, so no ' +
+          'revenue can be silently dropped by an unrecognised kind',
+      num(st.stream_coach_cents) + num(st.stream_coach_plan_cents) +
+      num(st.stream_self_guided_cents) + num(st.stream_ai_guided_cents) +
+      num(st.stream_event_ticket_cents) + num(st.stream_package_cents) +
+      num(st.stream_other_cents) === num(st.paid_total_cents),
+      `sum of streams vs paid_total=${st.paid_total_cents}`);
+    check('178 · gross coaching equals the coach + package streams, so the METRIC-06b ' +
+          'selector and the stream columns agree rather than drifting',
+      num(st.gross_coaching_cents) ===
+        num(st.stream_coach_cents) + num(st.stream_package_cents),
+      `gross=${st.gross_coaching_cents} coach+package=` +
+      `${num(st.stream_coach_cents) + num(st.stream_package_cents)}`);
+    // THE SPLIT IS REPORTED, NOT DERIVED. Every fixture payment was inserted without a
+    // coach_payout, so the totals must stay 0 and the gap must be disclosed — if the
+    // view derived the split from amount x rate, coach_payout_cents would be non-zero.
+    check('178 · the payout split is READ as recorded and never derived from ' +
+          'amount x commission_rate',
+      num(st.coach_payout_cents) === 0 && num(st.platform_fee_cents) === 0,
+      `coach_payout=${st.coach_payout_cents} platform_fee=${st.platform_fee_cents}`);
+    check('178 · …and the gap is DISCLOSED: payout_missing counts the coaching payments ' +
+          'carrying no recorded split',
+      num(st.payout_missing) >= 2,
+      `payout_missing=${st.payout_missing}`);
+
     // METRIC-06a · FX is RECORDED, never assumed. NULL until a rate exists.
     check('METRIC-06a · with no usd->gbp rate recorded, the FX columns are NULL — the ' +
           'view does not invent a conversion',

@@ -16633,3 +16633,126 @@ characterizations **17/17** · contract clean on a 2-entry allowlist · Flutter 
 skipped** · every static guard green · **CI 7/7 on `cbc2ca7`**, including `ec04-e2e`.
 
 **Production was not contacted at any point in this run.**
+
+---
+
+## §181 · P5 · "revenue by stream" and the money split — migration 178
+
+A P0-only census was too narrow. Traversing P5 against the **published design's own
+requirements list** (`SCREEN-INVENTORY.md`, *"Data each page needs"*, at `931218b`) found
+two requirements that were not built and **needed no new definition**:
+
+- Dashboard — *"revenue by **stream**"*
+- Ecosystem — *"monetisation (plans, **payouts**, commission)"*
+
+171 shipped the METRIC-06 decomposition the owner ruled — gross / commission / net for
+**coaching** — and nothing else. The two above are mechanically determined:
+
+- the **stream vocabulary** is already established at `create-checkout/index.ts:52`;
+  summing by it is a `GROUP BY`, not a business rule;
+- the **payout columns** are defined in their own DDL comments (`038:24-25`) —
+  `coach_payout int -- cents to the coach`, `platform_fee int -- cents to 12 Circle`.
+
+### §181.1 · An unrecognised stream is counted, never dropped
+
+`payments.kind` carries **no CHECK constraint** (§162), so a value outside that vocabulary
+is reachable. `stream_other_cents` / `stream_other_count` exist so the six named streams
+plus *other* **reconcile to `paid_total_cents`** — the same discipline as METRIC-17's
+`age_out_of_range`. Silently dropping a stream would **understate revenue**, which is the
+one direction a money figure must never be wrong in by accident. The UI shows the row only
+when non-zero, labelled *"unrecognised"*, and iterates the vocabulary rather than
+hard-coding six labels, so a seventh stream becomes visible the day the surface reports one.
+
+### §181.2 · The split is reported, never derived
+
+`coach_payout` and `platform_fee` are read **as recorded**. They are not computed from
+`amount_cents × commission_rate`: that would invent a second authority for a figure Stripe
+already settled. D16 proves it — every fixture payment was inserted *without* a split, so
+both totals must read `0` while `payout_missing` counts the gap. **A view that derived the
+split would show a non-zero payout there**, which is exactly how that assertion
+discriminates.
+
+D16 also asserts `gross_coaching_cents == stream_coach + stream_package`, so the METRIC-06b
+selector and the new stream columns cannot drift apart.
+
+**SEC-G4 caught me reintroducing `?? 0`** in two visibility guards in the new panel code —
+the same pattern §166.2 removed. Both are explicit null checks again.
+
+---
+
+## §182 · The full V5 frontier traversal — all eleven phases classified
+
+| phase | status | ready work | blocked work | exact blocker |
+|---|---|---|---|---|
+| **P0 · GOVERNANCE** | **COMPLETE** | — | — | — (`CONF-02` resolved §57.1) |
+| **P1 · FOUNDATION / SECURITY** | **partially executed** | **none** | `QAX-SEC-08`'s **fourth rung** (3 of 4 held) | **OWNER — `D-1`**, the SEC-W1 negative-control reconstruction mechanism, listed under §16.1 *"What remains owner-controlled"* and blocking *"QAX-SEC-08's fourth rung — and nothing else"* |
+| **P2 · DATA (AUDIT + OBSERVABILITY)** | **COMPLETE on all four rungs (§85)** | — | — | — |
+| **P3 · BACKEND (wearable)** | **DEFERRED BY GOVERNING AUTHORITY** | — | all | `PD-G01` — *"APPROVED — FUTURE BUILD · **implementation NOT AUTHORIZED** … recorded so it is not accidentally started"*. The standing instruction also forbids releasing it. |
+| **P4 · CORE PRODUCT** | **BLOCKED BY PREDECESSOR** | — | all | P3 (→ `PD-G01`) |
+| **P5 · ADMIN** | **partially executed — substantially advanced this run** | **executed**: 171–178, the token layer, the metrics panel, the attention queue, `/admin-metrics` | remaining Control Center scope | **OWNER / DESIGN — the nine domain placements** alone (see §182.1) |
+| **P6 · TRUST** | **BLOCKED BY PREDECESSOR** — but **its entire data layer already exists** | — | the Trust page itself | P5's domain placements. **Its design gate is now satisfied** (§182.2) |
+| **P7 · AI GUARDIAN** | **BLOCKED BY PREDECESSOR + OWNER GATE** | — | all | P6, and the standing instruction *"keep P7 gated"* |
+| **P8 · MOBILE** | **BLOCKED BY PREDECESSOR** | — | all | P4 → P3 → `PD-G01`; `CONF-08` for wearable UX |
+| **P9 · INTEGRATION** | **BLOCKED BY PREDECESSOR** | — | all | P3–P8 upstream |
+| **P10 · QA & SUPPLY CHAIN** | **EXTERNAL / INFRASTRUCTURE BOUNDARY** | — | all | the operational *"installation forbidden"* constraint, unresolved; the standing instruction also forbids releasing it |
+
+### §182.1 · Two of P5's four gates were STALE, and the traversal found it
+
+§97.4 recorded P5 as *"blocked on four gates: `CONF-D6` · `CONF-D7` · Trust IA · nine domain
+placements"*. Two no longer hold:
+
+- **`CONF-D6` — resolved by the owner**, who ruled the shipped 12Circle app/Admin identity
+  authoritative and the shipped Helix three-tier token implementation the locked token
+  authority.
+- **`CONF-D7` — satisfied, and implemented.** It is *"the Admin role matrix … the largest
+  security specification gap"*, and migration **155**'s own header records *"Owner (Julia)
+  approved the complete 85-cell / 425-grant authorization policy"*. The matrix is seeded,
+  its authority is named, `validate-admin-capability-matrix.mjs` holds it to **116 rows**,
+  and D14 proves all **425** combinations. Every surface built in this programme gates on
+  it.
+
+So **P5's sole remaining gate is the nine domain placements** — an owner/design mapping, not
+four gates. That is why P5 work was executable at all, and it is why §181's two requirements
+could be built today.
+
+### §182.2 · Trust's design gate is satisfied — §97.2 is stale
+
+§97.2 recorded *"approved screens exist for Dashboard + Ecosystem/analytics, **none for
+Trust**"*, and P6 was described as *"still the surface with NO approved design"*. **The
+design publication postdates that**, and it contains:
+
+- an **authoritative six-item IA** — *Dashboard · People · Ecosystem · Trust · Operations ·
+  Settings*;
+- a **286 KB Trust screen** with named sections — `#overview`, `#ai-guardian`,
+  `#security` (incl. `#sec-authz`), `#incidents`, `#audit` (explorer, before/after),
+  `#trust-system`;
+- Trust's **data requirements**, stated: *"AI Guardian actions and autonomy; auth and
+  authorisation events; incidents; immutable audit log with before/after."*
+
+**All four of those already have shipped surfaces** — `guardian_state` + `governance_policy*`
+(163/167/169), `admin_security_events` (159), `admin_incidents` (160), and
+`admin_audit_events` (156) with `A13·1` enforced and `subject_pseudonym` projected. The
+CONF-D8 work turned out to cover Trust's stated needs exactly.
+
+So P6 is **not** blocked on design any more; it is blocked on P5's placements. That is a
+materially better position than the record described, and nothing was built to achieve it.
+
+### §182.3 · What the traversal proves
+
+**No independent authorized work remains in any phase.** Every remaining item is
+owner-gated (`D-1`, the nine placements, `Q-5`, `Q1`–`Q5`), deferred by governing authority
+(`PD-G01`, P7), blocked by a predecessor that is itself so blocked (P4, P8, P9), production-
+or account-gated (`LRE-04`, `LRE-07`), or external-infrastructure gated (P10).
+
+**Two phases are complete** (P0, P2). **Two are partially executed with their remaining
+item precisely identified** (P1 → `D-1`; P5 → the placements). **Seven are blocked by a
+documented, cited boundary.**
+
+### §182.4 · Verification at frontier 178
+
+QA frontier **178** · live security **993/993 across 17 suites** (D16 **102/102**, D17
+**22/22**) · AI **49/49** · characterizations **17/17** · contract clean on a 2-entry
+allowlist · Flutter **1799 / 5 skipped** · `dart analyze` **0 errors** · every static guard
+green.
+
+**Production was not contacted.**

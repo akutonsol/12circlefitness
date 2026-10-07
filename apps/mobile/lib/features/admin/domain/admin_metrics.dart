@@ -255,6 +255,13 @@ class AdminRevenueOverview {
     required this.fxUsdGbpRate,
     required this.fxAsOf,
     required this.fxSource,
+    required this.streams,
+    required this.streamOtherCents,
+    required this.streamOtherCount,
+    required this.paidTotalCents,
+    required this.coachPayoutCents,
+    required this.platformFeeCents,
+    required this.payoutMissing,
   });
 
   final int? grossCoachingCents;
@@ -276,6 +283,40 @@ class AdminRevenueOverview {
   final double? fxUsdGbpRate;
   final DateTime? fxAsOf;
   final String? fxSource;
+
+  /// Revenue BY STREAM, which the approved design requires on the Dashboard, keyed by
+  /// the `create-checkout:52` vocabulary. Kept as a map rather than six fields so the
+  /// UI iterates the vocabulary instead of hard-coding it — a seventh stream would
+  /// otherwise need a code change in two places to become visible.
+  final Map<String, int?> streams;
+
+  /// Revenue whose `kind` is outside that vocabulary. `payments.kind` carries no CHECK
+  /// constraint, so this is reachable — and it exists so the named streams plus this
+  /// reconcile to [paidTotalCents]. Understating revenue by silently dropping a stream
+  /// is the one direction a money figure must never be wrong in by accident.
+  final int? streamOtherCents;
+  final int? streamOtherCount;
+  final int? paidTotalCents;
+
+  /// The money split AS RECORDED (`038:24-25` — "cents to the coach", "cents to
+  /// 12 Circle"). Never derived from `amount x commission_rate`: that would invent a
+  /// second authority for a figure Stripe already settled.
+  final int? coachPayoutCents;
+  final int? platformFeeCents;
+
+  /// Coaching payments carrying no recorded split, so the totals above are a floor.
+  final int? payoutMissing;
+
+  /// True when every named stream plus `other` accounts for the paid total.
+  bool get streamsReconcile {
+    if (paidTotalCents == null || streamOtherCents == null) return false;
+    var sum = streamOtherCents!;
+    for (final v in streams.values) {
+      if (v == null) return false;
+      sum += v;
+    }
+    return sum == paidTotalCents;
+  }
 
   /// True when the commission figure accounts for every qualifying payment.
   bool get commissionIsComplete => commissionRateMissing == 0;
@@ -305,6 +346,18 @@ class AdminRevenueOverview {
         fxUsdGbpRate: _double(r['fx_usd_gbp_rate']),
         fxAsOf: _date(r['fx_as_of']),
         fxSource: r['fx_source'] as String?,
+        streams: {
+          for (final k in const [
+            'coach', 'coach_plan', 'self_guided', 'ai_guided', 'event_ticket', 'package',
+          ])
+            k: _int(r['stream_${k}_cents']),
+        },
+        streamOtherCents: _int(r['stream_other_cents']),
+        streamOtherCount: _int(r['stream_other_count']),
+        paidTotalCents: _int(r['paid_total_cents']),
+        coachPayoutCents: _int(r['coach_payout_cents']),
+        platformFeeCents: _int(r['platform_fee_cents']),
+        payoutMissing: _int(r['payout_missing']),
       );
 }
 
