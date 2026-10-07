@@ -1142,12 +1142,26 @@ async function run() {
     // registry in §135. These two views answer per AREA instead of widening 019's
     // cross-area gate.
     section('per-area aggregate surfaces · Users and Events (166)');
+    // The key lists are EXACT, and deliberately so: an exhaustive list is what makes
+    // this a D7 column-limitation guard rather than a smoke test. Migration 172
+    // appended the owner-approved metric columns (METRIC-03, METRIC-14, METRIC-17),
+    // and these lists were updated to match ONLY after confirming every added column
+    // is an aggregate count carrying no identifier — which D16 asserts separately.
+    // A column added without that review still turns this suite red, as it did when
+    // 172 landed.
     const OVERVIEWS = [
       ['admin_user_overview',   'Users',
        ['users_total','clients_total','coaches_total','vendors_total','admins_total',
-        'content_managers_total','trust_operators_total','erasure_executors_total']],
+        'content_managers_total','trust_operators_total','erasure_executors_total',
+        // METRIC-03 · active coaches, calendar month
+        'coaches_active_this_month','coaches_no_client_this_month',
+        // METRIC-17 · half-open buckets, fourth bucket = unknown, plus the
+        // reconciliation column that keeps an age >= 60 from being silently dropped
+        'age_18_30','age_30_45','age_45_60','age_unknown','age_out_of_range']],
       ['admin_events_overview', 'Events',
-       ['events_total','event_registrations_total','classes_total','class_bookings_total']],
+       ['events_total','event_registrations_total','classes_total','class_bookings_total',
+        // METRIC-14 · attended / registered, on the pre-existing checked_in_at
+        'event_registrations_attended','event_attendance_rate_pct','event_registrations_30d']],
     ];
     for (const [view, area, keys] of OVERVIEWS) {
       await assign(vUid, 'viewer');                 // holds View on both areas

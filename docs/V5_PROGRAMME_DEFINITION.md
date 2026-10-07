@@ -15102,3 +15102,187 @@ did not reach far enough.*
 **46 `QA-D15-PROBE b1-preserved` incidents and 1 `QA-D15-FORBIDDEN incident`** cannot be deleted. They are
 clearly marked QA fixtures, which `A13` permits, and they are now capped — but they are waste I created, and
 the record should say so rather than let a future reader wonder why the population is odd.
+
+---
+
+## §162 · The metric decisions, executed — migrations 171 and 172
+
+The owner answered the decision sheet on 2026-10-07. Ten IDs were ruled, two were left
+blank by instruction (METRIC-12 and METRIC-18's meaning, both already resolved by
+evidence and offered only for overrule). Nothing below was inferred: each ruling is
+recorded with what it authorized and what it did **not**.
+
+| ID | Ruling | Implemented | Where |
+|---|---|---|---|
+| METRIC-02 | `3` both Session and sign-in, shown separately | yes | `admin_activity_overview` |
+| METRIC-03 | `1` calendar month | yes | `admin_user_overview` |
+| METRIC-05 | `2` drop the sub-count, total only | **no code needed** | already served by `admin_user_overview.vendors_total` |
+| METRIC-06a | `1` single-currency USD + explicit FX | yes | `fx_rates` + `admin_revenue_overview` |
+| METRIC-06b | `1` show gross / commission / net | yes | `admin_revenue_overview` |
+| METRIC-13 | `1` a pod is an `accountability_pods` row | yes | `admin_community_overview` |
+| METRIC-14 | `2` attended ÷ registered | yes | `admin_events_overview` |
+| METRIC-16 | `2` it is a vendor — card renders `A11` empty | **decided, no implementation** | no ingestion is built |
+| METRIC-17 | `2` the fourth bucket is `unknown` | yes | `admin_user_overview` |
+| METRIC-18 | producer `N` — no in-app render event | **decided, no implementation** | card renders `A11` empty |
+| METRIC-19 | `3` out of scope for V1 | **decided, no implementation** | nothing authored |
+
+**The owner's METRIC-06b calculation is quoted verbatim in 171's header and was not
+paraphrased into SQL from memory.** Three of its clauses are load-bearing and each is
+enforced: amounts are taken *at the source transaction amount* (no conversion inside the
+aggregate); the FX rate, its source and its date are *recorded* rather than assumed; and
+*"do not fabricate a value where the underlying payment amount is unavailable"* is
+implemented as an exclusion plus a disclosed count, not as a zero.
+
+**METRIC-16, 18 and 19 are NOT entered in the non-operational register.** That register
+is keyed by `(area, verb)` capability, and these are Dashboard cards, not capabilities —
+forcing them in would corrupt the one artifact D15 reads to keep the ruling and the test
+from drifting. They are ledgered here instead. This is an explicit decision, not an
+omission.
+
+### §162.1 · Two corrections to my own prior work
+
+**The decision sheet's METRIC-14 evidence was wrong, and the error was mine.** It stated
+*"no attendance column exists"* and that option 2 *"requires a new column and a capture
+mechanism"*. Both are false. `event_registrations.checked_in_at` exists (migration 138)
+and **is already written in production code** by `vendor_service.dart:90-93`, which sets
+`{ checked_in_at, status }` on check-in. The mistake came from searching for a column
+named `attended` and reporting its absence as the absence of the capability. The owner
+chose option 2 believing it required new capture machinery; it required none, and the
+metric shipped reading a column that has been there all along. Had the owner declined
+option 2 *because* of that stated cost, the sheet would have steered a decision with a
+false premise — which is the specific failure mode §139 was written about.
+
+**171's justification for the coaching-payment selector was wrong and is withdrawn.**
+Its comment claimed the two qualifying kinds *"carry `payments.coach_id`"*. Live QA
+refutes it: the single paid `package` row has `coach_id` NULL. The **selector was never
+`coach_id`** — it is the kind vocabulary declared at `create-checkout/index.ts:52` — so
+no figure changes, but a stated reason that live data contradicts does not get to stay on
+the record. 172 replaces the comment and says so.
+
+### §162.2 · A discrepancy reported, not reconciled
+
+The owner's formula reads *"Platform commission = gross coaching revenue ×
+`marketplace_commission_rate`"*, with **no marketplace condition**. The schema disagrees
+with that reading: `038:14` defines the column as *"Commission charged to a
+**MARKETPLACE-acquired** client's coaching payments (0–1)"*, and `coach_client_relationships.client_source`
+(`'coach_invited' | 'marketplace'`) is commented as the field that *"drives commission"*.
+On the schema's reading a `coach_invited` client's coaching payment carries no platform
+commission at all; on the formula's reading every coaching payment does.
+
+**I did not pick a side, and the implementation does not need me to.** The view multiplies
+each payment by **its own recorded `payments.commission_rate` (038:23)** — the rate that
+actually applied to that transaction. Where the rate was recorded, the figure is correct
+under *both* readings. Where it was not, the payment is counted in
+`commission_rate_missing` and given no rate at all. So the discrepancy does not block the
+metric and did not force a silent reconciliation.
+
+It does remain **open**, and it matters the moment anyone checks the commission figure
+against an expected total: `commission_rate_missing` will be non-zero for historical rows,
+and whether those should be back-filled at the coach's current rate — and whether
+`coach_invited` payments should be in the denominator at all — is an owner ruling, not a
+schema question.
+
+### §162.3 · Three things the rulings did not settle, recorded rather than invented
+
+**METRIC-02's weekly window.** The owner ruled "calendar" for *"this month"* under
+METRIC-03. The approved card also needs a weekly figure, and the month-on-month delta is
+only coherent on calendar months. `date_trunc('week')` was applied for consistency and is
+recorded here as **an applied convention, not an authorization**.
+
+**METRIC-17 has two possible age sources, and the sheet cited only one.** The sheet's
+evidence was *"`date_of_birth` is populated on 0 of 635 QA profiles"*. `user_profiles.age`
+also exists and is populated on **4 of 640**. Using `date_of_birth` alone would have made
+the panel vacuous on QA — the exact defect `QA_CLOSURE_STANDARD` §5.2 warns of — so
+`date_of_birth` is preferred where present with `age` as the fallback.
+
+**An age of 60 or above has no ruled bucket.** Option 2 fixed the fourth bucket as
+`unknown`, which leaves three labelled ranges covering `[18,60)` and nothing above it. No
+`60+` bucket was invented. Instead `age_out_of_range` carries those rows so that the four
+card buckets plus that column **reconcile exactly to `users_total`** — D16 asserts this at
+every boundary age. It is a reconciliation column, not a fifth card bucket, and whether
+`60+` becomes a real bucket is **narrow and still open**.
+
+### §162.4 · A data observation, and the false inference it killed
+
+METRIC-03 reports **1 active coach of 135** on QA, and that figure is **correct**. The
+obvious sanity check — "118 active relationships exist, so the figure cannot be 1" — is
+false: of the 118 distinct `coach_id` values on active rows, only **one** belongs to a
+profile with `role = 'coach'`; **59 of the first 60 hold `role = 'trust_operator'`**. This
+is QA seed noise and no production data was touched to establish it.
+
+The first draft of D16 encoded that false inference as its non-vacuity assertion and
+passed for the wrong reason. It now **arranges** an active relationship for a real coach
+and asserts the figure moves — the difference between testing the metric and testing the
+seed data.
+
+### §162.5 · How the metrics were proved
+
+`D16` (`d16-admin-metric-surfaces-lab.mjs`, **72 assertions**) is delta-based throughout.
+Four of these five metrics sit on populations that are empty or near-empty on QA
+(`checked_in_at` on 0 of 2 registrations, `date_of_birth` on 0 of 640 profiles, `payments`
+at 1 row), so a structural test would have passed over nothing. Every metric is proved by
+inserting a known fixture and asserting the **specific column moved by the expected
+amount**, with fixtures purged by marker first so a crashed run cannot poison a correct
+assertion — the §161 defect, not repeated.
+
+What D16 proves beyond arithmetic:
+
+- **METRIC-02 is an authorization split, not one number.** The sign-in basis reads
+  `audit_events` category `authentication`, which ruling **B-1** placed in the **Security**
+  area. `support` holds `Users·view` and not `Security·view`, and is asserted to receive
+  **NULL — not 0 —** for the sign-in columns. A dashboard card must not become an indirect
+  read of the audit population, and `0` would additionally be a lie ("nobody signed in").
+- **METRIC-17's boundaries.** The design's labels overlap at 30 and 45. Ages 17, 29, 30,
+  44, 45, 59 and 60 are each asserted to land in **exactly one** bucket, and the buckets to
+  reconcile to `users_total` at every one of them. `date_of_birth` is asserted to win over
+  a contradicting `age`.
+- **METRIC-06b refuses to invent.** An unrated coaching payment raises
+  `commission_rate_missing` and leaves commission unmoved; `event_ticket` and `coach_plan`
+  are excluded from gross and counted in `excluded_non_coaching`; a `pending` payment is not
+  revenue. With no `usd→gbp` row the FX columns are **NULL**, and after one is recorded the
+  **rate, date and source** all reach the surface.
+- **`fx_rates` refuses mutation.** An FX rate the Admin layer could write is a revenue
+  figure the Admin layer could write. Insert, update and delete are each denied, and each is
+  asserted by **re-reading the row**, never by the PostgREST status — the 158 lesson.
+- **No aggregate carries an identifier.** Every view's row is swept for UUIDs and email
+  addresses.
+
+### §162.6 · Two guards that went red, correctly
+
+**D15's column-exactness assertions failed when 172 landed**, because they pin the exact
+key list of `admin_user_overview` and `admin_events_overview` — that exhaustiveness is what
+makes them D7 column-limitation guards rather than smoke tests. They were updated only
+after confirming every appended column is an aggregate count carrying no identifier. A
+column added without that review still turns the suite red.
+
+**D16's first draft silently did not run.** It exported the test function; the runner's
+contract is `export default await run()`, with the default export being the **failure
+count**. The runner imported D16, executed nothing, and scored it `NaN/0`. A security suite
+that does not run is more dangerous than one that fails, and the only reason it was caught
+is that the summary line printed `NaN` instead of a number.
+
+### §162.7 · One metric is still at the owner boundary
+
+**METRIC-11 (QA & release) was not answered.** The 2026-10-07 reply covered METRIC-02, 03,
+05, 06a, 06b, 13, 14, 16, 17 and 19, plus the METRIC-18 producer and the METRIC-06b
+calculation — eleven of the twelve answerable IDs. METRIC-11 was not among them.
+
+**Nothing was implemented and nothing was inferred.** The evidence does lean one way: the
+approved card shows a `BLOCKED` badge, *"Build: Passing"* and *"Automated QA: 1,412 /
+1,418"* side by side, which is an observation that the design contemplates both
+authorities. That is not a ruling. A release-status card that silently picks between CI and
+the gate ledger — which **disagree today**, CI green 6/6 against failing gates in
+`RELEASE_GATES` — would assert a release verdict nobody authorized, and is precisely what
+the decision sheet exists to prevent.
+
+### §162.8 · Verification at this frontier
+
+QA frontier **172** · live security **934/934 across 16 suites** (863 → 934; D16 contributes
+72 and D15 is restored to 347) · contract suite clean against its 3-entry allowlist · AI
+**49/49** · characterizations **17/17 still reproducing** · Flutter **1706 passed / 5
+skipped** · capability matrix **116/116 seedable** · non-operational register **20 entries,
+all agreeing with the approved matrix** · function posture **39 definer functions, all
+pinned, no anon or PUBLIC EXECUTE** · migration manifest and frontier agreeing at 000–172 ·
+durability guard reports no unrecorded regression.
+
+**Production was not contacted at any point.** Every figure above was measured against QA.
