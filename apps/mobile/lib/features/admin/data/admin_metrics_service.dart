@@ -45,6 +45,38 @@ class AdminMetricsService {
   Future<AdminReleaseStatus?> getReleaseStatus() async =>
       _one('admin_release_status', AdminReleaseStatus.fromRow);
 
+  /// `DESIGN-01` §1 — the attention queue's population.
+  ///
+  /// THREE STATES, AND A LIST READ CANNOT EXPRESS THEM ALONE. `admin_incidents`
+  /// gates inside its own `WHERE`, so an uncapable caller and an incident-free
+  /// platform BOTH come back as `[]`. Those are different facts: one is an
+  /// authorization outcome, the other is the design's "none raised" zero state. An
+  /// earlier draft of this method documented a distinction it did not actually make,
+  /// which is worse than not making it.
+  ///
+  /// So the capability is ASKED FOR rather than inferred from emptiness.
+  /// `admin_can(text, text)` is `SECURITY DEFINER` with `EXECUTE` granted to
+  /// `authenticated` (`153:127`), and D13 proves it returns the right boolean for
+  /// every area/verb pair. Hence:
+  ///
+  ///   * `null`         → the caller does not hold `Incidents·view`;
+  ///   * `[]`           → authorized, nothing raised;
+  ///   * a populated list → the queue.
+  Future<List<AdminIncident>?> getIncidents({int limit = 20}) async {
+    final permitted = await _db.rpc('admin_can',
+        params: {'p_area': 'Incidents', 'p_verb': 'view'});
+    if (permitted != true) return null;
+
+    final rows = await _db
+        .from('admin_incidents')
+        .select()
+        .order('occurred_at', ascending: false)
+        .limit(limit);
+    return [
+      for (final r in rows) AdminIncident.fromRow(Map<String, dynamic>.from(r)),
+    ];
+  }
+
   Future<T?> _one<T>(
     String view,
     T Function(Map<String, dynamic>) parse,

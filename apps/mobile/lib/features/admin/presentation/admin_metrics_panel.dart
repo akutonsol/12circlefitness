@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/admin_metrics.dart';
 import '../domain/admin_provider.dart';
+import 'admin_attention_queue.dart';
 import 'admin_metric_tile.dart';
 import 'admin_tokens.dart';
 
@@ -35,6 +36,10 @@ class AdminMetricsPanel extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // The approved Control Center places the attention queue FIRST — the page is
+        // called "Needs your attention" before it is anything else.
+        const AdminAttentionQueue(),
+        const SizedBox(height: AdminDims.space6),
         _activity(ref),
         const SizedBox(height: AdminDims.space6),
         _people(ref),

@@ -15686,3 +15686,81 @@ CI was green **6/6 on `91acaad`**, and `b69b0c0` was green on static guards, Flu
 QA suites, the negative control and UIX-1 at the time this was written.
 
 **Production was not contacted.**
+
+---
+
+## §168 · `DESIGN-01` §1 implemented — the `critical-incident` state
+
+`STATE-SPECS-A11.md` §1 records **"No dependency. Every element exists"**:
+`audit_incidents.severity` already ships `Critical` and `admin_incidents` (160) already
+projects `severity`. So this is implementation of an approved design, needing no owner
+decision — unlike §2's `Guardian-approval-required`, which that document deliberately
+**stops short of finishing**, and which is therefore still untouched.
+
+`AdminAttentionQueue` is mounted first in the panel, because the approved Control Center
+is *"Needs your attention"* before it is anything else.
+
+### §168.1 · Three population states, and a doc comment that lied
+
+`admin_incidents` gates inside its own `WHERE`, so an uncapable caller and an
+incident-free platform **both** return `[]`. Those are different facts — one is an
+authorization outcome, the other is the design's `"none raised"` zero state.
+
+**My first draft documented a distinction the code did not make**, which is worse than not
+making it: the comment claimed a count probe that the body never performed. The capability
+is now **asked for** instead of inferred — `admin_can(text, text)` is `SECURITY DEFINER`
+with `EXECUTE` granted to `authenticated` (`153:127`), and D13 already proves it returns
+the right boolean for every area/verb pair. So `null` means no `Incidents·view`, `[]` means
+authorized with nothing raised, and a populated list is the queue.
+
+### §168.2 · Two deviations from the observed design, named rather than hidden
+
+**Badge colour.** `COMPONENT-SPECS` › Severity badge records the observed Critical colour
+as **`#f08a9b`, marked with no token** — and that value appears **nowhere** in
+`admin.tokens.css`. This implementation uses `--adm-color-status-danger-text` (`#f07a8c`)
+instead, for two stated reasons: the Helix rule forbids a component holding raw hex, and
+`admin.contrast.md` publishes a **measured 7.4:1** ratio for the token while `#f08a9b`
+carries no measurement at all. They are visually near-identical. **The discrepancy is
+recorded, not resolved by declaring the design wrong** — reconciling two of this
+programme's own derived documents is not a thing to do in passing.
+
+**Icon.** The specification names `ph-fill ph-warning-circle` from Phosphor. **The app does
+not depend on Phosphor** — `pubspec.yaml` carries only `cupertino_icons` — so a Material
+fill-weight equivalent is substituted. That is a substitution, not fidelity, and adding an
+icon dependency is not a decision to take in passing either.
+
+Two further untokenised values: the badge's `11.5px` size has **no token** (11px and 12px
+are the neighbours), so the nearest published token is used and the 0.5px deviation
+recorded; its `0.08em` tracking is **not** the `0.12em` overline token, so it is expressed
+as the exact `0.08em` the design specifies, computed from the font size.
+
+### §168.3 · What the implementation refuses, and how that is proved
+
+- **"Never bulk."** The test asserts there is no `Checkbox`, no *"Select all"* and no
+  *"Resolve all"* anywhere, and exactly **one** action per item.
+- **"Nothing is changed from this screen."** The footer is rendered verbatim, and the
+  widget has **no write path at all** — the action expands what is already recorded. The
+  cheapest way to honour a read-only promise is to have nothing to write with.
+- **`B-4` cannot be violated from here**, because `AdminIncident` has **no field** for
+  `evidence` or `actor_identity`. A test sweeps the rendered text for both words. The
+  protection is structural: no UI can request a field the model does not carry.
+- **Title case.** `Critical`, never `CRITICAL` — METRIC-12 established by evidence that
+  the uppercase form appears nowhere.
+- **An unrecognised severity renders neutrally** rather than being guessed into a danger
+  colour, so a future enum value cannot silently present as an emergency.
+- An item with nothing recorded offers **no action**, instead of one that opens an empty
+  drawer.
+
+### §168.4 · A test-quality fix
+
+Mounting the queue in the panel made the panel and screen tests pass **for an accidental
+reason**: the unmocked incidents provider reached for an uninitialised Supabase client and
+landed in the error state. Both suites now override it explicitly, so they pass for a
+stated reason rather than a coincidence.
+
+### §168.5 · Verification
+
+Flutter **1776 passed / 5 skipped** (1764 → 1776) · `dart analyze` clean · QA frontier
+**174** · live security **957/957**.
+
+**Production was not contacted.**

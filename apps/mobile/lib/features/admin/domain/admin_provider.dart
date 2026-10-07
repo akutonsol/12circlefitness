@@ -43,3 +43,9 @@ final adminRevenueOverviewProvider = FutureProvider<AdminRevenueOverview?>(
 
 final adminReleaseStatusProvider = FutureProvider<AdminReleaseStatus?>(
     (ref) async => ref.watch(adminMetricsServiceProvider).getReleaseStatus());
+
+/// `DESIGN-01` §1 · the attention queue. Null means no `Incidents·view`; an empty
+/// list means authorized with nothing raised, which the design renders with its own
+/// literal copy rather than as a blank panel.
+final adminIncidentsProvider = FutureProvider<List<AdminIncident>?>(
+    (ref) async => ref.watch(adminMetricsServiceProvider).getIncidents());

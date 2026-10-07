@@ -26,6 +26,10 @@ final _denied = [
   adminCommunityOverviewProvider.overrideWith((_) async => null),
   adminRevenueOverviewProvider.overrideWith((_) async => null),
   adminReleaseStatusProvider.overrideWith((_) async => null),
+  // Overridden EXPLICITLY, not left to chance. Without it the attention queue
+  // reaches for an uninitialised Supabase client and lands in the error state, so
+  // these tests would pass for an accidental reason rather than a stated one.
+  adminIncidentsProvider.overrideWith((_) async => null),
 ];
 
 void main() {

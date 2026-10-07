@@ -354,6 +354,62 @@ class AdminReleaseStatus {
       );
 }
 
+/// `DESIGN-01` §1 — an incident as the Admin layer may see it, from
+/// `admin_incidents` (migration 160).
+///
+/// WHAT THIS MODEL CANNOT CARRY, BY DESIGN. Owner decision `B-4` withholds `evidence`
+/// (unbounded free-form, which cannot be shown safe in advance) and `actor_identity`
+/// (a DIRECT identity rather than a pseudonym, so an `A12` surface). The view does not
+/// project them and this model has no field for them, so no UI can accidentally
+/// request one.
+class AdminIncident {
+  const AdminIncident({
+    required this.id,
+    required this.summary,
+    required this.occurredAt,
+    required this.scope,
+    required this.severity,
+    required this.suspectedCause,
+    required this.recommendedAction,
+    required this.actionTaken,
+    required this.resolution,
+  });
+
+  final String? id;
+  final String? summary;
+  final DateTime? occurredAt;
+  final String? scope;
+
+  /// The shipped `A2` scale — `Critical` · `High` · `Warning` · `Informational`,
+  /// title case (`143:70`). METRIC-12 confirmed by evidence that an uppercase
+  /// `CRITICAL` appears nowhere, so nothing here upper-cases it.
+  final String? severity;
+
+  final String? suspectedCause;
+  final String? recommendedAction;
+  final String? actionTaken;
+  final String? resolution;
+
+  bool get isCritical => severity == 'Critical';
+
+  /// True when the item has something to show on open. `DESIGN-01` specifies a single
+  /// primary action per item that OPENS it and changes nothing.
+  bool get hasDetail =>
+      (suspectedCause ?? recommendedAction ?? actionTaken ?? resolution) != null;
+
+  static AdminIncident fromRow(Map<String, dynamic> r) => AdminIncident(
+        id: r['id'] as String?,
+        summary: r['summary'] as String?,
+        occurredAt: _date(r['occurred_at']),
+        scope: r['scope'] as String?,
+        severity: r['severity'] as String?,
+        suspectedCause: r['suspected_cause'] as String?,
+        recommendedAction: r['recommended_action'] as String?,
+        actionTaken: r['action_taken'] as String?,
+        resolution: r['resolution'] as String?,
+      );
+}
+
 // ── parsing ────────────────────────────────────────────────────────────────
 // PostgREST returns bigint and numeric as JSON numbers or strings depending on
 // magnitude and type. Each of these returns null for a null or unparseable
