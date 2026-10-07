@@ -103,5 +103,30 @@ class AdminTrustService {
   /// Whether this caller may read the Guardian state at all, so the UI can distinguish
   /// "you may not see this" from "nothing is recorded" — the two cases
   /// [getGuardianState] collapses into null.
+  /// Whether the caller may re-state the Guardian — `AI Guardian·manage`, which the
+  /// approved matrix grants to **`trust_lead` alone**.
+  ///
+  /// DELIBERATELY NOT `AI Guardian·view`. The section is readable by several roles and
+  /// writable by one, so reusing the view flag would put a safety switch in front of
+  /// everyone who can read the card.
+  Future<bool> canManageGuardian() => _can('AI Guardian', 'manage');
+
+  /// Disables the Guardian through the governed path (`admin_set_guardian_state`, 169) —
+  /// the emergency control `A10` names as a product requirement, placed on this screen by
+  /// owner decision **Q9**.
+  ///
+  /// ONLY `'Disabled'`, AND THAT IS THE DECISION'S SCOPE RATHER THAN THIS METHOD'S
+  /// LAZINESS. 169 accepts all four `A5` states, and Q9 authorizes *"the Guardian
+  /// emergency-disable control"* — not a state picker. `Active`, `Monitoring` and
+  /// `Degraded` therefore have no caller here; there is no approved affordance that places
+  /// them, and inventing one would be reading product scope into a placement decision.
+  ///
+  /// THE REASON IS REQUIRED BY THE FUNCTION, not by this form. 169 raises `22023` on
+  /// `p_state = 'Disabled'` with no reason — *"disabling the Guardian requires a reason"* —
+  /// so the dialog asks for one because the governed path refuses without it. The error is
+  /// allowed to surface.
+  Future<void> disableGuardian(String reason) =>
+      _db.rpc('admin_set_guardian_state',
+          params: {'p_state': 'Disabled', 'p_reason': reason});
   Future<bool> canViewGuardian() => _can('AI Guardian', 'view');
 }

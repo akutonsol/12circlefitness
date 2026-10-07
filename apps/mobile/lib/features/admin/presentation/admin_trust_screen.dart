@@ -204,12 +204,20 @@ class AdminTrustScreen extends ConsumerWidget {
               'Not recorded: evaluation-engine state, median decision time, agents '
               'without a policy, last full evaluation, decisions per hour. No surface '
               'produces them and none is estimated here.'),
-          // A10 requires that emergency disablement be POSSIBLE; it does not place the
-          // control here, and the approved Trust screen carries none. Re-stating the
-          // Guardian goes through admin_set_guardian_state, gated AI Guardian·manage.
+          // OWNER DECISION Q9 placed the emergency-disable control here. `A10` requires
+          // that emergency disablement be POSSIBLE and migration 169 is that control; what
+          // §189.5 recorded as open was only its placement, and Q9 answers it: Trust → AI
+          // Guardian, approved placement and confirmation only, authorization unchanged.
+          const _GuardianDisableAction(),
+          // THE OTHER THREE `A5` STATES ARE NOT OFFERED, and that absence is stated rather
+          // than left to be noticed. 169 accepts Active · Monitoring · Degraded ·
+          // Disabled; Q9 authorized the emergency-disable control, not a state picker.
+          // Restoring the Guardian is not an emergency action and has no approved
+          // affordance, so it is named here instead of invented.
           const AdminFootnote(
-              'Autonomy is re-stated through the governed write path only. Nothing is '
-              'changed from this screen.'),
+              'Only emergency disablement is available here. Returning the Guardian to '
+              'Active, Monitoring or Degraded is not offered on this screen — the governed '
+              'path accepts those states, no approved surface places them.'),
         ],
       ),
     );
@@ -533,3 +541,173 @@ class _TrustSystemPanel extends StatelessWidget {
 
 
 
+
+
+/// The emergency Guardian disablement control, placed on Trust → AI Guardian by **owner
+/// decision Q9**.
+///
+/// WHAT Q9 DECIDED AND WHAT IT DID NOT. `A10` names emergency disablement a product
+/// requirement, and migration `169` has been that control since §150 — `SECURITY DEFINER`,
+/// gated on `admin_can('AI Guardian','manage')` which the approved matrix grants to
+/// **`trust_lead` alone**, requiring `auth.uid()` so no agent can reach it, and requiring a
+/// reason to disable. §188 wrongly recorded `A10` itself as an open boundary; §189.5
+/// corrected that to the narrower question of *placement*, which is what Q9 answers.
+///
+/// Q9's words bound this widget: *"Implement only the approved UI placement and required
+/// confirmation/A11 treatment. Do not broaden authorization."* So:
+///
+///   * the gate is `AI Guardian·manage` and **not** the section's `·view` flag, which
+///     several roles hold;
+///   * **only `'Disabled'`** is reachable — a state picker would be product scope read into
+///     a placement decision;
+///   * the reason is **required because 169 requires it**, not because this form prefers it;
+///   * and the confirmation names what switches off, because the one thing worse than a
+///     Guardian nobody can disable is a Guardian disabled by a misread tap.
+///
+/// THE A11 TREATMENT. The disabled state is never *asserted* by this widget. It does not
+/// optimistically render "Disabled" on a successful RPC, and it does not render "Active" on
+/// a failure: it invalidates [adminGuardianStateProvider] and lets the card read the state
+/// back from the row. A safety control that displays its own intention rather than the
+/// stored fact is the same defect as `EC-04`'s green badge, applied to the one switch on
+/// this page that matters most.
+class _GuardianDisableAction extends ConsumerWidget {
+  const _GuardianDisableAction();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(adminGuardianStateProvider);
+    // ALREADY DISABLED IS NOT AN ACTION. 169 returns early on a no-op transition without
+    // auditing, so offering the control here would produce a button that does nothing and
+    // records nothing — which reads as a failure.
+    final alreadyOff = state.maybeWhen(
+      data: (s) => s?.isDisabled ?? false,
+      orElse: () => false,
+    );
+    if (alreadyOff) {
+      return const AdminFootnote(
+          'The Guardian is already disabled. Re-stating it is not done from this screen.');
+    }
+    return adminCapabilityGate(
+      ref.watch(adminCanManageGuardianProvider),
+      denied: const AdminFootnote(
+          'Read-only: disabling the Guardian requires AI Guardian · manage, which the '
+          'approved matrix grants to the Trust lead alone.'),
+      allowed: () => Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          height: AdminDims.sizeControl, // 44px, RESPONSIVE.md
+          child: TextButton(
+            onPressed: () => _confirm(context, ref),
+            style: TextButton.styleFrom(
+              foregroundColor: AdminColors.colorStatusDangerText,
+              minimumSize: const Size(AdminDims.sizeControl, AdminDims.sizeControl),
+            ),
+            child: const Text('Disable Guardian…',
+                style: TextStyle(
+                  fontSize: AdminDims.typeCaptionSize,
+                  fontWeight: FontWeight.w600,
+                )),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirm(BuildContext context, WidgetRef ref) async {
+    final reason = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AdminColors.colorBgSurface,
+        title: const Text('Disable the AI Guardian?',
+            style: TextStyle(
+                color: AdminColors.colorTextPrimary,
+                fontSize: AdminDims.typeCardTitleSize)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Says what stops, in the terms the Guardian is described in elsewhere on this
+            // card. A confirmation that only says "are you sure" confirms nothing.
+            const Text(
+                'Autonomy supervision stops until the Guardian is re-stated through the '
+                'governed path. This screen cannot turn it back on.',
+                style: TextStyle(
+                    color: AdminColors.colorTextSecondary,
+                    fontSize: AdminDims.typeSmallSize)),
+            const SizedBox(height: AdminDims.space6),
+            TextField(
+              controller: reason,
+              maxLines: 2,
+              style: const TextStyle(
+                  color: AdminColors.colorTextPrimary,
+                  fontSize: AdminDims.typeSmallSize),
+              decoration: const InputDecoration(
+                labelText: 'Reason (required)',
+                labelStyle: TextStyle(color: AdminColors.colorTextMuted),
+              ),
+            ),
+            const SizedBox(height: AdminDims.space4),
+            const Text(
+                'The reason is recorded with the transition and shown on this card while '
+                'the Guardian is disabled. A disabled Guardian with no stated reason is '
+                'itself a finding.',
+                style: TextStyle(
+                    color: AdminColors.colorTextSubtle,
+                    fontSize: AdminDims.typeCaptionSize)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel',
+                style: TextStyle(color: AdminColors.colorTextMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Disable',
+                style: TextStyle(
+                    color: AdminColors.colorStatusDangerText,
+                    fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final text = reason.text.trim();
+    // 169 refuses a blank reason with 22023. Catching it here is not a duplicated rule but
+    // a kinder one: the operator is told what is missing instead of being handed a
+    // constraint violation.
+    if (text.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AdminColors.colorBgRaised,
+          content: Text(
+              'A reason is required to disable the Guardian. Nothing was changed.',
+              style: TextStyle(color: AdminColors.colorStatusWarningText)),
+        ));
+      }
+      return;
+    }
+
+    try {
+      await ref.read(adminTrustServiceProvider).disableGuardian(text);
+      // READ THE STATE BACK; never assert it. See the class note on the A11 treatment.
+      ref.invalidate(adminGuardianStateProvider);
+    } catch (e, st) {
+      // The reason text is NOT put in the error payload — it is operator prose about a
+      // safety incident, and an error sink is not a quieter place to copy it to.
+      reportError('admin_trust.disableGuardian', e, st, const {});
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: AdminColors.colorBgRaised,
+          content: Text(
+              'The Guardian was not disabled. You may not have permission. Nothing was '
+              'changed.',
+              style: TextStyle(color: AdminColors.colorStatusDangerText)),
+        ));
+      }
+    }
+  }
+}

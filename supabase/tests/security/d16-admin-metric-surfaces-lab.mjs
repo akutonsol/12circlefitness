@@ -413,10 +413,15 @@ async function run() {
 
     // ── 8 · the 158 lesson · a read surface must refuse mutation ──────────
     section('fx_rates · a read-only record cannot be written through PostgREST');
-    const fxBefore = (await svc('fx_rates?select=id', { headers: { Prefer: 'count=exact' } }));
+    // No `count=exact` header: these two counts are BODY LENGTHS, and `fx_rates` holds a
+    // couple of rows, so the page cap cannot reach them. The header used to be passed here
+    // and was silently dropped by `svc` — it is removed rather than made to work, because a
+    // header that implies a counting method the assertion does not use is a lie about the
+    // evidence.
+    const fxBefore = (await svc('fx_rates?select=id'));
     const wIns = await mutate(victim, 'fx_rates', 'POST', {
       base: 'usd', quote: 'eur', rate: 1.0, as_of: '2026-01-01', source: 'QA-D16-FORBIDDEN' });
-    const fxAfterIns = (await svc('fx_rates?select=id', { headers: { Prefer: 'count=exact' } }));
+    const fxAfterIns = (await svc('fx_rates?select=id'));
     checkNoWrite('an admin-layer caller CANNOT insert an FX rate', {
       before: n(fxBefore.body), after: n(fxAfterIns.body), status: wIns.status,
       detail: 'an FX rate the Admin layer could set is a revenue figure it could set' });

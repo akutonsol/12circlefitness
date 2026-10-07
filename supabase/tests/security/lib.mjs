@@ -196,8 +196,16 @@ export async function rpc(who, fn, args = {}) {
 export async function svc(path, opts = {}) {
   const r = await fetch(`${URL_}/rest/v1/${path}`, {
     method: opts.method || 'GET',
+    // `...opts.headers` LAST, AND THIS WAS A REAL BUG. This helper used to build its
+    // headers and drop `opts.headers` on the floor, honouring only `opts.prefer`. Three
+    // call sites passed `headers: { Prefer: … }` and were silently ignored: two in D16
+    // asked for `count=exact` and never got it (harmless — they count by body length), and
+    // one in D19 asked for `resolution=merge-duplicates` on a one-row table, so the upsert
+    // became a primary-key conflict, the teardown appeared to succeed, and **QA's Guardian
+    // was left disabled by a test**. A helper that accepts an option and ignores it is
+    // worse than one that rejects it.
     headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json',
-               Prefer: opts.prefer || 'return=representation' },
+               Prefer: opts.prefer || 'return=representation', ...opts.headers },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   return parse(r);

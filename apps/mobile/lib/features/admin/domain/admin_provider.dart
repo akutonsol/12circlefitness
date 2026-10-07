@@ -139,3 +139,12 @@ final adminEventDirectoryProvider = FutureProvider<List<AdminEventRow>?>(
 /// Whether the caller may rename a user — `Users·update`.
 final adminCanUpdateUsersProvider = FutureProvider<bool>(
     (ref) async => ref.watch(adminMetricsServiceProvider).canUpdateUsers());
+
+/// Whether the caller may re-state the Guardian — `AI Guardian·manage`, held by
+/// `trust_lead` alone.
+///
+/// SEPARATE FROM [adminCanViewGuardianProvider] ON PURPOSE: the section is readable by
+/// several roles and writable by one, and collapsing the two would put a safety switch in
+/// front of every reader of the card.
+final adminCanManageGuardianProvider = FutureProvider<bool>(
+    (ref) async => ref.watch(adminTrustServiceProvider).canManageGuardian());

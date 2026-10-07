@@ -129,6 +129,7 @@ const SUITES = [
   ['D16   authorized metric surfaces (171-176)', './d16-admin-metric-surfaces-lab.mjs'],
   ['D17   weekly_feedback subject (175-177)',   './d17-weekly-feedback-subject-integrity.mjs'],
   ['D18   governed admin edit paths (161/165)', './d18-admin-write-paths.mjs'],
+  ['D19   Guardian emergency disablement (169)', './d19-guardian-disablement.mjs'],
 ];
 
 let totalFailures = 0;

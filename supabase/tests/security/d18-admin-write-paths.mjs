@@ -215,9 +215,16 @@ async function run() {
     const roleTry = await rpc(victim, 'admin_set_user_role',
       { target_user: subject, new_role: 'admin' });
     const afterRole = (await readName(subject)).role;
-    check('the SAME role that may rename a user may NOT change a role — so the approved ' +
-          'People menu’s "Change role" cannot be wired to Users·update without ' +
-          'widening who may grant admin, which is an owner decision',
+    // OWNER DECISION Q8 RULED ON THIS, and the assertion's standing changed with it. It
+    // began as evidence for an open question — can "Change role" be wired? — and is now the
+    // ratchet for the answer: "Keep Change Role restricted/unbuilt. Do NOT widen
+    // admin_set_user_role to Users·Update holders. Users·Update does not implicitly
+    // confer authorization-management authority. Preserve the existing 403 behavior."
+    // So this failing no longer means the finding is stale; it means a ruled authorization
+    // boundary moved.
+    check('OWNER Q8 · the SAME role that may rename a user may NOT change a role — ' +
+          'Users·update does not confer authorization-management authority, and this ' +
+          '403 is the behaviour the owner ruled is to be preserved',
       roleTry.status >= 400 && afterRole === beforeRole,
       `status=${roleTry.status} role=${afterRole} (was ${beforeRole})`);
     check('…and the refusal left no partial escalation behind — the subject is not admin',

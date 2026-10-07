@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,7 +37,31 @@ final _denied = <Override>[
   adminIncidentsProvider.overrideWith((_) async => null),
   adminAuditEventsProvider.overrideWith((_) async => null),
   adminCanUpdateIncidentsProvider.overrideWith((_) async => false),
+  // §191. An un-overridden capability provider does not fail the test — it makes a real
+  // network call to QA, which is how EC-04 went from 2 minutes to a 25-minute cancel.
+  adminCanManageGuardianProvider.overrideWith((_) async => false),
 ];
+
+/// Settles the async capability providers, which [_pump]'s single frame does not.
+Future<void> _pumpSettled(WidgetTester t, List<Override> overrides) async {
+  await t.binding.setSurfaceSize(const Size(500, 4000));
+  addTearDown(() => t.binding.setSurfaceSize(null));
+  await t.pumpWidget(ProviderScope(
+    overrides: overrides,
+    child: const MaterialApp(home: AdminTrustScreen()),
+  ));
+  for (var i = 0; i < 4; i++) {
+    await t.pump(const Duration(milliseconds: 50));
+  }
+}
+
+/// A Guardian in a live, non-disabled state — the only state the control is offered in.
+List<Override> _guardian(String state, {bool canManage = false, String? reason}) => [
+      adminGuardianStateProvider.overrideWith((_) async =>
+          AdminGuardianState.fromRow({'state': state, 'reason': reason})),
+      adminCanViewGuardianProvider.overrideWith((_) async => true),
+      adminCanManageGuardianProvider.overrideWith((_) async => canManage),
+    ];
 
 String _allText(WidgetTester t) =>
     t.widgetList<Text>(find.byType(Text)).map((w) => w.data ?? '').join(' | ');
@@ -86,9 +111,19 @@ void main() {
         adminGuardianStateProvider.overrideWith((_) async => null),
       ]);
       expect(find.text('Not recorded'), findsWidgets);
-      final text = _allText(t);
-      expect(text.contains('Active'), isFalse,
-          reason: 'an unrecorded Guardian must not read as running: $text');
+      // A LABELLED READING, NOT A WORD BAN — and this assertion had to be re-shaped to
+      // say so. It used to require that the whole page contain no "Active" anywhere, and
+      // §191's footnote broke it by stating that returning the Guardian to Active is NOT
+      // offered here. That is the fourth time this run a "must not mention X" sweep has
+      // fired on the sentence whose job is to say X is absent, and the rule named each
+      // time is the same: assert that X does not appear as a VALUE, not that the word
+      // never appears. A `Text` widget reading exactly "Active" is the defect; prose
+      // containing the word is the explanation.
+      expect(find.text('Active'), findsNothing,
+          reason: 'an unrecorded Guardian must not read as running: ${_allText(t)}');
+      // And nothing may present it as a state at all — the tile shows the absence.
+      expect(find.text('Monitoring'), findsNothing);
+      expect(find.text('Degraded'), findsNothing);
     });
 
     testWidgets('NO CAPABILITY is a different state from NOTHING RECORDED', (t) async {
@@ -381,17 +416,122 @@ void main() {
     }
   });
 
-  testWidgets('the GUARDIAN remains read-only — A10 bars it from holding admin authority '
-      'and nothing here re-states it', (t) async {
-    await _pump(t, _denied);
-    expect(find.textContaining('Nothing is changed from this screen'), findsWidgets);
+  // ── §191 · the Guardian control, placed by owner decision Q9 ───────────────
+  //
+  // THIS ASSERTION USED TO SAY THE OPPOSITE, and the change is an owner decision rather
+  // than a convenience. It read "the GUARDIAN remains read-only — A10 bars it from holding
+  // admin authority and nothing here re-states it", and required that no
+  // `Disable Guardian` label exist anywhere on the page.
+  //
+  // Half of what it encoded was a misreading, corrected in §189.5. `A10` bars the GUARDIAN
+  // from holding admin authority — it is about the agent, not about an administrator acting
+  // on the agent — and `A10` separately requires that emergency disablement be POSSIBLE,
+  // which migration 169 has satisfied since §150. What was genuinely open was only the
+  // control's PLACEMENT, and **Q9 placed it under Trust → AI Guardian**.
+  //
+  // So the part worth keeping is kept: no switch, no checkbox, nothing that can be toggled
+  // by a stray tap, and no affordance for the three states Q9 did not authorize.
+  testWidgets('the Guardian is not TOGGLEABLE, and the three unauthorized states have no '
+      'affordance — Q9 placed an emergency disable control, not a state picker', (t) async {
+    await _pumpSettled(t, [..._denied, ..._guardian('Active', canManage: true)]);
     expect(find.byType(Switch), findsNothing);
     expect(find.byType(Checkbox), findsNothing);
-    // No Guardian control: re-stating it goes through admin_set_guardian_state, gated
-    // AI Guardian·manage, which this page never calls.
-    for (final l in ['Disable Guardian', 'Enable Guardian', 'Set state']) {
-      expect(find.text(l), findsNothing);
+    for (final l in ['Enable Guardian', 'Set state', 'Monitoring', 'Degraded']) {
+      expect(find.text(l), findsNothing, reason: 'offers "$l" with no approved placement');
     }
+    // And the absence is STATED, not merely true.
+    expect(_allText(t).contains('Only emergency disablement is available here'), isTrue);
+  });
+
+  testWidgets('a role with AI Guardian·view but not ·manage gets no control, and is told '
+      'the capability belongs to the Trust lead', (t) async {
+    await _pumpSettled(t, [..._denied, ..._guardian('Active')]);
+    expect(find.text('Disable Guardian…'), findsNothing);
+    expect(_allText(t).contains('requires AI Guardian · manage'), isTrue);
+    expect(_allText(t).contains('Trust lead alone'), isTrue);
+  });
+
+  testWidgets('AI Guardian·manage turns the control on', (t) async {
+    await _pumpSettled(t, [..._denied, ..._guardian('Active', canManage: true)]);
+    expect(find.text('Disable Guardian…'), findsOneWidget);
+    expect(_allText(t).contains('requires AI Guardian · manage'), isFalse);
+  });
+
+  testWidgets('an ALREADY disabled Guardian offers no control — 169 returns early on a '
+      'no-op transition, so the button would do nothing and record nothing', (t) async {
+    await _pumpSettled(t, [
+      ..._denied,
+      ..._guardian('Disabled', canManage: true, reason: 'runaway evaluation loop'),
+    ]);
+    expect(find.text('Disable Guardian…'), findsNothing);
+    final text = _allText(t);
+    expect(text.contains('already disabled'), isTrue, reason: text);
+    // The recorded reason is still shown, because a disabled Guardian with no stated
+    // reason is itself a finding.
+    expect(text.contains('runaway evaluation loop'), isTrue, reason: text);
+  });
+
+  testWidgets('the confirmation NAMES what stops and says this screen cannot undo it — a '
+      'dialog that only asks "are you sure" confirms nothing', (t) async {
+    await _pumpSettled(t, [..._denied, ..._guardian('Active', canManage: true)]);
+    await t.tap(find.text('Disable Guardian…'));
+    await t.pumpAndSettle();
+    final text = _allText(t);
+    expect(text.contains('Autonomy supervision stops'), isTrue, reason: text);
+    expect(text.contains('cannot turn it back on'), isTrue, reason: text);
+    expect(find.text('Reason (required)'), findsOneWidget);
+  });
+
+  testWidgets('confirming with NO reason is refused before any call — 169 raises 22023, '
+      'and the operator is told what is missing rather than handed a constraint error',
+      (t) async {
+    await _pumpSettled(t, [..._denied, ..._guardian('Active', canManage: true)]);
+    await t.tap(find.text('Disable Guardian…'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Disable'));
+    await t.pumpAndSettle();
+    // No service fake is needed, which is itself the assertion: the blank check runs
+    // BEFORE the RPC, so this reaches the message instead of throwing on a real client.
+    expect(find.text('A reason is required to disable the Guardian. Nothing was changed.'),
+        findsOneWidget);
+  });
+
+  testWidgets('cancelling changes nothing and leaves the control in place', (t) async {
+    await _pumpSettled(t, [..._denied, ..._guardian('Active', canManage: true)]);
+    await t.tap(find.text('Disable Guardian…'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Cancel'));
+    await t.pumpAndSettle();
+    expect(find.text('Disable Guardian…'), findsOneWidget);
+    expect(_allText(t).contains('already disabled'), isFalse);
+  });
+
+  testWidgets('the control meets the 44px touch target RESPONSIVE.md requires', (t) async {
+    await _pumpSettled(t, [..._denied, ..._guardian('Active', canManage: true)]);
+    final size = t.getSize(find.ancestor(
+        of: find.text('Disable Guardian…'), matching: find.byType(TextButton)).first);
+    expect(size.height, greaterThanOrEqualTo(44.0));
+  });
+
+  testWidgets('a pending ·manage check offers no control and claims no denial', (t) async {
+    await t.binding.setSurfaceSize(const Size(500, 4000));
+    addTearDown(() => t.binding.setSurfaceSize(null));
+    await t.pumpWidget(ProviderScope(
+      overrides: [
+        ..._denied,
+        adminGuardianStateProvider.overrideWith(
+            (_) async => AdminGuardianState.fromRow(const {'state': 'Active'})),
+        adminCanViewGuardianProvider.overrideWith((_) async => true),
+        adminCanManageGuardianProvider.overrideWith((_) => Completer<bool>().future),
+      ],
+      child: const MaterialApp(home: AdminTrustScreen()),
+    ));
+    for (var i = 0; i < 4; i++) {
+      await t.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.text('Disable Guardian…'), findsNothing);
+    expect(_allText(t).contains('requires AI Guardian · manage'), isFalse,
+        reason: 'a pending check must not render as a denial');
   });
 
   testWidgets('B-4 holds: no withheld incident field can reach the screen', (t) async {

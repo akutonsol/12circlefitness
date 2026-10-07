@@ -17547,3 +17547,153 @@ behind a private `_finish()`. The **`EC-02` registry contradiction** (`:709` `BL
 on Q-5 against `:782` *"lands now"*) remains **deliberately unreconciled** per §4-H.
 
 **Production was not contacted at any point in this run.**
+
+---
+
+## §191 · Owner decisions Q8 · Q9 · Q10 — one build, two ratifications, and a teardown that cost QA its Guardian
+
+### §191.1 · What the three decisions did
+
+| decision | ruling | effect |
+|---|---|---|
+| **Q8 · role assignment** | *"Keep Change Role restricted/unbuilt. Do NOT widen `admin_set_user_role` to Users·Update holders. Users·Update does not implicitly confer authorization-management authority. Preserve the existing 403 behavior."* | **Ratified the current state.** No code change. D18 §3's assertion is **promoted from evidence to ratchet** — see §191.4. |
+| **Q9 · Guardian emergency disablement** | *"Place the control under Trust → AI Guardian … Implement only the approved UI placement and required confirmation/A11 treatment. Do not broaden authorization."* | **BUILT.** The one implementation in this section. |
+| **Q10 · program-template authoring** | *"No program-template authoring surface for V5 … Record the capability as deferred/unexposed unless existing governance requires another status."* | **No UI.** Status left where governance already put it — see §191.5. |
+
+### §191.2 · Q9, built to the width of the decision and no wider
+
+`A10` names emergency disablement a product requirement and migration `169` has *been* that
+control since §150 — `SECURITY DEFINER`, gated on `admin_can('AI Guardian','manage')`,
+requiring `auth.uid()` so no agent can reach it, and requiring a reason to disable. §188
+wrongly recorded `A10` itself as an open boundary; §189.5 corrected that to the narrower
+question of **placement**, and Q9 answers it.
+
+Four things the decision's own wording settles:
+
+* **The gate is `AI Guardian·manage`, not the section's `·view` flag.** Several roles read
+  this card; one may switch it off. D19 §2 proves the split with `operations_lead`, a role
+  **discovered live** from the matrix rather than hardcoded, which holds `·view` and is
+  refused `403` with the stored state unmoved.
+* **Only `'Disabled'` is reachable.** `169` accepts all four `A5` states; Q9 authorized *"the
+  Guardian emergency-disable control"*, not a state picker. Returning the Guardian to Active,
+  Monitoring or Degraded has no approved affordance, so the card **states that absence**
+  rather than inventing a control for it — and a widget test asserts no affordance for the
+  three exists.
+* **The reason is required because `169` requires it.** The dialog asks because the governed
+  path raises `22023` without one; the form is not adding a rule of its own. The blank check
+  runs *before* the RPC so the operator is told what is missing instead of being handed a
+  constraint violation.
+* **The A11 treatment is that the control never asserts its own outcome.** It does not
+  optimistically render "Disabled" on a `204`, and does not render "Active" on a failure: it
+  invalidates the state provider and the card reads the stored row back. A safety control
+  that displays its intention rather than the fact is `EC-04`'s green badge applied to the
+  one switch on the page that matters most.
+
+**An already-disabled Guardian offers no control at all**, and that is not tidiness: `169`
+returns early on a no-op transition *without auditing*, so the button would do nothing and
+record nothing — which an operator reads as a failure. D19 §4 proves the no-op records
+nothing, which is what licenses hiding it.
+
+### §191.3 · A teardown that disabled QA's Guardian, and the helper bug under it
+
+D19's own header says the restore *"must not be skipped: leaving QA's Guardian disabled would
+be a real safety-posture change made by a test."* **The first run did exactly that.**
+
+`guardian_state` is a one-row table (`id boolean PRIMARY KEY CHECK (id)`), so the teardown
+wrote it with a POST carrying `Prefer: resolution=merge-duplicates` in an `opts.headers`.
+**`svc` ignored `opts.headers` entirely** — it built its own and honoured only `opts.prefer`
+— so the upsert hint was dropped, the POST became a primary-key conflict, and because nothing
+checked the status **the teardown appeared to succeed**. QA's Guardian was left `Disabled`
+with the reason `"QA-D19 second attempt"`.
+
+Three things followed, in this order:
+
+1. **QA was restored immediately** — `PATCH guardian_state?id=eq.true` to `Active`, verified
+   by re-reading the row.
+2. **The helper was fixed at the root**, not at the call site: `svc` now spreads
+   `...opts.headers` last. *A helper that accepts an option and ignores it is worse than one
+   that rejects it.* Two other call sites had been silently ignored the same way — both in
+   D16, both asking for `count=exact` — and because those assertions count by **body length**
+   the dropped header was harmless there. The headers were **removed rather than made to
+   work**, because a header implying a counting method the assertion does not use is a lie
+   about the evidence.
+3. **The teardown is now asserted.** It is the one piece of cleanup in this programme that
+   reports a result, because every other suite can leave a stray fixture and lose nothing but
+   tidiness, while this one can leave autonomy supervision switched off.
+
+`countExact` also refused, loudly, when the suite first asked it to count
+`admin_role_capabilities?select=id` — the table is `(admin_role, area, verb)` with a composite
+key and no `id` column. It raised rather than returning an unmeasured `0`, which is precisely
+what §187 built it to do.
+
+### §191.4 · Q8 changed an assertion's standing without changing a line of behaviour
+
+D18 §3 proved the gate divergence live: the same role, in the same session, renames a user
+(`204`) and is refused the role change (`403`, role unmoved, no partial escalation). It was
+written as **evidence for an open question** — *"if that pair ever stops holding, the finding
+is stale and the question has moved."*
+
+Q8 makes it the **ratchet for a ruling**. The assertion's text now says so, because the
+inference a future reader should draw from a failure has inverted: it no longer means the
+diagnosis is out of date, it means **a ruled authorization boundary moved**. Nothing executes
+differently; what changed is what the test *means*, and a test whose meaning has changed
+while its name has not is a trap.
+
+### §191.5 · Q10 took the escape clause the owner wrote into it
+
+Q10 says to record the capability as deferred/unexposed *"unless existing governance requires
+another status."* **It does, and the register would have been corrupted by the obvious move.**
+
+`ADMIN-NON-OPERATIONAL-CAPABILITIES.json` holds 20 entries, and `non_operational` means a
+capability with **no write path at all**. `B-22`'s resolution note already records *"Events and
+Training implemented (165)"* — and the two program-template RPCs exist and work. Adding a
+`non_operational` entry for them would have asserted something false about the schema in the
+file whose whole purpose is to be true about it.
+
+So the register is **unchanged**, and Q10 is recorded here as what it is: a **UI-exposure
+deferral**, not a capability status. The matrix still grants the verbs; no approved screen
+places a control; the Ecosystem Programs table's only action remains **"Open"**.
+
+**A related check came out clean.** `AI Guardian / Approve` *is* in the register as
+non-operational — *"a producer gap … P7-gated"* — and its reason notes that *"AI Guardian/Manage
+was in this same position until B-17 supplied the state store (169)"*. So `Manage` was lifted
+from the register when `169` landed, and Q9 contradicts nothing. Had `Manage` still been
+registered non-operational, Q9 would have required a register amendment under owner authority
+before any UI was written.
+
+### §191.6 · Evidence
+
+**D19 · Guardian emergency disablement — 22/22 live against QA.** Every refusal is proved by
+re-reading `guardian_state.state`, never by the RPC status.
+
+* `AI Guardian·manage` is held by **exactly one role**, and it is `trust_lead` — the claim the
+  card makes to the operator in words, asserted against the matrix rather than the seed file,
+  with a positive control that the capability table was non-empty (116 rows) when asked.
+* A role with **no** AI Guardian verb: `403`, state still `Active`.
+* `operations_lead`, which **holds `·view`**: `403`, state still `Active`. This is the arm that
+  would have caught the function being written against the wrong verb.
+* Anonymous: `401`, state unmoved.
+* No reason → refused; **whitespace-only** reason → refused (`169` trims before it checks); a
+  state outside `A5` → refused. State `Active` throughout.
+* `trust_lead` disables it: state becomes `Disabled`, the reason is recorded, `set_by` records
+  **who**.
+* **Exactly one** new audit row, `admin_action` / `success`, carrying the **full before/after
+  pair** `Active → Disabled` — because a Guardian state is not personal data, the opposite of
+  the name writer in §141 — naming `state` as the changed column, with a **pseudonym** standing
+  for the actor rather than a raw id.
+* The **no-op** second disable records nothing: audit count `134 → 134`.
+* And the teardown restored `Active`, **verified**.
+
+Trust widget tests **33** (23 → 33). One pre-existing assertion was **re-shaped, not deleted**:
+it required that the page contain no `"Active"` anywhere, and §191's footnote broke it by
+stating that returning the Guardian to Active is *not offered here*. **That is the fourth time
+in this run** a *"must not mention X"* sweep has fired on the sentence whose job is to say X is
+absent. The rule named each time holds: assert that X does not appear as a **value**, not that
+the word never appears — `find.text('Active')` finds a reading, `text.contains('Active')`
+finds an explanation.
+
+Live **1045/1045 across 19 suites** · D16 **109/109** after the header cleanup · Flutter
+**1899 / 5 skipped** (1891 → 1899) · `dart analyze` **0 errors** · nine static guards exit 0 · **no migration
+was added** — `169` has been applied since §150 and the QA frontier stays at **178**.
+
+**Production was not contacted.**
