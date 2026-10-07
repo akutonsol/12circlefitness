@@ -30,7 +30,9 @@ String _generateAiSummary(Map<String, dynamic> d) {
   final sleep   = d['sleep_hours'] as String? ?? '';
   final stress  = (d['stress_level'] as num?)?.toInt() ?? 0;
   final challs  = d['biggest_challenges'] as String? ?? '';
-  final risk    = d['risk_level'] as String? ?? 'low';
+  // EC-04 · nullable. Only `== 'high'` is tested below, so behaviour is unchanged;
+  // what changes is that the variable no longer asserts a risk level nobody recorded.
+  final risk    = d['risk_level'] as String?;
   final injuries = d['has_injuries'] as bool? ?? false;
   final loc     = d['training_location'] as String? ?? '';
 
@@ -72,7 +74,8 @@ List<Map<String, String>> _generateActions(Map<String, dynamic> d) {
   final exp = d['experience_level'] as String? ?? '';
   final loc = d['training_location'] as String? ?? '';
   final injuries = d['has_injuries'] as bool? ?? false;
-  final risk = d['risk_level'] as String? ?? 'low';
+  // EC-04 · nullable, as above.
+  final risk = d['risk_level'] as String?;
   final goal = d['fitness_goal'] as String? ?? '';
   final assignment = d['program_assignment'];
   final nutrition = d['nutrition_plan'];
@@ -214,7 +217,8 @@ class _OverviewTab extends ConsumerWidget {
         : null;
     final coachMode  = detail['coaching_mode'] as String? ?? '';
     final startDate  = assignment?['start_date'] as String?;
-    final riskLevel  = detail['risk_level'] as String? ?? 'low';
+    // EC-04 · nullable, so _riskBadge can render "NOT ASSESSED" instead of green.
+    final riskLevel  = detail['risk_level'] as String?;
     final summary    = _generateAiSummary(detail);
     final actions    = _generateActions(detail);
     // Coaches can only assign work once the client is on a paid plan with them.
@@ -417,13 +421,27 @@ class _OverviewTab extends ConsumerWidget {
       border: Border.all(color: color.withValues(alpha: 0.3))),
     child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)));
 
-  Widget _riskBadge(String level) {
+  /// EC-04 · an ABSENT risk level is not the SAFEST risk level.
+  ///
+  /// This switch used to end in `default: green / LOW RISK`, so a client whose PAR-Q
+  /// was never saved — and a client whose profile read simply FAILED, since the
+  /// provider returns null for the whole profile on any error — was affirmatively
+  /// presented to their coach as low risk. "The read failed" and "this person is low
+  /// risk" were the same pixel, and the default pointed the wrong way on a safety
+  /// signal.
+  ///
+  /// `low` is now matched EXPLICITLY, and everything else — null, empty, or a value
+  /// this switch does not know — renders "NOT ASSESSED" in the muted colour, visually
+  /// distinct from the green of an assessed low. An unrecognised future value is also
+  /// safer shown as unassessed than as safe.
+  Widget _riskBadge(String? level) {
     final Color color;
     final String label;
     switch (level) {
       case 'high':     color = _red;   label = 'HIGH RISK'; break;
       case 'moderate': color = _amber; label = 'MOD RISK';  break;
-      default:         color = _green; label = 'LOW RISK';  break;
+      case 'low':      color = _green; label = 'LOW RISK';  break;
+      default:         color = _mut;   label = 'NOT ASSESSED'; break;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
@@ -797,8 +815,11 @@ class _ParqHealthTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final riskLevel   = detail['risk_level']         as String? ?? 'low';
-    final riskScore   = (detail['risk_score']        as num?)?.toInt() ?? 0;
+    // EC-04 · no `?? 'low'` and no `?? 0`. A missing score rendered as "0 / 8" reads
+    // as the safest possible result, which is the same defect as the badge's green
+    // default wearing different clothes.
+    final riskLevel   = detail['risk_level']         as String?;
+    final riskScore   = (detail['risk_score']        as num?)?.toInt();
     final riskFlags   = _intakeJoin(detail['risk_flags']);
     final medical     = _intakeJoin(detail['medical_conditions']);
     final hasInjuries = detail['has_injuries']       as bool? ?? false;
@@ -816,7 +837,9 @@ class _ParqHealthTab extends StatelessWidget {
     switch (riskLevel) {
       case 'high':     riskColor = _red;   riskLabel = 'High Risk';     break;
       case 'moderate': riskColor = _amber; riskLabel = 'Moderate Risk'; break;
-      default:         riskColor = _green; riskLabel = 'Low Risk';      break;
+      case 'low':      riskColor = _green; riskLabel = 'Low Risk';      break;
+      // EC-04 · see _riskBadge. `low` is explicit; absent is its own state.
+      default:         riskColor = _mut;   riskLabel = 'Not Assessed';  break;
     }
 
     final flags = riskFlags.split(',').where((f) => f.trim().isNotEmpty).toList();
@@ -839,7 +862,12 @@ class _ParqHealthTab extends StatelessWidget {
                 style: TextStyle(color: riskColor, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.5))),
           ]),
           const SizedBox(height: 10),
-          Text('Risk Score: $riskScore / 8', style: const TextStyle(color: _wht, fontSize: 14)),
+          Text(riskScore == null
+                  // EC-04 · an unassessed PAR-Q has no score. "0 / 8" would be a
+                  // measurement, and the most reassuring one available.
+                  ? 'Risk Score: not assessed'
+                  : 'Risk Score: $riskScore / 8',
+              style: const TextStyle(color: _wht, fontSize: 14)),
           if (flags.isNotEmpty) ...[
             const SizedBox(height: 8),
             Wrap(spacing: 6, runSpacing: 6,

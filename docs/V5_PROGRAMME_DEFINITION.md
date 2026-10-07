@@ -15846,3 +15846,82 @@ every static guard green · QA frontier **174**.
 **Production was not contacted. No guard was weakened: one was corrected in the
 false-positive direction and one in the false-negative, and each was re-proved by
 injection.**
+
+---
+
+## §170 · `EC-04` — "the read failed" and "this client is low risk" were the same pixel
+
+The registry records this as **P0 · `READY_TO_REMEDIATE`**, with the display half
+explicitly *"independent and safe"* and the policy half (`CON-04`) blocked. The display
+half is now fixed; **`CON-04` is untouched**, and whether an unassessed client may be
+programmed at all remains a product decision.
+
+### §170.1 · What the defect actually was
+
+`client_detail_screen.dart` read `d['risk_level'] as String? ?? 'low'` at **four** call
+sites, feeding **two** badge renderers whose `switch` ended in
+`default: _green / 'LOW RISK'`. The provider above them returns **null for the entire
+profile on any read failure**. So a client whose PAR-Q was never saved — *and* a client
+whose profile simply failed to load — was **affirmatively presented to their coach as low
+risk**, in green.
+
+A fifth site did the same to the score: `(detail['risk_score'] as num?)?.toInt() ?? 0`
+rendered **"Risk Score: 0 / 8"**, which is not a blank — it is a measurement, and the most
+reassuring one available.
+
+This is the same null-coercion class as §163.3 and §166.2, but pointing the wrong way on a
+**safety signal**, which is why the registry pairs it with ERR-3: *a coach is affirmatively
+told a client is low risk when the client's PAR-Q was never saved.*
+
+### §170.2 · The fix
+
+`low` is now matched **explicitly** in both switches, and everything else — null, empty, or
+a value the switch does not recognise — renders **"NOT ASSESSED" / "Not Assessed"** in the
+muted colour, visually distinct from green. An unrecognised future enum value is also safer
+shown as unassessed than as safe. An absent score renders **"Risk Score: not assessed"**.
+The four `?? 'low'` coercions are gone; the two generators that only test `== 'high'` keep
+their behaviour exactly, but their variable no longer asserts a level nobody recorded.
+
+**One thing was deliberately not changed.** The rule-based AI summary still prints *"No
+specific flags."* when nothing fires. Adding a *"PAR-Q not assessed"* line there would be
+writing new product copy, which is not what the registry authorizes and not a decision to
+take in passing. The badge is where the affirmative claim was made, and the badge is fixed.
+
+`risk_level` was verified to exist and be populated on QA (690 rows non-null), so the
+exposure is the read-failure path and genuinely unassessed clients — not a phantom column.
+
+### §170.3 · `SEC-G6`, and two defects in my own guard
+
+The ratchet asserts no `?? 'low' | 'moderate' | 'high'` anywhere in the dashboard feature,
+no `risk_score ?? 0`, that every risk `switch` carries an **explicit** `case 'low'`, and
+that its `default` arm renders neither the green colour nor a low label but **does** say the
+assessment is absent. Three negative controls were proved: restoring the green default,
+reinstating the coercion, and deleting the explicit `low` case each turn it red, with the
+source restored byte-for-byte.
+
+**Its first draft found one of the two switches.** The locator matched
+`switch (risk…)`, and `_riskBadge` takes its parameter as `level` — so a guard that could be
+defeated by renaming a local. It now locates by **content**: any `switch` whose body carries
+a `case 'high'` arm and mentions a risk label, whatever its subject is called.
+
+**Its second draft then failed against correct code.** I wrote the fallback check as
+`[Nn]ot\s*[Aa]ssessed`, which is case-insensitive **only on the first letter of each word**
+and therefore did not match the actual label `NOT ASSESSED`. Replaced with
+`caseSensitive: false`. Hand-built character classes that look case-insensitive and are not
+have now cost this programme time twice.
+
+**`MASTER_REMEDIATION_REGISTRY.md` was not modified** — it is outside the mutation boundary
+for this run, so `EC-04`'s status line still reads `READY_TO_REMEDIATE` and this section is
+the record of the display half's remediation.
+
+### §170.4 · Verification
+
+Flutter **1782 passed / 5 skipped** (1776 → 1782) · `dart analyze` **0 errors** · live
+security **958/958** · contract clean on a 2-entry allowlist · AI **49/49** ·
+characterizations **17/17** · QA frontier **174**.
+
+CI on `f1eac8c` returned **static guards green and live QA suites green**, so §169's
+contract-guard derivation and the `I-COM-01` remediation are **VERIFIED IN CI**.
+
+**Production was not contacted. No guard was weakened; one was added and two were corrected
+against their own defects.**
