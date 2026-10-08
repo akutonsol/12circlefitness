@@ -1,5 +1,24 @@
 # V5 · Consolidated owner decision pack — the complete reconciled queue
 
+> ## ANSWERED 2026-10-08 — eight decisions recorded
+>
+> | decision | ruling | recorded where | implemented? |
+> |---|---|---|---|
+> | **Q1** | **Ratify UTC + Monday.** The applied convention at §162.3 is now an authorization. | `METRIC-02` sub-answer, decision sheet | **already ships** (176 publishes the boundaries) |
+> | **Q2** | **Publish the role split** for active-user reporting. All users, with the split shown beside the total. | `METRIC-02` sub-answer, decision sheet | **NOT YET** — authorized, not built |
+> | **Q3 / `METRIC-11`** | **Option 3** — both authorities, labelled, no combined verdict. | `METRIC-11`, decision sheet | **already ships** (173/174); ingestion stays unauthorized |
+> | **Q4** | **Keep design citations commit-pinned.** | here | **already ships** (65 citations resolve, guard enforces) |
+> | **Q5** | **HOLD pending `Q16`.** Not to be selected independently. | here | — |
+> | **Q7 / `D-1`** | **Option 4** — lazy `setUpAll`, **preserving the documented I/O-error caveat**. | here | **NOT YET** — authorized, not built |
+> | **Q13** | **Option 1** — the documented trio is authoritative; `'app'` is QA seed noise. | here | no change required; **no CHECK added** |
+> | **Q15** | **WITHDRAWN as an owner decision** — its premise was disproved by existing authority (`METRIC-12`). The surviving **`Elevated`** mismatch is **preserved exactly as a documented unresolved design/schema boundary**, because the design explicitly says not to resolve it. **Not resolved here.** | here, §8 | — |
+>
+> **`Q16` remains open and is re-presented in §9 with the consequences of Option 1 against Option 3.
+> No option is chosen.**
+>
+> **Two of the four items I surfaced in §11 were not decisions at all** — verified against
+> authoritative V5 material before being presented as open. See §15.
+
 **Nothing was implemented for this pack.** It reconciles the carried queue against the
 governing V5, programme and design sources, retrieves each decision's exact options and
 evidence, states what each blocks, and recommends where the evidence supports one. **No option
@@ -490,5 +509,342 @@ No code, schema, migration, guard or test changed for this pack. Last verified s
 live **1089/1089 across 21 suites** · Flutter **1944 / 5 skipped** · `dart analyze` **0 errors**
 · nine static guards **exit 0** · QA frontier **180**, ledger `180 | 180` matching
 `expected_applied.json` · CI **green on all seven jobs** at `2affe39`.
+
+**Production was not contacted.**
+
+---
+
+# PART II · 2026-10-08 — the remaining unresolved decisions
+
+Eight decisions were recorded above. Four items go forward, and **two of the four I surfaced in
+§11 turned out not to be decisions at all.** The verification is in §15, and it is presented
+first in each entry rather than at the end, because an item's status governs whether it belongs
+in a decision pack.
+
+---
+
+## 15 · Verification — checked against authoritative V5 material *before* presenting as open
+
+The instruction was to verify, not to assume. Result: **two open, two not.**
+
+| item | verdict | the authority that settles it |
+|---|---|---|
+| **`D-2`** | **OPEN** | No `NEW-W1-*` ID exists in `MASTER_REMEDIATION_REGISTRY.md` (**count: 0**), no registry entry mentions the schema-qualification blind spot, the findings ledger carries neither Finding, and **SEC-W1's detectors still require `ON\s+public\.coach_team_members`** at `:71`, `:100` and `:296`. Unremediated in code and unregistered. |
+| **`D-3`** | **OPEN** | Same registry result, and **`SEC-W1` mentions migration 134 zero times** — verified by count, not by reading. Unremediated in code. |
+| **`60+` age bucket** | **ALREADY RESOLVED — do not re-ask** | **`METRIC-17`'s own option set.** The question was *"is the 4th bucket 60+ or unknown?"* with **`1` 60+ · `2` unknown · `3` both (5 buckets)**. A `60+` bucket was offered twice over — as option 1 and inside option 3 — and **Option 2 was chosen.** The ruling forecloses it. The decision sheet's trailing *"whether one should exist is narrow and open"* contradicted the option set it had just recorded; **corrected in the sheet.** |
+| **`EC-01 Q2–Q5`** | **ALREADY ANSWERED — do not re-ask** | **§19.4 answers all four**, verbatim below. One *consequence* is outstanding and it is a documentation action, not a decision. |
+
+### `EC-01 Q2–Q5` — the answers, verbatim from §19.4
+
+> **`EC-01`·Q2 — NO.** A canonical's closure class does not bind an alias of a different class;
+> under §8.15 each alias's substantive status **and** its evidence standard follow its own
+> subject matter.
+>
+> **`EC-01`·Q3 — `G-14` IS EVALUABLE, AND IT EVALUATES TO NOT MET.** *"Evaluable"* means capable
+> of assessment; a conjunct with no requirement row evaluates to **not satisfied**, never
+> indeterminate. *Required by 13:* **a gate with an unmeasurable conjunct must never be reported
+> as passed.** The missing audit-log requirement row is a **documentation gap in
+> `RELEASE_GATES.md`** — recorded, **not edited**.
+>
+> **`EC-01`·Q4 — IT IS A PRECONDITION, AND ITS ABSENCE IS A ROW-COMPLETENESS DEFECT, NOT A
+> CLOSURE DEFECT.** … **No registry edit is made.**
+>
+> **`EC-01`·Q5 — YES.** `QA_CLOSURE_STANDARD.md` should carry the REFERENCE-ONLY definition.
+> **Recorded as a required documentation action; NOT performed — that file is outside the
+> mutation boundary.**
+
+**Q3's answer also corrects something I repeated.** §2980 said *"what is open is whether
+'evaluable' means assessable or meetable"* — §19.4 **had already settled it**: *"Evaluable means
+capable of assessment."* I carried the earlier line forward without checking the later one.
+
+**One action outstanding, and it is not a decision.** `Q5`'s answer requires the REFERENCE-ONLY
+alias definition to be written into `QA_CLOSURE_STANDARD.md`. I verified it is **still absent**
+from that file. It was recorded *"NOT performed — that file is outside the mutation boundary"*,
+so it needs **authorization to edit that file**, not a ruling on its content — the content is
+already decided. **I did not edit it.**
+
+---
+
+## 16 · `D-2` · Authorize remediation of Finding A?
+
+### Exact governing source — §9.2, verbatim
+
+> ### 9.2 Finding A — schema-qualification blind spot — **UNREGISTERED, NO ID**
+>
+> SEC-W1's `FOR ALL` detector and its `FOR UPDATE` detector both require
+> `ON\s+public\.coach_team_members`. The real historical defective policy at
+> `supabase/migrations/002_ecosystem_additions.sql:146-147` is written **unqualified**
+> (`ON coach_team_members`), and the unqualified form is the repository's dominant style
+> (approximately 3.6:1 across `supabase/migrations/*.sql`; exact counts are method-sensitive and
+> should not be cited without publishing the counting expression).
+
+### Evidence, re-verified today
+
+**The historical defect, verbatim** (`002_ecosystem_additions.sql:146-147`):
+
+```sql
+ALTER TABLE coach_team_members ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Head coach manages team"
+  ON coach_team_members FOR ALL USING (coach_id = auth.uid());
+```
+
+**The detectors**, at `team_membership_lifecycle_guard_test.dart` `:71`, `:100`, `:296`:
+
+```dart
+RegExp(r'CREATE POLICY[^;]*ON\s+public\.coach_team_members[^;]*FOR\s+ALL', …)
+RegExp(r'CREATE POLICY[^;]*ON\s+public\.coach_team_members[^;]*FOR\s+UPDATE', …)
+```
+
+**So the regex cannot match the defect it was written to catch.**
+
+**On the ratio — the record told me not to cite one without publishing the expression, so here
+is both.** Repo-wide, over `supabase/migrations/*.sql` with line comments stripped and the
+expression `CREATE\s+POLICY[^;]*?\bON\s+(public\.)?([a-z_]+)`:
+
+| | count |
+|---|---|
+| qualified `ON public.<t>` | **95** |
+| unqualified `ON <t>` | **167** |
+| ratio | **1.76 : 1** unqualified-dominant |
+
+**That is not the record's ≈3.6:1**, and the record anticipated exactly this — the method was
+never published, so the two numbers are not comparable. **The direction holds and the magnitude
+does not.** For `coach_team_members` *specifically* the picture inverts: **7 qualified to 1
+unqualified**, and that single unqualified instance **is** the historical defect. So the sharper
+statement is not *"the detector disagrees with house style"* but **"the detector matches the
+table's current style and misses its only historical defect."**
+
+### Option set
+
+The source **states no options.** The only ones available without inventing any are the two the
+finding's own shape implies, plus the null action:
+
+| option | effect |
+|---|---|
+| `1` **Authorize remediation** — relax both detectors to accept the unqualified form | the detector would match the real historical policy; needs a `NEW-W1-*` registry ID |
+| `2` **Do not authorize** — record the blind spot and leave the detectors as they are | SEC-W1 keeps asserting the corrected definitions in 132; the historical form stays undetectable |
+
+### What it blocks
+
+*"Finding A only"* (§7324). It is **branch-local** and blocks no phase.
+
+### Recommendation
+
+**`1`, at low priority.** The defect is real and narrow: it affects whether the detector would
+*recognise a historical form that no longer exists in the tree* — `002`'s policy was superseded
+by 132. So the remediation improves the guard's reach over history rather than closing a live
+exposure. **It should not be sequenced ahead of `D-3`** — see §17.
+
+---
+
+## 17 · `D-3` · Authorize remediation of Finding B?
+
+### Exact governing source — §9.3, verbatim
+
+> ### 9.3 Finding B — forward-supersession blind spot — **UNREGISTERED, NO ID**
+>
+> SEC-W1 pins **migration 132's** text for `is_team_lead_of()` and `may_notify()`. Migration
+> **134** later `CREATE OR REPLACE`s both and, because migrations apply in filename order, is the
+> authoritative definition at HEAD. SEC-W1 does not read 134. A future migration could weaken
+> either helper while leaving 132 byte-identical, and **SEC-W1 would still pass**.
+>
+> **Classification:** genuine defect — the unmechanized half of §5.2's clause *"A closure that
+> redefines a database object must prove it preserved every property the object carried."*
+
+### The exact SEC-W1 / 132 / 134 evidence — each line verified today
+
+**1 · What SEC-W1 reads.** `setUpAll` opens **one** file, and it is 132:
+
+```dart
+setUpAll(() {
+  final f = File('../../supabase/migrations/132_team_membership_lifecycle.sql');
+  …
+  m132 = f.readAsStringSync();
+  code = stripComments(m132);
+});
+```
+
+`grep -c "File('"` over the guard returns **one** migration path. `grep -c 134` returns **0** —
+the guard does not mention migration 134 anywhere.
+
+**2 · What 132 defines.**
+
+| | |
+|---|---|
+| `132_team_membership_lifecycle.sql:157` | `CREATE OR REPLACE FUNCTION public.is_team_lead_of(target_user uuid)` |
+| `132_team_membership_lifecycle.sql:184` | `CREATE OR REPLACE FUNCTION public.may_notify(recipient uuid)` |
+
+**3 · What 134 does to both.**
+
+| | |
+|---|---|
+| `134_search_path_pin_canonical_form.sql:55` | `CREATE OR REPLACE FUNCTION public.is_team_lead_of(target_user uuid)` |
+| `134_search_path_pin_canonical_form.sql:71` | `CREATE OR REPLACE FUNCTION public.may_notify(recipient uuid)` |
+
+**4 · And nothing after 134 redefines either.** Three later migrations mention the helpers —
+`135`, `140`, `141` — and **every mention is a comment**, verified line by line. So **134 is the
+authoritative definition of both helpers at HEAD**, and the guard that exists to protect them
+reads a file that is two migrations stale.
+
+### Option set
+
+The source **states no options.** Available without inventing any:
+
+| option | effect |
+|---|---|
+| `1` **Authorize remediation** — SEC-W1 reads the **last** migration that redefines each helper, not a pinned one | the guard tracks the authoritative definition; needs a `NEW-W1-*` registry ID |
+| `2` **Do not authorize** — record the blind spot | the guard can pass while the helper it protects has been weakened |
+
+### What it blocks
+
+*"Finding B only"* (§7325). **Branch-local**, blocks no phase.
+
+### Recommendation — authorize `D-3` ahead of both `D-1` and `D-2`
+
+This is the one sequencing argument in this pack, and it rests on a distinction between the
+three that the evidence makes cleanly:
+
+- **`D-1`** decides how a **negative control** reconstructs a defect. Its failure mode is *weak
+  evidence* — three of four rungs already hold, and the fourth is about whether the assertions
+  execute.
+- **`D-2`** decides whether the detector recognises a **historical** form that was superseded by
+  132. Its failure mode is *reduced reach over the past*.
+- **`D-3`** decides whether the guard reads the **authoritative** definition. Its failure mode is
+  **a guard that passes while the thing it guards has been weakened** — and it is live going
+  forward: any future `CREATE OR REPLACE` of `is_team_lead_of()` or `may_notify()` is invisible
+  to SEC-W1 as long as `132` stays byte-identical, **which nothing would disturb.**
+
+The first two affect how well a defect would be *reported*. The third affects whether a defect
+is *detected at all*. §9.3's own classification says the same thing in the standard's words — it
+is *"the unmechanized half of §5.2's clause: a closure that redefines a database object must prove
+it preserved every property the object carried."*
+
+**Why this still needs you.** Remediation requires a registry ID, **no `NEW-W1-*` ID exists in
+`MASTER_REMEDIATION_REGISTRY.md` (count: 0), and no convention permits self-allocation** (§365).
+I am instructed not to modify that registry, and I have not.
+
+---
+
+## 18 · `Q16` re-presented — which Helix artefact is canonical
+
+**Not chosen. Re-presented with the consequences of Option 1 against Option 3, as asked.**
+
+### Exact governing source
+
+`BOUNDARIES.md` at `931218b`, row **G**:
+
+> | **G** | Admin tokens (`--adm-*`) vs Fitness Helix tiers | Architecture question | Both documented, no merge |
+
+And §103.2: *"**The enforced in-repo theme is the live one; the standalone lime theme is a stale
+first pass.** Recorded because a future consumer binding to the wrong one would import a
+different brand. **Which is canonical is a design-system authority decision and is not made
+here.**"*
+
+### Evidence, re-verified today
+
+**Row G's own question is already answered in substance.** §103.1: **eleven of eleven shared
+colour roles match exactly** between the Admin tokens and the in-repo theme, plus Schibsted
+Grotesk, both hairline strengths (`0.08`/`0.045`) and the easing curve
+(`cubic-bezier(0.2,0,0,1)` = `Motion.emphasized`) — *"This is one design system, not two that
+happen to agree."* So `--adm-*` is a **normalisation of the live theme**, not a rival tier.
+
+**What is actually in conflict is two artefacts, not two tiers.**
+
+| | in-repo Dart | standalone Helix |
+|---|---|---|
+| path | `apps/mobile/lib/core/theme/twelve_circle_theme.dart` + `core/helix/` | `/Users/dmac/Documents/projects/helix/src/themes/12circle.ts` |
+| accent | **violet `0xFF7C3AED`** (`:56`) | **electric lime `#9EF01A`** (`:14`, `const ENERGY`) |
+| type | Schibsted Grotesk | Hanken Grotesk / Clash Display |
+| enforcement | `design_token_conformance_test.dart`, run by CI's `flutter test` | none found |
+| self-description | — | *"**FIRST PASS** — values are meant to be tuned by design. **What must NOT change is the shape**: this object fills the semantic contract, nothing more."* |
+
+**Three facts that change the shape of the decision, and were not in the earlier pack:**
+
+1. **The lime theme is not a stray file — it is a registered, exported, built artifact.**
+   `src/themes/index.ts` imports it, re-exports `twelveCircle`, and maps it into
+   `themes: Record<string, Theme>`. Its registry comment: *"Add one entry per REAL product, never
+   speculatively."*
+2. **It is built.** `dist/themes/12circle.css` exists and **contains `#9EF01A`**. So anything
+   consuming Helix's build gets lime under the name `12circle`.
+3. **Helix carries three themes** — `osieri`, `12circle`, `tierstrum`.
+
+### The option set, unchanged
+
+| option | |
+|---|---|
+| `1` | the in-repo Dart theme is canonical; **retire or re-tune** the lime first pass |
+| `2` | the standalone `/helix` theme is canonical; the in-repo one is a product deviation |
+| `3` | both stand, with the `/helix` lime **explicitly marked non-canonical** |
+
+### Consequences — Option 1 against Option 3
+
+**Option 1 has two sub-forms with very different costs, and the distinction matters more than
+the choice between 1 and 3.**
+
+- **`1a` re-tune.** Port the violet/Schibsted values into `src/themes/12circle.ts` and rebuild.
+  The registry entry stays, `dist/themes/12circle.css` then carries `#7C3AED`, and **nothing
+  breaks**: the file's own header says the values are meant to be tuned and *"what must NOT
+  change is the shape"* — re-tuning is precisely what it invites. A future product importing
+  `twelveCircle` from Helix gets the live brand. **This is the only option that makes the design
+  system's own build output true.**
+- **`1b` retire/delete.** `src/themes/index.ts` imports, re-exports and maps `twelveCircle`, so
+  deleting the file **breaks the Helix build** and removes 12 Circle from the theme registry
+  entirely — which contradicts the committed structure (`core → themes → one theme per
+  product`). **`1b` is not a tidy-up; it is a structural change to the design system.**
+
+**Option 3's cost is where its marker lives.** Marking the lime file non-canonical puts the
+marker in a **source comment** — and it already effectively has one (*"FIRST PASS"*). But the
+artifact a consumer actually consumes is **`dist/themes/12circle.css`**, which carries `#9EF01A`
+and no marker at all. So Option 3 leaves the failure mode §103.2 named — *"a future consumer
+binding to the wrong one would import a different brand"* — **fully intact**, because a consumer
+binds to the build, not to the comment. Its benefit is that it costs nothing now and defers to
+whenever the second product actually arrives.
+
+**The asymmetry, stated plainly:** `1a` fixes the artifact; `3` annotates the source. They differ
+in *where the truth ends up*, not in how much work they are — `1a` is a values edit and a
+rebuild.
+
+**Option 2 is the one the evidence argues against**, and that is a finding rather than a
+preference: the live app is violet, CI enforces it, and eleven colour roles plus a typeface, two
+hairline strengths and an easing curve agree across the Admin design and the in-repo theme.
+Choosing `2` would be **a brand change to a shipped, CI-enforced product**, justified by a file
+that calls itself a first pass.
+
+### Why `Q5` is held behind this
+
+`Q5` (the Phosphor dependency) is held by your ruling, and the reason is visible in the evidence:
+§11547 records Phosphor as part of *"one shared identity — violet `#7C3AED`, Schibsted,
+**Phosphor**, 4.5:1, 44px"*. The icon set is a property of the **same identity** this decision
+settles the home of. If `Q16` lands on `1a`, the icon question is answered in the same place for
+every product; if it lands on `3`, it has to be answered twice.
+
+### Recommendation
+
+**None between `1` and `3` — the evidence does not separate them**, and saying otherwise would be
+the agent inference the standing constraints forbid. What the evidence **does** establish, and
+what I will state:
+
+- **`2` is argued against** by eleven matching colour roles, CI enforcement, and a shipped violet
+  product.
+- **Within `1`, `1a` is strictly safer than `1b`** — `1b` breaks the Helix build and removes a
+  registered theme.
+- **`3` does not mitigate the risk §103.2 named**, because the risk lives in the build output and
+  the mitigation lives in a comment.
+
+---
+
+## 19 · State at this frontier
+
+**No implementation changed.** `Q2` and `Q7`/`D-1` are **authorized and deliberately not built**,
+per your instruction. No CHECK was added for `Q13`. `Q15` is **not resolved**. The 73-decision
+`MASTER_PRODUCT_DECISIONS.md` and `MASTER_REMEDIATION_REGISTRY.md` are **untouched**.
+
+Records written: `V5_METRIC_DECISION_SHEET.md` — `METRIC-11` resolved, `METRIC-02`'s two
+sub-answers recorded, `METRIC-17`'s stale *"narrow and open"* line corrected against its own
+option set. This pack — the eight rulings, and Part II.
+
+**Open after this pack: `Q16`, `D-2`, `D-3`** — and one documentation action awaiting
+authorization to edit a file outside the mutation boundary (`EC-01·Q5`'s alias definition into
+`QA_CLOSURE_STANDARD.md`).
 
 **Production was not contacted.**

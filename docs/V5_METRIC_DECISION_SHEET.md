@@ -40,8 +40,21 @@ basis you pick must support three windows.
 
 **RESOLVED 2026-10-07 · METRIC-02 = Option 3** — both bases, shown separately. Shipped as
 `admin_activity_overview` (172). The two bases are gated SEPARATELY: Session on `Users·view`, sign-in on
-`Security·view` per ruling `B-1`, so a Users-only role receives NULL rather than 0. The weekly window is
-`date_trunc('week')` — an applied convention, **not** an owner ruling (§162.3).
+`Security·view` per ruling `B-1`, so a Users-only role receives NULL rather than 0.
+
+**THE TWO REMAINING SUB-QUESTIONS ARE NOW ANSWERED.** `V5_ADMIN_DASHBOARD_DATA_CONTRACT.md:98` recorded
+three sub-questions the owner's answer had to settle — *"which event(s) count · the timezone the 'day' is
+measured in · whether a coach or partner counts as an 'active user' or only clients."* Option 3 answered
+only the first. The other two:
+
+- **RESOLVED 2026-10-08 · window boundaries = UTC, week starts Monday.** This **ratifies what ships**:
+  migration 176 already publishes `day_start` / `week_start` / `month_start` / `window_timezone` as
+  columns and the card renders *"Day begins … 00:00 UTC"*. `date_trunc('week')` — Monday in Postgres —
+  was recorded at §162.3 as *"an applied convention, not an authorization"*; **it is now an
+  authorization.**
+- **RESOLVED 2026-10-08 · the active-user population is ALL users, with the role split PUBLISHED beside
+  the total.** Not clients-only and not an unexplained aggregate: the split is to be shown, so a reader
+  can apply either definition. **Not yet implemented** — authorized here, built later.
 
 ---
 
@@ -138,12 +151,19 @@ each payment's own recorded `commission_rate` (038:23); rows missing it are coun
 verdict **side by side**, which is evidence that the card already contemplates both. No ingestion exists for
 either.
 
-**STILL OPEN — the one metric on this sheet you did not answer.** Your 2026-10-07 reply covered
-METRIC-02, 03, 05, 06a, 06b, 13, 14, 16, 17, 19 and the METRIC-18 producer. METRIC-11 was not among them.
-**Nothing was implemented and nothing was inferred.** The evidence does lean one way — the approved card
-already shows a gate verdict and a CI verdict side by side — but that is an observation about the design,
-not your ruling, and a release-status card that silently picks one authority is exactly the kind of thing
-this sheet exists to prevent.
+~~**STILL OPEN**~~ **RESOLVED 2026-10-08 · METRIC-11 = Option 3** — both, labelled.
+
+The card shows **both authorities, separately labelled, with no combined verdict.** Already shipped to
+this shape before the ruling: migrations **173/174** carry each half with **independent provenance** —
+`ci_status` / `ci_checks_passed` / `ci_source` / `ci_recorded_at` beside `gate_verdict` / `gates_pass` /
+`gates_partial` / `gates_fail` / `gate_source` / `gate_recorded_at` — under a CHECK that a verdict cannot
+exist without its own source and timestamp, and **deliberately no `overall_status`, no `is_blocked`, no
+single badge column** (`173:28`). D16 asserts that a recorded disagreement **survives to the surface**
+(CI `Passing` beside gate `FAIL`) with no third verdict synthesised.
+
+**The ruling ratifies the shipped shape; it authorizes no new surface.** The CI **ingestion** half remains
+separate and unauthorized — `CONF-D9`, and `P10` is externally constrained — so the registry accepts
+recorded verdicts and nothing reads CI automatically.
 
 ---
 
@@ -241,7 +261,16 @@ sheet did not settle are recorded rather than invented (§162.3): the age source
 **preferred** with `user_profiles.age` as fallback — this sheet cited only the former, which is populated
 on 0 rows while the latter has 4, so dob alone would have made the panel vacuous; and **an age of 60+ has
 no ruled bucket**, so those rows go to `age_out_of_range`, a reconciliation column that keeps them from
-being silently dropped. **No `60+` bucket was invented.** Whether one should exist is narrow and open.
+being silently dropped. **No `60+` bucket was invented.**
+
+> ~~*Whether one should exist is narrow and open.*~~ **CORRECTED 2026-10-08 — that line was wrong, and
+> this sheet's own option set is why.** The question put to the owner was *"is the 4th bucket 60+ or
+> unknown?"* with **option `3` = both (5 buckets)** — so **a `60+` bucket was explicitly on the table**,
+> alongside `unknown`, and **Option 2 was chosen over it.** The ruling therefore forecloses a `60+`
+> bucket; it is **resolved, not open.** What `age_out_of_range` does — carry both the under-18 and the
+> 60-and-over rows so the four buckets plus it reconcile exactly to `users_total` — stands as the ruled
+> consequence. (It **merges two populations** into one reconciliation figure; separating them would be a
+> new request, not an open question.)
 
 ---
 
