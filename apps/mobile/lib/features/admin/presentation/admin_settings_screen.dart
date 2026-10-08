@@ -44,6 +44,62 @@ class AdminSettingsScreen extends ConsumerWidget {
 
   /// Sections present in the design with no surface behind them. Named individually so
   /// the page states a specific absence rather than one vague apology.
+  /// The cross-links the approved Settings screen carries, section by section.
+  ///
+  /// EACH ENTRY IS READ OFF THE DESIGN, not chosen: the approved screen places a
+  /// `View audit history →` on every section, plus a named cross-link on six of them —
+  /// `Trust → Authorization`, `Trust → AI Guardian`, `Trust → Audit logs`,
+  /// `Trust → Security`, `Operations → System events` and `Operations → Integrations`.
+  /// `SCREEN-INVENTORY`'s "Interactions expected" states the rule the links follow:
+  /// *"every 'View audit history' link deep-links to Trust > Audit logs"* and *"Settings
+  /// links across to Operations > System events, Trust > Authorization and Trust > AI
+  /// Guardian"*.
+  ///
+  /// The labels are the design's own and the destinations are pages that really contain the
+  /// named section — this layer has no anchors, so a link lands on the page rather than
+  /// claiming to scroll within it.
+  static const sectionLinks = <String, List<(String, String)>>{
+    'Organization': [('View audit history →', '/admin-trust')],
+    'Administrators': [
+      ('Trust → Authorization →', '/admin-trust'),
+      ('View audit history →', '/admin-trust'),
+    ],
+    'Roles & permissions': [
+      ('Trust → Authorization →', '/admin-trust'),
+      ('View audit history →', '/admin-trust'),
+    ],
+    'General': [('View audit history →', '/admin-trust')],
+    'Notifications': [
+      ('Operations → System events →', '/admin-operations'),
+      ('View audit history →', '/admin-trust'),
+    ],
+    'AI & intelligence': [
+      ('Trust → AI Guardian →', '/admin-trust'),
+      ('View audit history →', '/admin-trust'),
+    ],
+    'Data & privacy': [
+      ('Trust → Audit logs →', '/admin-trust'),
+      ('View audit history →', '/admin-trust'),
+    ],
+    'Security settings': [
+      ('Trust → Security →', '/admin-trust'),
+      ('View audit history →', '/admin-trust'),
+    ],
+    'Integration settings': [
+      ('Operations → Integrations →', '/admin-operations'),
+      ('View audit history →', '/admin-trust'),
+    ],
+    'Billing & monetization': [('View audit history →', '/admin-trust')],
+  };
+
+  /// The links for one section, or none. A section with no entry gets no link rather than a
+  /// default one — the design places them deliberately and an invented link is an invented
+  /// affordance.
+  static List<Widget> linksFor(String section) => [
+        for (final (label, route) in sectionLinks[section] ?? const <(String, String)>[])
+          AdminCrossLink(label: label, route: route),
+      ];
+
   static const unbackedSections = <String, String>{
     'Organization': 'No organization record exists in the schema. Its fields are a '
         'product decision, so none is invented here.',
@@ -100,6 +156,9 @@ class AdminSettingsScreen extends ConsumerWidget {
                     children: [
                       const AdminNote('Not recorded'),
                       AdminFootnote(e.value),
+                      // The record of what changed a setting exists whether or not the
+                      // setting itself is stored, so an unbacked section still links to it.
+                      ...linksFor(e.key),
                     ],
                   ),
                 ),
@@ -115,16 +174,24 @@ class AdminSettingsScreen extends ConsumerWidget {
     final async = ref.watch(adminAdministratorCountProvider);
     return AdminCard(
       title: 'Administrators',
-      child: async.when(
-        loading: () =>
-            const AdminPlaceholderRow(label: 'Administrators', text: 'Loading…'),
-        error: (_, __) =>
-            const AdminPlaceholderRow(label: 'Administrators', text: 'Unavailable'),
-        data: (n) => n == null
-            ? const AdminMetricTile.absent(
-                label: 'Administrators', absence: MetricAbsence.notAuthorized)
-            : AdminMetricTile.value(
-                label: 'Administrators', value: n, zeroCopy: 'None'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          async.when(
+            loading: () =>
+                const AdminPlaceholderRow(label: 'Administrators', text: 'Loading…'),
+            error: (_, __) =>
+                const AdminPlaceholderRow(label: 'Administrators', text: 'Unavailable'),
+            data: (n) => n == null
+                ? const AdminMetricTile.absent(
+                    label: 'Administrators', absence: MetricAbsence.notAuthorized)
+                : AdminMetricTile.value(
+                    label: 'Administrators', value: n, zeroCopy: 'None'),
+          ),
+          // Outside the `when`, so the route to the record exists in every state —
+          // including the one where the figure itself could not be read.
+          ...linksFor('Administrators'),
+        ],
       ),
     );
   }
@@ -166,6 +233,7 @@ class AdminSettingsScreen extends ConsumerWidget {
                   'This is the approved authorization policy as seeded, not a description '
                   'of it. A figure here disagreeing with the matrix validator would mean '
                   'the policy had drifted.'),
+              ...linksFor('Roles & permissions'),
             ],
           );
         },
@@ -193,6 +261,7 @@ class AdminSettingsScreen extends ConsumerWidget {
               const AdminFootnote(
                   'Values are shown as stored. This store is generic key/value, so '
                   'nothing here is parsed or unit-converted.'),
+              ...linksFor('General'),
             ],
           );
         },

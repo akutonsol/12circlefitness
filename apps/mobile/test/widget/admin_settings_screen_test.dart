@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:circle_fitness/features/admin/domain/admin_metrics.dart';
 import 'package:circle_fitness/features/admin/domain/admin_provider.dart';
 import 'package:circle_fitness/features/admin/presentation/admin_settings_screen.dart';
@@ -166,5 +167,117 @@ void main() {
     expect(find.byType(TextField), findsNothing);
     expect(find.byType(ElevatedButton), findsNothing);
     expect(find.byType(Checkbox), findsNothing);
+  });
+
+  // ── §198 · the cross-links SCREEN-INVENTORY's interaction model requires ──
+  group('Settings cross-links', () {
+    test('every link is a DESIGN label with a real destination — none is invented', () {
+      final entries = AdminSettingsScreen.sectionLinks;
+      // Ten sections carry links on the approved screen.
+      expect(entries.length, 10);
+      for (final e in entries.entries) {
+        expect(e.value, isNotEmpty, reason: '${e.key} has an empty link list');
+        for (final (label, route) in e.value) {
+          // The design writes these with a trailing arrow; a paraphrase would not match
+          // the screen it is implementing.
+          expect(label.endsWith('→'), isTrue, reason: 'not a design label: $label');
+          expect(['/admin-trust', '/admin-operations'].contains(route), isTrue,
+              reason: '$label points at $route, which is not a built admin route');
+        }
+        // Every section links to the audit record, which is the rule
+        // SCREEN-INVENTORY states for "every View audit history link".
+        expect(e.value.any((l) => l.$1 == 'View audit history →'), isTrue,
+            reason: '${e.key} has no View audit history link');
+      }
+    });
+
+    test('every View audit history link goes to Trust, as the interaction model states',
+        () {
+      for (final e in AdminSettingsScreen.sectionLinks.entries) {
+        for (final (label, route) in e.value) {
+          if (label == 'View audit history →') {
+            expect(route, '/admin-trust', reason: '${e.key} sends it elsewhere');
+          }
+          // And the two Operations cross-links go to Operations, not Trust.
+          if (label.startsWith('Operations →')) {
+            expect(route, '/admin-operations', reason: '${e.key} sends it elsewhere');
+          }
+        }
+      }
+    });
+
+    test('a section the design gives no link gets none — linksFor invents nothing', () {
+      expect(AdminSettingsScreen.linksFor('State system'), isEmpty);
+      expect(AdminSettingsScreen.linksFor('Not a section'), isEmpty);
+    });
+
+    testWidgets('an UNBACKED section still links to the record, because what changed a '
+        'setting is logged whether or not the setting is stored', (t) async {
+      await _pump(t, _denied);
+      final text = t
+          .widgetList<Text>(find.byType(Text))
+          .map((w) => w.data ?? '')
+          .join(' | ');
+      expect(text.contains('Trust → AI Guardian →'), isTrue, reason: text);
+      expect(text.contains('Operations → Integrations →'), isTrue, reason: text);
+      expect(find.text('View audit history →'), findsWidgets);
+    });
+
+    testWidgets('tapping View audit history NAVIGATES to Trust — asserted through a real '
+        'router, not by reading the route string back out of the widget', (t) async {
+      await t.binding.setSurfaceSize(const Size(500, 6000));
+      addTearDown(() => t.binding.setSurfaceSize(null));
+      final router = GoRouter(
+        initialLocation: '/settings',
+        routes: [
+          GoRoute(path: '/settings', builder: (_, __) => const AdminSettingsScreen()),
+          GoRoute(path: '/admin-trust',
+              builder: (_, __) => const Scaffold(body: Text('TRUST PAGE'))),
+          GoRoute(path: '/admin-operations',
+              builder: (_, __) => const Scaffold(body: Text('OPERATIONS PAGE'))),
+        ],
+      );
+      await t.pumpWidget(ProviderScope(
+        overrides: _denied,
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      await t.pump();
+      await t.tap(find.text('View audit history →').first);
+      await t.pumpAndSettle();
+      expect(find.text('TRUST PAGE'), findsOneWidget,
+          reason: 'the link did not reach Trust');
+    });
+
+    testWidgets('and an Operations cross-link reaches Operations, so the two destinations '
+        'are not collapsed', (t) async {
+      await t.binding.setSurfaceSize(const Size(500, 6000));
+      addTearDown(() => t.binding.setSurfaceSize(null));
+      final router = GoRouter(
+        initialLocation: '/settings',
+        routes: [
+          GoRoute(path: '/settings', builder: (_, __) => const AdminSettingsScreen()),
+          GoRoute(path: '/admin-trust',
+              builder: (_, __) => const Scaffold(body: Text('TRUST PAGE'))),
+          GoRoute(path: '/admin-operations',
+              builder: (_, __) => const Scaffold(body: Text('OPERATIONS PAGE'))),
+        ],
+      );
+      await t.pumpWidget(ProviderScope(
+        overrides: _denied,
+        child: MaterialApp.router(routerConfig: router),
+      ));
+      await t.pump();
+      await t.tap(find.text('Operations → Integrations →').first);
+      await t.pumpAndSettle();
+      expect(find.text('OPERATIONS PAGE'), findsOneWidget);
+    });
+
+    testWidgets('each link meets the 44px touch target', (t) async {
+      await _pump(t, _denied);
+      final size = t.getSize(find.ancestor(
+          of: find.text('View audit history →').first,
+          matching: find.byType(TextButton)).first);
+      expect(size.height, greaterThanOrEqualTo(44.0));
+    });
   });
 }

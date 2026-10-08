@@ -534,6 +534,23 @@ void main() {
         reason: 'a pending check must not render as a denial');
   });
 
+  testWidgets('B-19 is STATED — the before/after half of this page\'s own requirement is '
+      'absent by owner decision, and a ruling-shaped absence still needs a sentence',
+      (t) async {
+    await _pumpSettled(t, [
+      ..._denied,
+      adminAuditEventsProvider.overrideWith((_) async => [_event()]),
+    ]);
+    final text = _allText(t);
+    expect(text.contains('withheld from this layer by owner decision B-19'), isTrue,
+        reason: text);
+    // And nothing reconstructs a diff from what IS projected.
+    for (final invented in ['before', 'after →', 'changed columns', 'diff']) {
+      expect(text.toLowerCase().contains('$invented:'), isFalse,
+          reason: 'reconstructed a withheld diff ("$invented"): $text');
+    }
+  });
+
   testWidgets('B-4 holds: no withheld incident field can reach the screen', (t) async {
     await _pump(t, [
       ..._denied,

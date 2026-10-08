@@ -309,6 +309,18 @@ class AdminTrustScreen extends ConsumerWidget {
               // A13·1 IS STATED, NOT IMPLIED. This ledger is incomplete for whoever is
               // reading it, so absence here is not evidence of absence.
               const AdminFootnote(AdminAuditEvent.a13Note),
+              // AND SO IS B-19. This page's stated requirement is "immutable audit log
+              // with before/after", and the before/after half is absent BY OWNER DECISION:
+              // B-19 ruled "withhold both" for `delta` and `changed_columns` in the Admin
+              // audit projections, and closed as a CONFIRMED DESIGN. The columns exist —
+              // 150 added them for A6 delta capture — and 156/159 deliberately do not
+              // project them. A requirement half that is absent by ruling still needs a
+              // sentence saying so, which is the rule §194 applied to the Control Center;
+              // this card had A13·1 and not this one.
+              const AdminFootnote(
+                  'Before/after values are withheld from this layer by owner decision '
+                  'B-19. The audit record retains them; this projection does not carry '
+                  'them, so no diff is shown here and none is reconstructed.'),
             ],
           );
         },

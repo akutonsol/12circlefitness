@@ -1,4 +1,5 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'admin_tokens.dart';
@@ -227,3 +228,46 @@ Widget adminGatedList(
         ],
       ),
     );
+
+/// A cross-page link, in the design's own wording and with its own destination.
+///
+/// WHY THESE EXIST AND WHY THEY ARE NOT INVENTED NAVIGATION. `SCREEN-INVENTORY`'s
+/// "Interactions expected" states that *"every 'View audit history' link deep-links to
+/// Trust > Audit logs"* and that *"Settings links across to Operations > System events,
+/// Trust > Authorization and Trust > AI Guardian"*. The approved Settings screen carries
+/// **ten** `View audit history →` links plus six named cross-links, one per section. The
+/// built page had none, so an operator reading a Settings section had no route to the
+/// record of what changed it.
+///
+/// THE LABEL IS THE DESIGN'S, NOT A PARAPHRASE, and the destination is a page that really
+/// contains the named section. The approved links point at sub-sections — *"Trust →
+/// Authorization"* — and this layer has page-level routes with no anchors, so the link lands
+/// on the page that holds that section rather than claiming to scroll to it.
+class AdminCrossLink extends StatelessWidget {
+  const AdminCrossLink({required this.label, required this.route, super.key});
+
+  final String label;
+  final String route;
+
+  @override
+  Widget build(BuildContext context) => Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          height: AdminDims.sizeControl, // 44px, RESPONSIVE.md
+          child: TextButton(
+            onPressed: () => GoRouter.of(context).go(route),
+            style: TextButton.styleFrom(
+              foregroundColor: AdminColors.colorBrandAccent,
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(AdminDims.sizeControl, AdminDims.sizeControl),
+              alignment: Alignment.centerLeft,
+            ),
+            child: Text(label,
+                style: const TextStyle(
+                  fontSize: AdminDims.typeCaptionSize,
+                  fontWeight: FontWeight.w500,
+                )),
+          ),
+        ),
+      );
+}

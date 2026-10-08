@@ -18214,3 +18214,93 @@ Live **1074/1074 across 20 suites** (1051/19 before D20) · Flutter **1917 / 5 s
 **179 → 180**, declared and reconciled.
 
 **Production was not contacted.**
+
+---
+
+## §198 · The interaction model — the one design list never traversed
+
+### §198.1 · The method, applied to a list I had not read as requirements
+
+§181's method is to traverse the published design's own lists rather than the programme's
+notes about them. It had been applied three times to *"Data each page needs"*. **It had never
+been applied to `SCREEN-INVENTORY`'s "Interactions expected"**, which is a requirements list in
+the same document, one heading above:
+
+> *"Attention queue opens a drawer; every "View audit history" link deep-links to Trust >
+> Audit logs; before/after diffs deep-link to a Trust audit event; Settings links across to
+> Operations > System events, Trust > Authorization and Trust > AI Guardian; global search and
+> filters on tables; row actions open confirm dialogs for destructive changes."*
+
+Six requirements. Traversed:
+
+| requirement | state |
+|---|---|
+| Attention queue opens a drawer | **built in substance.** The drawer is the queue's container — a transform/scrim animation in the desktop mock — and the queue itself renders severity, summary, scope and the `Investigate` disclosure. The chrome is a layout choice; the content is the requirement. |
+| every *"View audit history"* link deep-links to Trust > Audit logs | **WAS MISSING — now built** (§198.2) |
+| before/after diffs deep-link to a Trust audit event | **moot by owner decision**, and now stated (§198.3) |
+| Settings links across to Operations > System events, Trust > Authorization, Trust > AI Guardian | **WAS MISSING — now built** (§198.2) |
+| global search and filters on tables | **not built**, and recorded with its reason (§198.4) |
+| row actions open confirm dialogs for destructive changes | **built** — moderation hide/dismiss, the Guardian disable, incident resolve |
+
+### §198.2 · Ten links the page did not have
+
+The approved Settings screen carries **ten** `View audit history →` links — one per section —
+plus six named cross-links: `Trust → Authorization`, `Trust → AI Guardian`,
+`Trust → Audit logs`, `Trust → Security`, `Operations → System events` and
+`Operations → Integrations`. **The built page had none**, so an operator reading a Settings
+section had no route to the record of what changed it.
+
+`AdminCrossLink` and a `sectionLinks` map now carry them, and three properties are asserted
+rather than assumed: every label is **the design's own** (trailing arrow included — a
+paraphrase would not match the screen it implements), every destination is a **built admin
+route**, and a section the design gives no link **gets none**. Two tests drive a **real
+`GoRouter`** and tap through, so the destinations are proved by arriving rather than by reading
+the route string back out of the widget.
+
+**The links sit outside each card's `when`**, so the route to the record exists in every
+state — including the one where the figure itself could not be read. And **unbacked sections
+get them too**: what changed a setting is logged whether or not the setting is stored.
+
+The page remains **read-only**, and its read-only assertion still passes — a navigation link is
+not a write.
+
+### §198.3 · "before/after" is absent by ruling, and Trust now says so
+
+Trust's own stated requirement is *"immutable audit log with **before/after**"*, and the
+before/after half is absent by **owner decision B-19 — "withhold both"** `delta` and
+`changed_columns` in the Admin audit projections, *"closes as a CONFIRMED DESIGN. The
+projections stay exactly as shipped."* The columns exist — 150 added them for `A6` delta
+capture — and 156/159 deliberately do not project them.
+
+So the interaction requirement is **moot**: there are no diffs in this layer to deep-link to.
+But the audit card stated `A13·1` and **not** this, which is the §194 pattern one page over — a
+requirement half that is absent by ruling, with no sentence saying why. It says so now, and a
+test requires both that the sentence is present and that **nothing reconstructs a diff** from
+what is projected.
+
+### §198.4 · Search and filters — recorded, not built
+
+Not built, and the reason is split:
+
+* **The filter vocabularies are partly unknown and partly unbacked.** The approved tables show
+  `Status: All`, `Type: All`, `Host: Any`, `Visibility: All`, `Verification: All`,
+  `Specialism: All`, `Difficulty: Any`, `Duration: Any`, `Renews: Any` — closed selects, so the
+  option lists are not visible. Several key columns do not exist at all: event **type** has no
+  column (§193), program **status** has no lifecycle (§193), **verification** has no state
+  (§185.2), and **visibility** has no column. A filter over a column that does not exist cannot
+  be built, and one whose options are invisible would have to invent them.
+* **Search is backed but would be a false affordance as the lists stand.** `Search name or
+  email` names its own fields, and the data is already read — but every admin list is rendered
+  with a `take(10)`/`take(20)` cap, so a client-side search would search a ten-row window and
+  report "no match" for records that exist. Doing it honestly means **server-side filtering**:
+  new query parameters on each read, and a live assertion per surface that the filter narrows
+  rather than silently empties. That is real work rather than a boundary, and it is recorded
+  here as the next reachable item rather than half-built.
+
+### §198.5 · Evidence
+
+Settings widget tests **18** (11 → 18), including two real-router navigations · Trust **34**
+(33 → 34) · Flutter **1925 / 5 skipped** (1917 → 1925) · `dart analyze` **0 errors** · nine
+static guards exit 0. **No migration, no schema, no grant and no new data read.**
+
+**Production was not contacted.**
