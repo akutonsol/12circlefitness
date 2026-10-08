@@ -17697,3 +17697,111 @@ Live **1045/1045 across 19 suites** · D16 **109/109** after the header cleanup 
 was added** — `169` has been applied since §150 and the QA frontier stays at **178**.
 
 **Production was not contacted.**
+
+---
+
+## §192 · EC-03's end-to-end rung, the arm the original fix left open, and three harness bugs the harness caught
+
+### §192.1 · The objection that recorded this as unreachable does not hold
+
+§177.6 left EC-03's END-TO-END rung *"recorded as remaining authorized frontier rather than
+claimed"*, and §16611 gave the reason: the banner *"is reachable only at step 25 behind a
+private `_finish()`, and the flow's `_load()` needs Supabase … Forcing it would mean
+**widening production API for a test** on the onboarding path."*
+
+**The second half of that is wrong, and it is the half that mattered.**
+`Supabase.initialize` accepts an `httpClient` — a seam the SDK publishes. So the real screen,
+the real `_finish()`, the real `Supabase.instance.client` and the real failure path all run,
+and only the network is substituted. Nothing in `lib/` changed to make the test possible; no
+private member was exposed; no production API was widened.
+
+The first objection was real and had a different answer. Driving 26 input-gated pages is
+genuinely hard — the drive stalls on the first form step, which requires first name, last
+name, gender and date of birth. But **`_loadProgress` restores `_step` from the profile's
+`onboarding_step`**, so a fake that answers that read with the last step puts the flow where
+one tap reaches `_finish()`. The fixture is the profile read, not twenty-six forms.
+
+### §192.2 · Building the rung found the defect the rung was for
+
+`_finish()` read `currentUser?.id` and wrapped **the entire save** in `if (uid != null) { … }`,
+with the completion state set unconditionally after it. So:
+
+* **save fails** → banner, no completion. *This is what EC-03 fixed.*
+* **uid is null** → the save is skipped entirely and the flow renders `IntakeCompletePage`.
+  *This was never fixed.*
+
+The same false success state over a **weaker** premise: not "we tried and it failed" but
+"we never tried". And it needs no session expiry to reach — **`/intake` is listed in the
+router's `isAuthRoute` set** (`app_router.dart:203`), so `!isAuthenticated && !isAuthRoute`
+does not send an unauthenticated caller to `/login`, and `_loadProgress` already treats a
+null uid as "nothing to restore" and carries on. A person could answer all 26 steps and be
+told they were done while their PAR-Q answers, medical conditions, injuries, allergies,
+dietary restrictions, goal, experience and **consent** were discarded — which is, verbatim,
+the registry's description of the parent defect it names the parent of `CON-04`, `E-NUT-05`,
+`ERR-2` and `DAT-2`.
+
+A missing session is now a failed save. The copy differs from the network case because the
+**cause** differs and Retry alone cannot fix it — a save needs a session — but Retry is still
+offered, because a token refresh between taps makes it work and withholding it would leave no
+way forward.
+
+### §192.3 · Two of my own assertions were wrong, and the tests are what said so
+
+**"No request may set `onboarding_complete: true`."** This looked like the strongest possible
+assertion — read off the wire rather than the widget tree — and it is **false**. The
+*successful* save legitimately carries that flag; it is part of `_data.toSupabase()`. The
+original defect was not the flag's presence in the upsert but a **second, separate** write
+issued from the `catch` arm — `{'onboarding_complete': true, 'onboarding_step': 0}`, *"so the
+user isn't looped back here on next login"* — after the first had already failed. So the
+shape to assert is the **count**: one attempt, which failed, and nothing after it.
+
+**The non-vacuity check fired, correctly.** The first draft ran with no session at all, and
+`_saveProgress` returns early without one — so there was **no traffic**, and the wire
+assertion was being satisfied by an empty log. The check that demands the harness can see
+what it judges is what reported it.
+
+**Label discovery, not label guessing.** The drive stalled twice on cased literals: the
+welcome page's **"Get Started"** (capital S) and the final step's **"Enter 12 Circle"**. Same
+class as `SEC-G6`'s `[Nn]ot\s*[Aa]ssessed` failing against `NOT ASSESSED` and `SEC-G9`'s
+`can\w*` never matching `adminCanUpdateUsersProvider`. The advance affordance is now matched
+case-insensitively against whatever the current step actually renders.
+
+### §192.4 · `ec03_negative_control.sh`, and three bugs in it
+
+The end-to-end test's second arm landed in the same commit that closed the defect it
+describes, so **no run has ever seen it fail** — the condition `EC-23`, `WRK-02`, `UIX-1`,
+`I-COM-01` and `3A-11` each built a harness for. This one follows `ec23`'s convention exactly:
+mutate the committed tree, require the declared failure, restore byte-identically, require the
+pass again. It is wired into CI's existing negative-control job and adds no job, credential or
+network access.
+
+**Set equality, both directions.** Only the session-lost arm may break. The failed-save arm
+covers a defect the original EC-03 fix already closed and must keep passing — *a control that
+breaks everything proves nothing about what it aimed at.*
+
+Three bugs, each caught by the harness's own checks rather than by a passing run:
+
+1. **The mutation hit the wrong method.** `    if (uid == null) {` is not unique to the file:
+   `_loadProgress` opens with the identical line and comes **first**. The post-mutation
+   assertion reported "the null-uid arm survived", which is precisely the job of a check that
+   states what it expects to find.
+2. **Scoping to "everything after `_finish()`" did not fix it**, because a **third**
+   occurrence sits further down the file. The check is now a **count** — one occurrence
+   removed, the other two intact — which says exactly what is meant where a slice did not.
+3. **`grep -Fq X && die` exits 1 on the happy path.** Under `set -e`, a failing `grep` is the
+   last command of the `&&` list and its non-zero status becomes the list's, so the harness
+   would have failed *precisely when the mutation was correct*. It is `! grep … || die` now.
+
+### §192.5 · Evidence
+
+Both arms pass against the committed tree; the harness's mutated run fails **only** the
+session-lost arm and restores `intake_flow_screen.dart` byte-identically
+(`git diff --quiet` is asserted, not assumed). Evidence class: **EC-03 PRE-FIX / POST-FIX
+GUARD EVIDENCE, IN CI**.
+
+Flutter **1901 / 5 skipped** · `dart analyze` **0 errors**. `http` is now declared in
+`pubspec.yaml` rather than suppressed at the import, because the test injects an
+`http.BaseClient`; it already arrived transitively through `supabase_flutter`.
+
+**No migration was added. QA was not contacted by this section, and production was not
+contacted.**
