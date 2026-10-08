@@ -17957,8 +17957,11 @@ states them and invents nothing:
 * **Installs** — `METRIC-16 = Option 2`, **ruled**: reading our own store consoles is the
   vendor boundary `PD-A24` forecloses. Empty *by decision*, not for want of work.
 * **Impressions** — `METRIC-18` is semantically defined and has **no producer**.
-* **Audit-log tail** — the projection is on Trust, where the approved interaction model
-  deep-links every *"View audit history"*.
+* **Audit-log tail** — **CORRECTED BY §196.** This line read *"the projection is on Trust,
+  where the approved interaction model deep-links every 'View audit history'"*, which is true
+  about the **link** and wrong about the **placement**: the approved Control Center screen
+  renders its own *"Recent admin activity / Audit log"* section with four sample rows. The
+  design places a tail here. What is unresolved is **what it may show** — see `Q12`.
 
 A guard asserts the reasons are **distinct** (a shared placeholder would masquerade as seven
 findings — the defect §186's Settings test exists to catch), that each **names its ruling or

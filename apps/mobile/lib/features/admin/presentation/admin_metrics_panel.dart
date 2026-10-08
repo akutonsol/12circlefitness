@@ -410,8 +410,11 @@ class _DashboardAbsences extends StatelessWidget {
         'forecloses, so this renders empty by decision — not for want of work.',
     'Impressions': 'Semantically defined as eligible content renders, and no producer '
         'exists to emit one.',
-    'Audit-log tail': 'The audit projection is on Trust, which is where the approved '
-        'interaction model deep-links every "View audit history".',
+    'Audit-log tail': 'The approved screen DOES place a "Recent admin activity" section '
+        'here. It is not built because two of its four designed row types have no producer '
+        '(a Guardian finding needs P7) or no category (a release is not an audit event '
+        'under the ruled vocabulary), and all four name the actor, which no audit surface '
+        'in this layer resolves. The full projection is on Trust. Owner question Q12.',
   };
 
   @override
