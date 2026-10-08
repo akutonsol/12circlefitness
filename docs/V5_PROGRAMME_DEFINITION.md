@@ -18531,3 +18531,72 @@ Widget suites **511 → 518** · Flutter **1944 / 5 skipped** (1937 → 1944) ·
 **0 errors**. **No migration, no schema, no new data read, no new dependency.**
 
 **Production was not contacted.**
+
+---
+
+## §202 · `BOUNDARIES.md` reconciled — two owner decisions my own pack had dropped
+
+### §202.1 · The design keeps its own list of unresolved boundaries, and nobody had checked it against ours
+
+`BOUNDARIES.md` is titled *"Admin: unresolved boundaries (not decided here)"* and carries
+**seven** rows, each classified. No pass had reconciled it against the consolidated owner
+queue — the queue was built from the programme's own findings, which is a different list.
+Reconciled now:
+
+| row | subject | status |
+|---|---|---|
+| **A** | attention severity vocabulary | **OPEN · owner — and it was MISSING from the pack.** Now `Q15` |
+| **B** | Notifications placement | **answered** by `METRIC-19 = 3` |
+| **C** | spec *"Platform Health"* vs approved *"Infrastructure"* | moot in substance — no service-health surface exists, and the Control Center states that absence (§194) |
+| **D** | `PD-C03` currency | honoured: 171 computes **no GBP without a recorded rate**, and the card says so |
+| **E** | five existing V5 decisions | all four resolved (`METRIC-05`, `METRIC-06b`, `PD-A24`/`METRIC-16`, `METRIC-18`) **plus severity**, which is row A |
+| **F** | implementation gaps | each built or recorded: admin data layer **built**; Guardian `B-17`/`P7`; service health no surface; CI feed `Q3`; wearable `PD-G01`; append-only audit store **exists** |
+| **G** | `--adm-*` tokens vs Helix tiers | **OPEN · architecture — also MISSING from the pack.** Now `Q16` |
+
+**Five of seven were already handled. Two were not in the pack at all**, and both were open in
+the programme record the whole time — so this is an omission in my consolidated queue rather
+than a new discovery, and it is recorded that way.
+
+### §202.2 · `Q15` · the severity vocabulary, with nothing at risk today
+
+The spec says `Critical · High · Warning · Informational`; the approved screens show
+`CRITICAL · HIGH · MEDIUM · LOW`. The programme had already narrowed it three times (§12132):
+the spec and the **shipped enum agree** — `143:70` enforces the spec's four with a CHECK —
+`Risk` is a distinct axis, and **a fifth value, `"Severity set to Elevated"`, appears in
+Trust**, so the design's own vocabulary is not internally settled.
+
+**Nothing is at risk in the implementation**, which is worth stating because it changes the
+decision's urgency rather than its substance: `_severityColor` and `_severityTint` map the three
+coloured values and send everything else to neutral, *"rendered neutrally rather than guessed
+into a danger colour"*. A `MEDIUM` arriving — which the CHECK currently forbids — would be
+legible rather than mis-coloured.
+
+### §202.3 · `Q16` · which Helix is canonical
+
+Row G calls the token relationship an *"architecture question"*, and §103 had already found
+something sharper than a question about tiers: **two artefacts both claim to be the 12Circle
+Helix theme.**
+
+* the **in-repo Dart implementation** — violet, Schibsted Grotesk, **conformance-tested in CI**;
+* `/Users/dmac/Documents/projects/helix`'s `src/themes/12circle.ts` — **electric lime
+  `#9EF01A`**, Hanken Grotesk / Clash Display, whose own header reads *"FIRST PASS — values are
+  meant to be tuned by design."*
+
+§103.1 separately established that **eleven of eleven shared colour roles match** between the
+Admin tokens and the in-repo theme, along with the typeface, both hairline strengths and the
+easing curve — *"one design system, not two that happen to agree."* So the `--adm-*` layer is a
+**normalisation of the live theme**, not a rival to it, and row G's question is answered in that
+direction.
+
+What remains open is narrower and outside this repository: **which artefact a future product
+binds to.** Nothing here depends on it; the enforced in-repo theme is live. §103.2's own words
+are the reason it is not settled here: *"Which is canonical is a design-system authority
+decision and is not made here."*
+
+### §202.4 · Evidence
+
+No code changed. The design-citation guard resolves every new reference (**exit 0**), and the
+owner pack now carries **Q13 · Q15 · Q16** open, with `Q14`'s premise withdrawn and
+`Q11`/`Q12` answered and implemented.
+
+**Production was not contacted.**

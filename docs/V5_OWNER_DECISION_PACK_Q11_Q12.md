@@ -11,7 +11,14 @@
 > | **Q11** | cancellations during the month ÷ active at month start | migration `180`: `subscriptions.canceled_at` nullable, **no backfill**; writer = the existing `stripe-webhook` `customer.subscription.deleted` handler; rate **NULL** until any cancellation is ever recorded | **D20 · 23/23 live**, incl. the decisive pair (numerator `0` with rate `NULL`) and the transition to a **real** `0` once capture is proven |
 > | **Q12** | action · category · outcome · timestamp · disclosure; **no actor names** | `_RecentAdminActivity` on the Control Center, reading the existing `admin_audit_events` | **D20 §6** proves the projection carries **no name or email column at all**, so the constraint is enforced by the surface and not only by the widget |
 >
-> Recorded as **METRIC-20** in `V5_METRIC_DECISION_SHEET.md`. `Q13` remains **unresolved and unpatched** by explicit
+> Recorded as **METRIC-20** in `V5_METRIC_DECISION_SHEET.md`.
+>
+> **§202 added `Q15` and `Q16`** — both open in the programme record and **absent from this
+> pack**, found by traversing `BOUNDARIES.md`, the design's own list of unresolved boundaries,
+> which no earlier pass had reconciled against this queue. They are carried items rather than
+> new discoveries, and the omission was mine.
+>
+> `Q13` remains **unresolved and unpatched** by explicit
 > instruction, now with narrowing evidence. **`Q14`'s premise is WITHDRAWN** — it rested on a
 > reading I took while my own test fixture was live; see §197.4 and the queue below.
 
@@ -238,6 +245,9 @@ deciding deliberately rather than inheriting from a mock-up.
 | ~~**Q12**~~ | **ANSWERED — Option A.** Implemented in §197. | — |
 | **Q13 · CARRIED, explicitly not to be decided or patched** | **`subscriptions.kind` carries `'app'` on all 173 QA rows**, while `022:17-19` documents `'coach' \| 'self_guided' \| 'ai_guided'`. There is **no CHECK**. Which is authoritative — the comment, or the data? | Any plan-level breakdown, including **Q11 by plan**. Not blocking anything built: no admin surface reads `subscriptions`. |
 | **Q14 · PREMISE WITHDRAWN on evidence (§197.4)** | I reported *"one cancelled relationship has no `cancelled_at`"*. **That reading was taken while one of my own fixtures was live** — `D01` flips a relationship to `cancelled` during its run, and at `d01:217`/`:232` it sets `cancelled_at` explicitly. Measured with no suite running: **176 relationships, every one `active`, `cancelled_at` populated on zero rows** — an empty population, not a writer gap. And there is no gap: **three production paths** set it in the same write as the status (`coach_relationship_service.dart:104`, `profile_screen.dart:918`, `intake_flow_screen.dart:4188`). | **Nothing.** A `NOT NULL` or trigger would now be a policy choice with no observed defect behind it. Kept visible rather than deleted, because a question put to an owner on a bad measurement should be corrected where it was asked. |
+
+| **Q15 · CARRIED — and it was missing from this pack** | **Which attention severity vocabulary is authoritative?** `BOUNDARIES.md` row **A**: *"spec says Critical / High / Warning / Informational; approved screens show CRITICAL / HIGH / MEDIUM / LOW"*, classified *"owner decision required"*. | **Nothing is at risk today.** The shipped enum is the spec's four, enforced by a CHECK (`143:70`), and `_severityColor` renders an unrecognised value **neutrally rather than guessing it into a danger colour** — so a `MEDIUM` arriving would be legible, not mis-coloured. The record already narrowed this three times (§12132): spec and shipped enum agree, `Risk` is a distinct axis, and **a fifth value — `"Severity set to Elevated"` — appears in Trust**, so the design's own vocabulary is not internally settled. |
+| **Q16 · CARRIED — also missing from this pack** | **Which Helix theme is canonical?** `BOUNDARIES.md` row **G** calls `--adm-*` versus the Helix tiers an *"architecture question"*, and §103.2 found something sharper: **two artefacts both claim to be the 12Circle Helix theme.** The in-repo Dart implementation (`core/helix/` + `twelve_circle_theme.dart`) is **violet, Schibsted Grotesk, conformance-tested in CI**; `/Users/dmac/Documents/projects/helix`'s `src/themes/12circle.ts` is **electric lime `#9EF01A`**, Hanken Grotesk / Clash Display, and its own header says *"FIRST PASS — values are meant to be tuned by design."* §103.1 also established that **eleven of eleven shared colour roles match** between the Admin tokens and the in-repo theme — *"one design system, not two that happen to agree."* | **Nothing in this repository**; the enforced in-repo theme is the live one. It matters for **whatever consumes Helix next**: a future product binding to the lime first pass would import a different brand. §103.2's own words: *"Which is canonical is a design-system authority decision and is not made here."* |
 
 **Recorded debt, no decision needed unless you want it prioritised:** `EC-02`'s registry
 contradiction (`:709` `BLOCKED_DECISION` on Q-5 against `:782` *"lands now"*) remains
