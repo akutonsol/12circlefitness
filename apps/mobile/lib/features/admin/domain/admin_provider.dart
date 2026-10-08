@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/config/app_env.dart';
 import '../data/admin_metrics_service.dart';
 import '../data/admin_trust_service.dart';
 import '../data/admin_service.dart';
@@ -156,3 +157,12 @@ final adminCanUpdateUsersProvider = FutureProvider<bool>(
 /// front of every reader of the card.
 final adminCanManageGuardianProvider = FutureProvider<bool>(
     (ref) async => ref.watch(adminTrustServiceProvider).canManageGuardian());
+
+/// The environment this build targets, for the Admin environment strip.
+///
+/// A PROVIDER RATHER THAN A DIRECT `AppEnv.current` READ, because `AppEnv.current` is a
+/// `static final` resolved once at first touch — so a test could not exercise the prod,
+/// staging and development arms of the strip, and the arm that matters most (prod shows
+/// NOTHING) would be the one never asserted.
+final adminEnvironmentProvider =
+    Provider<AppEnvironment>((_) => AppEnv.current.environment);

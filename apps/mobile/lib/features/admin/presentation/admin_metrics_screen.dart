@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/admin_provider.dart';
+import 'admin_chrome.dart';
 import 'admin_metrics_panel.dart';
 import 'admin_tokens.dart';
 
@@ -41,6 +42,10 @@ class AdminMetricsScreen extends ConsumerWidget {
             fontWeight: FontWeight.w500,
           ),
         ),
+        // COMPONENTS.md · the 34px environment strip. Production shows NOTHING,
+        // which is the design's own rule and the arm that matters most.
+        bottom: AdminEnvironmentStrip(
+            environment: ref.watch(adminEnvironmentProvider)),
       ),
       body: RefreshIndicator(
         color: AdminColors.colorBrandAccent,

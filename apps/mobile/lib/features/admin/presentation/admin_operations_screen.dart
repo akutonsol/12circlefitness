@@ -43,6 +43,10 @@ class AdminOperationsScreen extends ConsumerWidget {
                 fontSize: AdminDims.typeSectionTitleSize,
                 fontWeight: FontWeight.w500,
               )),
+          // COMPONENTS.md · the 34px environment strip. Production shows NOTHING,
+          // which is the design's own rule and the arm that matters most.
+          bottom: AdminEnvironmentStrip(
+              environment: ref.watch(adminEnvironmentProvider)),
         ),
         body: RefreshIndicator(
           color: AdminColors.colorBrandAccent,

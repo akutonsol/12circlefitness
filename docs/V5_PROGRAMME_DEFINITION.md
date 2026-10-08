@@ -18460,3 +18460,74 @@ works and a distinctness check on the five postures. Admin screen suites **115**
 new data read, no new grant.**
 
 **Production was not contacted.**
+
+---
+
+## §201 · The component inventory, and the one item that is width-independent
+
+### §201.1 · The fourth list, and the limit the design puts on it
+
+`COMPONENTS.md` is the fourth requirements list. It names the shell (*"environment strip
+(34px)"*, header with six-item nav, user menu, search), containers, data components (table with
+sticky header, stat tile, **sparkline/bar/line chart**, severity badge, status pill, progress
+bar, timeline, audit row with before/after diff), inputs (text, select, segmented control,
+switch, checkbox, radio, search, **date range**) and feedback (toast, inline error, empty
+state, skeleton, degraded banner, permission-denied panel, read-only banner).
+
+**`RESPONSIVE.md` bounds what that list can require here, and the design says so itself:**
+
+> *"A phone layout below 480px has **not** been separately designed for Admin (Admin is an
+> operator tool); recorded as a gap."*
+
+The whole document is *"designed for desktop first (1440 reference)"*, with navigation
+collapsing *"to a compact bar"* only at 900px. So sticky-header tables, date ranges and the
+six-item header nav are **desktop constructs with no approved sub-480px form** — and the design
+records that as its own gap rather than leaving it to be inferred. `COMPONENTS.md` also records
+that *"a separate per-component specification sheet (anatomy, variants, spacing annotations) has
+**not** been produced."*
+
+**Charts are a second kind of absence.** `sparkline/bar/line chart` would need a charting
+dependency, which is a dependency decision of the same shape as `Q5`'s Phosphor icons — not
+something to add while implementing a component list.
+
+### §201.2 · The environment strip, which no width argument excuses
+
+One item is width-independent, safety-bearing and fully specified: the **34px environment
+strip**. The Control Center's own architectural-verification panel states the rule:
+
+> *"No banner. Only staging and development show the amber strip at the top."*
+
+**It was not built anywhere in the app.** And the production arm is the one a careless
+implementation gets wrong in the *safe-looking* direction: a strip that appears in production is
+a permanent false alarm operators learn to ignore, while one that fails to appear in staging lets
+an operator act on what they believe is a sandbox. Both arms are asserted.
+
+**Staging gets the design's verbatim sentence** — *"Staging environment — changes here do not
+affect members"* — and it is **true in this repository** rather than merely copied: QA is a
+separate Supabase project, which is the separation `ENV-5`'s production-ref guard exists to
+enforce.
+
+**Development deliberately does not get that sentence.** The design says development shows a
+strip and **does not give its wording**, and the guarantee cannot be carried across: `ENV-4`
+leaves `dev` with **no backend default**, so a development build points at whatever
+`SUPABASE_URL` it was given. Promising that changes do not affect members would be a claim this
+layer cannot make, so the dev strip names the environment and says where the backend came from.
+
+Two smaller points, both asserted: the amber is the **generated token**
+(`--adm-color-status-warning`) with the foreground token made *for* that fill
+(`--adm-color-text-on-warning`) — using `colorStatusWarningText`, which is for warning text on
+the page surface, would have been amber on amber. And the strip is read through a **provider**
+rather than `AppEnv.current`, because that is a `static final` resolved once, so the prod arm —
+the important one — could not otherwise be tested.
+
+### §201.3 · Evidence
+
+**7 assertions**, including the production arm (no text **and** zero preferred height, so it
+cannot push the page down invisibly), the staging and dev arms, the 34px spec, the token pair,
+a check that **all six** pages carry it, and one that exactly one `AppEnvironment` value maps to
+no strip and that value is `prod`.
+
+Widget suites **511 → 518** · Flutter **1944 / 5 skipped** (1937 → 1944) · `dart analyze`
+**0 errors**. **No migration, no schema, no new data read, no new dependency.**
+
+**Production was not contacted.**

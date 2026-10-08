@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/app_env.dart';
 import 'admin_tokens.dart';
 
 /// V5 §184 — the shared Admin container chrome.
@@ -401,4 +402,76 @@ class AdminStatesPanel extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// The environment strip COMPONENTS.md specifies, and the Control Center screen renders.
+///
+/// THE RULE IS THE DESIGN'S OWN, stated on the Control Center's architectural-verification
+/// panel: *"No banner. Only staging and development show the amber strip at the top."* So
+/// production shows **nothing** — and that is the arm worth building carefully, because a
+/// strip that appeared in production would be a permanent false alarm, while one that failed
+/// to appear in staging lets an operator act on member data believing they are in a sandbox.
+///
+/// THE STAGING SENTENCE IS VERBATIM: *"Staging environment — changes here do not affect
+/// members."* It is also TRUE in this repository rather than merely copied: QA is a separate
+/// Supabase project, which is the separation `ENV-5`'s production-ref guard exists to enforce.
+///
+/// DEVELOPMENT DOES NOT GET THAT SENTENCE. The design says development shows a strip and
+/// **does not give its wording**, and the guarantee cannot be carried over: `ENV-4` leaves
+/// `dev` with **no backend default**, so a development build points at whatever `SUPABASE_URL`
+/// was defined for it. Promising that changes do not affect members would be a claim this
+/// layer cannot make, so the dev strip names the environment and says where the backend came
+/// from instead.
+///
+/// 34px, per COMPONENTS.md's *"environment strip (34px)"*.
+class AdminEnvironmentStrip extends StatelessWidget implements PreferredSizeWidget {
+  const AdminEnvironmentStrip({required this.environment, super.key});
+
+  final AppEnvironment environment;
+
+  static const height = 34.0;
+
+  /// The design's verbatim staging sentence.
+  static const stagingText =
+      'Staging environment — changes here do not affect members';
+
+  /// Development names itself and makes no guarantee — see the class note.
+  static const devText =
+      'Development environment — the backend is whatever this build was configured with';
+
+  /// Null in production: the design says there is no banner there.
+  static String? textFor(AppEnvironment env) => switch (env) {
+        AppEnvironment.prod => null,
+        AppEnvironment.qa => stagingText,
+        AppEnvironment.dev => devText,
+      };
+
+  @override
+  Size get preferredSize =>
+      Size.fromHeight(textFor(environment) == null ? 0 : height);
+
+  @override
+  Widget build(BuildContext context) {
+    final text = textFor(environment);
+    if (text == null) return const SizedBox.shrink();
+    return Container(
+      height: height,
+      width: double.infinity,
+      alignment: Alignment.center,
+      // The AMBER is the generated token, and the foreground is the token made for it:
+      // `--adm-color-status-warning` with `--adm-color-text-on-warning`. Using
+      // `colorStatusWarningText` here instead would be amber-on-amber — that token is for
+      // warning text on the page surface, not on the warning fill.
+      color: AdminColors.colorStatusWarning,
+      child: Text(text,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AdminColors.colorTextOnWarning,
+            fontSize: AdminDims.typeCaptionSize,
+            fontWeight: FontWeight.w600,
+          )),
+    );
+  }
 }
