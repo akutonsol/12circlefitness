@@ -269,6 +269,17 @@ class AdminEcosystemScreen extends ConsumerWidget {
               AdminMetricTile.of(
                   'Payments with no recorded rate', m.commissionRateMissing,
                   whenNull: MetricAbsence.notAuthorized),
+            // THE "plans" HALF OF THIS REQUIREMENT IS RENDERED, JUST NOT HERE. The page's
+            // stated requirement is "monetisation (plans, payouts, commission)": the payout
+            // split and the commission decomposition are above, and the per-plan figures are
+            // the per-stream breakdown the design places on the Control Center under
+            // "revenue by stream" (migration 178, rendered by AdminMetricsPanel). Saying so
+            // is the design's own cross-linking model; duplicating the card here would show
+            // one set of figures in two places with no ruling that it belongs in both.
+            const AdminFootnote(
+                'Per-plan revenue is the per-stream breakdown on the Control Center — the '
+                'design places "revenue by stream" there. This card carries the coaching '
+                'decomposition and the recorded payout split.'),
           ];
         },
       );

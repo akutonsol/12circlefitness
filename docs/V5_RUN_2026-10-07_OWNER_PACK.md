@@ -1,5 +1,13 @@
 # V5 autonomous run — 2026-10-07 — consolidated owner pack
 
+**Fourth revision.** **Q6 closed by existing authority** (§183). **Q8, Q9 and Q10 answered
+by the owner** and discharged in §191 — Q9 built the Guardian emergency-disable control under
+Trust → AI Guardian; Q8 and Q10 ratified the existing state and changed no behaviour. Two new
+questions arrived from continuing the frontier rather than from re-reading it: **Q11** and
+**Q12** below. The §190 traversal and the §193/§194 design-requirement audits found **three
+censuses that miscounted what they were describing**, which is why both new items came from
+re-running a measurement rather than from new work.
+
 **Third revision.** A full eleven-phase V5 traversal (§182) replaced the earlier P0-only
 census and added the two items below, **Q6** and **Q7** — the single gates on the only two
 phases that are partially executed. It also found **two recorded gates already satisfied**;
@@ -65,7 +73,10 @@ that one card.
 layer is generated from it by `git show`, four documents carry a provenance block, and a
 guard fails CI on any design citation that resolves nowhere. **Blocks:** nothing.
 
-**Q6 · The nine domain placements — the SOLE remaining gate on P5.** *(§182.1)*
+**Q6 · ~~The nine domain placements — the SOLE remaining gate on P5.~~ CLOSED BY EXISTING
+AUTHORITY (§183).** Do not re-ask. Retained here only so the earlier revision's numbering
+stays readable; the five-point authority check and the supersession-by-the-record's-own-terms
+reasoning are in §183. *(§182.1)*
 You reaffirmed the **six-item IA** and the **twelve domains** separately; reaffirming both
 does not map one onto the other, and every navigation dropdown is closed in all four
 screens. **Blocks:** the remaining Control Center scope, and therefore P6 → P7 behind it.
@@ -81,6 +92,25 @@ P1 finding. **Does not block:** any other P1 work, and nothing downstream.
 pages. My implemented surface uses **one**, substituted with a Material fill-weight
 equivalent and labelled as a substitution. **Blocks:** nothing today; the cost grows with
 the Admin build-out.
+
+---
+
+## 1b · ANSWERED by the owner on 2026-10-07, and discharged
+
+| id | ruling | what it changed |
+|---|---|---|
+| **Q8** · role assignment | *Keep Change Role restricted/unbuilt. Do NOT widen `admin_set_user_role` to `Users·Update` holders. `Users·Update` does not implicitly confer authorization-management authority. Preserve the existing 403.* | **No behaviour changed.** D18 §3's live assertion is promoted from evidence for an open question to the **ratchet for a ruling**, and its text says so: a failure now means a ruled boundary moved, not that the diagnosis is stale (§191.4). |
+| **Q9** · Guardian emergency disablement | *Place the control under Trust → AI Guardian. Implement only the approved UI placement and required confirmation/A11 treatment. Do not broaden authorization.* | **BUILT** (§191.2). Gated `AI Guardian·manage` — `trust_lead` alone, proved live against the matrix. Only `'Disabled'` is reachable; the other three `A5` states have no approved affordance and the card says so. The control never asserts its own outcome — it re-reads the stored row. **D19 · 22/22 live.** |
+| **Q10** · program-template authoring | *No surface for V5. Record the capability as deferred/unexposed unless existing governance requires another status.* | **No UI.** The escape clause applied: `non_operational` means *no write path*, and `B-22` already records Training as **implemented** with two working RPCs — an entry there would have asserted something false in the file whose purpose is to be true about the schema. The register is **unchanged**; the deferral is recorded as a **UI-exposure** deferral (§191.5). |
+
+---
+
+## 1c · NEW — two questions that came from re-running a measurement
+
+| id | question | why it is yours, and what is already true |
+|---|---|---|
+| **Q11** · **What is churn?** | The published Control Center requirement list names **churn** between "revenue by stream" and "service health feed". It is **absent from the metric decision sheet's twelve IDs** — it was never put to you as a decision, so it is the one Dashboard requirement with no ruling at all. | It appears in the monetisation roadmap beside MRR and ARPU, and `COWORK` §8 forbids agents inventing monetisation, so no definition was chosen. The card now **states the absence with that reason** rather than leaving a blank (§194.1). A ruling needs: the denominator population, the window, and what event constitutes leaving. |
+| **Q12** · **Is a Control Center audit tail wanted, or is the Trust deep-link the answer?** | The Dashboard requirement list ends with *"audit-log tail"*. `admin_audit_events` already backs it, so this is **buildable today** — but `SCREEN-INVENTORY` also states that *"every 'View audit history' link deep-links to Trust > Audit logs"*, which reads as the interaction model already answering it. | Nothing was built, because the two statements point different ways and duplicating the projection is a placement decision rather than a mechanical one. The Dashboard card states the absence and names Trust as where the projection lives. |
 
 ---
 

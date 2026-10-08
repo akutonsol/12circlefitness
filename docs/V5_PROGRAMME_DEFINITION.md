@@ -18018,3 +18018,59 @@ bad luck; it is a habit of writing *"the page must not contain X"* when the clai
 *"the page must not present X as a reading"*.
 
 **No migration was added by this section. Production was not contacted.**
+
+---
+
+## §195 · The traversal finished — and the one requirement that was rendered in the wrong place to be found
+
+### §195.1 · Ecosystem's "plans" was built, and unlocatable
+
+Ecosystem's stated requirement is *"monetisation (**plans**, payouts, commission)"*. The
+payout split and the commission decomposition are on its card; the **plan** figures are the
+**per-stream breakdown** migration 178 publishes — and `AdminMetricsPanel` renders them on the
+**Control Center**, under the Dashboard's own *"revenue by stream"* requirement.
+
+So nothing was missing, and nothing was duplicated — but an operator on Ecosystem looking for
+per-plan revenue had **no way to know it existed**, and §184's audit of that page had not
+recorded it either way. The card now says where the figures are. Duplicating it would have
+shown one set of numbers in two places with no ruling that it belongs in both; the design's own
+interaction model cross-links instead, which is the pattern the Dashboard's audit-tail line
+also follows.
+
+### §195.2 · Every page's requirement list, reconciled
+
+| page | requirements | built | stated absent | unlocated until now |
+|---|---|---|---|---|
+| Control Center | 12 | 5 | **7 (§194)** | — |
+| Ecosystem | 5 | 4 | 1 | **1 (plans → Dashboard)** |
+| People | 4 | 2 | **3 → 4 (§193)** | — |
+| Trust | 4 | 3 | 1 | — |
+| Operations | 3 | 3 | — | — |
+| Settings | 12 sections | 5 | **7 (prose said 6, §193.2a)** | — |
+
+**Three of the six censuses miscounted what they were describing**, and in three different
+ways: People's audit named three absences where the list had four (the figure was genuinely
+unbuilt); Settings' prose named six where its own test said seven (the code was already
+right); and the Control Center stated none at all. Each was found by **re-running the
+measurement against the published list** rather than re-reading the conclusion — which is the
+§181 method, and it is now the third time it has paid.
+
+### §195.3 · Owner pack — fourth revision
+
+`Q6` closed by existing authority. `Q8`, `Q9`, `Q10` answered and discharged in §191, with the
+rulings recorded verbatim and what each changed stated beside it — including that **Q8 and Q10
+changed no behaviour**, so "no change needed" was the correct answer and is recorded as such.
+
+Two new questions, and both came from re-running a measurement rather than from new work:
+
+* **`Q11` · What is churn?** The one Control Center requirement with **no ruling at all** — it
+  is absent from the decision sheet's twelve IDs, so it was never asked. A definition needs
+  the denominator population, the window, and what event constitutes leaving. Not inventable:
+  `COWORK` §8 forbids agents inventing monetisation.
+* **`Q12` · Is a Control Center audit tail wanted, or is the Trust deep-link the answer?**
+  `admin_audit_events` already backs it, so this is **buildable today** — but
+  `SCREEN-INVENTORY` also states that *"every 'View audit history' link deep-links to
+  Trust > Audit logs"*. The two statements point different ways, and duplicating a projection
+  is a placement decision rather than a mechanical one.
+
+**Production was not contacted.**
