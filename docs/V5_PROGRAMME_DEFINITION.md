@@ -17025,8 +17025,18 @@ which would assert a schema nobody designed.
 
 **Not backed, each stating its own absence:** `#organization` — **there is no organization
 table at all**, and choosing its fields is a product decision — plus `#notifications`,
-*AI & intelligence*, `#privacy`, `#security` and `#billing` configuration, which have a store
-but **no vocabulary**; §77.3's precedent is to refuse to invent one. The test asserts the
+*AI & intelligence*, `#privacy`, `#security`, **`#integrations`** and `#billing`
+configuration, which have a store but **no vocabulary**; §77.3's precedent is to refuse to
+invent one.
+
+> **`#integrations` was missing from this enumeration until §193.2a**, and the slip is
+> visible in this section's own next sentence: the test asserts the reasons are distinct *"so
+> a shared placeholder cannot masquerade as **seven** findings"* — seven, while the list above
+> named six. **The code was always right**: `unbackedSections` carries all seven, and
+> *"Integration settings — No integration configuration keys are stored. Connections are on
+> Operations and Ecosystem"* has been on the page since §186. Only the prose dropped one.
+> Worth recording because it is the third census in this programme to miscount what it was
+> describing, and the only one of the three where the implementation was already complete. The test asserts the
 reasons are **distinct**, so a shared placeholder cannot masquerade as seven findings, and
 that no invented organization field (`Organization name`, `Address`, `Legal entity`,
 `Tax ID`, `Logo`) appears.
@@ -17905,3 +17915,106 @@ wrong denominator would have produced. Flutter **1904 / 5 skipped** (1901 → 19
 
 QA frontier **178 → 179**, declared in `expected_applied.json` and reconciled by the manifest
 guard. **Production was not contacted.**
+
+---
+
+## §194 · The page that stated no absences, and the guard that caught my own migration
+
+### §194.1 · Five pages explained their gaps; the one with the most did not
+
+Counting `AdminFootnote` per Admin surface:
+
+| page | stated absences |
+|---|---|
+| Trust | 10 |
+| People | 7 |
+| Ecosystem | 6 |
+| Settings | 6 |
+| Operations | 3 |
+| **Control Center (Dashboard)** | **0** |
+
+§185.2's rule is that *"a blank where a requirement was is indistinguishable from an
+oversight; a sentence saying why is not"* — and the page carrying the **most** unbuildable
+requirements of the six was the only one applying none of it. Its published requirement list
+is the longest in the design: *"user counts by role; DAU/WAU/MAU; revenue by stream; churn;
+service health feed (six tiles); AI Guardian autonomy level and findings; wearable sync
+status; QA and release status (from CI); install, age-range and impression series;
+audit-log tail."*
+
+Seven of those are not shown, and **every one already has a recorded reason** — so the card
+states them and invents nothing:
+
+* **Churn** — *never put as a metric decision at all.* It appears in the monetisation roadmap
+  beside MRR and ARPU and is absent from the decision sheet's twelve IDs. There is nothing to
+  compute, and `COWORK` §8 forbids agents inventing monetisation. **Carried to the owner as
+  `Q11`** — see §194.4.
+* **Service health feed** — no surface produces it; the approved design's own *"Requires
+  architectural verification"* panel records the same gap.
+* **AI Guardian findings** — the state is on Trust; findings need the action queue, which has
+  no store and no defined action shape (`P7`, `B-17`).
+* **Wearable sync status** — connections are counted on Ecosystem; ingestion health waits on
+  `WI-13` / `PD-G01`.
+* **Installs** — `METRIC-16 = Option 2`, **ruled**: reading our own store consoles is the
+  vendor boundary `PD-A24` forecloses. Empty *by decision*, not for want of work.
+* **Impressions** — `METRIC-18` is semantically defined and has **no producer**.
+* **Audit-log tail** — the projection is on Trust, where the approved interaction model
+  deep-links every *"View audit history"*.
+
+A guard asserts the reasons are **distinct** (a shared placeholder would masquerade as seven
+findings — the defect §186's Settings test exists to catch), that each **names its ruling or
+its missing producer** rather than merely restating the absence, and that **none reads as a
+measured zero**.
+
+### §194.2 · A fifth "must not mention X" collision, and the assertion it improved
+
+Adding that card broke a pre-existing panel test which banned `\d` anywhere on the page for an
+unauthorized operator — because the new reasons cite the rulings **by name**: `PD-A24`,
+`PD-G01`, `WI-13`, `P7`. Those digits are *why* an absence is an absence; a sweep forbidding
+them forbids explaining the gap.
+
+**Fifth instance in this run**, and the re-shaped assertion is strictly stronger than the one
+it replaced: instead of scanning page text for digits, it reads every `AdminMetricTile` and
+requires each to be in an **absent state** — which also catches a tile rendering `"0"` *or*
+one rendering `"none"`, neither of which a digit sweep would see. It carries a non-vacuity
+check that tiles were found at all.
+
+### §194.3 · D15 caught migration 179, which is the entire point of pinning an exact set
+
+CI on `3179e82` failed, and the failure was **D15 at 352/353**: *"admin_user_overview: carries
+exactly its 15 counts and nothing else."* Migration 179 added two.
+
+The guard is correct and the list was updated deliberately — after the same review migration
+172's columns received: both new columns are aggregates over `coach_client_relationships`,
+neither carries an identifier, and D16 asserts their **values** separately. D15 is now
+353/353.
+
+**The process failure was mine, and it is twice-learned now.** §188.6 recorded *"apply a
+migration and commit its test together"* after applying 177 before its test. This time I
+applied 179 and re-ran **only D16** — the suite whose subject had changed — when a view's
+shape is pinned by a **different** suite. Applying a migration means re-running the **whole**
+live suite. The note is now in D15's own comment, beside the list it protects, rather than
+only in a document.
+
+Nothing else in that run failed: the other `FAIL`-shaped lines in its log are **self-test
+output from guards proving their detectors can fail**, including *"QA_URL is not exactly the
+12 Circle QA project URL"*, which is a control and not a finding.
+
+### §194.4 · Evidence, and the arithmetic of a one-assertion difference
+
+Live **1050/1050 across 19 suites** — and the expected total was **1051**, so the difference
+was chased rather than accepted: D16 gained 6 (109 → 115) and **D-02 went 40 → 39**, its
+*declared* `SKIP` of the public-signup probe when Supabase answers `429` on the email rate
+limit. `1045 + 6 − 1 = 1050`, with the skip printed in the run's own output at line 96. An
+assertion count that moves without a code change is worth chasing every time; this is the
+second time this run that it had a reason in the suite's own log.
+
+D15 **353/353** · D16 **115/115** · Flutter **1907 / 5 skipped** (1904 → 1907) ·
+`dart analyze` **0 errors** · all nine static guards exit 0.
+
+**The digit sweep appeared TWICE more than the first fix covered** — the panel test and
+the screen test both carried it, and only the panel's surfaced before the full suite ran.
+Both are now tile-state assertions. A pattern that has recurred six times is not a run of
+bad luck; it is a habit of writing *"the page must not contain X"* when the claim is
+*"the page must not present X as a reading"*.
+
+**No migration was added by this section. Production was not contacted.**

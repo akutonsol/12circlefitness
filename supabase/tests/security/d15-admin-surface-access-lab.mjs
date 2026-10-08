@@ -1157,7 +1157,19 @@ async function run() {
         'coaches_active_this_month','coaches_no_client_this_month',
         // METRIC-17 · half-open buckets, fourth bucket = unknown, plus the
         // reconciliation column that keeps an age >= 60 from being silently dropped
-        'age_18_30','age_30_45','age_45_60','age_unknown','age_out_of_range']],
+        'age_18_30','age_30_45','age_45_60','age_unknown','age_out_of_range',
+        // §193 · "Clients served" and its average per ACTIVE coach. Added to this EXACT
+        // list only after the same review migration 172's columns got: both are aggregates
+        // over coach_client_relationships, neither carries an identifier, and D16 asserts
+        // their values separately — the count against an independent exact count, and the
+        // average against this view's own coaches_active_this_month.
+        //
+        // THIS GUARD CAUGHT 179, which is the point of pinning an exact set. The migration
+        // was applied to QA and only D16 was re-run; CI's D15 went 352/353 and named the
+        // column drift. The lesson is the obvious one and it is now twice-learned in this
+        // run: applying a migration means re-running the WHOLE live suite, not the suite
+        // whose subject changed.
+        'coach_clients_served','coach_clients_per_active_coach']],
       ['admin_events_overview', 'Events',
        ['events_total','event_registrations_total','classes_total','class_bookings_total',
         // METRIC-14 · attended / registered, on the pre-existing checked_in_at

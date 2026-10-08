@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:circle_fitness/features/admin/domain/admin_metrics.dart';
 import 'package:circle_fitness/features/admin/domain/admin_provider.dart';
+import 'package:circle_fitness/features/admin/presentation/admin_metric_tile.dart';
 import 'package:circle_fitness/features/admin/presentation/admin_metrics_screen.dart';
 import 'package:circle_fitness/features/admin/presentation/admin_tokens.dart';
 
@@ -40,12 +41,21 @@ void main() {
     await _pump(t, _denied);
     expect(find.text('Metrics'), findsOneWidget);
     expect(find.text('Not available to your role'), findsWidgets);
-    final text = t
-        .widgetList<Text>(find.byType(Text))
-        .map((w) => w.data ?? '')
-        .join(' | ');
-    expect(RegExp(r'\b\d').hasMatch(text), isFalse,
-        reason: 'no figure may reach an uncapable caller: $text');
+    // A FIGURE IS A TILE VALUE, NOT ANY DIGIT ON THE PAGE. This banned `\d` anywhere, and
+    // §194's "Not shown here" card broke it by citing the rulings BY NAME — PD-A24, PD-G01,
+    // WI-13, P7. Those digits are why an absence is an absence, so a sweep forbidding them
+    // forbids explaining the gap. Sixth instance of this shape in the run.
+    //
+    // Reading the tiles is strictly STRONGER than the digit sweep it replaces: it also
+    // catches a tile rendering "0" or one rendering "none", neither of which `\d` would see
+    // as a problem.
+    final tiles = t.widgetList<AdminMetricTile>(find.byType(AdminMetricTile)).toList();
+    expect(tiles, isNotEmpty,
+        reason: 'no tiles were found at all, so this assertion would prove nothing');
+    final shown = tiles.where((x) => !x.isAbsent).toList();
+    expect(shown, isEmpty,
+        reason: 'these tiles rendered a value to an uncapable caller: '
+            '${shown.map((x) => x.label).join(', ')}');
   });
 
   testWidgets('the screen is scrollable, because the panel does not own scrolling',

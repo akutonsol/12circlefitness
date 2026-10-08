@@ -52,6 +52,8 @@ class AdminMetricsPanel extends ConsumerWidget {
         _revenue(ref),
         const SizedBox(height: AdminDims.space6),
         _release(ref),
+        const SizedBox(height: AdminDims.space6),
+        const _DashboardAbsences(),
       ],
     );
   }
@@ -373,4 +375,67 @@ enum _A11 {
   final String copy;
 }
 
+/// The Control Center requirements that are NOT shown, each with its own reason.
+///
+/// WHY THIS CARD EXISTS. Every other Admin page states its absences — People 7, Trust 10,
+/// Ecosystem 6, Settings 6, Operations 3 — and this page stated **none**, while carrying
+/// the MOST unbuildable requirements of the six. §185.2's own rule is that *"a blank where a
+/// requirement was is indistinguishable from an oversight; a sentence saying why is not"*,
+/// and the page that most needed it was the one without it.
+///
+/// NOTHING HERE IS A NEW JUDGEMENT. Each line restates a ruling already on the record, and
+/// the reasons are deliberately DISTINCT — a shared placeholder would masquerade as seven
+/// findings, which is the defect §186's test was written to catch on Settings.
+/// The absence map, named so a guard can assert its SHAPE without reaching into a private
+/// widget. It carries no behaviour — only the published requirement and its recorded reason.
+abstract final class AdminMetricsPanelAbsences {
+  static const all = _DashboardAbsences.absences;
+}
 
+class _DashboardAbsences extends StatelessWidget {
+  const _DashboardAbsences();
+
+  /// Keyed by the published requirement, valued by the reason it is not shown.
+  static const absences = <String, String>{
+    'Churn': 'No churn definition is ruled. It appears in the monetisation roadmap beside '
+        'MRR and ARPU and was never put as a metric decision, so there is nothing to '
+        'compute — and inventing one would be inventing monetisation.',
+    'Service health feed': 'No surface produces service health. The approved design\'s own '
+        '"Requires architectural verification" panel records the same gap.',
+    'AI Guardian findings': 'The Guardian STATE is on Trust. Its findings need the action '
+        'queue, which has no store and no defined action shape — P7.',
+    'Wearable sync status': 'Connections are counted on Ecosystem. Ingestion health depends '
+        'on WI-13 and waits for PD-G01, whose implementation is not authorized.',
+    'Installs': 'Ruled: reading our own store consoles is the vendor boundary PD-A24 '
+        'forecloses, so this renders empty by decision — not for want of work.',
+    'Impressions': 'Semantically defined as eligible content renders, and no producer '
+        'exists to emit one.',
+    'Audit-log tail': 'The audit projection is on Trust, which is where the approved '
+        'interaction model deep-links every "View audit history".',
+  };
+
+  @override
+  Widget build(BuildContext context) => AdminCard(
+        title: 'Not shown here',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final e in absences.entries)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AdminDims.space4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(e.key,
+                        style: const TextStyle(
+                            color: AdminColors.colorTextSecondary,
+                            fontSize: AdminDims.typeSmallSize,
+                            fontWeight: FontWeight.w500)),
+                    AdminFootnote(e.value),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      );
+}

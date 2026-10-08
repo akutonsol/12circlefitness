@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:circle_fitness/features/admin/domain/admin_metrics.dart';
 import 'package:circle_fitness/features/admin/domain/admin_provider.dart';
+import 'package:circle_fitness/features/admin/presentation/admin_metric_tile.dart';
 import 'package:circle_fitness/features/admin/presentation/admin_metrics_panel.dart';
 
 /// V5 §166 — the panel's job is to render the right `A11` state, and the states it
@@ -56,9 +57,24 @@ void main() {
       'anywhere — the card does not vanish and does not show zeros', (t) async {
     await _pump(t, allDenied);
     expect(find.text('Not available to your role'), findsWidgets);
-    final text = _allText(t);
-    expect(RegExp(r'\b\d').hasMatch(text), isFalse,
-        reason: 'no figure may be rendered to an unauthorized operator: $text');
+
+    // A FIGURE IS A TILE VALUE, NOT ANY DIGIT ON THE PAGE — and this assertion had to be
+    // re-shaped to say so. It banned `\d` anywhere, and §193's "Not shown here" card broke
+    // it by citing the rulings BY NAME: PD-A24, PD-G01, WI-13, P7. Those are the reasons an
+    // absence is an absence; a sweep that forbids them forbids explaining the gap. Fifth
+    // instance of the same shape in this run, and the rule is unchanged: assert that no
+    // MEASUREMENT renders, not that no digit appears.
+    //
+    // A metric value is rendered by AdminMetricTile, so the check reads the tiles rather
+    // than the page: every one must be in an absent state, which is strictly stronger than
+    // the digit sweep — it would catch a tile rendering "0" OR one rendering "none".
+    final tiles = t.widgetList<AdminMetricTile>(find.byType(AdminMetricTile)).toList();
+    expect(tiles, isNotEmpty,
+        reason: 'no tiles found at all, so this assertion would prove nothing');
+    final shown = tiles.where((x) => !x.isAbsent).toList();
+    expect(shown, isEmpty,
+        reason: 'these tiles rendered a value to an unauthorized operator: '
+            '${shown.map((x) => x.label).join(', ')}');
   });
 
   testWidgets('LOADING is its own state — a card mid-flight must not read as a '
@@ -371,6 +387,37 @@ void main() {
         expect(text.contains(forbidden), isFalse,
             reason: 'the panel must not synthesise "$forbidden" from two '
                 'authorities that disagree: $text');
+      }
+    });
+  });
+
+  // ── §193 · the page that most needed its absences stated had none ─────────
+  group('Control Center · requirements NOT shown, each stated', () {
+    test('every published requirement with no surface has its OWN reason — a shared '
+        'placeholder would masquerade as seven findings', () {
+      final reasons = AdminMetricsPanelAbsences.all.values.toList();
+      expect(reasons.length, 7);
+      expect(reasons.toSet().length, reasons.length,
+          reason: 'two absences share a reason, so one of them is not really explained');
+      for (final r in reasons) {
+        // A reason that does not say anything is a blank with extra steps.
+        expect(r.length, greaterThan(40), reason: 'too thin to be a reason: $r');
+      }
+    });
+
+    test('each reason names the RULING or the missing producer, not just the absence', () {
+      final m = AdminMetricsPanelAbsences.all;
+      expect(m['Installs'], contains('PD-A24'));
+      expect(m['Wearable sync status'], contains('PD-G01'));
+      expect(m['AI Guardian findings'], contains('P7'));
+      expect(m['Impressions'], contains('no producer'));
+      expect(m['Churn'], contains('never put as a metric decision'));
+    });
+
+    test('an absence is never described as a zero', () {
+      for (final r in AdminMetricsPanelAbsences.all.values) {
+        expect(RegExp(r'\b(0|zero|none)\b', caseSensitive: false).hasMatch(r), isFalse,
+            reason: 'reads as a measured zero rather than an absence: $r');
       }
     });
   });
