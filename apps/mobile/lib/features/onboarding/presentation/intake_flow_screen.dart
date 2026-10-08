@@ -243,7 +243,37 @@ class _IntakeFlowScreenState extends State<IntakeFlowScreen>
   Future<void> _finish() async {
     setState(() { _saving = true; _saveError = null; });
     final uid = Supabase.instance.client.auth.currentUser?.id;
-    if (uid != null) {
+    // EC-03 · THE ARM THE ORIGINAL FIX LEFT OPEN. The guard above used to be
+    // `if (uid != null) { …save… }` with the completion state set unconditionally after
+    // it — so a NULL uid skipped the save entirely and the flow still rendered
+    // IntakeCompletePage. "Not saved because it failed" was fixed; "not saved because it
+    // was never attempted" was not, and it is the same false success state over a weaker
+    // premise: nothing was even tried.
+    //
+    // IT IS REACHABLE WITHOUT A SESSION EXPIRY. `/intake` is listed in the router's
+    // `isAuthRoute` set (app_router.dart:203), so `!isAuthenticated && !isAuthRoute` does
+    // NOT send an unauthenticated caller to /login — the route is deliberately open, and
+    // `_loadProgress` already treats a null uid as "nothing to restore" and carries on.
+    // A person can therefore answer all 26 steps, tap Finish, and be told they are done
+    // while PAR-Q answers, injuries, allergies, dietary restrictions, goal, experience and
+    // CONSENT are discarded. That is the registry's description of EC-03's parent defect,
+    // which it names the parent of CON-04, E-NUT-05, ERR-2 and DAT-2.
+    //
+    // The message differs from the catch below because the cause differs and Retry alone
+    // cannot fix it: a save needs a session. Retry is still offered, because a token
+    // refresh between taps makes it work and withholding it would leave no way forward.
+    if (uid == null) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _saveError = 'We could not save your answers because you are not signed in. '
+              'Nothing was lost on this device — sign in on another tab or app and tap '
+              'Retry.';
+        });
+      }
+      return;
+    }
+    {
       _data.biggestChallenges = _challenges.toList();
       try {
         await Supabase.instance.client

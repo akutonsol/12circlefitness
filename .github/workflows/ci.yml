@@ -410,6 +410,17 @@ jobs:
       - name: 3A-11 — identity constraint guards, pre-fix / post-fix evidence
         run: apps/mobile/tool/negative_control/i3a11_negative_control.sh
 
+      # EC-03 / §192. The end-to-end rung's second arm landed in the same commit
+      # that closed the defect it describes — `_finish()` wrapping the whole save
+      # in `if (uid != null)`, so a null uid skipped it and the flow still showed
+      # IntakeCompletePage — so no run has ever seen it fail. This harness
+      # restores that wrapper, requires ONLY the session-lost arm to break (the
+      # failed-save arm covers a defect the original EC-03 fix already closed and
+      # must keep passing), and restores byte-identically. Reuses the Flutter
+      # set-up above; adds no job, no credential and no network access.
+      - name: EC-03 — intake false-completion, pre-fix / post-fix evidence
+        run: apps/mobile/tool/negative_control/ec03_negative_control.sh
+
   live-qa:
     name: Live QA suites (security / AI / contract)
     runs-on: ubuntu-latest
