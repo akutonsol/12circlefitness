@@ -93,12 +93,30 @@ class AdminPeopleScreen extends ConsumerWidget {
                     whenNull: MetricAbsence.notAuthorized),
           ),
           const SizedBox(height: AdminDims.space4),
+          // The approved table's own search box. Its placeholder NAMES the fields, so the
+          // note below it is the design's promise rather than this layer's choice.
+          AdminSearchBox(
+            hint: 'Search name or email',
+            fieldsNote: 'Searches first name, last name and email. A result of none means '
+                'no match in those fields — not that the account does not exist.',
+            value: ref.watch(adminUserSearchProvider),
+            onChanged: (v) =>
+                ref.read(adminUserSearchProvider.notifier).state = v,
+          ),
+          const SizedBox(height: AdminDims.space4),
           directory.when(
             loading: () => const AdminNote('Loading…'),
             error: (_, __) => const AdminNote('Unavailable'),
             data: (rows) {
               if (rows == null) return const AdminNote('Not available to your role');
-              if (rows.isEmpty) return const AdminNote('None');
+              // AN EMPTY SEARCH RESULT IS NOT AN EMPTY DIRECTORY. With a query active the
+              // zero means "nothing matched"; without one it means the population is empty.
+              // Rendering the same word for both would make a filter look like a fact.
+              if (rows.isEmpty) {
+                return AdminNote(ref.watch(adminUserSearchProvider).trim().isEmpty
+                    ? 'None'
+                    : 'No account matches that search');
+              }
               // THE GATE WRAPS THE ACTION, NOT THE DATA — and that distinction cost a
               // test. Putting `adminCapabilityGate` around the whole list meant that
               // while the `Users·update` check was in flight, the gate's honest

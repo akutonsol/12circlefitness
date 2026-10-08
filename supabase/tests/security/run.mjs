@@ -131,6 +131,7 @@ const SUITES = [
   ['D18   governed admin edit paths (161/165)', './d18-admin-write-paths.mjs'],
   ['D19   Guardian emergency disablement (169)', './d19-guardian-disablement.mjs'],
   ['D20   subscription churn Q11 + Q12 (180)',  './d20-subscription-churn.mjs'],
+  ['D21   admin search filters (§199)',         './d21-admin-search.mjs'],
 ];
 
 let totalFailures = 0;

@@ -98,14 +98,25 @@ class AdminMetricsService {
   /// rather than inferred from an empty read. `avatar_url` is in 160's projection and is
   /// NOT selected — this page lists accounts, and a column a page does not use should not
   /// cross the wire.
-  Future<List<AdminUserDirectoryEntry>?> getUserDirectory({int limit = 50}) async {
+  /// `query` searches **name or email**, which is the approved screen's own placeholder —
+  /// *"Search name or email"* — so the fields are specified by the design rather than chosen
+  /// here. The match is a case-insensitive substring, and it runs SERVER-SIDE: filtering the
+  /// `limit`-capped page on the client would search a 20-row window and report "no match"
+  /// for records that exist, which is a false negative dressed as an answer.
+  Future<List<AdminUserDirectoryEntry>?> getUserDirectory(
+      {int limit = 50, String? query}) async {
     final permitted = await _db
         .rpc('admin_can', params: {'p_area': 'Users', 'p_verb': 'view'});
     if (permitted != true) return null;
-    final rows = await _db
+    final term = _searchTerm(query);
+    var q = _db
         .from('admin_user_directory')
         .select('id, first_name, last_name, email, role, membership_tier, '
-            'onboarding_complete, created_at')
+            'onboarding_complete, created_at');
+    if (term != null) {
+      q = q.or('first_name.ilike.%$term%,last_name.ilike.%$term%,email.ilike.%$term%');
+    }
+    final rows = await q
         .order('created_at', ascending: false)
         .limit(limit);
     return [
@@ -241,14 +252,22 @@ class AdminMetricsService {
   /// read as the approved screen's "No events in this range", which is a confident lie.
   /// So `admin_can('Events','view')` is asked, and null means NO CAPABILITY while empty
   /// means authorized with nothing to show.
-  Future<List<AdminEventRow>?> eventDirectory({int limit = 50}) async {
+  /// `query` searches the event **title**, and that single field is a deliberate narrowing.
+  /// The approved placeholder reads only *"Search events"* — unlike People's *"Search name or
+  /// email"*, it does not name its fields — so the title is the minimal faithful reading and
+  /// the UI states which field is searched rather than leaving a reader to guess. Adding
+  /// location or host would be choosing scope the design did not specify.
+  Future<List<AdminEventRow>?> eventDirectory({int limit = 50, String? query}) async {
     final permitted = await _db
         .rpc('admin_can', params: {'p_area': 'Events', 'p_verb': 'view'});
     if (permitted != true) return null;
-    final rows = await _db
+    final term = _searchTerm(query);
+    var q = _db
         .from('events')
         .select('id,title,location,event_date,end_date,host_name,'
-            'max_capacity,current_registered,status,description')
+            'max_capacity,current_registered,status,description');
+    if (term != null) q = q.ilike('title', '%$term%');
+    final rows = await q
         .order('event_date', ascending: false)
         .limit(limit);
     return [
@@ -332,4 +351,28 @@ class AdminMetricsService {
     if (row == null) return null;
     return parse(Map<String, dynamic>.from(row));
   }
+}
+
+/// Sanitises a free-text query for use inside a PostgREST filter expression.
+///
+/// WHY THIS IS A SECURITY FUNCTION AND NOT A TIDYING ONE. PostgREST's filter grammar is
+/// punctuation: `or=(a.ilike.*x*,b.ilike.*x*)` is parsed on `,` `.` `(` `)` and `*`. A query
+/// containing any of those does not merely fail to match — it **re-parses the expression**,
+/// and a crafted value can append a disjunct, which on an `or=` is a widening: it could make
+/// a filter match rows the caller never asked for. These surfaces are already gated by
+/// `admin_can`, so this is not a privilege escape; it is still a query the operator did not
+/// write, and the filter must mean what the box said.
+///
+/// STRIPPING RATHER THAN ESCAPING, deliberately. PostgREST's quoting rules differ per
+/// operator and per version, so an escape that is correct today is a dependency on a parser
+/// detail; removing the grammar characters cannot be wrong. A query of only punctuation
+/// therefore becomes empty, which the callers treat as "no filter" rather than as
+/// "match nothing" — see each call site.
+///
+/// `%` and `_` are removed too: they are LIKE wildcards, so leaving them would let a typed
+/// `%` silently widen the match the operator thinks they asked for.
+String? _searchTerm(String? raw) {
+  if (raw == null) return null;
+  final cleaned = raw.replaceAll(RegExp(r'[,.()*%_"\\]'), ' ').trim();
+  return cleaned.isEmpty ? null : cleaned;
 }

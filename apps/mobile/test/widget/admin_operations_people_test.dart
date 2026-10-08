@@ -267,6 +267,68 @@ void main() {
       expect(find.textContaining('client · core · onboarding incomplete'), findsOneWidget);
     });
 
+    // ── §199 · the search box the approved table carries ─────────────────────
+    testWidgets('the search box uses the approved placeholder and STATES its fields — a '
+        'box that implied it searched everything would make a zero result a lie', (t) async {
+      await _pumpSettled(t, const AdminPeopleScreen(),
+          [..._denied, ..._withUsers(const [_row])]);
+      // THE PLACEHOLDER IS A HINT, NOT A VALUE — and the first version of this assertion
+      // got the mechanism wrong: `widgetWithText` MATCHES, because Flutter renders the hint
+      // as a Text descendant of the field. The claim is about the controller, so the
+      // controller is what it reads.
+      final field = t.widget<TextField>(find.byType(TextField).first);
+      expect(field.decoration?.hintText, 'Search name or email',
+          reason: 'the approved placeholder, verbatim');
+      expect(field.controller?.text, isEmpty,
+          reason: 'the hint must not have been seeded as the query');
+      final text = _allText(t);
+      expect(text.contains('Searches first name, last name and email'), isTrue,
+          reason: text);
+      expect(text.contains('not that the account does not exist'), isTrue, reason: text);
+    });
+
+    testWidgets('typing updates the query provider, which is what re-runs the SERVER-side '
+        'read — the filter is not applied to the rendered page', (t) async {
+      late ProviderContainer container;
+      await t.binding.setSurfaceSize(const Size(500, 4000));
+      addTearDown(() => t.binding.setSurfaceSize(null));
+      await t.pumpWidget(ProviderScope(
+        overrides: [..._denied, ..._withUsers(const [_row])],
+        child: Consumer(builder: (ctx, ref, _) {
+          container = ProviderScope.containerOf(ctx);
+          return const MaterialApp(home: AdminPeopleScreen());
+        }),
+      ));
+      for (var i = 0; i < 4; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(container.read(adminUserSearchProvider), '');
+      await t.enterText(find.byType(TextField).first, 'probe');
+      await t.pump(const Duration(milliseconds: 50));
+      expect(container.read(adminUserSearchProvider), 'probe');
+    });
+
+    // TWO TESTS, NOT ONE. The first draft pumped a second tree over the first inside one
+    // test; that is not a fresh mount and the second assertion read the first tree's state.
+    testWidgets('an empty DIRECTORY with no query says "None" — the population really is '
+        'empty', (t) async {
+      await _pumpSettled(t, const AdminPeopleScreen(),
+          [..._denied, ..._withUsers(const [])]);
+      expect(find.text('None'), findsWidgets);
+      expect(find.text('No account matches that search'), findsNothing);
+    });
+
+    testWidgets('…and an empty SEARCH RESULT is worded differently, so a filter cannot '
+        'read as a fact about the population', (t) async {
+      await _pumpSettled(t, const AdminPeopleScreen(), [
+        ..._denied,
+        ..._withUsers(const []),
+        adminUserSearchProvider.overrideWith((_) => 'zzz'),
+      ]);
+      expect(find.text('No account matches that search'), findsOneWidget);
+      expect(find.text('None'), findsNothing);
+    });
+
     // ── §189 · "Edit profile", and the one action deliberately absent ─────────
     // ── §193 · "Clients served" — the fourth requirement §185.2's audit omitted ──
     testWidgets('"Clients served" is shown with its average per ACTIVE coach — the '

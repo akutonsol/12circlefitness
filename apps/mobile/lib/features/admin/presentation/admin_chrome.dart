@@ -271,3 +271,63 @@ class AdminCrossLink extends StatelessWidget {
         ),
       );
 }
+
+/// The search box the approved tables carry, with the fields it searches STATED.
+///
+/// WHY THE FIELD LIST IS ON SCREEN. A search box is a promise about what it looked at, and
+/// the two approved placeholders differ in how much they promise: People's reads *"Search
+/// name or email"* and names its fields, while Ecosystem's reads only *"Search events"* and
+/// does not. Rather than let the narrower one imply it searched everything, each box says
+/// which fields it matched — so a zero result is legible as "not in these fields" instead of
+/// "not in the system".
+///
+/// IT FILTERS SERVER-SIDE. Every admin list renders a `limit`-capped page, so filtering what
+/// is already on screen would search a twenty-row window and answer "no match" for records
+/// that exist. The query goes to the query.
+class AdminSearchBox extends StatelessWidget {
+  const AdminSearchBox({
+    required this.hint,
+    required this.fieldsNote,
+    required this.value,
+    required this.onChanged,
+    super.key,
+  });
+
+  /// The approved placeholder, verbatim.
+  final String hint;
+
+  /// Which fields the match ran over.
+  final String fieldsNote;
+
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: AdminDims.sizeControl, // 44px, RESPONSIVE.md
+            child: TextField(
+              // `value` is the single source of truth, so a provider reset clears the box.
+              controller: TextEditingController(text: value)
+                ..selection = TextSelection.collapsed(offset: value.length),
+              onChanged: onChanged,
+              style: const TextStyle(
+                  color: AdminColors.colorTextPrimary,
+                  fontSize: AdminDims.typeSmallSize),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: hint,
+                hintStyle: const TextStyle(
+                    color: AdminColors.colorTextMuted,
+                    fontSize: AdminDims.typeSmallSize),
+                prefixIcon: const Icon(Icons.search,
+                    size: 18, color: AdminColors.colorTextMuted),
+              ),
+            ),
+          ),
+          AdminFootnote(fieldsNote),
+        ],
+      );
+}

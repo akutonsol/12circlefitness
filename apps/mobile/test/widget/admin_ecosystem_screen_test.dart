@@ -481,4 +481,40 @@ void main() {
     expect(text.contains('requires Community · update'), isFalse, reason: text);
     expect(text.contains('Checking your permissions'), isFalse, reason: text);
   });
+
+  // ── §199 · the Events search box, and the field it does NOT claim ─────────
+  testWidgets('events · the search box states the ONE field it matches, because the '
+      'approved placeholder does not name its fields the way People\'s does', (t) async {
+    await _pump(t, [
+      ..._denied,
+      ..._withEvents(const [
+        {'id': 'e1', 'title': 'Autumn workshop', 'status': 'upcoming'},
+      ]),
+    ]);
+    final field = t
+        .widgetList<TextField>(find.byType(TextField))
+        .firstWhere((f) => f.decoration?.hintText == 'Search events');
+    expect(field.controller?.text, isEmpty);
+    final text = _allText(t);
+    expect(text.contains('Searches the event title only'), isTrue, reason: text);
+    // It must not imply it searched the other columns it renders.
+    expect(text.contains('Location, host and status are not'), isTrue, reason: text);
+  });
+
+  testWidgets('events · an empty search result is worded differently from an empty range',
+      (t) async {
+    await _pump(t, [..._denied, ..._withEvents(const [])]);
+    expect(find.text('No events in this range.'), findsOneWidget);
+    expect(find.text('No event title matches that search'), findsNothing);
+  });
+
+  testWidgets('events · …and with a query active the zero says it is a non-match', (t) async {
+    await _pump(t, [
+      ..._denied,
+      ..._withEvents(const []),
+      adminEventSearchProvider.overrideWith((_) => 'zzz'),
+    ]);
+    expect(find.text('No event title matches that search'), findsOneWidget);
+    expect(find.text('No events in this range.'), findsNothing);
+  });
 }

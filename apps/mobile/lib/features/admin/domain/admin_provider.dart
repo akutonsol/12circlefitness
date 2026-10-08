@@ -86,9 +86,13 @@ final adminWearableConnectionsProvider =
     FutureProvider<AdminWearableConnections?>((ref) async =>
         ref.watch(adminMetricsServiceProvider).getWearableConnections());
 
+/// The People search box's current text. Empty means no filter — NOT "match nothing".
+final adminUserSearchProvider = StateProvider<String>((_) => '');
+
 final adminUserDirectoryProvider =
     FutureProvider<List<AdminUserDirectoryEntry>?>((ref) async =>
-        ref.watch(adminMetricsServiceProvider).getUserDirectory());
+        ref.watch(adminMetricsServiceProvider).getUserDirectory(
+            query: ref.watch(adminUserSearchProvider)));
 
 final adminRoleCapabilitiesProvider = FutureProvider<List<AdminRoleCapability>?>(
     (ref) async => ref.watch(adminMetricsServiceProvider).getRoleCapabilities());
@@ -133,8 +137,12 @@ final adminCanUpdateEventsProvider = FutureProvider<bool>(
 /// Null means no `Events·view`; empty means authorized with no events in range,
 /// which the approved screen words as "No events in this range." The distinction is the
 /// three-state rule: an unauthorized read must not render as "no events".
+/// The Events search box's current text. Empty means no filter.
+final adminEventSearchProvider = StateProvider<String>((_) => '');
+
 final adminEventDirectoryProvider = FutureProvider<List<AdminEventRow>?>(
-    (ref) async => ref.watch(adminMetricsServiceProvider).eventDirectory());
+    (ref) async => ref.watch(adminMetricsServiceProvider).eventDirectory(
+        query: ref.watch(adminEventSearchProvider)));
 
 /// Whether the caller may rename a user — `Users·update`.
 final adminCanUpdateUsersProvider = FutureProvider<bool>(

@@ -658,7 +658,21 @@ class _EventsDirectory extends ConsumerWidget {
     final canEdit = ref.watch(adminCanUpdateEventsProvider);
     return AdminCard(
       title: 'Events directory',
-      child: async.when(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // The approved placeholder is only "Search events" — it does not name its fields,
+          // so the note states the one field matched rather than implying all of them.
+          AdminSearchBox(
+            hint: 'Search events',
+            fieldsNote: 'Searches the event title only. Location, host and status are not '
+                'matched, so a result of none means no title match.',
+            value: ref.watch(adminEventSearchProvider),
+            onChanged: (v) =>
+                ref.read(adminEventSearchProvider.notifier).state = v,
+          ),
+          const SizedBox(height: AdminDims.space4),
+          async.when(
         loading: () => const AdminNote('Loading…'),
         error: (_, __) => const AdminNote('Unavailable'),
         data: (events) {
@@ -666,7 +680,11 @@ class _EventsDirectory extends ConsumerWidget {
           // The approved screen's own empty wording. It is only reachable once the
           // capability has been confirmed, so it cannot stand in for a denial.
           if (events.isEmpty) {
-            return const AdminNote('No events in this range.');
+            // The approved empty wording when nothing is filtered; a distinct sentence
+            // when a query is active, so a filter cannot read as a fact about the range.
+            return AdminNote(ref.watch(adminEventSearchProvider).trim().isEmpty
+                ? 'No events in this range.'
+                : 'No event title matches that search');
           }
           // THE GATE WRAPS EACH ROW'S ACTION, NOT THE ROWS. Wrapping the list meant
           // that while the `Events·update` check was in flight, "Checking your
@@ -690,6 +708,8 @@ class _EventsDirectory extends ConsumerWidget {
             ],
           );
         },
+          ),
+        ],
       ),
     );
   }

@@ -18304,3 +18304,96 @@ Settings widget tests **18** (11 → 18), including two real-router navigations 
 static guards exit 0. **No migration, no schema, no grant and no new data read.**
 
 **Production was not contacted.**
+
+---
+
+## §199 · Search — built server-side, with the fields it searched stated
+
+### §199.1 · Why it had to be server-side, and why that was the whole difficulty
+
+§198.4 recorded search as *"backed but a false affordance as the lists stand"*: every admin
+list renders a `take(10)`/`take(20)` page, so filtering what is already on screen searches a
+twenty-row window and answers *"no match"* for records that exist. **A false negative dressed
+as an answer** is worse than no search box.
+
+So the query goes to the query. `getUserDirectory` and `eventDirectory` take an optional
+`query`, build the filter in PostgREST, and the providers re-run the read when the box changes.
+D21 proves the filter **narrows** against a 945-row population rather than emptying.
+
+### §199.2 · The two placeholders do not promise the same thing, and the UI says so
+
+* **People** — *"Search name or email"*. The approved placeholder **names its fields**, so the
+  filter is `first_name` / `last_name` / `email` by the design's own words.
+* **Events** — *"Search events"*. It names nothing. The title is the minimal faithful reading;
+  adding location or host would be choosing scope the design did not specify. So the card
+  states *"Searches the event title only. Location, host and status are not matched"* — and
+  D21 proves that claim by giving a fixture event a **distinct marker in its location** and
+  requiring a location search to find **nothing**.
+
+**A zero result is worded by its cause.** With no query, People says *"None"* and Events says
+the approved *"No events in this range."*; with a query active they say *"No account matches
+that search"* and *"No event title matches that search"*. Rendering one sentence for both would
+make a filter look like a fact about the population — the same error class as a null rate
+rendering as `0%`.
+
+### §199.3 · The sanitiser is a security control, not tidying
+
+PostgREST's filter grammar **is punctuation**: `or=(a.ilike.*x*,b.ilike.*x*)` parses on
+`,` `.` `(` `)` `*`. A query containing those does not merely fail to match — it **re-parses
+the expression**, and on an `or=` that is a **widening**: a crafted value can append a disjunct
+and make the filter match rows the operator never asked for. These surfaces are gated by
+`admin_can`, so it is not a privilege escape; it is still a query the operator did not write.
+
+`_searchTerm` **strips** the grammar characters rather than escaping them, because PostgREST's
+quoting rules differ per operator and version — an escape that is correct today is a dependency
+on a parser detail, while removing the characters cannot be wrong. `%` and `_` go too: they are
+LIKE wildcards, and leaving them would let a typed `%` silently widen the match.
+
+D21 §3 sends the four payloads the service would have sent without the strip, and the decisive
+property is **not** that they fail. One of them — `x*)` — **parses and returns 200 with one
+row**, which is narrower than the population and therefore harmless. The assertion is that no
+crafted query ever returns **more** than the unfiltered population, which is what "cannot
+widen" actually means.
+
+And §4 proves a filter is not a route around the gate: an unauthorized caller gets **zero rows
+from the same well-formed filter that returned the row a moment earlier** — so it is the gate
+refusing, not a malformed request failing.
+
+### §199.4 · Four harness defects, and one that would have inverted the conclusion
+
+The first run reported `matched=0 of 945` and I nearly recorded "the filter does not work".
+**It had never been evaluated.** A raw `%` in a URL begins an escape sequence, so
+`ilike.%QA%` is malformed and PostgREST answers 500 — which the suite was reading as an empty
+result set. The shipped Dart service does **not** have this bug: `postgrest-2.7.1` builds
+filters through `appendSearchParams` → `Uri.replace(queryParameters:)`, which percent-encodes
+every value. The harness now encodes `%` as `%25` and **leaves the grammar characters raw**, or
+§3's payloads could not attempt the re-parse they exist to attempt.
+
+Three more, each caught by an assertion:
+
+* `countExact` supplied the widening baseline through **service_role**, for which `admin_can`
+  is false — so `population=0` and the comparison was vacuous. The same mistake D20 §6 made
+  against the audit projection, now with a non-vacuity check beside it.
+* A widget assertion claimed the placeholder must not be findable as text. **It is** — Flutter
+  renders a hint as a `Text` descendant of the field, so `widgetWithText` matches. The claim
+  was about the **controller**, which is what it reads now.
+* One test pumped a second tree over the first to compare two states; that is not a fresh
+  mount, and the second assertion read the first tree's state. Split into two tests.
+
+### §199.5 · What is still not built
+
+**Filters** — the approved tables' `Status: All` / `Type: All` / `Verification: All` /
+`Specialism: All` / `Visibility: All` / `Difficulty: Any` selects are **closed** in every
+screenshot, so their option lists are not visible, and four of the columns behind them do not
+exist at all: event **type** (§193), program **status** lifecycle (§193), coach
+**verification** (§185.2) and event **visibility**. A filter over a column that does not exist
+cannot be built and one whose options are invisible would have to invent them.
+
+### §199.6 · Evidence
+
+**D21 · 16/16 live** · live **1089/1089 across 21 suites** · Flutter **1932 / 5 skipped**
+(1925 → 1932) · `dart analyze` **0 errors** · nine static guards exit 0. **No migration, no
+schema change, no new grant** — the filters run inside the gates that already governed these
+reads.
+
+**Production was not contacted.**
