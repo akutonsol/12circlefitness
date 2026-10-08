@@ -125,6 +125,8 @@ class AdminUserOverview {
     required this.vendorsTotal,
     required this.coachesActiveThisMonth,
     required this.coachesNoClientThisMonth,
+    required this.coachClientsServed,
+    required this.coachClientsPerActiveCoach,
     required this.age18to30,
     required this.age30to45,
     required this.age45to60,
@@ -143,6 +145,16 @@ class AdminUserOverview {
 
   final int? coachesActiveThisMonth;
   final int? coachesNoClientThisMonth;
+
+  /// Active coach–client relationships. A REAL COUNT: 0 means no active relationship
+  /// exists, which is a fact and renders as the design's zero wording.
+  final int? coachClientsServed;
+
+  /// The average per ACTIVE coach, and the denominator is not a choice: the approved card
+  /// reads 2,210 · "avg 15.7 per coach" · Active "141 of 164", and 2210/141 = 15.7 where
+  /// 2210/164 would print 13.5. Null when there is no active coach to divide by — "nobody
+  /// to average over" is not an average of zero.
+  final double? coachClientsPerActiveCoach;
 
   final int? age18to30;
   final int? age30to45;
@@ -171,6 +183,9 @@ class AdminUserOverview {
         vendorsTotal: _int(r['vendors_total']),
         coachesActiveThisMonth: _int(r['coaches_active_this_month']),
         coachesNoClientThisMonth: _int(r['coaches_no_client_this_month']),
+        coachClientsServed: _int(r['coach_clients_served']),
+        coachClientsPerActiveCoach:
+            (r['coach_clients_per_active_coach'] as num?)?.toDouble(),
         age18to30: _int(r['age_18_30']),
         age30to45: _int(r['age_30_45']),
         age45to60: _int(r['age_45_60']),

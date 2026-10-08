@@ -141,6 +141,30 @@ class AdminPeopleScreen extends ConsumerWidget {
               whenNull: MetricAbsence.notAuthorized),
           AdminMetricTile.of('No client this month', m.coachesNoClientThisMonth,
               whenNull: MetricAbsence.notAuthorized, zeroCopy: 'None'),
+          // §193 · the fourth People requirement — "client assignment" — which §185.2's
+          // three-absence audit omitted entirely rather than refusing.
+          AdminMetricTile.of('Clients served', m.coachClientsServed,
+              whenNull: MetricAbsence.notAuthorized, zeroCopy: 'None'),
+          // NULL IS NOT ZERO HERE. An average needs something to divide by, and "no active
+          // coach to average over" is not "an average of zero clients" — the A11 state,
+          // never 0.0.
+          if (m.coachClientsPerActiveCoach != null)
+            AdminMetricTile.text(
+                label: 'Average per active coach',
+                display: m.coachClientsPerActiveCoach!.toStringAsFixed(1))
+          else
+            const AdminMetricTile.absent(
+                label: 'Average per active coach',
+                absence: MetricAbsence.notRecorded),
+          // The three Coaches-module tiles that remain unbuilt, named rather than left as
+          // blanks — the discipline §185.2 applied to the other absences.
+          const AdminFootnote(
+              'Not shown: "Programs live" — workout_programs carries no lifecycle state, '
+              'so a program\'s "live" is undefined in the schema. "Sessions · 30 d, '
+              'coach-led" — "coach-led" is not a column, and the two readings available '
+              '(a client with an active coach, or a coach-authored program) differ with '
+              'nothing to rule between them. "Reassign clients" — a write with no governed '
+              'path and no defined triage model.'),
           const AdminFootnote(
               'Coach verification is not shown — no verification state exists in the '
               'schema, and the Stripe onboarding flags are a payments fact, not a '

@@ -19,7 +19,7 @@
 // placed in the Security area. If the card leaked that figure to a Users-only role
 // it would be an indirect read of the audit population. `support` holds Users·view
 // and NOT Security·view in the approved matrix, so that role is the test.
-import { IDENT, signIn, rest, mutate, rpc, svc, check, checkNoWrite,
+import { IDENT, signIn, rest, mutate, rpc, svc, check, checkNoWrite, countExact,
          section, summary, beginSuite, n } from './lib.mjs';
 
 const ONE = (b) => (Array.isArray(b) ? b[0] : b) || {};
@@ -219,6 +219,83 @@ async function run() {
       `30_45 ${base.age_30_45}->${pref.age_30_45}, 18_30 ${base.age_18_30}->${pref.age_18_30}`);
     await svc(`user_profiles?id=eq.${vUid}`, { method: 'PATCH',
       body: { age: origAge.age ?? null, date_of_birth: origAge.date_of_birth ?? null } });
+
+    // ── §193 · "Clients served", and the denominator the design's arithmetic fixes ──
+    section('"Clients served" · counted exactly, and averaged per ACTIVE coach');
+    {
+      const row = (await view(victim, 'admin_user_overview')).row;
+
+      // COUNTED INDEPENDENTLY, not re-read from the view that is under test. `countExact`
+      // uses the content-range header, so it does not saturate at the 1000-row page cap —
+      // which matters here: QA holds 170 active relationships today and a body-length
+      // count would quietly become wrong as that grows past 1000.
+      const served = await countExact('coach_client_relationships?status=eq.active&select=id');
+      check('coach_clients_served equals an INDEPENDENT exact count of active ' +
+            'relationships — not a body length, which saturates at the page cap',
+        num(row.coach_clients_served) === served,
+        `view=${row.coach_clients_served} independent=${served}`);
+
+      // NOT VACUOUS. A count assertion over an empty population passes whatever the view
+      // computes — §139.5's lesson, and the reason checkDenied exists.
+      check('…and that was asserted against a NON-EMPTY population',
+        served > 0, `active relationships=${served}`);
+
+      // THE DENOMINATOR, RECONCILED AGAINST THE VIEW'S OWN OTHER COLUMNS. The approved
+      // card reads 2,210 · "avg 15.7 per coach" · Active "141 of 164": 2210/141 = 15.7
+      // while 2210/164 = 13.5, so the average is per ACTIVE coach. This recomputes it from
+      // coaches_active_this_month — a figure METRIC-03 already proves above — so the two
+      // halves of the card cannot drift apart.
+      const activeCoaches = num(row.coaches_active_this_month);
+      const expectAvg = activeCoaches === 0
+        ? null
+        : Math.round((served / activeCoaches) * 10) / 10;
+      check('coach_clients_per_active_coach reconciles with coaches_active_this_month — ' +
+            'the ACTIVE denominator the approved card\u2019s own arithmetic fixes ' +
+            '(2210/141 = 15.7, where 2210/164 would be 13.5)',
+        num(row.coach_clients_per_active_coach) === expectAvg,
+        `view=${row.coach_clients_per_active_coach} expected=${expectAvg} ` +
+        `(${served}/${activeCoaches})`);
+
+      // The zero-denominator arm renders NULL rather than 0. QA carries active coaches, so
+      // the arm is NOT reachable here and is reported as such instead of claimed: this
+      // asserts only the half that IS measurable — a real denominator yields a real number.
+      check('…and with a real denominator the average is a NUMBER, not null — the null ' +
+            'arm (no active coach to divide by) is UNMEASURABLE on this QA, which has ' +
+            `${activeCoaches}, and is not claimed here`,
+        activeCoaches > 0 && row.coach_clients_per_active_coach !== null,
+        `active_coaches=${activeCoaches} avg=${row.coach_clients_per_active_coach}`);
+
+      // DELTA. An aggregate that counts nothing cannot pass: flip one relationship and
+      // require the figure to move by exactly one.
+      // ANY relationship row, not the probe client's. The first draft asked for
+      // `client_id=eq.${attackerUid}` and found none — that row is arranged and torn down
+      // by another section of this suite, so depending on it made the delta's availability
+      // a function of test ORDER. The delta does not care whose relationship moves.
+      const anyRel = await svc(
+        'coach_client_relationships?select=id,status&limit=1');
+      const rel = ONE(anyRel.body);
+      if (rel.id) {
+        const was = rel.status;
+        const flipTo = was === 'active' ? 'cancelled' : 'active';
+        await svc(`coach_client_relationships?id=eq.${rel.id}`, { method: 'PATCH',
+          body: { status: flipTo } });
+        const after = (await view(victim, 'admin_user_overview')).row;
+        const expected = served + (flipTo === 'active' ? 1 : -1);
+        check('flipping ONE relationship moves coach_clients_served by exactly one — a ' +
+              'metric that counts nothing cannot pass this',
+          num(after.coach_clients_served) === expected,
+          `${served} -> ${after.coach_clients_served} (expected ${expected})`);
+        await svc(`coach_client_relationships?id=eq.${rel.id}`, { method: 'PATCH',
+          body: { status: was } });
+        const restored = (await view(victim, 'admin_user_overview')).row;
+        check('…and restoring it returns the figure, so the fixture left nothing behind',
+          num(restored.coach_clients_served) === served,
+          `back to ${restored.coach_clients_served}`);
+      } else {
+        check('arranged: a relationship exists to flip for the delta', false,
+          'no coach_client_relationships row for the probe client');
+      }
+    }
 
     // ── 4 · METRIC-03 · active coaches on a calendar month ────────────────
     section('METRIC-03 · calendar month');

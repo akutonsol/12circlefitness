@@ -16960,6 +16960,13 @@ verification; client assignment; Wellness Partner onboarding and approval states
 **Each absence is written on the card.** A blank where a requirement was is indistinguishable
 from an oversight; a sentence saying why is not.
 
+> **CORRECTED BY §193.** This audit says *"three requirements are deliberately absent"* and
+> names three — while the requirement list it quotes has **four** items. **"client
+> assignment"** was neither built nor explained, which is worse than either: a reader of
+> this section would conclude it was covered. §193 builds the part that is mechanically
+> determined ("Clients served", with its average per active coach) and names the three
+> Coaches-module tiles that remain, each with its reason.
+
 `onboarding_complete` is shown as *"onboarding incomplete"* and **never relabelled
 "status"**, which would imply a state machine the schema does not have.
 
@@ -17805,3 +17812,96 @@ Flutter **1901 / 5 skipped** · `dart analyze` **0 errors**. `http` is now decla
 
 **No migration was added. QA was not contacted by this section, and production was not
 contacted.**
+
+---
+
+## §193 · "Clients served" — the fourth People requirement, and an audit that was one short
+
+### §193.1 · How this was found: re-running the method, not re-reading the conclusion
+
+§181 found reachable work by traversing the **published design's own requirements list**
+(`SCREEN-INVENTORY.md`, *"Data each page needs"*, at `931218b`) rather than the programme's
+own notes about it — the difference that turned up "revenue by stream" and "payouts". With all
+six pages now built, running that traversal again is the obvious next move, and it found one
+thing.
+
+**§185.2 is one requirement short.** It states *"three requirements are deliberately absent,
+and each is stated"* and names three — last active, coach verification, partner approval
+states. The requirement it quotes has **four** items:
+
+> *"account list with role, status, last active; coach verification; **client assignment**;
+> Wellness Partner onboarding and approval states."*
+
+**"client assignment" was neither built nor refused**, which is worse than either. A blank
+where a requirement was is indistinguishable from an oversight — §185.2's own words — and a
+*census* that silently omits an item is worse still, because it reads as a clean bill. This is
+the same failure mode as §190.1's inventory counting its own comments as code, and as the
+`#f08a9b` shell sweep in §16x: **a measurement that reads its own notes.**
+
+### §193.2 · The denominator is not mine to choose, and the design's arithmetic settles it
+
+The approved Coaches module carries six overview tiles. Three are built, one is recorded
+unbuildable, and one is this:
+
+> **Clients served — 2,210 · avg 15.7 per coach**, beside **Active — 141 of 164**
+
+Two things were needed and the record fixes both:
+
+1. **The predicate.** `coach_client_relationships.status = 'active'` is the same predicate
+   migration 172 already uses for METRIC-03's `active_coaches`. Nothing new is defined.
+2. **The denominator**, which the **design's own numbers** settle rather than I do:
+   `2210 / 141 = 15.67 → "15.7"`, while `2210 / 164 = 13.47` would have printed **"13.5"**.
+   So the average is per **ACTIVE** coach. This is the method §162 used for METRIC-06b — read
+   the ruling out of the approved figures instead of picking one and calling it obvious.
+
+**Three-state rule, applied to an average.** `NULLIF` on the denominator means a platform with
+no active coach reports the average as **NULL**, not `0.0`. *"An average of zero clients per
+coach"* is a measurement; *"there is nobody to average over"* is not, and they must not render
+alike. The count itself is a real count and is `0` when it is `0`.
+
+Migration **179** appends two columns to `admin_user_overview`. No table, no new grant, no
+policy change; the existing `admin_can('Users','view')` gate governs both figures.
+
+### §193.3 · What is still not built, and why each one is a different kind of gap
+
+Named on the card, because the discipline §185.2 applied to its three absences applies to
+these too:
+
+* **"Pending · awaiting review"** — no verification state exists in the schema (§185.2,
+  unchanged).
+* **"Programs live — 388"** — `workout_programs` (`001:69`) carries `name`, `goal`,
+  `difficulty`, `duration_weeks` and `is_template`, and **no lifecycle state**. A program's
+  *"live"* is undefined; deriving it from assignment status would invent the very lifecycle the
+  Ecosystem Programs table's Active/Archived column also lacks.
+* **"Sessions · 30 d — coach-led"** — *"coach-led"* is not a column, and the two available
+  readings (a session by a client with an active coach; a session against a coach-authored
+  program) **differ**, with nothing in the record ruling between them.
+* **"Reassign clients"** — a write with no governed path and no defined triage model.
+
+### §193.4 · Evidence
+
+**D16 · 115/115 live** (109 → 115). The new section:
+
+* `coach_clients_served` equals an **independent** `countExact` of active relationships —
+  not a body length, which saturates at the 1000-row page cap. **170 on QA today**, and the
+  assertion is explicitly checked against a **non-empty** population.
+* The average **reconciles against the view's own `coaches_active_this_month`**, so the two
+  halves of the card cannot drift apart.
+* **A delta**: flipping one relationship moves the figure by exactly one (`170 → 169`), and
+  restoring it returns it — *a metric that counts nothing cannot pass this.*
+* The **null arm is reported as UNMEASURABLE, not claimed**: QA has active coaches, so
+  "nothing to divide by" is unreachable here. Only the measurable half is asserted.
+
+**Two fixture defects of my own, both caught by the assertions rather than by a green run.**
+The delta first asked for the probe client's relationship — a row another section of the same
+suite arranges and tears down, which made the delta's availability a function of **test
+order**; it now flips any row. And the widget test asked for `"2210"` when the tile groups
+thousands as **`"2,210"`**, the approved card's own rendering — wrong about the UI rather than
+finding a defect in it.
+
+People widget tests **22** (19 → 22), including that `13.5` never appears — the figure the
+wrong denominator would have produced. Flutter **1904 / 5 skipped** (1901 → 1904) ·
+`dart analyze` **0 errors** · all nine static guards exit 0.
+
+QA frontier **178 → 179**, declared in `expected_applied.json` and reconciled by the manifest
+guard. **Production was not contacted.**

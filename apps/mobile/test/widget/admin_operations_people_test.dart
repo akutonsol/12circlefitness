@@ -268,6 +268,66 @@ void main() {
     });
 
     // ── §189 · "Edit profile", and the one action deliberately absent ─────────
+    // ── §193 · "Clients served" — the fourth requirement §185.2's audit omitted ──
+    testWidgets('"Clients served" is shown with its average per ACTIVE coach — the '
+        'denominator the approved card\'s own arithmetic fixes', (t) async {
+      await _pumpSettled(t, const AdminPeopleScreen(), [
+        ..._denied,
+        adminUserOverviewProvider.overrideWith((_) async =>
+            AdminUserOverview.fromRow(const {
+              'coaches_total': 164,
+              'coaches_active_this_month': 141,
+              'coaches_no_client_this_month': 23,
+              'coach_clients_served': 2210,
+              'coach_clients_per_active_coach': 15.7,
+            })),
+      ]);
+      // "2,210", not "2210": AdminMetricTile groups thousands, which is the approved
+      // card's own rendering. The first version of this assertion asked for the raw
+      // digits and was wrong about the UI rather than finding a defect in it.
+      expect(find.text('2,210'), findsOneWidget);
+      // 2210/141 = 15.7. Had the denominator been coaches_total it would read 13.5.
+      expect(find.text('15.7'), findsOneWidget);
+      expect(find.text('13.5'), findsNothing,
+          reason: 'the average must be per ACTIVE coach, not per coach');
+    });
+
+    testWidgets('an average with NOTHING TO DIVIDE BY renders the A11 state, never 0.0 — '
+        '"no active coach to average over" is not "an average of zero"', (t) async {
+      await _pumpSettled(t, const AdminPeopleScreen(), [
+        ..._denied,
+        adminUserOverviewProvider.overrideWith((_) async =>
+            AdminUserOverview.fromRow(const {
+              'coaches_total': 3,
+              'coaches_active_this_month': 0,
+              'coaches_no_client_this_month': 3,
+              'coach_clients_served': 0,
+              'coach_clients_per_active_coach': null,
+            })),
+      ]);
+      // The count is a real zero and uses the design's zero wording.
+      expect(find.text('Clients served'), findsOneWidget);
+      // The average is absent, not 0.0.
+      expect(find.text('0.0'), findsNothing,
+          reason: 'a null average must not render as zero');
+      expect(find.text('Average per active coach'), findsOneWidget);
+      expect(AdminUserOverview.fromRow(const {'coach_clients_served': 0})
+          .coachClientsPerActiveCoach, isNull);
+    });
+
+    testWidgets('the three Coaches tiles that remain unbuilt are NAMED, so a gap is not '
+        'read as an oversight', (t) async {
+      await _pumpSettled(t, const AdminPeopleScreen(), [
+        ..._denied,
+        adminUserOverviewProvider.overrideWith((_) async =>
+            AdminUserOverview.fromRow(const {'coaches_total': 164})),
+      ]);
+      final text = _allText(t);
+      for (final phrase in ['Programs live', 'coach-led', 'Reassign clients']) {
+        expect(text.contains(phrase), isTrue, reason: 'missing "$phrase" in: $text');
+      }
+    });
+
     testWidgets('a role with Users·view but not Users·update sees the rows and no action, '
         'and is told which capability is missing', (t) async {
       await _pumpSettled(t, const AdminPeopleScreen(), [..._denied, ..._withUsers(const [_row])]);
