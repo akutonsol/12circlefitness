@@ -277,6 +277,11 @@ class AdminRevenueOverview {
     required this.coachPayoutCents,
     required this.platformFeeCents,
     required this.payoutMissing,
+    required this.churnCancellationsMonth,
+    required this.churnActiveAtMonthStart,
+    required this.churnRatePct,
+    required this.churnFirstCancellationAt,
+    required this.churnDenominatorBasis,
   });
 
   final int? grossCoachingCents;
@@ -321,6 +326,33 @@ class AdminRevenueOverview {
 
   /// Coaching payments carrying no recorded split, so the totals above are a floor.
   final int? payoutMissing;
+
+  // ── OWNER DECISION Q11 · monthly subscription churn, event-based ─────────
+  /// Cancellations RECORDED within the current month. A real count: 0 means no cancellation
+  /// was recorded this month, which is a fact — it is [churnRatePct] that distinguishes
+  /// "none this month" from "we were not recording".
+  final int? churnCancellationsMonth;
+
+  /// Subscriptions that existed before the month began and were not yet canceled then.
+  final int? churnActiveAtMonthStart;
+
+  /// NULL until any cancellation has EVER been recorded. The ruling is explicit: *"until
+  /// sufficient real cancellation history exists, the Dashboard must render the appropriate
+  /// A11 empty/insufficient-history state rather than a misleading 0%."* 0% would assert
+  /// that nobody left; null says we cannot yet tell.
+  final double? churnRatePct;
+
+  /// The earliest recorded cancellation — how much history exists, as a fact. Null means
+  /// none has been recorded, which is the insufficient-history condition itself.
+  final DateTime? churnFirstCancellationAt;
+
+  /// The denominator's basis, published by the view so the surface discloses it rather than
+  /// restating it from memory.
+  final String? churnDenominatorBasis;
+
+  /// True while no cancellation has ever been recorded — the A11 insufficient-history
+  /// state, distinguished from a measured zero.
+  bool get churnHistoryInsufficient => churnFirstCancellationAt == null;
 
   /// True when every named stream plus `other` accounts for the paid total.
   bool get streamsReconcile {
@@ -373,6 +405,11 @@ class AdminRevenueOverview {
         coachPayoutCents: _int(r['coach_payout_cents']),
         platformFeeCents: _int(r['platform_fee_cents']),
         payoutMissing: _int(r['payout_missing']),
+        churnCancellationsMonth: _int(r['churn_cancellations_month']),
+        churnActiveAtMonthStart: _int(r['churn_active_at_month_start']),
+        churnRatePct: (r['churn_rate_pct'] as num?)?.toDouble(),
+        churnFirstCancellationAt: _date(r['churn_first_cancellation_at']),
+        churnDenominatorBasis: r['churn_denominator_basis'] as String?,
       );
 }
 

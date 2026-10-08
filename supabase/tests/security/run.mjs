@@ -130,6 +130,7 @@ const SUITES = [
   ['D17   weekly_feedback subject (175-177)',   './d17-weekly-feedback-subject-integrity.mjs'],
   ['D18   governed admin edit paths (161/165)', './d18-admin-write-paths.mjs'],
   ['D19   Guardian emergency disablement (169)', './d19-guardian-disablement.mjs'],
+  ['D20   subscription churn Q11 + Q12 (180)',  './d20-subscription-churn.mjs'],
 ];
 
 let totalFailures = 0;

@@ -299,3 +299,51 @@ METRIC-18  meaning ruled by direction K; answer only to change it = Option ____
 ```
 
 **Ten fields need an answer. Two are there only if you disagree with the evidence.**
+
+---
+
+## METRIC-20 · Churn *(new — it was never on this sheet)*
+
+**Design provenance.** `SCREEN-INVENTORY.md` and the Admin screens cited below live on the
+design branch at commit **`931218b`** (`design/12circle-plus-admin-dashboard`), which is not an
+ancestor of this branch — read them with `git show 931218b:<path>`.
+
+**Why it is being added now.** `SCREEN-INVENTORY.md:33` names **churn** among the Control
+Center's data requirements, and §196 established that the word appears **exactly once in the
+entire approved design corpus** — that line — and **zero** times across all six screens, the
+boundaries/components/provenance documents and the approved build spec. It was **absent from
+this sheet entirely**, so it had never been put to the owner in either direction. The
+approved monetisation roadmap names *"monthly churn"* under *Retention* without defining it,
+and `COWORK` §8 forbids agents inventing monetisation.
+
+**Question.** What is churn — which population, which window, and what event constitutes
+leaving?
+
+**Options as presented** (`V5_OWNER_DECISION_PACK_Q11_Q12.md`): `A` subscription churn,
+state-based · `B` subscription churn, event-based · `C` coach-relationship churn ·
+`D` activity churn · `E` defer and render `A11` empty.
+
+**Evidence established.** The only cancellation timestamp in 180 migrations was
+`coach_client_relationships.cancelled_at` (`025:19`); `subscriptions` had no end-date, no
+status CHECK and no history table. On QA: 173 subscriptions all `active`, 0
+`cancel_at_period_end`, and 175 relationships with 1 `cancelled` whose `cancelled_at` was
+**null** — so no churn was observable in any form, and the single leave-event in the database
+had no date.
+
+**RESOLVED 2026-10-07 · METRIC-20 = Option B — subscription churn, event-based.**
+
+> *"Define monthly subscription churn as: subscriptions canceled during the month ÷ active
+> subscriptions at the beginning of the month."*
+
+With: do not manufacture historical churn · do not infer cancellation dates from unrelated
+fields · implement the minimum authoritative data contract to record **future** cancellation
+events, including a cancellation timestamp and authorized writer path · preserve existing
+data, no backfill · render the `A11` empty/insufficient-history state rather than a misleading
+`0%` until sufficient real history exists · **no plan-level churn until `Q13`** · and `Q1`/`Q2`
+ambiguity must not alter this subscription-based definition.
+
+**Implemented** — migration `180` (§197). `subscriptions.canceled_at` added nullable with no
+backfill; the authorized writer is the existing `stripe-webhook`
+`customer.subscription.deleted` handler, which already writes `status = 'canceled'` and now
+records Stripe's own `canceled_at` in the same update. The rate is **NULL** until any
+cancellation has ever been recorded. **D20 · 23/23 live.**

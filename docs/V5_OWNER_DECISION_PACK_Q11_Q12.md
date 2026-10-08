@@ -1,8 +1,23 @@
 # V5 · Owner decision pack — Q11 · Q12, and the carried queue
 
-**Nothing in this pack was implemented.** Q11 and Q12 are retrieved, evidenced and optioned.
-No definition was chosen, no duplicate audit projection was built, and the Trust deep-link was
-not touched.
+> ## ANSWERED 2026-10-07 — both decisions are now owner-ruled and implemented
+>
+> **Q11 = Option B**, subscription churn, event-based. **Q12 = Option A**, actor-anonymous
+> audit tail. Both are implemented and verified in **§197**; this pack is retained as the
+> evidence record that produced them, and the options below are **historical**, not open.
+>
+> | | ruling | implementation | evidence |
+> |---|---|---|---|
+> | **Q11** | cancellations during the month ÷ active at month start | migration `180`: `subscriptions.canceled_at` nullable, **no backfill**; writer = the existing `stripe-webhook` `customer.subscription.deleted` handler; rate **NULL** until any cancellation is ever recorded | **D20 · 23/23 live**, incl. the decisive pair (numerator `0` with rate `NULL`) and the transition to a **real** `0` once capture is proven |
+> | **Q12** | action · category · outcome · timestamp · disclosure; **no actor names** | `_RecentAdminActivity` on the Control Center, reading the existing `admin_audit_events` | **D20 §6** proves the projection carries **no name or email column at all**, so the constraint is enforced by the surface and not only by the widget |
+>
+> Recorded as **METRIC-20** in `V5_METRIC_DECISION_SHEET.md`. `Q13` remains **unresolved and unpatched** by explicit
+> instruction, now with narrowing evidence. **`Q14`'s premise is WITHDRAWN** — it rested on a
+> reading I took while my own test fixture was live; see §197.4 and the queue below.
+
+**This pack as written implemented nothing.** Q11 and Q12 were retrieved, evidenced and
+optioned; no definition was chosen, no duplicate audit projection was built, and the Trust
+deep-link was not touched.
 
 One **correction of fact** was made, because it was a misstatement rather than a decision: the
 Control Center's "not shown" card said the audit tail belongs on Trust. The approved screen
@@ -219,10 +234,10 @@ deciding deliberately rather than inheriting from a mock-up.
 | **Q4** | Merge the design branch, or keep commit-pinned citations? **54 citations resolve at `931218b`**, 5 in-tree, **0 dangling**, guarded by `check-design-citations.mjs`. | **Nothing.** A convenience and provenance question. |
 | **Q5** | The Phosphor icon dependency — 107 icons eventually, 1 today. | **Nothing.** |
 | **Q7** | **`D-1`** — the SEC-W1 negative-control reconstruction mechanism. | **`QAX-SEC-08`'s fourth rung, and nothing else.** Three of four rungs hold. |
-| **Q11** | *(above)* What is churn? | The Control Center's `churn` requirement **only**. |
-| **Q12** | *(above)* What may a Control Center audit tail show? | The Control Center's `audit-log tail` requirement **only**. |
-| **Q13 · NEW** | **`subscriptions.kind` carries `'app'` on all 173 QA rows**, while `022:17-19` documents `'coach' \| 'self_guided' \| 'ai_guided'`. There is **no CHECK**. Which is authoritative — the comment, or the data? | Any plan-level breakdown, including **Q11 by plan**. Not blocking anything built: no admin surface reads `subscriptions`. |
-| **Q14 · NEW** | **A `cancelled` relationship with no `cancelled_at`.** `coach_client_relationships` has 1 cancelled row and `cancelled_at` populated on **0** rows. Should a cancellation be required to record *when*? | Any windowed measure over relationship endings, including **Q11 option C**. Reported rather than patched — a NOT NULL or trigger here is a write contract, which is yours. |
+| ~~**Q11**~~ | **ANSWERED — Option B.** Recorded as `METRIC-20`; implemented in §197. | — |
+| ~~**Q12**~~ | **ANSWERED — Option A.** Implemented in §197. | — |
+| **Q13 · CARRIED, explicitly not to be decided or patched** | **`subscriptions.kind` carries `'app'` on all 173 QA rows**, while `022:17-19` documents `'coach' \| 'self_guided' \| 'ai_guided'`. There is **no CHECK**. Which is authoritative — the comment, or the data? | Any plan-level breakdown, including **Q11 by plan**. Not blocking anything built: no admin surface reads `subscriptions`. |
+| **Q14 · PREMISE WITHDRAWN on evidence (§197.4)** | I reported *"one cancelled relationship has no `cancelled_at`"*. **That reading was taken while one of my own fixtures was live** — `D01` flips a relationship to `cancelled` during its run, and at `d01:217`/`:232` it sets `cancelled_at` explicitly. Measured with no suite running: **176 relationships, every one `active`, `cancelled_at` populated on zero rows** — an empty population, not a writer gap. And there is no gap: **three production paths** set it in the same write as the status (`coach_relationship_service.dart:104`, `profile_screen.dart:918`, `intake_flow_screen.dart:4188`). | **Nothing.** A `NOT NULL` or trigger would now be a policy choice with no observed defect behind it. Kept visible rather than deleted, because a question put to an owner on a bad measurement should be corrected where it was asked. |
 
 **Recorded debt, no decision needed unless you want it prioritised:** `EC-02`'s registry
 contradiction (`:709` `BLOCKED_DECISION` on Q-5 against `:782` *"lands now"*) remains

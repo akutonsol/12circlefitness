@@ -18077,3 +18077,140 @@ Two new questions, and both came from re-running a measurement rather than from 
   is a placement decision rather than a mechanical one.
 
 **Production was not contacted.**
+
+---
+
+## §197 · Owner decisions Q11 and Q12, implemented — and a question I had raised in error
+
+### §197.1 · Q11 · the data contract, and what it refuses to compute
+
+**The ruling:** *"Option B — Subscription churn, event-based … subscriptions canceled during
+the month ÷ active subscriptions at the beginning of the month."* Recorded as **`METRIC-20`**
+on the decision sheet, where churn had never appeared.
+
+**Migration 180 adds one nullable column and backfills nothing.** `subscriptions.canceled_at`
+arrives empty across all 173 pre-existing rows, and that null is the truthful answer: every one
+is `status = 'active'`, so none has a cancellation date, and for any that later did there is no
+authoritative source for *when*. Deriving one from `updated_at` or `current_period_end` is
+exactly the inference the ruling forbids — one moves on any write, the other is a billing
+boundary rather than a departure.
+
+**The authorized writer is the one that already existed.** No trigger and no new RPC:
+`stripe-webhook` already handles `customer.subscription.deleted` and already writes
+`status = 'canceled'` there, so the timestamp is written in the **same update**, taking
+**Stripe's own `canceled_at`** and naming its fallback rather than hiding it. A trigger
+inferring `now()` from a status transition would record when *we noticed*, and would fire for
+repairs and backfills too.
+
+**Spelling, deliberately inconsistent.** `canceled_at`, one L, matching Stripe's field and this
+table's own `'canceled'` status value. `coach_client_relationships.cancelled_at` has two. The
+divergence is pre-existing and was **not renamed** — a rename is a contract change to a column
+172 and 179 already read.
+
+**The denominator, and the one imprecision it cannot avoid.** "Active at the beginning of the
+month" is computed from the two authoritative timestamps only: `created_at` before the month
+began, and not yet canceled then. **It does not consult `status`**, because `status` is a
+current value with no history and applying it to a past instant would assert that a row which
+is `past_due` today was `past_due` a month ago. A subscription that never activated is
+therefore counted. That is disclosed *on the surface* — `churn_denominator_basis` is a view
+column, so the card states the basis rather than a reader having to infer it.
+
+**Insufficient history is not 0%.** `churn_rate_pct` is **NULL until any cancellation has ever
+been recorded**, because before that the measure cannot distinguish *"nobody left"* from *"we
+were not recording departures"*. After the first recorded cancellation the mechanism is proven
+live and a month with none is a **real** zero. `churn_first_cancellation_at` publishes how much
+history exists, as a fact.
+
+`Q1` and `Q2` cannot reach this: the population is **subscriptions** and the month boundary is
+the database's, the same basis 172/176/179 use. **No plan-level split**, because `Q13` is
+unresolved — and D20 asserts no `churn_*` column carries a plan, kind or tier.
+
+### §197.2 · Q12 · the tail, built to the width of the ruling
+
+**The ruling:** *"Option A — actor-anonymous audit tail"*, displaying action, category,
+outcome, timestamp and required disclosure, and **not** resolving actor IDs into names.
+
+`_RecentAdminActivity` reads the existing `admin_audit_events` — no new surface, no new grant,
+no schema. Four things are absent, each a different kind of absence:
+
+* **No actor name.** The projection carries `actor_id` as a raw uuid and this widget never
+  reads it. D20 §6 goes further and proves the **surface itself** exposes no name or email
+  column at all, so the constraint is structural rather than a widget convention.
+* **No Guardian rows.** `agent_action` is a real category in the 15-value CHECK and **nothing
+  emits it** (`B-17` / `P7`).
+* **No release rows.** *"Release 4.2.0 deployed to staging"* is **not an audit event** under the
+  ruled vocabulary; release state lives in `release_status` (173) and is already on this page's
+  QA & release card.
+* **No MFA.** The sample row claims a second factor that is not a recorded fact.
+
+**`A13·1` is disclosed, not implied.** The projection excludes the reader's own `admin_action`
+rows in its own predicate, so the tail is **incomplete for whoever is reading it** — and a
+ledger that looks complete while excluding its reader is worse than one that says so.
+
+**The "Not shown here" card dropped from seven absences to six**, and the guard's expected count
+came down with it. That is an absence becoming a **build**, not a relaxed guard: its substance —
+distinct reasons, each naming a ruling or a missing producer, none reading as a measured zero —
+is unchanged, and a new assertion requires that `Audit-log tail` is **no longer** in the map.
+
+### §197.3 · Q13 — evidence gathered, nothing patched
+
+`subscriptions.kind` is `'app'` on all 173 QA rows while `022:17-19` documents
+`'coach' | 'self_guided' | 'ai_guided'`, and there is no CHECK. Two facts narrow it
+considerably, and neither decides it:
+
+1. **Every `'app'` row has a null `stripe_subscription_id` and a null `stripe_price_id`.** They
+   did not arrive through Stripe.
+2. **No code anywhere writes `kind = 'app'`.** `create-checkout` and `stripe-webhook` write the
+   documented vocabulary and always set the Stripe identifiers.
+
+So the `'app'` rows are **seed data, not subscriptions any code path produced**. That is
+evidence that the comment is the live contract and the data is QA noise — and it is still the
+owner's call, because the alternative (that `'app'` is an intended value this repo does not yet
+write) cannot be excluded from inside the repo. **No CHECK was added, no vocabulary changed, no
+row touched.**
+
+### §197.4 · Q14 — I raised this in error, and the correction matters more than the question
+
+I reported to the owner that *"one cancelled relationship has no `cancelled_at`"*. **That was a
+measurement taken while one of my own test fixtures was live.** `D01` flips a relationship to
+`cancelled` as part of its run — and at `d01:217` and `:232` it sets `cancelled_at` explicitly.
+
+Measured with no suite running: **176 relationships, every one `active`, `cancelled_at`
+populated on zero rows.** There is no cancelled relationship in QA at all, so the null column is
+an **empty population** and not a writer gap. And there is no writer gap: **three production
+paths** set `cancelled_at` in the same write as the status —
+`coach_relationship_service.dart:104`, `profile_screen.dart:918` and
+`intake_flow_screen.dart:4188`.
+
+**So Q14's premise is withdrawn.** It is kept visible rather than deleted, because a question
+put to an owner on a bad measurement should be corrected where it was asked. If a `NOT NULL` or
+a trigger is still wanted it is a **policy** choice, and there is no observed defect motivating
+one.
+
+**The lesson is the run's own, repeated.** Every earlier instance was a measurement that read
+its own notes; this one read its own fixtures. The reading was taken mid-suite, and the fix is
+the same discipline that caught the others: measure when nothing else is writing, and say which
+it was.
+
+### §197.5 · Evidence
+
+**D20 · 23/23 live** — the decisive pair (numerator `0` while the rate is `NULL`), the
+transition to a **real** `0` once a prior-month cancellation exists, a numerator delta of
+exactly one, the rate recomputed independently from the view's own published components, the
+no-backfill proof across 175 rows, no plan/kind/tier among the `churn_*` columns, no uuid or
+email disclosed, and an **asserted** teardown — `subscriptions` is a billing table and a stray
+row would misstate revenue on surfaces other suites read.
+
+**Four defects in that suite were mine, each caught by an assertion rather than a green run:**
+`/plan/` matched `stream_coach_plan_cents` — 178's revenue-by-stream column, a true regex match
+and a false claim, so the check is now scoped to `churn_*`; the denial case used `support`,
+which **holds** `Monetization·view` — all five approved roles do (`155:49-53`), so the only
+denial the matrix makes reachable is a caller with **no admin role**; and the audit projection
+was read through `svc`, where `admin_can` is false for `service_role`, which reported the gate
+working as a missing projection.
+
+Live **1074/1074 across 20 suites** (1051/19 before D20) · Flutter **1917 / 5 skipped**
+(1907 → 1917) · `dart analyze` **0 errors** · nine static guards exit 0 · QA frontier
+**179 → 180**, declared and reconciled.
+
+**Production was not contacted.**

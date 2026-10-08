@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/admin_metrics.dart';
+import '../domain/admin_trust.dart';
 import '../domain/admin_provider.dart';
 import 'admin_attention_queue.dart';
 import 'admin_chrome.dart';
@@ -52,6 +53,8 @@ class AdminMetricsPanel extends ConsumerWidget {
         _revenue(ref),
         const SizedBox(height: AdminDims.space6),
         _release(ref),
+        const SizedBox(height: AdminDims.space6),
+        const _RecentAdminActivity(),
         const SizedBox(height: AdminDims.space6),
         const _DashboardAbsences(),
       ],
@@ -255,6 +258,41 @@ class AdminMetricsPanel extends ConsumerWidget {
               else
                 const AdminMetricTile.absent(
                     label: 'FX USD→GBP', absence: MetricAbsence.notRecorded),
+              // ── OWNER DECISION Q11 · monthly subscription churn ──────────
+              // THE RATE COMES FIRST AND IS NOT A NUMBER YET. The ruling requires the A11
+              // insufficient-history state "rather than a misleading 0%", and that is not
+              // the same as a null-check: the view returns null only while NO cancellation
+              // has ever been recorded, so once one exists a 0 for a given month is a real
+              // measured zero and renders as one.
+              if (m.churnRatePct != null)
+                AdminMetricTile.text(
+                    label: 'Monthly churn',
+                    display: '${m.churnRatePct!.toStringAsFixed(1)}%')
+              else
+                const AdminMetricTile.absent(
+                    label: 'Monthly churn', absence: MetricAbsence.notRecorded),
+              // The two components, shown whether or not the rate is computable — they are
+              // recorded counts and a reader can see the measurement being assembled.
+              AdminMetricTile.of('Cancellations this month', m.churnCancellationsMonth,
+                  whenNull: MetricAbsence.notAuthorized, zeroCopy: 'None'),
+              AdminMetricTile.of(
+                  'Subscriptions at month start', m.churnActiveAtMonthStart,
+                  whenNull: MetricAbsence.notAuthorized, zeroCopy: 'None'),
+              // Says WHY there is no rate, rather than leaving an unexplained absence —
+              // and says it only while that is actually the reason.
+              if (m.churnHistoryInsufficient)
+                const AdminFootnote(
+                    'No churn rate yet: no cancellation has been recorded since the '
+                    'cancellation event began being captured, so a rate cannot '
+                    'distinguish "nobody left" from "departures were not recorded". '
+                    'History is not backfilled.'),
+              // The denominator's basis, read from the view rather than restated here, so
+              // the surface cannot drift from the definition it is reporting.
+              if (m.churnDenominatorBasis != null)
+                AdminFootnote(
+                    'Churn denominator: subscriptions that '
+                    '${m.churnDenominatorBasis}. No plan-level split — Q13 is '
+                    'unresolved.'),
             ];
           },
         ),
@@ -410,11 +448,6 @@ class _DashboardAbsences extends StatelessWidget {
         'forecloses, so this renders empty by decision — not for want of work.',
     'Impressions': 'Semantically defined as eligible content renders, and no producer '
         'exists to emit one.',
-    'Audit-log tail': 'The approved screen DOES place a "Recent admin activity" section '
-        'here. It is not built because two of its four designed row types have no producer '
-        '(a Guardian finding needs P7) or no category (a release is not an audit event '
-        'under the ruled vocabulary), and all four name the actor, which no audit surface '
-        'in this layer resolves. The full projection is on Trust. Owner question Q12.',
   };
 
   @override
@@ -441,4 +474,125 @@ class _DashboardAbsences extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// The approved Control Center's **"Recent admin activity / Audit log"** section, built to
+/// **owner decision Q12 · Option A — actor-anonymous**.
+///
+/// THE RULING BOUNDS THIS WIDGET EXACTLY. It may display *action, category, outcome,
+/// timestamp and required disclosure/state messaging*. It must **not resolve actor IDs into
+/// user names**, must not fabricate the four design sample rows, must not invent Guardian
+/// audit events before the producer exists, must not turn release status into an audit
+/// event to populate a mock-up, must not claim MFA when MFA is not a recorded fact, and must
+/// preserve `A13·1`.
+///
+/// SO FOUR THINGS ARE DELIBERATELY ABSENT, and each is a different kind of absence:
+///
+///   * **No actor name.** `admin_audit_events` carries `actor_id` as a raw uuid and this
+///     widget never reads it. Resolving it would make the Dashboard the first standing
+///     resolver of actor identity in this layer — unruled, not authorized, and the one thing
+///     Option A exists to avoid. The design's samples read *"J. Park changed Coach role"*;
+///     these rows read the action as the ledger recorded it.
+///   * **No Guardian rows.** `agent_action` is a real category in the 15-value CHECK (152),
+///     and nothing emits it: the Guardian runtime is `B-17` / `P7`. An empty category is not
+///     a defect to paper over.
+///   * **No release rows.** *"Release 4.2.0 deployed to staging"* is not an audit event under
+///     the ruled vocabulary at all — release state lives in `release_status` (173), a
+///     separate registry, and is already on this page's QA & release card.
+///   * **No MFA.** The sample row says *"Admin login · MFA"*; MFA is not a recorded fact, so
+///     the category is shown as `authentication` and nothing claims a second factor.
+///
+/// `A13·1` IS DISCLOSED RATHER THAN IMPLIED. The projection excludes the reader's own
+/// `admin_action` rows in its own predicate, so this tail is **incomplete for whoever is
+/// reading it** — and a ledger that looks complete while excluding its reader is worse than
+/// one that says so. [AdminAuditEvent.a13Note] carries the sentence.
+class _RecentAdminActivity extends ConsumerWidget {
+  const _RecentAdminActivity();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(adminAuditEventsProvider);
+    return AdminCard(
+      title: 'Recent admin activity',
+      child: async.when(
+        loading: () => const AdminNote('Loading…'),
+        error: (_, __) => const AdminNote('Unavailable'),
+        data: (events) {
+          // Null is NO CAPABILITY for Audit logs, which is a different fact from an empty
+          // ledger — the three-state rule, and the service asks `admin_can` rather than
+          // inferring it from an empty read.
+          if (events == null) return const AdminNote('Not available to your role');
+          if (events.isEmpty) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: const [
+                AdminNote('No admin activity recorded'),
+                AdminFootnote(AdminAuditEvent.a13Note),
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final e in events.take(8)) _ActivityRow(event: e),
+              // The disclosure the ruling calls "required disclosure/state messaging".
+              const AdminFootnote(AdminAuditEvent.a13Note),
+              const AdminFootnote(
+                  'Actions are shown as the ledger recorded them. The acting administrator '
+                  'is not named here, and the subject of an action is pseudonymous.'),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ActivityRow extends StatelessWidget {
+  const _ActivityRow({required this.event});
+
+  final AdminAuditEvent event;
+
+  @override
+  Widget build(BuildContext context) {
+    final at = event.occurredAt;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AdminDims.space3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(event.action ?? 'Action not recorded',
+                    style: const TextStyle(
+                        color: AdminColors.colorTextPrimary,
+                        fontSize: AdminDims.typeSmallSize,
+                        fontWeight: FontWeight.w500)),
+                Text(
+                    [
+                      // Each absence is named rather than rendered as a blank.
+                      event.category ?? 'No category recorded',
+                      event.outcome ?? 'No outcome recorded',
+                    ].join(' · '),
+                    style: const TextStyle(
+                        color: AdminColors.colorTextMuted,
+                        fontSize: AdminDims.typeCaptionSize)),
+              ],
+            ),
+          ),
+          // The design shows a time of day. A missing timestamp says so; it does not
+          // default to now, which would date an event to the moment it was read.
+          Text(
+              at == null
+                  ? 'No time recorded'
+                  : at.toIso8601String().split('T').last.substring(0, 5),
+              style: const TextStyle(
+                  color: AdminColors.colorTextSubtle,
+                  fontSize: AdminDims.typeCaptionSize)),
+        ],
+      ),
+    );
+  }
 }
