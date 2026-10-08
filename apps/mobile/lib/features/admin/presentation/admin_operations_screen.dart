@@ -63,6 +63,16 @@ class AdminOperationsScreen extends ConsumerWidget {
               _integrations(ref),
               const SizedBox(height: AdminDims.space6),
               _system(ref),
+              const SizedBox(height: AdminDims.space6),
+              // The design places a "State system" panel on People, Trust, Operations and
+              // Settings. This page was the one of the four without it.
+              const AdminStatesPanel(
+                title: 'State system',
+                implemented: 'Loading · Unavailable · Not available to your role · '
+                    'Not recorded · None',
+                readOnlyNote: 'This page is read-only. Nothing is changed from this '
+                    'screen.',
+              ),
             ],
           ),
         ),

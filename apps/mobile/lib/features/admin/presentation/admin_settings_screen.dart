@@ -274,17 +274,11 @@ class _StatesPanel extends StatelessWidget {
   const _StatesPanel();
 
   @override
-  Widget build(BuildContext context) => const AdminCard(
+  Widget build(BuildContext context) => const AdminStatesPanel(
         title: 'State system',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AdminFootnote('Loading · Unavailable · Not available to your role · '
-                'Not recorded · None'),
-            AdminFootnote('Sections with no surface behind them say so individually, '
-                'rather than being dropped from the design.'),
-            AdminFootnote('This page is read-only. Nothing is changed from this screen.'),
-          ],
-        ),
+        implemented: 'Loading · Unavailable · Not available to your role · '
+            'Not recorded · None. Sections with no surface behind them say so '
+            'individually, rather than being dropped from the design.',
+        readOnlyNote: 'This page is read-only. Nothing is changed from this screen.',
       );
 }

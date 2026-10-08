@@ -331,3 +331,74 @@ class AdminSearchBox extends StatelessWidget {
         ],
       );
 }
+
+/// The "State system" panel the design places on People, Trust, Operations and Settings, and
+/// as "Dashboard states" on the Control Center.
+///
+/// WHY IT IS A SHARED WIDGET. `SCREEN-INVENTORY`'s **"States designed"** list is a
+/// requirements list like the other two, and it names **five states present in all six
+/// files** — Loading, Empty, Error, Permission (denied), Degraded — plus Unavailable, Stale,
+/// Offline, Skeleton and Read-only on named pages. Four of those ten are **not implemented
+/// anywhere**, and before this widget each page named only the states it happened to render,
+/// so the four absent ones were silently absent on all six. A shared panel states them once
+/// and identically; six hand-written lists would drift.
+///
+/// WHY THE FOUR ARE NOT BUILT, and why that is not laziness:
+///
+///   * **Offline** needs a connectivity signal this layer does not have.
+///   * **Stale** needs a freshness threshold — how old is stale? — which is a product rule.
+///   * **Degraded** needs a definition of partial failure. `A5` uses the word for the
+///     *Guardian's* state, which is a different thing: that is a recorded value, not a page
+///     condition.
+///   * **Skeleton** is a loading *treatment* and this layer renders Loading as text; a
+///     shimmer is presentational and would say nothing the text does not.
+///
+/// Each needs a definition, and inventing one would put a state on screen that no rule
+/// produces — the defect this whole programme guards against, applied to chrome.
+class AdminStatesPanel extends StatelessWidget {
+  const AdminStatesPanel({
+    required this.title,
+    required this.implemented,
+    required this.readOnlyNote,
+    super.key,
+  });
+
+  /// `State system` on the four pages the design names, `Dashboard states` on the Control
+  /// Center — the design's own two labels.
+  final String title;
+
+  /// The states this page actually renders, in its own words.
+  final String implemented;
+
+  /// The page's read-only posture, IN ITS OWN WORDS.
+  ///
+  /// NOT A SHARED SENTENCE, and the first version of this widget made that mistake: it used
+  /// one line — *"read-only except where an action is shown"* — for all five pages, which
+  /// made **Settings claim it has actions it does not have**. Settings and Operations are
+  /// read-only outright; People, Trust and the Control Center carry gated actions. A panel
+  /// that documents the state system must not misdescribe the page it is on.
+  final String readOnlyNote;
+
+  /// The designed states with no implementation, named once for every page.
+  static const unimplemented =
+      'Not implemented: Offline (no connectivity signal in this layer), Stale (no freshness '
+      'threshold is ruled), Degraded (no definition of partial failure — A5 uses the word '
+      'for the Guardian\'s own recorded state, which is a different thing) and Skeleton (a '
+      'loading treatment; Loading is rendered as text here).';
+
+  @override
+  Widget build(BuildContext context) => AdminCard(
+        title: title,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AdminFootnote(implemented),
+            const AdminFootnote(
+                '"Not available to your role" and "Not recorded" are different findings and '
+                'are never shown interchangeably.'),
+            const AdminFootnote(unimplemented),
+            AdminFootnote(readOnlyNote),
+          ],
+        ),
+      );
+}

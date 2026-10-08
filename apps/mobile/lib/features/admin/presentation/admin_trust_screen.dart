@@ -535,18 +535,12 @@ class _TrustSystemPanel extends StatelessWidget {
   const _TrustSystemPanel();
 
   @override
-  Widget build(BuildContext context) => AdminCard(
+  Widget build(BuildContext context) => const AdminStatesPanel(
         title: 'State system',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: const [
-            AdminFootnote('Loading · Unavailable · Not available to your role · '
-                'Not recorded · Read-only'),
-            AdminFootnote('"Not available to your role" and "Not recorded" are different '
-                'findings and are never shown interchangeably.'),
-            AdminFootnote('This page is read-only. Nothing is changed from this screen.'),
-          ],
-        ),
+        implemented: 'Loading · Unavailable · Not available to your role · '
+            'Not recorded · Read-only',
+        readOnlyNote: 'Read-only except the incident resolve and Guardian disable actions, '
+            'each shown only to a holder of its capability.',
       );
 }
 

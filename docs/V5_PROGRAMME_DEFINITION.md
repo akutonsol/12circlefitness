@@ -18397,3 +18397,66 @@ schema change, no new grant** — the filters run inside the gates that already 
 reads.
 
 **Production was not contacted.**
+
+---
+
+## §200 · The third design list — the state system, documented on two pages of six
+
+### §200.1 · "States designed" is a requirements list too
+
+`SCREEN-INVENTORY` carries **three** requirements lists, not two. §181's method found work in
+*"Data each page needs"* three times and §198 found two missing requirements in *"Interactions
+expected"*. **"States designed"** had never been read as requirements at all:
+
+> *"Loading, Empty, Error, Permission (denied), Degraded. Also: Unavailable (Control Center,
+> Operations, People), Stale (People, Trust), Offline and Skeleton (Ecosystem, People),
+> Read-only (Operations, Settings, Trust). A "State system" panel on People, Trust, Operations
+> and Settings and "Dashboard states" on the Control Center show the patterns side by side."*
+
+Two findings:
+
+1. **Two of the five required panels were missing.** The design places a `State system` panel
+   on **four** pages and `Dashboard states` on the Control Center. **Operations had none**, and
+   the **Control Center had none** — and the Control Center's label is a different one, which
+   the inventory states separately.
+2. **Four of the ten designed states are implemented nowhere**, and before this section each
+   panel listed only the states its own page happened to render — so **Offline, Stale, Degraded
+   and Skeleton were silently absent on all six surfaces.** That is §194's defect one level up:
+   not a missing figure, a missing *state vocabulary*.
+
+### §200.2 · Why those four are not built, stated once
+
+Each needs a definition, and inventing one would put a state on screen that no rule produces:
+
+* **Offline** — no connectivity signal exists in this layer.
+* **Stale** — *how old is stale?* is a product rule, not a default.
+* **Degraded** — needs a definition of partial failure. **`A5` uses the same word for the
+  Guardian's own recorded state**, which is a different thing entirely: that is a value in a
+  column, not a condition of a page. Conflating them would have been the easiest mistake here.
+* **Skeleton** — a loading *treatment*; this layer renders Loading as text, and a shimmer would
+  say nothing the text does not.
+
+`AdminStatesPanel` holds them in **one constant**, and `SEC-G10` requires every panel to route
+through it — because six hand-written lists diverge the first time one page changes, and a
+divergence here is a page claiming a state it does not have.
+
+### §200.3 · A shared sentence that misdescribed a page
+
+The first version of the shared panel used **one** read-only line for all five pages — *"This
+page is read-only except where an action is shown"* — and the Settings test failed. It was
+right to: **Settings has no actions at all**, so that sentence made it claim one.
+
+The posture is now per-page and the guard requires all five to **differ**: Settings and
+Operations are read-only outright; People names *"Edit profile"*; Trust names the incident
+resolve and Guardian disable; the Control Center says every action lives on the page that owns
+the record. A panel whose job is to document the state system must not misdescribe the page it
+sits on.
+
+### §200.4 · Evidence
+
+`SEC-G10` · **5 assertions**, including a control that proves the hand-rolled-list detector
+works and a distinctness check on the five postures. Admin screen suites **115** · Flutter
+**1937 / 5 skipped** (1932 → 1937) · `dart analyze` **0 errors**. **No migration, no schema, no
+new data read, no new grant.**
+
+**Production was not contacted.**

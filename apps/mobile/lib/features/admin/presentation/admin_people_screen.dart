@@ -449,21 +449,19 @@ class _UserRow extends ConsumerWidget {
 
 /// `#states` — the state-system panel the design places on People, naming the states this
 /// page actually renders.
+/// Delegates to [AdminStatesPanel] so the four DESIGNED-BUT-UNIMPLEMENTED states — Offline,
+/// Stale, Degraded, Skeleton — are named identically on every page. This panel used to list
+/// only the states this page renders, which meant the four absent ones were silently absent
+/// on all six surfaces.
 class _StatesPanel extends StatelessWidget {
   const _StatesPanel();
 
   @override
-  Widget build(BuildContext context) => const AdminCard(
+  Widget build(BuildContext context) => const AdminStatesPanel(
         title: 'State system',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AdminFootnote('Loading · Unavailable · Not available to your role · '
-                'Not recorded · None'),
-            AdminFootnote('"Not available to your role" and "Not recorded" are different '
-                'findings and are never shown interchangeably.'),
-            AdminFootnote('This page is read-only. Nothing is changed from this screen.'),
-          ],
-        ),
+        implemented: 'Loading · Unavailable · Not available to your role · '
+            'Not recorded · None',
+        readOnlyNote: 'Read-only except "Edit profile", which names the capability it '
+            'needs and is shown only to a holder of it.',
       );
 }

@@ -57,6 +57,16 @@ class AdminMetricsPanel extends ConsumerWidget {
         const _RecentAdminActivity(),
         const SizedBox(height: AdminDims.space6),
         const _DashboardAbsences(),
+        const SizedBox(height: AdminDims.space6),
+        // The design's own label for this page is "Dashboard states", not "State system" —
+        // the inventory names them separately and this is the Control Center.
+        const AdminStatesPanel(
+          title: 'Dashboard states',
+          implemented: 'Loading · Unavailable · Not available to your role · '
+              'Not recorded · None · Read-only',
+          readOnlyNote: 'This page is read-only. Every action lives on the page that owns '
+              'the record.',
+        ),
       ],
     );
   }
